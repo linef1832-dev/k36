@@ -166,6 +166,16 @@ const PERM_GROUPS = [
         ]
     },
     {
+        id: 'page_staff_record', name: 'ประวัติพนักงาน', icon: 'assignment_ind', theme: 'amber',
+        items: [
+            {id: 'staff_record', name: 'เข้าหน้าประวัติพนักงาน', isSub: false},
+            {id: 'staff_record_add', name: 'ลงประวัติ', isSub: true},
+            {id: 'staff_record_delete', name: 'ลบประวัติ', isSub: true},
+            {id: 'staff_record_view_all', name: 'ดูของทุกคน (ไม่ติก = เห็นเฉพาะของตัวเอง)', isSub: true},
+            {id: 'staff_record_topics', name: 'แก้หัวข้อเรื่องที่ผิด', isSub: true}
+        ]
+    },
+    {
         id: 'page_kbiz', name: 'จัดการบอท K BIZ', icon: 'smart_toy', theme: 'emerald',
         items: [
             {id: 'kbiz', name: 'เข้าหน้าจัดการบอท K BIZ', isSub: false}

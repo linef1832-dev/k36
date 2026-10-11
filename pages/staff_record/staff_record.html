@@ -1,0 +1,181 @@
+<!-- 📒 ประวัติการทำงานพนักงาน — ลงเรื่องที่ผิดแบบกดไม่กี่ที + สรุปรายเดือนว่าใครผิดเรื่องไหนกี่ครั้ง -->
+<style>
+    #srApp{background:var(--k-bg);border:1px solid var(--k-line);color:var(--k-tx)}
+    #srApp .sr-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 18px;background:var(--k-panel);border-bottom:1px solid var(--k-line)}
+    #srApp .sr-ico{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:var(--k-gold);color:var(--k-gold-ink);flex:none;box-shadow:0 6px 18px rgba(232,193,90,.25)}
+    #srApp .sr-ico .material-icons{font-size:24px}
+    #srApp .sr-title{font-size:18px;font-weight:900;color:var(--k-tx-strong);line-height:1.2}
+    #srApp .sr-sub{font-size:12px;font-weight:600;color:var(--k-mute)}
+    #srApp .sr-month{margin-left:auto;display:flex;align-items:center;gap:4px;padding:4px;border-radius:12px;background:var(--k-sunk);border:1px solid var(--k-line)}
+    #srApp .sr-month button{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:transparent;border:0;color:var(--k-tx3);cursor:pointer}
+    #srApp .sr-month button:hover{background:var(--k-btn-h);color:var(--k-tx-strong)}
+    #srApp .sr-month b{min-width:110px;text-align:center;font-size:14px;font-weight:900;color:var(--k-tx-strong)}
+    #srApp .sr-month .sr-now{width:auto;padding:0 10px;font-size:12px;font-weight:800;color:var(--k-gold-tx)}
+
+    #srApp .sr-body{flex:1;overflow-y:auto;padding:18px}
+    #srApp .sr-wrap{max-width:1600px;margin:0 auto;display:grid;grid-template-columns:380px minmax(0,1fr);gap:16px;align-items:start}
+    #srApp .sr-wrap.no-form{grid-template-columns:minmax(0,1fr)}
+    #srApp .sr-card{background:var(--k-panel);border:1px solid var(--k-line);border-radius:16px}
+    #srApp .sr-ch{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--k-line)}
+    #srApp .sr-ch .material-icons.ic{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;flex:none}
+    #srApp .sr-h{font-size:14.5px;font-weight:900;color:var(--k-tx-strong)}
+    #srApp .sr-hint{font-size:11.5px;font-weight:600;color:var(--k-mute)}
+    #srApp .sr-cb{padding:14px 16px}
+
+    /* ฟอร์มลงประวัติ */
+    #srApp .sr-form{position:sticky;top:0}
+    #srApp .sr-lbl{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:800;color:var(--k-tx3);margin:0 0 6px}
+    #srApp .sr-lbl a{font-size:11.5px;color:var(--k-gold-tx);cursor:pointer;text-decoration:underline}
+    #srApp .sr-step{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:99px;background:var(--k-gold);color:var(--k-gold-ink);font-size:11px;font-weight:900;margin-right:6px}
+    #srApp .sr-in{width:100%;height:40px;padding:0 12px;border-radius:10px;background:var(--k-field);border:1px solid var(--k-line2);color:var(--k-tx);font-size:13.5px;font-weight:700;outline:none;transition:border-color .15s}
+    #srApp textarea.sr-in{height:auto;min-height:64px;padding:10px 12px;resize:vertical;line-height:1.5}
+    #srApp .sr-in:focus{border-color:var(--k-gold);box-shadow:0 0 0 3px rgba(232,193,90,.15)}
+    #srApp .sr-in::placeholder{color:var(--k-mute3)}
+    #srApp .sr-field{margin-bottom:14px}
+    #srApp .sr-emp{position:relative}
+    #srApp .sr-emp-list{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:30;max-height:280px;overflow-y:auto;border-radius:12px;background:var(--k-panel);border:1px solid var(--k-line2);box-shadow:var(--k-shadow);display:none}
+    #srApp .sr-emp-list.on{display:block}
+    #srApp .sr-emp-opt{display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:pointer;font-size:13px;font-weight:800;color:var(--k-tx)}
+    #srApp .sr-emp-opt:hover,#srApp .sr-emp-opt.act{background:var(--k-btn-h)}
+    #srApp .sr-emp-opt small{margin-left:auto;font-size:11px;font-weight:700;color:var(--k-mute)}
+    #srApp .sr-picked{display:none;align-items:center;gap:8px;height:40px;padding:0 6px 0 12px;border-radius:10px;background:var(--k-gold-bg);border:1px solid rgba(232,193,90,.5)}
+    #srApp .sr-picked.on{display:flex}
+    #srApp .sr-picked b{font-size:14px;font-weight:900;color:var(--k-tx-strong)}
+    #srApp .sr-picked small{font-size:11.5px;font-weight:700;color:var(--k-mute)}
+    #srApp .sr-picked button{margin-left:auto;width:28px;height:28px;border-radius:8px;border:0;background:transparent;color:var(--k-mute);cursor:pointer;display:flex;align-items:center;justify-content:center}
+    #srApp .sr-picked button:hover{background:var(--k-btn-h);color:var(--k-tx-strong)}
+    #srApp .sr-topics{display:flex;flex-wrap:wrap;gap:6px}
+    #srApp .sr-topic{--c:#64748b;display:inline-flex;align-items:center;gap:5px;height:34px;padding:0 12px;border-radius:999px;font-size:12.5px;font-weight:800;cursor:pointer;color:var(--k-tx2);background:var(--k-btn);border:1px solid var(--k-line3);transition:background .12s,border-color .12s,color .12s}
+    #srApp .sr-topic i{width:8px;height:8px;border-radius:99px;background:var(--c);flex:none}
+    #srApp .sr-topic:hover{border-color:var(--c)}
+    #srApp .sr-topic.on{background:color-mix(in srgb,var(--c) 18%,var(--k-panel));border-color:var(--c);color:var(--k-tx-strong)}
+    #srApp .sr-topic.on::after{content:'✓';font-weight:900;color:var(--c)}
+    #srApp .sr-save{width:100%;height:46px;border-radius:12px;border:1px solid var(--k-gold);background:var(--k-gold);color:var(--k-gold-ink);font-size:14.5px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;box-shadow:0 6px 18px rgba(232,193,90,.22);transition:filter .15s,transform .08s}
+    #srApp .sr-save:hover{filter:brightness(1.06)}
+    #srApp .sr-save:active{transform:scale(.98)}
+    #srApp .sr-save:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
+    #srApp .sr-recent{margin-top:14px;padding-top:12px;border-top:1px solid var(--k-line)}
+    #srApp .sr-recent-i{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:12.5px;color:var(--k-tx2)}
+    #srApp .sr-recent-i b{color:var(--k-tx-strong)}
+    #srApp .sr-recent-i small{margin-left:auto;color:var(--k-mute);font-size:11px;white-space:nowrap}
+
+    /* สรุป */
+    #srApp .sr-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:14px}
+    #srApp .sr-kpi{padding:12px 16px;border-radius:14px;background:var(--k-panel);border:1px solid var(--k-line)}
+    #srApp .sr-kpi .l{font-size:11.5px;font-weight:800;color:var(--k-mute)}
+    #srApp .sr-kpi .v{font-size:24px;font-weight:900;color:var(--k-tx-strong);line-height:1.2;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #srApp .sr-kpi .v small{font-size:12px;font-weight:700;color:var(--k-mute);margin-left:4px}
+    #srApp .sr-tool{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 16px;border-bottom:1px solid var(--k-line);background:var(--k-panel2);border-radius:16px 16px 0 0}
+    #srApp .sr-search{position:relative;flex:1 1 220px}
+    #srApp .sr-search .material-icons{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:18px;color:var(--k-mute);pointer-events:none}
+    #srApp .sr-search .sr-in{padding-left:34px;height:36px}
+    #srApp select.sr-in{width:auto;height:36px;cursor:pointer}
+    #srApp select.sr-in option{background:var(--k-field);color:var(--k-tx)}
+
+    #srApp .sr-list{padding:10px;display:flex;flex-direction:column;gap:8px}
+    #srApp .sr-emp-card{border-radius:12px;background:var(--k-card);border:1px solid var(--k-line);overflow:hidden}
+    #srApp .sr-emp-row{display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer}
+    #srApp .sr-emp-row:hover{background:var(--k-btn-h)}
+    #srApp .sr-av{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;background:var(--k-btn-h);color:var(--k-tx2);flex:none}
+    #srApp .sr-nm{font-size:14px;font-weight:900;color:var(--k-tx-strong)}
+    #srApp .sr-meta{display:flex;gap:5px;margin-top:3px;flex-wrap:wrap}
+    #srApp .sr-tag{font-size:10.5px;font-weight:800;padding:1px 7px;border-radius:999px;background:var(--k-btn);border:1px solid var(--k-line2);color:var(--k-mute)}
+    #srApp .sr-chips{flex:1;display:flex;flex-wrap:wrap;gap:5px;justify-content:flex-end;min-width:0}
+    #srApp .sr-chip{--c:#64748b;display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:800;padding:3px 9px;border-radius:999px;background:color-mix(in srgb,var(--c) 14%,transparent);border:1px solid color-mix(in srgb,var(--c) 40%,transparent);color:var(--k-tx)}
+    #srApp .sr-chip b{font-weight:900;color:var(--k-tx-strong)}
+    #srApp .sr-total{flex:none;min-width:58px;text-align:right}
+    #srApp .sr-total b{display:block;font-size:22px;font-weight:900;color:var(--k-tx-strong);line-height:1;font-variant-numeric:tabular-nums}
+    #srApp .sr-total small{font-size:10.5px;font-weight:700;color:var(--k-mute)}
+    #srApp .sr-total.hot b{color:var(--k-red-tx)}
+    #srApp .sr-caret{color:var(--k-mute);transition:transform .15s;flex:none}
+    #srApp .sr-emp-card.open .sr-caret{transform:rotate(180deg)}
+    #srApp .sr-tl{display:none;border-top:1px solid var(--k-line);background:var(--k-panel2);padding:6px 14px 10px}
+    #srApp .sr-emp-card.open .sr-tl{display:block}
+    #srApp .sr-tl-i{display:grid;grid-template-columns:92px 150px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px dashed var(--k-line);font-size:12.5px}
+    #srApp .sr-tl-i:last-child{border-bottom:0}
+    #srApp .sr-tl-d{font-weight:800;color:var(--k-tx2);font-variant-numeric:tabular-nums}
+    #srApp .sr-tl-n{color:var(--k-tx2);min-width:0;overflow-wrap:anywhere}
+    #srApp .sr-tl-n small{display:block;font-size:11px;color:var(--k-mute)}
+    #srApp .sr-del{width:30px;height:30px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--k-mute);cursor:pointer;display:flex;align-items:center;justify-content:center}
+    #srApp .sr-del:hover{background:var(--k-red-bg);border-color:var(--k-red-line);color:var(--k-red-tx)}
+    #srApp .sr-del .material-icons{font-size:17px}
+    #srApp .sr-empty{padding:40px 16px;text-align:center;color:var(--k-mute);font-size:13px;font-weight:700}
+    #srApp .sr-empty .material-icons{display:block;font-size:40px;opacity:.35;margin-bottom:6px}
+
+    @media (max-width:1100px){ #srApp .sr-wrap{grid-template-columns:1fr} #srApp .sr-form{position:static} }
+    @media (max-width:640px){ #srApp .sr-kpis{grid-template-columns:1fr} #srApp .sr-month{margin-left:0;width:100%;justify-content:space-between} #srApp .sr-emp-row{flex-wrap:wrap} #srApp .sr-chips{justify-content:flex-start;order:3;flex-basis:100%} #srApp .sr-tl-i{grid-template-columns:80px minmax(0,1fr) auto} #srApp .sr-tl-i .sr-tl-t{grid-column:2} }
+</style>
+
+<div id="srApp" class="fade-in flex flex-col h-full rounded-2xl overflow-hidden">
+    <div class="sr-head shrink-0">
+        <div class="sr-ico"><span class="material-icons">assignment_ind</span></div>
+        <div>
+            <h1 class="sr-title">ประวัติการทำงานพนักงาน</h1>
+            <p class="sr-sub">ลงเรื่องที่พนักงานทำผิด แล้วดูสรุปรายเดือนว่าใครผิดเรื่องไหนกี่ครั้ง</p>
+        </div>
+        <div class="sr-month">
+            <button type="button" onclick="srShiftMonth(-1)" title="เดือนก่อน"><span class="material-icons">chevron_left</span></button>
+            <b id="srMonthLabel">-</b>
+            <button type="button" onclick="srShiftMonth(1)" title="เดือนถัดไป"><span class="material-icons">chevron_right</span></button>
+            <button type="button" class="sr-now" onclick="srShiftMonth(0)">เดือนนี้</button>
+        </div>
+    </div>
+
+    <div class="sr-body custom-scrollbar">
+        <div id="srWrap" class="sr-wrap">
+            <!-- ฟอร์มลงประวัติ (โชว์เฉพาะคนที่มีสิทธิ์ลง) -->
+            <aside id="srFormCard" class="sr-card sr-form">
+                <div class="sr-ch">
+                    <span class="material-icons ic" style="color:var(--k-gold-tx);background:rgba(232,193,90,.12)">edit_note</span>
+                    <div><div class="sr-h">ลงประวัติ</div><div class="sr-hint">เลือกคน → กดเรื่องที่ผิด (เลือกได้หลายเรื่อง) → บันทึก</div></div>
+                </div>
+                <div class="sr-cb">
+                    <div class="sr-field">
+                        <div class="sr-lbl"><span><span class="sr-step">1</span>พนักงาน</span></div>
+                        <div class="sr-emp">
+                            <input id="srEmpSearch" class="sr-in" type="text" placeholder="พิมพ์ชื่อพนักงาน" autocomplete="off" oninput="srEmpFilter()" onfocus="srEmpFilter()" onkeydown="srEmpKey(event)">
+                            <div id="srEmpList" class="sr-emp-list custom-scrollbar"></div>
+                            <div id="srEmpPicked" class="sr-picked"><span class="material-icons" style="font-size:18px;color:var(--k-gold-tx)">person</span><b id="srEmpPickedName"></b><small id="srEmpPickedMeta"></small><button type="button" onclick="srEmpClear()" title="เปลี่ยนคน"><span class="material-icons" style="font-size:18px">close</span></button></div>
+                        </div>
+                    </div>
+                    <div class="sr-field">
+                        <div class="sr-lbl"><span><span class="sr-step">2</span>วันที่เกิดเรื่อง</span></div>
+                        <input id="srDate" class="sr-in" type="date">
+                    </div>
+                    <div class="sr-field">
+                        <div class="sr-lbl"><span><span class="sr-step">3</span>เรื่องที่ผิด</span><a id="srTopicManageLink" onclick="srManageTopics()">แก้หัวข้อ</a></div>
+                        <div id="srTopics" class="sr-topics"></div>
+                    </div>
+                    <div class="sr-field">
+                        <div class="sr-lbl"><span>รายละเอียดเพิ่ม <small style="font-weight:600;color:var(--k-mute3)">(ไม่บังคับ)</small></span></div>
+                        <textarea id="srNote" class="sr-in" rows="2" placeholder="เช่น มาถึง 08:25 / ลูกค้ารอ 15 นาที"></textarea>
+                    </div>
+                    <button id="srSaveBtn" type="button" class="sr-save" onclick="srSave()"><span class="material-icons">save</span> บันทึกประวัติ</button>
+                    <div class="sr-recent">
+                        <div class="sr-lbl" style="margin-bottom:2px"><span>ที่ลงล่าสุด</span></div>
+                        <div id="srRecent"><div class="sr-hint">ยังไม่มี</div></div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- สรุปรายเดือน -->
+            <section style="min-width:0">
+                <div class="sr-kpis">
+                    <div class="sr-kpi"><div class="l">รวมทั้งเดือน</div><div class="v" id="srKpiTotal">0<small>ครั้ง</small></div></div>
+                    <div class="sr-kpi"><div class="l">พนักงานที่มีประวัติ</div><div class="v" id="srKpiPeople">0<small>คน</small></div></div>
+                    <div class="sr-kpi"><div class="l">เรื่องที่เกิดบ่อยสุด</div><div class="v" id="srKpiTop">-</div></div>
+                </div>
+                <div class="sr-card">
+                    <div class="sr-tool">
+                        <div class="sr-search"><span class="material-icons">search</span><input id="srFilterName" class="sr-in" type="text" placeholder="ค้นหาชื่อพนักงาน" oninput="srRender()"></div>
+                        <select id="srFilterDept" class="sr-in" onchange="srRender()" title="กรองแผนก"><option value="all">ทุกแผนก</option></select>
+                        <select id="srFilterTopic" class="sr-in" onchange="srRender()" title="กรองเรื่อง"><option value="all">ทุกเรื่อง</option></select>
+                    </div>
+                    <div id="srList" class="sr-list">
+                        <div class="sr-empty"><span class="material-icons">hourglass_top</span>กำลังโหลด…</div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+</div>

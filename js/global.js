@@ -745,7 +745,8 @@ window.cleanupPageIntervals = function() {
 const PAGE_SCRIPTS = {
     bell:              ['bell/core'],   // 🔔 กระดิ่งเรียกพนักงาน
     breaktable: ['breaktable/core'],   // 📊 ตารางลงเวลาพักทั้งหมด (ใช้ fetchData จาก system/users.js ที่โหลดไว้แล้ว)
-    break_audit:       ['break_audit/core'],   // ⏱️ ตรวจเวลาลุกจากที่นั่ง (อ่าน export กลุ่ม Telegram)
+    break_audit:       ['break_audit/core'],
+    staff_record:      ['staff_record/core'],   // 📒 ประวัติการทำงานพนักงาน   // ⏱️ ตรวจเวลาลุกจากที่นั่ง (อ่าน export กลุ่ม Telegram)
     leave:             ['leave/core', 'leave/table', 'leave/controls', 'swap/core', 'swap/view', 'swap/admin', 'swap/extras'],
     swap:              ['leave/core', 'leave/table', 'leave/controls', 'swap/core', 'swap/view', 'swap/admin', 'swap/extras'],
     duty:              ['duty/core', 'duty/dragdrop', 'duty/roles', 'duty/tools', 'duty/support', 'duty/rotation'],   // แยกจาก duty.js เดิม (5,478) — core ต้องมาก่อน
@@ -1212,6 +1213,9 @@ async function showPage(pageName) {
                 }
                 else if (pageName === 'bell') {
                     if (typeof initBell === 'function') await initBell();
+                }
+                else if (pageName === 'staff_record') {
+                    if (typeof initStaffRecord === 'function') await initStaffRecord();
                 }
 
                 // ⚡ ข้อมูลชุดใหม่วาดเสร็จแล้ว → ปิดชิป + เก็บ snapshot เวอร์ชันสดไว้เลย
