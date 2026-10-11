@@ -102,6 +102,30 @@
     #srApp .sr-empty{padding:40px 16px;text-align:center;color:var(--k-mute);font-size:13px;font-weight:700}
     #srApp .sr-empty .material-icons{display:block;font-size:40px;opacity:.35;margin-bottom:6px}
 
+    /* ✨ ฟอร์มแบบสะดวกขึ้น */
+    #srApp .sr-quick{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+    #srApp .sr-qbtn{height:28px;padding:0 10px;border-radius:999px;font-size:11.5px;font-weight:800;color:var(--k-tx2);background:var(--k-btn);border:1px solid var(--k-line3);cursor:pointer;display:inline-flex;align-items:center;gap:4px}
+    #srApp .sr-qbtn:hover{border-color:var(--k-gold);color:var(--k-tx-strong)}
+    #srApp .sr-qbtn.on{background:var(--k-gold);border-color:var(--k-gold);color:var(--k-gold-ink)}
+    #srApp .sr-qbtn .material-icons{font-size:14px}
+    #srApp .sr-qlbl{font-size:11px;font-weight:700;color:var(--k-mute);align-self:center;margin-right:2px}
+    #srApp .sr-hist{display:none;margin-top:8px;padding:8px 10px;border-radius:10px;background:var(--k-panel2);border:1px solid var(--k-line);font-size:12px;color:var(--k-tx2)}
+    #srApp .sr-hist.on{display:block}
+    #srApp .sr-hist b{color:var(--k-tx-strong)}
+    #srApp .sr-hist .sr-chip{margin:3px 3px 0 0}
+    #srApp .sr-hist.warn{border-color:var(--k-red-line);background:var(--k-red-bg)}
+    /* ปุ่มเรื่องที่ผิด: เลือกแล้วต้องเห็นชัด (พื้นสีเต็ม + ติ๊ก) */
+    #srApp .sr-topic.on{background:var(--c) !important;border-color:var(--c) !important;color:#fff !important;box-shadow:0 4px 12px color-mix(in srgb,var(--c) 35%,transparent)}
+    #srApp .sr-topic.on i{background:#fff}
+    #srApp .sr-topic.on::after{content:'✓';color:#fff !important}
+    #srApp .sr-topic .sr-tc{min-width:18px;height:18px;padding:0 5px;border-radius:99px;font-size:10.5px;font-weight:900;display:inline-flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--c) 22%,transparent);color:var(--k-tx-strong)}
+    #srApp .sr-topic.on .sr-tc{background:rgba(255,255,255,.28);color:#fff}
+    #srApp .sr-selcount{font-size:11.5px;font-weight:800;color:var(--k-gold-tx)}
+    #srApp .sr-sum{display:none;margin:0 0 10px;padding:10px 12px;border-radius:12px;background:var(--k-gold-bg);border:1px dashed rgba(232,193,90,.6);font-size:12.5px;line-height:1.55;color:var(--k-tx2)}
+    #srApp .sr-sum.on{display:block}
+    #srApp .sr-sum b{color:var(--k-tx-strong)}
+    #srApp .sr-kbd{font-size:10.5px;font-weight:700;color:var(--k-mute);text-align:center;margin-top:6px}
+    #srApp .sr-kbd kbd{font-family:inherit;padding:0 5px;border-radius:5px;border:1px solid var(--k-line3);background:var(--k-btn);font-size:10.5px}
     @media (max-width:1100px){ #srApp .sr-wrap{grid-template-columns:1fr} #srApp .sr-form{position:static} }
     @media (max-width:640px){ #srApp .sr-kpis{grid-template-columns:1fr} #srApp .sr-month{margin-left:0;width:100%;justify-content:space-between} #srApp .sr-emp-row{flex-wrap:wrap} #srApp .sr-chips{justify-content:flex-start;order:3;flex-basis:100%} #srApp .sr-tl-i{grid-template-columns:80px minmax(0,1fr) auto} #srApp .sr-tl-i .sr-tl-t{grid-column:2} }
 </style>
@@ -137,20 +161,35 @@
                             <div id="srEmpList" class="sr-emp-list custom-scrollbar"></div>
                             <div id="srEmpPicked" class="sr-picked"><span class="material-icons" style="font-size:18px;color:var(--k-gold-tx)">person</span><b id="srEmpPickedName"></b><small id="srEmpPickedMeta"></small><button type="button" onclick="srEmpClear()" title="เปลี่ยนคน"><span class="material-icons" style="font-size:18px">close</span></button></div>
                         </div>
+                        <div id="srRecentPeople" class="sr-quick"></div>
+                        <div id="srEmpHist" class="sr-hist"></div>
                     </div>
                     <div class="sr-field">
                         <div class="sr-lbl"><span><span class="sr-step">2</span>วันที่เกิดเรื่อง</span></div>
-                        <input id="srDate" class="sr-in" type="date">
+                        <input id="srDate" class="sr-in" type="date" onchange="srSyncForm()">
+                        <div class="sr-quick">
+                            <button type="button" class="sr-qbtn" data-d="0" onclick="srSetDate(0)">วันนี้</button>
+                            <button type="button" class="sr-qbtn" data-d="-1" onclick="srSetDate(-1)">เมื่อวาน</button>
+                            <button type="button" class="sr-qbtn" data-d="-2" onclick="srSetDate(-2)">2 วันก่อน</button>
+                        </div>
                     </div>
                     <div class="sr-field">
-                        <div class="sr-lbl"><span><span class="sr-step">3</span>เรื่องที่ผิด</span><a id="srTopicManageLink" onclick="srManageTopics()">แก้หัวข้อ</a></div>
+                        <div class="sr-lbl"><span><span class="sr-step">3</span>เรื่องที่ผิด <span id="srSelCount" class="sr-selcount"></span></span><a id="srTopicManageLink" onclick="srManageTopics()">แก้หัวข้อ</a></div>
                         <div id="srTopics" class="sr-topics"></div>
                     </div>
                     <div class="sr-field">
                         <div class="sr-lbl"><span>รายละเอียดเพิ่ม <small style="font-weight:600;color:var(--k-mute3)">(ไม่บังคับ)</small></span></div>
-                        <textarea id="srNote" class="sr-in" rows="2" placeholder="เช่น มาถึง 08:25 / ลูกค้ารอ 15 นาที"></textarea>
+                        <textarea id="srNote" class="sr-in" rows="2" placeholder="เช่น มาถึง 08:25 / ลูกค้ารอ 15 นาที" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();srSave();}"></textarea>
+                        <div class="sr-quick"><span class="sr-qlbl">ใส่เร็ว:</span>
+                            <button type="button" class="sr-qbtn" onclick="srNoteAdd('ตักเตือนด้วยวาจาแล้ว')">ตักเตือนแล้ว</button>
+                            <button type="button" class="sr-qbtn" onclick="srNoteAdd('พนักงานรับทราบ')">รับทราบ</button>
+                            <button type="button" class="sr-qbtn" onclick="srNoteAdd('มีหลักฐานในแชท')">มีหลักฐานในแชท</button>
+                            <button type="button" class="sr-qbtn" onclick="srNoteAdd('ครั้งแรก')">ครั้งแรก</button>
+                        </div>
                     </div>
-                    <button id="srSaveBtn" type="button" class="sr-save" onclick="srSave()"><span class="material-icons">save</span> บันทึกประวัติ</button>
+                    <div id="srSum" class="sr-sum"></div>
+                    <button id="srSaveBtn" type="button" class="sr-save" onclick="srSave()" disabled><span class="material-icons">save</span> <span id="srSaveLabel">เลือกคนและเรื่องก่อน</span></button>
+                    <div class="sr-kbd">กด <kbd>Ctrl</kbd> + <kbd>Enter</kbd> เพื่อบันทึกได้เลย</div>
                     <div class="sr-recent">
                         <div class="sr-lbl" style="margin-bottom:2px"><span>ที่ลงล่าสุด</span></div>
                         <div id="srRecent"><div class="sr-hint">ยังไม่มี</div></div>

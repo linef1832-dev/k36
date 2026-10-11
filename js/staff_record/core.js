@@ -65,6 +65,7 @@ window.initStaffRecord = async function() {
     srFillFilters();
     srRenderTopics();
     srRenderRecent();
+    srRenderRecentPeople();
     await srLoad();
     srSubscribe();
 };
@@ -80,11 +81,86 @@ window.srLoadTopics = async function() {
 };
 window.srRenderTopics = function() {
     const box = document.getElementById('srTopics'); if (!box) return;
-    box.innerHTML = SR.topics.map(t => `<button type="button" class="sr-topic ${SR.selTopics.has(t.name) ? 'on' : ''}" style="--c:${t.color}" onclick="srToggleTopic(this, '${_srEsc(t.name).replace(/'/g, "\\'")}')"><i></i>${_srEsc(t.name)}</button>`).join('');
+    const hist = _srPickedMonthCounts();
+    box.innerHTML = SR.topics.map(t => {
+        const n = hist[t.name] || 0;
+        return `<button type="button" class="sr-topic ${SR.selTopics.has(t.name) ? 'on' : ''}" style="--c:${t.color}" onclick="srToggleTopic(this, '${_srEsc(t.name).replace(/'/g, "\\'")}')" title="${n ? `เดือนนี้ผิดเรื่องนี้แล้ว ${n} ครั้ง` : ''}"><i></i>${_srEsc(t.name)}${n ? `<span class="sr-tc">${n}</span>` : ''}</button>`;
+    }).join('');
+    srSyncForm();
 };
 window.srToggleTopic = function(btn, name) {
     if (SR.selTopics.has(name)) SR.selTopics.delete(name); else SR.selTopics.add(name);
     btn.classList.toggle('on', SR.selTopics.has(name));
+    srSyncForm();
+};
+
+// ── ✨ ตัวช่วยให้ลงเร็วขึ้น ──
+// ประวัติเดือนนี้ของคนที่เลือก (จากข้อมูลเดือนที่เปิดอยู่ — ถ้าวันที่ที่จะลงเป็นเดือนเดียวกัน)
+function _srPickedMonthCounts() {
+    const out = {};
+    if (!SR.picked) return out;
+    const d = document.getElementById('srDate'); const ym = (d && d.value ? d.value : _srToday()).slice(0, 7);
+    if (ym !== SR.month) return out;
+    const k = String(SR.picked.username).toLowerCase();
+    SR.rows.forEach(r => { if (String(r.user_name).toLowerCase() === k) out[r.topic] = (out[r.topic] || 0) + 1; });
+    return out;
+}
+const _srDateLabel = iso => { if (!iso) return '-'; const [y, m, d] = iso.split('-').map(Number); return `${d} ${_srTH_M[m - 1]} ${y + 543}`; };
+const _srAddDays = (iso, n) => { const [y, m, d] = iso.split('-').map(Number); const x = new Date(y, m - 1, d + n); return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); };
+window.srSetDate = function(n) {
+    const d = document.getElementById('srDate'); if (!d) return;
+    d.value = _srAddDays(_srToday(), n);
+    d.dispatchEvent(new Event('change', { bubbles: true }));
+    srRenderTopics();
+};
+window.srNoteAdd = function(text) {
+    const t = document.getElementById('srNote'); if (!t) return;
+    const cur = t.value.trim();
+    if (cur.includes(text)) return;
+    t.value = cur ? cur + ' · ' + text : text;
+    t.focus();
+};
+// คนที่ลงล่าสุด (จำในเครื่อง) — กดเลือกซ้ำได้ทันที
+const _srRecentPeopleKey = 'sr_recent_people';
+const _srGetRecentPeople = () => { try { return JSON.parse(localStorage.getItem(_srRecentPeopleKey) || '[]'); } catch (e) { return []; } };
+const _srPushRecentPeople = name => { const a = _srGetRecentPeople().filter(x => x !== name); a.unshift(name); try { localStorage.setItem(_srRecentPeopleKey, JSON.stringify(a.slice(0, 6))); } catch (e) {} };
+window.srRenderRecentPeople = function() {
+    const box = document.getElementById('srRecentPeople'); if (!box) return;
+    const names = _srGetRecentPeople().filter(n => _srUserOf(n) && (!SR.picked || SR.picked.username !== n));
+    box.innerHTML = names.length ? '<span class="sr-qlbl">ล่าสุด:</span>' + names.map(n => `<button type="button" class="sr-qbtn" onclick="srEmpPick('${_srEsc(n).replace(/'/g, "\\'")}')"><span class="material-icons">history</span>${_srEsc(n)}</button>`).join('') : '';
+};
+// อัปเดต: ประวัติของคนที่เลือก, ตัวนับเรื่อง, ปุ่มวันลัด, สรุปก่อนบันทึก, ปุ่มบันทึก
+window.srSyncForm = function() {
+    const dEl = document.getElementById('srDate');
+    const date = dEl ? dEl.value : '';
+    const today = _srToday();
+    document.querySelectorAll('#srApp .sr-qbtn[data-d]').forEach(b => b.classList.toggle('on', date === _srAddDays(today, Number(b.dataset.d))));
+
+    const n = SR.selTopics.size;
+    const sc = document.getElementById('srSelCount'); if (sc) sc.textContent = n ? `· เลือกแล้ว ${n} เรื่อง` : '';
+
+    const hist = document.getElementById('srEmpHist');
+    if (hist) {
+        if (SR.picked) {
+            const cnt = _srPickedMonthCounts(); const total = Object.values(cnt).reduce((a, b) => a + b, 0);
+            const ym = (date || today).slice(0, 7);
+            hist.classList.add('on'); hist.classList.toggle('warn', total >= 5);
+            if (ym !== SR.month) hist.innerHTML = `ดูประวัติเดือนนี้ของ <b>${_srEsc(SR.picked.username)}</b> ได้ เมื่อเลือกวันในเดือนที่เปิดอยู่ด้านขวา`;
+            else hist.innerHTML = total
+                ? `เดือนนี้ <b>${_srEsc(SR.picked.username)}</b> มีประวัติแล้ว <b>${total} ครั้ง</b><br>` + Object.entries(cnt).sort((a, b) => b[1] - a[1]).map(([t, k]) => `<span class="sr-chip" style="--c:${_srTopicColor(t)}">${_srEsc(t)} <b>×${k}</b></span>`).join('')
+                : `เดือนนี้ <b>${_srEsc(SR.picked.username)}</b> ยังไม่มีประวัติ 👍`;
+        } else { hist.classList.remove('on'); hist.innerHTML = ''; }
+    }
+
+    const ready = !!SR.picked && !!date && n > 0;
+    const sum = document.getElementById('srSum');
+    if (sum) {
+        sum.classList.toggle('on', ready);
+        if (ready) sum.innerHTML = `จะบันทึกให้ <b>${_srEsc(SR.picked.username)}</b> วันที่ <b>${_srDateLabel(date)}</b><br>` + [...SR.selTopics].map(t => `<span class="sr-chip" style="--c:${_srTopicColor(t)};margin:3px 3px 0 0">${_srEsc(t)}</span>`).join('');
+    }
+    const btn = document.getElementById('srSaveBtn'), lab = document.getElementById('srSaveLabel');
+    if (btn) btn.disabled = !ready;
+    if (lab) lab.textContent = !SR.picked ? 'เลือกพนักงานก่อน' : (!n ? 'เลือกเรื่องที่ผิดก่อน' : `บันทึก ${n} เรื่อง ให้ ${SR.picked.username}`);
 };
 window.srManageTopics = async function() {
     if (!_srPerm('staff_record_topics')) return;
@@ -178,12 +254,14 @@ window.srEmpPick = function(name) {
     document.getElementById('srEmpPicked').classList.add('on');
     document.getElementById('srEmpPickedName').textContent = u.username;
     document.getElementById('srEmpPickedMeta').textContent = (u.department || 'AM') + (u.allowed_shift ? ' · ' + String(u.allowed_shift).replace('กะ', '') : '');
+    srRenderTopics(); srRenderRecentPeople();
 };
 window.srEmpClear = function() {
     SR.picked = null;
     const inp = document.getElementById('srEmpSearch');
     document.getElementById('srEmpPicked').classList.remove('on');
     inp.style.display = ''; inp.value = ''; inp.focus();
+    srRenderTopics(); srRenderRecentPeople();
 };
 if (!window.__srDocBound) {
     window.__srDocBound = true;
@@ -209,12 +287,14 @@ window.srSave = async function() {
     btn.disabled = false;
     if (error) return Swal.fire('บันทึกไม่สำเร็จ', (error.message || '') + (String(error.message || '').includes('staff_records') ? '<br><small>ยังไม่ได้สร้างตาราง — รันไฟล์ sql/staff_records.sql ใน Supabase ก่อน</small>' : ''), 'error');
 
+    _srPushRecentPeople(SR.picked.username);
     SR.recent = [...(data || payload), ...SR.recent].slice(0, 6);
     srRenderRecent();
     SR.selTopics.clear(); srRenderTopics();
     document.getElementById('srNote').value = '';
     Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `บันทึก ${payload.length} เรื่องให้ ${SR.picked.username} แล้ว`, showConfirmButton: false, timer: 1600 });
     if (date.slice(0, 7) === SR.month) await srLoad();
+    srRenderTopics(); srRenderRecentPeople();
 };
 window.srRenderRecent = function() {
     const box = document.getElementById('srRecent'); if (!box) return;
@@ -238,6 +318,7 @@ window.srLoad = async function() {
     SR.rows = data || [];
     srFillFilters();
     srRender();
+    srRenderTopics();
 };
 window.srShiftMonth = function(n) {
     if (n === 0) SR.month = _srToday().slice(0, 7);
