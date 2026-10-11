@@ -170,6 +170,38 @@
     #srApp .sr-tdel{top:-7px;right:-7px}
     #srApp .sr-topics.edit-mode .sr-topic:not(.add){opacity:.85}
     @media (max-width:420px){ #srApp .sr-topics{grid-template-columns:1fr} }
+    /* สลับมุมมอง */
+    #srApp .sr-views{display:flex;gap:2px;padding:4px;border-radius:12px;background:var(--k-sunk);border:1px solid var(--k-line);margin-left:auto}
+    #srApp .sr-views button{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:9px;border:0;background:transparent;color:var(--k-mute);font-size:12.5px;font-weight:800;cursor:pointer}
+    #srApp .sr-views button .material-icons{font-size:17px}
+    #srApp .sr-views button:hover{color:var(--k-tx-strong)}
+    #srApp .sr-views button.on{background:var(--k-gold);color:var(--k-gold-ink)}
+    #srApp .sr-views + .sr-month{margin-left:0}
+    /* แท็บหัวข้อ AM / OD */
+    #srApp .sr-gtabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;margin-bottom:8px;border-radius:11px;background:var(--k-sunk);border:1px solid var(--k-line)}
+    #srApp .sr-gtabs button{height:32px;border-radius:8px;border:0;background:transparent;color:var(--k-mute);font-size:12.5px;font-weight:900;cursor:pointer}
+    #srApp .sr-gtabs button:hover{color:var(--k-tx-strong)}
+    #srApp .sr-gtabs button.on[data-g="AM"]{background:#2563eb;color:#fff}
+    #srApp .sr-gtabs button.on[data-g="OD"]{background:#db2777;color:#fff}
+    #srApp .sr-gtabs button .auto{font-size:10px;font-weight:700;opacity:.85;margin-left:4px}
+    /* ประวัติการใช้งาน */
+    #srApp .sr-log{padding:6px 10px 10px}
+    #srApp .sr-log-day{font-size:12px;font-weight:900;color:var(--k-tx3);padding:12px 4px 6px;position:sticky;top:0;background:var(--k-panel);z-index:1}
+    #srApp .sr-log-i{display:grid;grid-template-columns:62px 92px minmax(0,1fr);gap:10px;align-items:start;padding:9px 6px;border-bottom:1px dashed var(--k-line);font-size:12.5px}
+    #srApp .sr-log-i:last-child{border-bottom:0}
+    #srApp .sr-log-time{font-weight:800;color:var(--k-tx2);font-variant-numeric:tabular-nums;padding-top:2px}
+    #srApp .sr-act{display:inline-flex;align-items:center;justify-content:center;gap:4px;height:24px;padding:0 9px;border-radius:999px;font-size:11px;font-weight:900;white-space:nowrap}
+    #srApp .sr-act.add{background:var(--k-green-bg);color:var(--k-green-tx);border:1px solid var(--k-green-line)}
+    #srApp .sr-act.edit{background:var(--k-gold-bg);color:var(--k-gold-tx);border:1px solid rgba(232,193,90,.45)}
+    #srApp .sr-act.delete{background:var(--k-red-bg);color:var(--k-red-tx);border:1px solid var(--k-red-line)}
+    #srApp .sr-act.topics{background:var(--k-btn);color:var(--k-tx3);border:1px solid var(--k-line3)}
+    #srApp .sr-log-b{min-width:0;color:var(--k-tx2);line-height:1.55}
+    #srApp .sr-log-b b{color:var(--k-tx-strong)}
+    #srApp .sr-log-b .sr-chip{margin:0 2px}
+    #srApp .sr-log-b small{display:block;color:var(--k-mute);font-size:11.5px}
+    #srApp .sr-log-b .chg{display:block;margin-top:2px;font-size:11.5px;color:var(--k-tx3)}
+    #srApp .sr-log-b .chg s{color:var(--k-mute3)}
+    @media (max-width:640px){ #srApp .sr-views{margin-left:0;width:100%} #srApp .sr-views button{flex:1;justify-content:center} #srApp .sr-log-i{grid-template-columns:52px minmax(0,1fr)} #srApp .sr-log-i .sr-log-b{grid-column:1/-1} }
     #srApp .sr-selcount{font-size:11.5px;font-weight:800;color:var(--k-gold-tx)}
     #srApp .sr-sum{display:none;margin:0 0 10px;padding:10px 12px;border-radius:12px;background:var(--k-gold-bg);border:1px dashed rgba(232,193,90,.6);font-size:12.5px;line-height:1.55;color:var(--k-tx2)}
     #srApp .sr-sum.on{display:block}
@@ -185,6 +217,10 @@
         <div class="sr-ico"><span class="material-icons">assignment_ind</span></div>
         <div>
             <h1 class="sr-title">ประวัติการทำงานพนักงาน</h1>
+        </div>
+        <div class="sr-views" role="tablist">
+            <button type="button" id="srViewSumBtn" class="on" onclick="srSetView('sum')"><span class="material-icons">insights</span> สรุปรายเดือน</button>
+            <button type="button" id="srViewLogBtn" onclick="srSetView('log')"><span class="material-icons">history</span> ประวัติการใช้งาน</button>
         </div>
         <div class="sr-month">
             <button type="button" onclick="srShiftMonth(-1)" title="เดือนก่อน"><span class="material-icons">chevron_left</span></button>
@@ -210,7 +246,6 @@
                             <div id="srEmpList" class="sr-emp-list custom-scrollbar"></div>
                             <div id="srEmpPicked" class="sr-picked"><span class="material-icons" style="font-size:18px;color:var(--k-gold-tx)">person</span><b id="srEmpPickedName"></b><small id="srEmpPickedMeta"></small><button type="button" onclick="srEmpClear()" title="เปลี่ยนคน"><span class="material-icons" style="font-size:18px">close</span></button></div>
                         </div>
-                        <div id="srEmpHist" class="sr-hist"></div>
                     </div>
                     <div class="sr-field">
                         <div class="sr-lbl"><span><span class="sr-step">2</span>วันที่เกิดเรื่อง</span></div>
@@ -224,6 +259,10 @@
                     <div class="sr-field">
                         <div class="sr-lbl"><span><span class="sr-step">3</span>เรื่องที่ผิด <span id="srSelCount" class="sr-selcount"></span></span>
                             <span id="srTopicManageLink" class="sr-tmgr"><button type="button" onclick="srToggleTopicEdit()" id="srTopicEditBtn" title="ลบหัวข้อ"><span class="material-icons">delete_outline</span><span class="t">ลบ</span></button><button type="button" onclick="srManageTopics()" title="แก้ชื่อ/สีหัวข้อทั้งหมด"><span class="material-icons">tune</span><span class="t">แก้</span></button></span></div>
+                        <div class="sr-gtabs" role="tablist" aria-label="หัวข้อของแผนก">
+                            <button type="button" data-g="AM" onclick="srSetTopicGroup('AM')">หัวข้อ AM</button>
+                            <button type="button" data-g="OD" onclick="srSetTopicGroup('OD')">หัวข้อ OD</button>
+                        </div>
                         <div id="srTopics" class="sr-topics"></div>
                     </div>
                     <div class="sr-field">
@@ -247,7 +286,7 @@
             </aside>
 
             <!-- สรุปรายเดือน -->
-            <section style="min-width:0">
+            <section id="srSumView" style="min-width:0">
                 <div class="sr-kpis">
                     <div class="sr-kpi"><div class="l">รวมทั้งเดือน</div><div class="v" id="srKpiTotal">0<small>ครั้ง</small></div></div>
                     <div class="sr-kpi"><div class="l">พนักงานที่มีประวัติ</div><div class="v" id="srKpiPeople">0<small>คน</small></div></div>
@@ -262,6 +301,19 @@
                     <div id="srList" class="sr-list">
                         <div class="sr-empty"><span class="material-icons">hourglass_top</span>กำลังโหลด…</div>
                     </div>
+                </div>
+            </section>
+
+            <!-- 📜 ประวัติการใช้งาน: ใครลง/แก้/ลบ อะไร เมื่อไหร่ -->
+            <section id="srLogView" style="min-width:0;display:none">
+                <div class="sr-card">
+                    <div class="sr-tool">
+                        <div class="sr-search"><span class="material-icons">search</span><input id="srLogSearch" class="sr-in" type="text" placeholder="ค้นหาชื่อพนักงาน / คนที่ทำ / เรื่อง" oninput="srRenderLog()"></div>
+                        <select id="srLogAction" class="sr-in" onchange="srRenderLog()" title="กรองการกระทำ">
+                            <option value="all">ทุกการกระทำ</option><option value="add">ลงประวัติ</option><option value="edit">แก้ไข</option><option value="delete">ลบ</option><option value="topics">แก้หัวข้อ</option>
+                        </select>
+                    </div>
+                    <div id="srLogList" class="sr-log"><div class="sr-empty"><span class="material-icons">hourglass_top</span>กำลังโหลด…</div></div>
                 </div>
             </section>
         </div>

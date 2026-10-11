@@ -47,6 +47,9 @@ const _srMonthRange = ym => {
 };
 const _srTime = iso => { if (!iso) return ''; const d = new Date(iso); if (isNaN(d)) return ''; return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + ' น.'; };
 const _srDateTimeShort = iso => { if (!iso) return ''; const d = new Date(iso); if (isNaN(d)) return ''; return `${d.getDate()} ${_srTH_M[d.getMonth()]} ${_srTime(iso)}`; };
+// หัวข้อแยกตามแผนก: AM / OD (แผนกที่ขึ้นต้นด้วย OD = OD, อื่นๆ = AM) · หัวข้อเก่าที่ยังไม่ระบุ = ใช้ได้ทั้งสองฝั่ง
+const _srGroupOf = dept => String(dept || 'AM').toUpperCase().startsWith('OD') ? 'OD' : 'AM';
+const _srTopicIn = (t, g) => !t.group || t.group === 'ALL' || t.group === g;
 const _srTopicColor = name => (SR.topics.find(t => t.name === name) || {}).color || '#64748b';
 const _srUsers = () => (typeof GLOBAL_USER_LIST !== 'undefined' && Array.isArray(GLOBAL_USER_LIST)) ? GLOBAL_USER_LIST : [];
 const _srUserOf = name => _srUsers().find(u => String(u.username).toLowerCase() === String(name).toLowerCase());
@@ -62,6 +65,9 @@ window.initStaffRecord = async function() {
     if (wrap) wrap.classList.toggle('no-form', !canAdd);
     const tl = document.getElementById('srTopicManageLink'); if (tl) tl.style.display = _srPerm('staff_record_topics') ? 'flex' : 'none';
 
+    const vb = document.getElementById('srViewLogBtn'); if (vb) vb.style.display = _srPerm('staff_record_log') ? '' : 'none';
+    if (SR.view === 'log' && !_srPerm('staff_record_log')) SR.view = 'sum';
+    if (!SR.topicGroup) SR.topicGroup = (typeof currentUser !== 'undefined' && currentUser) ? _srGroupOf(currentUser.department) : 'AM';
     if (_srUsers().length === 0 && typeof fetchUsers === 'function') { try { await fetchUsers(); } catch (e) {} }
     await srLoadTopics();
     srFillFilters();
@@ -69,6 +75,7 @@ window.initStaffRecord = async function() {
     srRenderRecent();
     srRenderRecentPeople();
     await srLoad();
+    srSetView(SR.view || 'sum');
     srSubscribe();
 };
 
@@ -87,7 +94,14 @@ window.srRenderTopics = function() {
     const canEdit = _srPerm('staff_record_topics');
     box.classList.toggle('can-edit', canEdit);
     box.classList.toggle('edit-mode', canEdit && !!SR.topicEdit);
+    const g = SR.topicGroup || 'AM';
+    document.querySelectorAll('#srApp .sr-gtabs button').forEach(b => {
+        b.classList.toggle('on', b.dataset.g === g);
+        const auto = SR.picked && _srGroupOf(SR.picked.department) === b.dataset.g;
+        b.innerHTML = `หัวข้อ ${b.dataset.g}${auto ? '<span class="auto">· แผนกของ ' + _srEsc(SR.picked.username) + '</span>' : ''}`;
+    });
     box.innerHTML = SR.topics.map((t, i) => {
+        if (!_srTopicIn(t, g)) return '';
         const n = hist[t.name] || 0;
         const nm = _srEsc(t.name).replace(/'/g, "\\'");
         return `<span class="sr-topic-wrap"><button type="button" class="sr-topic ${SR.selTopics.has(t.name) ? 'on' : ''}" style="--c:${t.color}" onclick="srToggleTopic(this, '${nm}')" title="${_srEsc(t.name)}${n ? ` · เดือนนี้ผิดเรื่องนี้แล้ว ${n} ครั้ง` : ''}"><i></i><span class="sr-tn">${_srEsc(t.name)}</span>${n ? `<span class="sr-tc">${n}</span>` : ''}<span class="sr-tk">✓</span></button>`
@@ -143,19 +157,6 @@ window.srSyncForm = function() {
     const n = SR.selTopics.size;
     const sc = document.getElementById('srSelCount'); if (sc) sc.textContent = n ? `· เลือกแล้ว ${n} เรื่อง` : '';
 
-    const hist = document.getElementById('srEmpHist');
-    if (hist) {
-        if (SR.picked) {
-            const cnt = _srPickedMonthCounts(); const total = Object.values(cnt).reduce((a, b) => a + b, 0);
-            const ym = (date || today).slice(0, 7);
-            hist.classList.add('on'); hist.classList.toggle('warn', total >= 5);
-            if (ym !== SR.month) hist.innerHTML = `ดูประวัติเดือนนี้ของ <b>${_srEsc(SR.picked.username)}</b> ได้ เมื่อเลือกวันในเดือนที่เปิดอยู่ด้านขวา`;
-            else hist.innerHTML = total
-                ? `เดือนนี้ <b>${_srEsc(SR.picked.username)}</b> มีประวัติแล้ว <b>${total} ครั้ง</b><br>` + Object.entries(cnt).sort((a, b) => b[1] - a[1]).map(([t, k]) => `<span class="sr-chip" style="--c:${_srTopicColor(t)}">${_srEsc(t)} <b>×${k}</b></span>`).join('')
-                : `เดือนนี้ <b>${_srEsc(SR.picked.username)}</b> ยังไม่มีประวัติ 👍`;
-        } else { hist.classList.remove('on'); hist.innerHTML = ''; }
-    }
-
     const ready = !!SR.picked && !!date && n > 0;
     const sum = document.getElementById('srSum');
     if (sum) {
@@ -175,27 +176,42 @@ async function _srSaveTopics(list) {
     srRenderTopics(); srFillFilters(); srRender();
     return true;
 }
+window.srSetTopicGroup = function(g) {
+    SR.topicGroup = g;
+    // เรื่องที่เลือกไว้แต่ไม่อยู่ในกลุ่มใหม่ → เอาออก กันบันทึกเรื่องข้ามแผนกโดยไม่ตั้งใจ
+    [...SR.selTopics].forEach(n => { const t = SR.topics.find(x => x.name === n); if (t && !_srTopicIn(t, g)) SR.selTopics.delete(n); });
+    srRenderTopics();
+};
 window.srToggleTopicEdit = function() { SR.topicEdit = !SR.topicEdit; srRenderTopics(); };
 window.srDeleteTopic = async function(i) {
     if (!_srPerm('staff_record_topics')) return;
     const t = SR.topics[i]; if (!t) return;
     if (SR.topics.length <= 1) return Swal.fire('ลบไม่ได้', 'ต้องมีหัวข้ออย่างน้อย 1 หัวข้อ', 'warning');
+    const g = SR.topicGroup || 'AM';
+    const shared = !t.group || t.group === 'ALL';
     const used = SR.rows.filter(r => r.topic === t.name).length;
-    const ok = await Swal.fire({ title: `ลบหัวข้อ "${_srEsc(t.name)}"?`, html: used ? `เดือนนี้มีประวัติเรื่องนี้ ${used} รายการ<br><small>ประวัติเดิมยังอยู่ครบ แค่ลงเรื่องนี้เพิ่มไม่ได้แล้ว</small>` : 'ประวัติเดิมที่ใช้หัวข้อนี้ยังอยู่ครบ', icon: 'warning', showCancelButton: true, confirmButtonColor: '#dc2626', confirmButtonText: 'ลบหัวข้อ', cancelButtonText: 'ยกเลิก' });
+    const ok = await Swal.fire({ title: shared ? `ลบ "${_srEsc(t.name)}" ออกจากหัวข้อ ${g}?` : `ลบหัวข้อ "${_srEsc(t.name)}"?`, html: used ? `เดือนนี้มีประวัติเรื่องนี้ ${used} รายการ<br><small>ประวัติเดิมยังอยู่ครบ แค่ลงเรื่องนี้เพิ่มไม่ได้แล้ว</small>` : 'ประวัติเดิมที่ใช้หัวข้อนี้ยังอยู่ครบ', icon: 'warning', showCancelButton: true, confirmButtonColor: '#dc2626', confirmButtonText: 'ลบหัวข้อ', cancelButtonText: 'ยกเลิก' });
     if (!ok.isConfirmed) return;
-    if (await _srSaveTopics(SR.topics.filter((_, k) => k !== i)))
+    // หัวข้อใช้ร่วม 2 ฝั่ง → เหลือไว้ให้อีกฝั่ง / หัวข้อของฝั่งนี้ → ลบทิ้ง
+    const next = shared ? SR.topics.map((x, k) => k === i ? { ...x, group: g === 'AM' ? 'OD' : 'AM' } : x) : SR.topics.filter((_, k) => k !== i);
+    if (await _srSaveTopics(next)) {
+        _srLog({ action: 'topics', detail: `ลบหัวข้อ "${t.name}" ออกจาก ${shared ? 'หัวข้อ ' + g : 'หัวข้อ ' + (t.group || g)}` });
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `ลบหัวข้อ "${t.name}" แล้ว`, showConfirmButton: false, timer: 1400 });
+    }
 };
 window.srAddTopic = async function() {
     if (!_srPerm('staff_record_topics')) return;
-    const res = await Swal.fire({ title: 'เพิ่มหัวข้อใหม่', input: 'text', inputPlaceholder: 'เช่น ทำแนะนำเพื่อนผิด', showCancelButton: true, confirmButtonText: 'เพิ่ม', cancelButtonText: 'ยกเลิก',
+    const g = SR.topicGroup || 'AM';
+    const res = await Swal.fire({ title: `เพิ่มหัวข้อใหม่ (${g})`, input: 'text', inputPlaceholder: 'เช่น ทำแนะนำเพื่อนผิด', showCancelButton: true, confirmButtonText: 'เพิ่ม', cancelButtonText: 'ยกเลิก',
         inputValidator: v => { v = (v || '').trim(); if (!v) return 'พิมพ์ชื่อหัวข้อก่อน'; if (SR.topics.some(t => t.name === v)) return 'มีหัวข้อนี้อยู่แล้ว'; } });
-    if (!res.isConfirmed) return;
+    if (!res.isConfirmed || !res.value) return;
     const name = String(res.value).trim();
     const used = new Set(SR.topics.map(t => t.color));
     const color = SR_PALETTE.find(c => !used.has(c)) || SR_PALETTE[SR.topics.length % SR_PALETTE.length];
-    if (await _srSaveTopics([...SR.topics, { name, color }]))
+    if (await _srSaveTopics([...SR.topics, { name, color, group: g }])) {
+        _srLog({ action: 'topics', detail: `เพิ่มหัวข้อ "${name}" ใน หัวข้อ ${g}` });
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `เพิ่มหัวข้อ "${name}" แล้ว`, showConfirmButton: false, timer: 1400 });
+    }
 };
 window.srManageTopics = async function() {
     if (!_srPerm('staff_record_topics')) return;
@@ -203,6 +219,7 @@ window.srManageTopics = async function() {
         <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
             <input type="color" value="${t.color}" data-i="${i}" class="sr-mt-c" style="width:34px;height:34px;border:0;background:none;cursor:pointer">
             <input type="text" value="${_srEsc(t.name)}" data-i="${i}" class="sr-mt-n swal2-input" style="margin:0;height:36px;flex:1;font-size:14px">
+            <select class="sr-mt-g" style="height:36px;border-radius:8px;padding:0 6px;font-weight:800">${['AM','OD','ALL'].map(x => `<option value="${x}" ${((t.group || 'ALL') === x) ? 'selected' : ''}>${x === 'ALL' ? 'ทั้งคู่' : x}</option>`).join('')}</select>
             <button type="button" data-i="${i}" class="sr-mt-del" style="width:34px;height:34px;border-radius:8px;border:1px solid #ef444455;color:#ef4444;background:transparent;cursor:pointer">✕</button>
         </div>`).join('');
     const res = await Swal.fire({
@@ -216,7 +233,7 @@ window.srManageTopics = async function() {
             box.addEventListener('click', e => { const b = e.target.closest('.sr-mt-del'); if (b) b.parentElement.remove(); });
             document.getElementById('srMtAdd').onclick = () => {
                 const i = box.children.length;
-                box.insertAdjacentHTML('beforeend', `<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px"><input type="color" value="${SR_PALETTE[i % SR_PALETTE.length]}" class="sr-mt-c" style="width:34px;height:34px;border:0;background:none;cursor:pointer"><input type="text" placeholder="ชื่อหัวข้อ" class="sr-mt-n swal2-input" style="margin:0;height:36px;flex:1;font-size:14px"><button type="button" class="sr-mt-del" style="width:34px;height:34px;border-radius:8px;border:1px solid #ef444455;color:#ef4444;background:transparent;cursor:pointer">✕</button></div>`);
+                box.insertAdjacentHTML('beforeend', `<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px"><input type="color" value="${SR_PALETTE[i % SR_PALETTE.length]}" class="sr-mt-c" style="width:34px;height:34px;border:0;background:none;cursor:pointer"><input type="text" placeholder="ชื่อหัวข้อ" class="sr-mt-n swal2-input" style="margin:0;height:36px;flex:1;font-size:14px"><select class="sr-mt-g" style="height:36px;border-radius:8px;padding:0 6px;font-weight:800"><option value="${SR.topicGroup || 'AM'}">${SR.topicGroup || 'AM'}</option><option value="ALL">ทั้งคู่</option><option value="${(SR.topicGroup || 'AM') === 'AM' ? 'OD' : 'AM'}">${(SR.topicGroup || 'AM') === 'AM' ? 'OD' : 'AM'}</option></select><button type="button" class="sr-mt-del" style="width:34px;height:34px;border-radius:8px;border:1px solid #ef444455;color:#ef4444;background:transparent;cursor:pointer">✕</button></div>`);
                 box.lastElementChild.querySelector('.sr-mt-n').focus();
             };
         },
@@ -224,7 +241,8 @@ window.srManageTopics = async function() {
             const out = []; const seen = new Set();
             document.querySelectorAll('#srMtBox > div').forEach(r => {
                 const n = r.querySelector('.sr-mt-n').value.trim(); const c = r.querySelector('.sr-mt-c').value;
-                if (n && !seen.has(n)) { seen.add(n); out.push({ name: n, color: c }); }
+                const gg = r.querySelector('.sr-mt-g') ? r.querySelector('.sr-mt-g').value : 'ALL';
+                if (n && !seen.has(n)) { seen.add(n); out.push({ name: n, color: c, group: gg }); }
             });
             if (!out.length) { Swal.showValidationMessage('ต้องมีอย่างน้อย 1 หัวข้อ'); return false; }
             return out;
@@ -234,6 +252,7 @@ window.srManageTopics = async function() {
     const { error } = await appDB.from('settings').upsert([{ key: 'staff_record_topics', value: JSON.stringify(res.value) }]);
     if (error) return Swal.fire('บันทึกไม่สำเร็จ', error.message, 'error');
     SR.topics = res.value;
+    _srLog({ action: 'topics', detail: `แก้หัวข้อทั้งหมด (${res.value.length} หัวข้อ)` });
     [...SR.selTopics].forEach(n => { if (!SR.topics.find(t => t.name === n)) SR.selTopics.delete(n); });
     srRenderTopics(); srFillFilters(); srRender();
     Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'บันทึกหัวข้อแล้ว', showConfirmButton: false, timer: 1400 });
@@ -289,6 +308,8 @@ window.srEmpPick = function(name) {
     document.getElementById('srEmpPicked').classList.add('on');
     document.getElementById('srEmpPickedName').textContent = u.username;
     document.getElementById('srEmpPickedMeta').textContent = (u.department || 'AM') + (u.allowed_shift ? ' · ' + String(u.allowed_shift).replace('กะ', '') : '');
+    SR.topicGroup = _srGroupOf(u.department);
+    [...SR.selTopics].forEach(n => { const t = SR.topics.find(x => x.name === n); if (t && !_srTopicIn(t, SR.topicGroup)) SR.selTopics.delete(n); });
     srRenderTopics(); srRenderRecentPeople();
 };
 window.srEmpClear = function() {
@@ -306,6 +327,62 @@ if (!window.__srDocBound) {
     });
 }
 
+// ── 📜 ประวัติการใช้งาน (ใคร ลง/แก้/ลบ อะไร เมื่อไหร่) ──
+async function _srLog(entry) {
+    try {
+        const actor = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.username : '';
+        const rows = (Array.isArray(entry) ? entry : [entry]).map(e => ({ actor, ...e }));
+        const { error } = await appDB.from('staff_record_logs').insert(rows);
+        if (error && !SR._logWarned) { SR._logWarned = true; console.warn('[staff_record] บันทึกประวัติการใช้งานไม่ได้ — ยังไม่ได้รัน staff_record_logs.sql ?', error.message); }
+    } catch (e) {}
+}
+window.srSetView = function(v) {
+    SR.view = v;
+    document.getElementById('srSumView').style.display = v === 'sum' ? '' : 'none';
+    document.getElementById('srLogView').style.display = v === 'log' ? '' : 'none';
+    document.getElementById('srViewSumBtn').classList.toggle('on', v === 'sum');
+    document.getElementById('srViewLogBtn').classList.toggle('on', v === 'log');
+    if (v === 'log') srLoadLog();
+};
+window.srLoadLog = async function() {
+    const box = document.getElementById('srLogList'); if (!box) return;
+    const [a, b] = _srMonthRange(SR.month);
+    const end = new Date(b + 'T23:59:59'); const start = new Date(a + 'T00:00:00');
+    const { data, error } = await appDB.from('staff_record_logs').select('*').gte('created_at', start.toISOString()).lte('created_at', end.toISOString()).order('created_at', { ascending: false }).limit(3000);
+    if (error) {
+        box.innerHTML = `<div class="sr-empty"><span class="material-icons">error_outline</span>โหลดประวัติไม่ได้: ${_srEsc(error.message)}${String(error.message).includes('staff_record_logs') ? '<br>ยังไม่ได้สร้างตาราง — รันไฟล์ <b>staff_record_logs.sql</b> ใน Supabase ก่อน' : ''}</div>`;
+        return;
+    }
+    SR.logs = data || [];
+    srRenderLog();
+};
+window.srRenderLog = function() {
+    const box = document.getElementById('srLogList'); if (!box) return;
+    const q = (document.getElementById('srLogSearch')?.value || '').trim().toLowerCase();
+    const fa = document.getElementById('srLogAction')?.value || 'all';
+    const list = (SR.logs || []).filter(l => (fa === 'all' || l.action === fa) && (!q || [l.user_name, l.actor, l.topic, l.note, l.detail].some(x => String(x || '').toLowerCase().includes(q))));
+    if (!list.length) { box.innerHTML = `<div class="sr-empty"><span class="material-icons">history</span>${(SR.logs || []).length ? 'ไม่พบตามตัวกรอง' : 'เดือนนี้ยังไม่มีประวัติการใช้งาน'}</div>`; return; }
+    const ACT = { add: 'ลงประวัติ', edit: 'แก้ไข', delete: 'ลบ', topics: 'แก้หัวข้อ' };
+    let html = '', lastDay = '';
+    list.forEach(l => {
+        const d = new Date(l.created_at);
+        const day = `${['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'][d.getDay()]} ${d.getDate()} ${_srTH_M[d.getMonth()]} ${d.getFullYear() + 543}`;
+        if (day !== lastDay) { html += `<div class="sr-log-day">${day}</div>`; lastDay = day; }
+        const who = `<b>${_srEsc(l.actor || '-')}</b>`;
+        let body = '';
+        if (l.action === 'topics') body = `${who} ${_srEsc(l.detail || 'แก้หัวข้อ')}`;
+        else {
+            const tag = l.topic ? `<span class="sr-chip" style="--c:${_srTopicColor(l.topic)}">${_srEsc(l.topic)}</span>` : '';
+            const verb = l.action === 'add' ? 'ลงประวัติให้' : (l.action === 'edit' ? 'แก้ไขประวัติของ' : 'ลบประวัติของ');
+            body = `${who} ${verb} <b>${_srEsc(l.user_name || '-')}</b> ${tag}`
+                 + `<small>วันที่เกิดเรื่อง ${_srDateLabel(l.record_date)}${l.note ? ' · หมายเหตุ: ' + _srEsc(l.note) : ''}</small>`
+                 + (l.detail ? `<span class="chg">${l.detail}</span>` : '');
+        }
+        html += `<div class="sr-log-i"><div class="sr-log-time">${_srTime(l.created_at)}</div><div><span class="sr-act ${_srEsc(l.action)}">${ACT[l.action] || _srEsc(l.action)}</span></div><div class="sr-log-b">${body}</div></div>`;
+    });
+    box.innerHTML = html;
+};
+
 // ── บันทึก ──
 window.srSave = async function() {
     if (!_srPerm('staff_record_add')) return Swal.fire('ไม่มีสิทธิ์', 'บัญชีนี้ลงประวัติไม่ได้', 'warning');
@@ -322,6 +399,7 @@ window.srSave = async function() {
     btn.disabled = false;
     if (error) return Swal.fire('บันทึกไม่สำเร็จ', (error.message || '') + (String(error.message || '').includes('staff_records') ? '<br><small>ยังไม่ได้สร้างตาราง — รันไฟล์ sql/staff_records.sql ใน Supabase ก่อน</small>' : ''), 'error');
 
+    _srLog((data || payload).map(r => ({ action: 'add', record_id: r.id || null, user_name: r.user_name, record_date: r.record_date, topic: r.topic, note: r.note || null })));
     _srPushRecentPeople(SR.picked.username);
     SR.recent = [...(data || payload), ...SR.recent].slice(0, 6);
     srRenderRecent();
@@ -366,6 +444,7 @@ window.srShiftMonth = function(n) {
     else { const [y, m] = SR.month.split('-').map(Number); const d = new Date(y, m - 1 + n, 1); SR.month = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
     SR.open.clear();
     srLoad();
+    if (SR.view === 'log') srLoadLog();
 };
 
 // ── วาดสรุป ──
@@ -461,6 +540,7 @@ window.srToggleEmp = function(row) {
 window.srEdit = async function(id) {
     if (!_srPerm('staff_record_edit') && !_srPerm('staff_record_add')) return;
     const r = SR.rows.find(x => Number(x.id) === Number(id)); if (!r) return;
+    const before0 = { ...r };   // เก็บค่าเดิมไว้เทียบตอนบันทึกประวัติการแก้
     const topics = [...new Set([...SR.topics.map(t => t.name), r.topic])];
     const opt = topics.map(t => `<option value="${_srEsc(t)}" ${t === r.topic ? 'selected' : ''}>${_srEsc(t)}</option>`).join('');
     const users = _srUsers().map(u => u.username).sort((a, b) => a.localeCompare(b));
@@ -487,6 +567,13 @@ window.srEdit = async function(id) {
     if (!res.isConfirmed || !res.value) return;
     const { error } = await appDB.from('staff_records').update(res.value).eq('id', id);
     if (error) return Swal.fire('แก้ไขไม่สำเร็จ', error.message, 'error');
+    const _chg = [];
+    const _lab = { user_name: 'พนักงาน', record_date: 'วันที่', topic: 'เรื่อง', note: 'หมายเหตุ' };
+    Object.keys(_lab).forEach(k => {
+        const before = before0[k] ?? '', after = res.value[k] ?? '';
+        if (String(before) !== String(after)) _chg.push(`${_lab[k]}: <s>${_srEsc(k === 'record_date' ? _srDateLabel(before) : (before || '—'))}</s> → ${_srEsc(k === 'record_date' ? _srDateLabel(after) : (after || '—'))}`);
+    });
+    _srLog({ action: 'edit', record_id: id, user_name: res.value.user_name, record_date: res.value.record_date, topic: res.value.topic, note: res.value.note, detail: _chg.length ? _chg.join(' · ') : 'ไม่มีการเปลี่ยนแปลง' });
     Object.assign(r, res.value);
     if (String(r.record_date).slice(0, 7) !== SR.month) SR.rows = SR.rows.filter(x => x !== r);   // ย้ายไปเดือนอื่น → ออกจากหน้านี้
     srRender(); srRenderTopics();
@@ -501,6 +588,7 @@ window.srDelete = async function(id) {
     if (!ok.isConfirmed) return;
     const { error } = await appDB.from('staff_records').delete().eq('id', id);
     if (error) return Swal.fire('ลบไม่สำเร็จ', error.message, 'error');
+    if (r) _srLog({ action: 'delete', record_id: id, user_name: r.user_name, record_date: r.record_date, topic: r.topic, note: r.note || null, detail: `ลงไว้โดย ${_srEsc(r.created_by || '-')} เมื่อ ${_srDateTimeShort(r.created_at)}` });
     SR.rows = SR.rows.filter(x => Number(x.id) !== Number(id));
     SR.recent = SR.recent.filter(x => Number(x.id) !== Number(id)); srRenderRecent();
     srRender();
@@ -514,6 +602,9 @@ window.srSubscribe = function() {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'staff_records' }, () => {
             clearTimeout(t);
             t = setTimeout(() => { if (document.getElementById('srList')) srLoad(); }, 400);   // รวมหลายเหตุการณ์ติดกันเป็นครั้งเดียว
+        })
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'staff_record_logs' }, () => {
+            if (SR.view === 'log') { clearTimeout(SR._lt); SR._lt = setTimeout(srLoadLog, 500); }
         })
         .subscribe();
 };

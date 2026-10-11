@@ -173,7 +173,8 @@ const PERM_GROUPS = [
             {id: 'staff_record_edit', name: 'แก้ไขประวัติที่ลงไปแล้ว', isSub: true},
             {id: 'staff_record_delete', name: 'ลบประวัติ', isSub: true},
             {id: 'staff_record_view_all', name: 'ดูของทุกคน (ไม่ติก = เห็นเฉพาะของตัวเอง)', isSub: true},
-            {id: 'staff_record_topics', name: 'แก้หัวข้อเรื่องที่ผิด', isSub: true}
+            {id: 'staff_record_topics', name: 'แก้หัวข้อเรื่องที่ผิด', isSub: true},
+            {id: 'staff_record_log', name: 'ดูประวัติการใช้งาน (ใครลง/แก้/ลบ)', isSub: true}
         ]
     },
     {
