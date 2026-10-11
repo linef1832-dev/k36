@@ -76,8 +76,12 @@ window.initStaffRecord = async function() {
     if (wrap) wrap.classList.toggle('no-form', !canAdd);
     const tl = document.getElementById('srTopicManageLink'); if (tl) tl.style.display = _srPerm('staff_record_topics') ? 'flex' : 'none';
 
-    const vw = document.getElementById('srViews'); if (vw) vw.style.display = _srPerm('staff_record_log') ? '' : 'none';   // ไม่มีสิทธิ์ดูประวัติ → ซ่อนปุ่มสลับทั้งชุด (เหลือปุ่มเดียวกดแล้วไม่มีอะไรเปลี่ยน ชวนงง)
-    if (SR.view === 'log' && !_srPerm('staff_record_log')) SR.view = 'sum';
+    // ปุ่มสลับมุมมอง: อันดับ = ต้องดูของทุกคนได้ · ประวัติการใช้งาน = สิทธิ์ดูประวัติ · ไม่มีปุ่มเสริมเลย → ซ่อนทั้งชุด
+    const canRank = _srPerm('staff_record_view_all'), canLog = _srPerm('staff_record_log');
+    const rb = document.getElementById('srViewRankBtn'); if (rb) rb.style.display = canRank ? '' : 'none';
+    const lb = document.getElementById('srViewLogBtn'); if (lb) lb.style.display = canLog ? '' : 'none';
+    const vw = document.getElementById('srViews'); if (vw) vw.style.display = (canRank || canLog) ? '' : 'none';
+    if ((SR.view === 'log' && !canLog) || (SR.view === 'rank' && !canRank)) SR.view = 'sum';
     if (!SR.topicGroup) SR.topicGroup = (typeof currentUser !== 'undefined' && currentUser) ? _srGroupOf(currentUser.department) : 'AM';
     if (_srUsers().length === 0 && typeof fetchUsers === 'function') { try { await fetchUsers(); } catch (e) {} }
     await srLoadTopics();
@@ -428,9 +432,12 @@ window.srSetView = function(v) {
     SR.view = v;
     document.getElementById('srSumView').style.display = v === 'sum' ? '' : 'none';
     document.getElementById('srLogView').style.display = v === 'log' ? '' : 'none';
+    document.getElementById('srRankView').style.display = v === 'rank' ? '' : 'none';
     document.getElementById('srViewSumBtn').classList.toggle('on', v === 'sum');
     document.getElementById('srViewLogBtn').classList.toggle('on', v === 'log');
+    document.getElementById('srViewRankBtn').classList.toggle('on', v === 'rank');
     if (v === 'log') srLoadLog();
+    if (v === 'rank') srRenderRank();
 };
 window.srLoadLog = async function() {
     const box = document.getElementById('srLogList'); if (!box) return;
@@ -469,6 +476,73 @@ window.srRenderLog = function() {
         html += `<div class="sr-log-i"><div class="sr-log-time">${_srTime(l.created_at)}</div><div><span class="sr-act ${_srEsc(l.action)}">${ACT[l.action] || _srEsc(l.action)}</span></div><div class="sr-log-b">${body}</div></div>`;
     });
     box.innerHTML = html;
+};
+
+// ── 🏆 อันดับ: ใครโดนเยอะสุด (ข้อมูลเดือนที่เลือก) ──
+window.srRankType = function(t) {
+    SR.rankType = t;
+    document.querySelectorAll('#srApp .sr-rk-type button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+    srRenderRank();
+};
+window.srRenderRank = function() {
+    const box = document.getElementById('srRankBody'); if (!box) return;
+    // ตัวกรองแผนก/เรื่อง เติมตามข้อมูลล่าสุด
+    const dSel = document.getElementById('srRankDept'), tSel = document.getElementById('srRankTopic');
+    if (dSel) { const cur = dSel.value || 'all'; const ds = [...new Set(_srUsers().map(u => u.department || 'AM'))].sort(); dSel.innerHTML = '<option value="all">ทุกแผนก</option>' + ds.map(x => `<option value="${_srEsc(x)}">${_srEsc(x)}</option>`).join(''); dSel.value = ds.includes(cur) ? cur : 'all'; }
+    if (tSel) { const cur = tSel.value || 'all'; const ts = [...new Set(SR.rows.map(r => r.topic))].sort(); tSel.innerHTML = '<option value="all">ทุกเรื่อง</option>' + ts.map(x => `<option value="${_srEsc(x)}">${_srEsc(x)}</option>`).join(''); tSel.value = ts.includes(cur) ? cur : 'all'; }
+    const type = SR.rankType || 'all', fD = dSel ? dSel.value : 'all', fS = document.getElementById('srRankShift')?.value || 'all', fT = tSel ? tSel.value : 'all';
+
+    const rows = SR.rows.filter(r => {
+        if (type === 'hist' && _srIsFine(r)) return false;
+        if (type === 'fine' && !_srIsFine(r)) return false;
+        if (fT !== 'all' && r.topic !== fT) return false;
+        if (fD !== 'all' || fS !== 'all') { const u = _srUserOf(r.user_name); if (!u) return false; if (fD !== 'all' && (u.department || 'AM') !== fD) return false; if (fS !== 'all' && u.allowed_shift !== fS) return false; }
+        return true;
+    });
+    const g = {};
+    rows.forEach(r => { const k = String(r.user_name).toLowerCase(); (g[k] = g[k] || { name: r.user_name, items: [] }).items.push(r); });
+    const list = Object.values(g).map(x => ({ ...x, n: x.items.length, sp: _srSplit(x.items) }))
+        .sort((a, b) => b.n - a.n || b.sp.fine - a.sp.fine || b.sp.amount - a.sp.amount || a.name.localeCompare(b.name));
+    if (!list.length) { box.innerHTML = `<div class="sr-empty"><span class="material-icons">emoji_events</span>${SR.rows.length ? 'ไม่พบตามตัวกรอง' : 'เดือนนี้ยังไม่มีข้อมูล'}</div>`; return; }
+
+    // อันดับร่วม: จำนวนเท่ากัน = อันดับเท่ากัน
+    let rank = 0, prev = null;
+    list.forEach((x, i) => { if (x.n !== prev) { rank = i + 1; prev = x.n; } x.rank = rank; });
+    const max = list[0].n;
+    const meta = x => { const u = _srUserOf(x.name); return u ? `${_srEsc(u.department || 'AM')}${u.allowed_shift ? ' · ' + _srEsc(String(u.allowed_shift).replace('กะ', '')) : ''}` : 'ไม่อยู่ในระบบ'; };
+    const splitTags = x => `${x.sp.hist ? `<span class="h">ประวัติ ${x.sp.hist}</span>` : ''}${x.sp.fine ? `<span class="f">ใบปรับ ${x.sp.fine}${x.sp.amount ? ' · ฿' + x.sp.amount.toLocaleString('en-US') : ''}</span>` : ''}`;
+    const topTopics = x => { const c = {}; x.items.forEach(r => c[r.topic] = (c[r.topic] || 0) + 1); return Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([t, n]) => `<span style="--c:${_srTopicColor(t)}">${_srEsc(t.replace(/^ใบปรับ:\s*/, 'ใบปรับ · '))} ×${n}</span>`).join(''); };
+    const go = name => `srRankOpen('${_srEsc(name).replace(/'/g, "\\'")}')`;
+
+    // โพเดียม 3 อันดับแรก (เรียง 2-1-3)
+    const top = list.slice(0, 3);
+    const order = top.length === 3 ? [top[1], top[0], top[2]] : top;
+    const pod = `<div class="sr-pod" style="${top.length < 3 ? 'grid-template-columns:repeat(' + top.length + ',1fr)' : ''}">` + order.map(x => `
+        <div class="sr-pod-i r${Math.min(x.rank, 3)}" onclick="${go(x.name)}" title="ดูรายละเอียด">
+            <div class="sr-medal">${x.rank}</div>
+            <div class="sr-pod-n">${_srEsc(x.name)}</div>
+            <div class="sr-pod-m">${meta(x)}</div>
+            <div class="sr-pod-c">${x.n}<small>ครั้ง</small></div>
+            <div class="sr-pod-s">${splitTags(x)}</div>
+        </div>`).join('') + `</div>`;
+
+    const rest = list.slice(3).map(x => `
+        <div class="sr-rk-row" onclick="${go(x.name)}" title="ดูรายละเอียด">
+            <div class="sr-rk-no">${x.rank}</div>
+            <div class="sr-rk-nm"><b>${_srEsc(x.name)}</b><small>${meta(x)}</small></div>
+            <div class="sr-rk-bar">
+                <div class="sr-rk-track"><i class="h" style="width:${x.sp.hist / max * 100}%"></i><i class="f" style="width:${x.sp.fine / max * 100}%"></i></div>
+                <div class="sr-rk-tp">${topTopics(x)}</div>
+            </div>
+            <div class="sr-rk-c"><b>${x.n}</b><small>ครั้ง</small>${x.sp.amount ? `<em>฿${x.sp.amount.toLocaleString('en-US')}</em>` : ''}</div>
+        </div>`).join('');
+    box.innerHTML = pod + (rest ? `<div class="sr-rk-legend"><span><i style="background:#E8C15A"></i>ประวัติ</span><span><i style="background:#ef4444"></i>ใบปรับ</span><span>· ทั้งหมด ${list.length} คน</span></div>` + rest : '');
+};
+// กดชื่อในอันดับ → ไปหน้ารายชื่อ เปิดการ์ดคนนั้น
+window.srRankOpen = function(name) {
+    const inp = document.getElementById('srFilterName'); if (inp) inp.value = name;
+    SR.open.add(String(name).toLowerCase());
+    srSetView('sum'); srRender();
 };
 
 // ── บันทึก ──
@@ -540,6 +614,7 @@ window.srLoad = async function() {
     srFillFilters();
     srRender();
     srRenderTopics();
+    if (SR.view === 'rank') srRenderRank();
 };
 window.srShiftMonth = function(n) {
     if (n === 0) SR.month = _srToday().slice(0, 7);

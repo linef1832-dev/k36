@@ -237,6 +237,49 @@
     #srApp .sr-kpi-split .h{color:var(--k-gold-tx);background:rgba(232,193,90,.12);border:1px solid rgba(232,193,90,.4)}
     #srApp .sr-kpi-split .f{color:var(--k-red-tx);background:var(--k-red-bg);border:1px solid var(--k-red-line)}
     @media (max-width:640px){ #srApp .sr-kpi-split{display:flex;margin:4px 0 0} }
+    /* 🏆 อันดับ */
+    #srApp .sr-rk-type{display:flex;gap:2px;padding:3px;border-radius:10px;background:var(--k-sunk);border:1px solid var(--k-line)}
+    #srApp .sr-rk-type button{height:30px;padding:0 12px;border-radius:8px;border:0;background:transparent;color:var(--k-mute);font-size:12px;font-weight:800;cursor:pointer}
+    #srApp .sr-rk-type button.on{background:var(--k-gold);color:var(--k-gold-ink)}
+    #srApp .sr-rk{padding:14px}
+    #srApp .sr-pod{display:grid;grid-template-columns:1fr 1.15fr 1fr;gap:10px;align-items:end;margin-bottom:14px}
+    #srApp .sr-pod-i{position:relative;padding:16px 12px 14px;border-radius:16px;text-align:center;background:var(--k-card);border:1px solid var(--k-line);cursor:pointer;transition:transform .15s,border-color .15s}
+    #srApp .sr-pod-i:hover{transform:translateY(-2px);border-color:var(--k-line4)}
+    #srApp .sr-pod-i.r1{padding-top:22px;border-color:rgba(232,193,90,.6);background:linear-gradient(180deg,rgba(232,193,90,.14),var(--k-card))}
+    #srApp .sr-pod-i.r2{border-color:rgba(148,163,184,.55)}
+    #srApp .sr-pod-i.r3{border-color:rgba(205,127,50,.55)}
+    #srApp .sr-medal{width:38px;height:38px;margin:0 auto 6px;border-radius:99px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:900;color:#1b1406}
+    #srApp .r1 .sr-medal{width:46px;height:46px;font-size:20px;background:linear-gradient(135deg,#f5e3ae,#E8C15A);box-shadow:0 6px 16px rgba(232,193,90,.35)}
+    #srApp .r2 .sr-medal{background:linear-gradient(135deg,#e2e8f0,#94a3b8)}
+    #srApp .r3 .sr-medal{background:linear-gradient(135deg,#f3c79b,#cd7f32)}
+    #srApp .sr-pod-n{font-size:15px;font-weight:900;color:var(--k-tx-strong);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #srApp .sr-pod-m{font-size:11px;font-weight:700;color:var(--k-mute);margin:2px 0 6px}
+    #srApp .sr-pod-c{font-size:30px;font-weight:900;line-height:1;color:var(--k-tx-strong);font-variant-numeric:tabular-nums}
+    #srApp .r1 .sr-pod-c{font-size:36px;color:var(--k-gold-tx)}
+    #srApp .sr-pod-c small{font-size:12px;font-weight:700;color:var(--k-mute);margin-left:3px}
+    #srApp .sr-pod-s{display:flex;justify-content:center;gap:5px;margin-top:8px;flex-wrap:wrap}
+    #srApp .sr-pod-s span{font-size:10.5px;font-weight:800;padding:1px 8px;border-radius:999px}
+    #srApp .sr-pod-s .h{color:var(--k-gold-tx);background:rgba(232,193,90,.12);border:1px solid rgba(232,193,90,.4)}
+    #srApp .sr-pod-s .f{color:var(--k-red-tx);background:var(--k-red-bg);border:1px solid var(--k-red-line)}
+    #srApp .sr-rk-row{display:grid;grid-template-columns:40px minmax(120px,200px) minmax(0,1fr) 70px;gap:12px;align-items:center;padding:10px 12px;border-radius:12px;border:1px solid var(--k-line);background:var(--k-card);margin-bottom:6px;cursor:pointer}
+    #srApp .sr-rk-row:hover{background:var(--k-btn-h)}
+    #srApp .sr-rk-no{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;background:var(--k-btn-h);color:var(--k-tx2)}
+    #srApp .sr-rk-nm b{display:block;font-size:13.5px;font-weight:900;color:var(--k-tx-strong);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #srApp .sr-rk-nm small{font-size:11px;font-weight:700;color:var(--k-mute)}
+    #srApp .sr-rk-bar{min-width:0}
+    #srApp .sr-rk-track{height:10px;border-radius:99px;background:var(--k-line);overflow:hidden;display:flex}
+    #srApp .sr-rk-track i{display:block;height:100%}
+    #srApp .sr-rk-track i.h{background:#E8C15A}
+    #srApp .sr-rk-track i.f{background:#ef4444}
+    #srApp .sr-rk-tp{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+    #srApp .sr-rk-tp span{font-size:10.5px;font-weight:800;padding:1px 7px;border-radius:999px;background:color-mix(in srgb,var(--c) 14%,transparent);border:1px solid color-mix(in srgb,var(--c) 40%,transparent);color:var(--k-tx2);white-space:nowrap}
+    #srApp .sr-rk-c{text-align:right}
+    #srApp .sr-rk-c b{display:block;font-size:20px;font-weight:900;color:var(--k-tx-strong);line-height:1}
+    #srApp .sr-rk-c small{font-size:10.5px;font-weight:700;color:var(--k-mute)}
+    #srApp .sr-rk-c em{display:block;font-style:normal;font-size:10.5px;font-weight:800;color:var(--k-red-tx)}
+    #srApp .sr-rk-legend{display:flex;gap:12px;font-size:11px;font-weight:700;color:var(--k-mute);margin:0 0 8px 2px}
+    #srApp .sr-rk-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+    @media (max-width:760px){ #srApp .sr-pod{grid-template-columns:1fr} #srApp .sr-rk-row{grid-template-columns:36px minmax(0,1fr) 60px} #srApp .sr-rk-bar{grid-column:1/-1} }
     #srApp .sr-selcount{font-size:11.5px;font-weight:800;color:var(--k-gold-tx)}
     #srApp .sr-sum{display:none;margin:0 0 10px;padding:10px 12px;border-radius:12px;background:var(--k-gold-bg);border:1px dashed rgba(232,193,90,.6);font-size:12.5px;line-height:1.55;color:var(--k-tx2)}
     #srApp .sr-sum.on{display:block}
@@ -255,6 +298,7 @@
         </div>
         <div id="srViews" class="sr-views" role="tablist">
             <button type="button" id="srViewSumBtn" class="on" onclick="srSetView('sum')"><span class="material-icons">groups</span> รายชื่อ & สรุป</button>
+            <button type="button" id="srViewRankBtn" onclick="srSetView('rank')"><span class="material-icons">emoji_events</span> อันดับ</button>
             <button type="button" id="srViewLogBtn" onclick="srSetView('log')"><span class="material-icons">history</span> ประวัติการใช้งาน</button>
         </div>
         <div class="sr-month">
@@ -331,6 +375,23 @@
                     <div id="srList" class="sr-list">
                         <div class="sr-empty"><span class="material-icons">hourglass_top</span>กำลังโหลด…</div>
                     </div>
+                </div>
+            </section>
+
+            <!-- 🏆 อันดับ: ใครโดนเยอะสุดในเดือนนี้ -->
+            <section id="srRankView" style="min-width:0;display:none">
+                <div class="sr-card">
+                    <div class="sr-tool">
+                        <div class="sr-rk-type" role="tablist">
+                            <button type="button" data-t="all" class="on" onclick="srRankType('all')">รวมทั้งหมด</button>
+                            <button type="button" data-t="hist" onclick="srRankType('hist')">ประวัติ</button>
+                            <button type="button" data-t="fine" onclick="srRankType('fine')">ใบปรับ</button>
+                        </div>
+                        <select id="srRankDept" class="sr-in" onchange="srRenderRank()" title="กรองแผนก"><option value="all">ทุกแผนก</option></select>
+                        <select id="srRankShift" class="sr-in" onchange="srRenderRank()" title="กรองกะ"><option value="all">ทุกกะ</option><option value="กะเช้า">☀️ กะเช้า</option><option value="กะกลาง">🌤️ กะกลาง</option><option value="กะดึก">🌙 กะดึก</option></select>
+                        <select id="srRankTopic" class="sr-in" onchange="srRenderRank()" title="เฉพาะเรื่อง"><option value="all">ทุกเรื่อง</option></select>
+                    </div>
+                    <div id="srRankBody" class="sr-rk"></div>
                 </div>
             </section>
 
