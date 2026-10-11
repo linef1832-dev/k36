@@ -132,11 +132,7 @@ window.srNoteAdd = function(text) {
 const _srRecentPeopleKey = 'sr_recent_people';
 const _srGetRecentPeople = () => { try { return JSON.parse(localStorage.getItem(_srRecentPeopleKey) || '[]'); } catch (e) { return []; } };
 const _srPushRecentPeople = name => { const a = _srGetRecentPeople().filter(x => x !== name); a.unshift(name); try { localStorage.setItem(_srRecentPeopleKey, JSON.stringify(a.slice(0, 6))); } catch (e) {} };
-window.srRenderRecentPeople = function() {
-    const box = document.getElementById('srRecentPeople'); if (!box) return;
-    const names = _srGetRecentPeople().filter(n => _srUserOf(n) && (!SR.picked || SR.picked.username !== n));
-    box.innerHTML = names.length ? names.map(n => `<button type="button" class="sr-qbtn" onclick="srEmpPick('${_srEsc(n).replace(/'/g, "\\'")}')"><span class="material-icons">history</span>${_srEsc(n)}</button>`).join('') : '';
-};
+window.srRenderRecentPeople = function() {};   // (ปุ่มชื่อล่าสุดใต้ช่องพนักงานเอาออกแล้ว — เกะกะ)
 // อัปเดต: ประวัติของคนที่เลือก, ตัวนับเรื่อง, ปุ่มวันลัด, สรุปก่อนบันทึก, ปุ่มบันทึก
 window.srSyncForm = function() {
     const dEl = document.getElementById('srDate');
@@ -406,14 +402,24 @@ window.srRender = function() {
     const groups = {};
     rows.forEach(r => { const k = String(r.user_name).toLowerCase(); (groups[k] = groups[k] || { name: r.user_name, items: [] }).items.push(r); });
     const canDel = _srPerm('staff_record_delete');
-    const canEdit = _srPerm('staff_record_edit');
+    const canEdit = _srPerm('staff_record_edit') || _srPerm('staff_record_add');   // ลงได้ = แก้ได้
     const sorted = Object.values(groups).sort((a, b) => b.items.length - a.items.length || a.name.localeCompare(b.name));
 
     list.innerHTML = sorted.map(g => {
         const key = g.name.toLowerCase();
         const u = _srUserOf(g.name);
-        const cnt = {}; g.items.forEach(r => cnt[r.topic] = (cnt[r.topic] || 0) + 1);
-        const chips = Object.entries(cnt).sort((a, b) => b[1] - a[1]).map(([t, n]) => `<span class="sr-chip" style="--c:${_srTopicColor(t)}">${_srEsc(t)} <b>×${n}</b></span>`).join('');
+        const cnt = {}, days = {};
+        g.items.forEach(r => {
+            cnt[r.topic] = (cnt[r.topic] || 0) + 1;
+            (days[r.topic] = days[r.topic] || new Set()).add(String(r.record_date));
+        });
+        // วันที่ของแต่ละเรื่อง เช่น "11, 14 ต.ค." (เรียงจากวันแรก)
+        const _dayList = set => {
+            const ds = [...set].sort();
+            const byM = {}; ds.forEach(d => { const [, m, dd] = d.split('-').map(Number); (byM[m] = byM[m] || []).push(dd); });
+            return Object.entries(byM).map(([m, arr]) => `${arr.join(', ')} ${_srTH_M[m - 1]}`).join(' · ');
+        };
+        const chips = Object.entries(cnt).sort((a, b) => b[1] - a[1]).map(([t, n]) => `<span class="sr-chip" style="--c:${_srTopicColor(t)}" title="${_srEsc(t)} ${n} ครั้ง">${_srEsc(t)} <b>×${n}</b><span class="sr-chip-d">${_dayList(days[t])}</span></span>`).join('');
         const meta = u ? `<span class="sr-tag">${_srEsc(u.department || 'AM')}</span>${u.allowed_shift ? `<span class="sr-tag">${_srEsc(String(u.allowed_shift).replace('กะ', ''))}</span>` : ''}` : '<span class="sr-tag">ไม่อยู่ในระบบ</span>';
         g.items.sort((a, b) => String(b.record_date).localeCompare(String(a.record_date)) || String(b.created_at || '').localeCompare(String(a.created_at || '')));
         const tl = g.items.map(r => {
@@ -449,7 +455,7 @@ window.srToggleEmp = function(row) {
 
 // ── แก้ไข ──
 window.srEdit = async function(id) {
-    if (!_srPerm('staff_record_edit')) return;
+    if (!_srPerm('staff_record_edit') && !_srPerm('staff_record_add')) return;
     const r = SR.rows.find(x => Number(x.id) === Number(id)); if (!r) return;
     const topics = [...new Set([...SR.topics.map(t => t.name), r.topic])];
     const opt = topics.map(t => `<option value="${_srEsc(t)}" ${t === r.topic ? 'selected' : ''}>${_srEsc(t)}</option>`).join('');

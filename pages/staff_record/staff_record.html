@@ -82,6 +82,7 @@
     #srApp .sr-tag{font-size:10.5px;font-weight:800;padding:1px 7px;border-radius:999px;background:var(--k-btn);border:1px solid var(--k-line2);color:var(--k-mute)}
     #srApp .sr-chips{flex:1;display:flex;flex-wrap:wrap;gap:5px;justify-content:flex-end;min-width:0}
     #srApp .sr-chip{--c:#64748b;display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:800;padding:3px 9px;border-radius:999px;background:color-mix(in srgb,var(--c) 14%,transparent);border:1px solid color-mix(in srgb,var(--c) 40%,transparent);color:var(--k-tx)}
+    #srApp .sr-chip-d{font-size:10.5px;font-weight:700;color:var(--k-mute);padding-left:6px;margin-left:2px;border-left:1px solid color-mix(in srgb,var(--c) 40%,transparent)}
     #srApp .sr-chip b{font-weight:900;color:var(--k-tx-strong)}
     #srApp .sr-total{flex:none;min-width:58px;text-align:right}
     #srApp .sr-total b{display:block;font-size:22px;font-weight:900;color:var(--k-tx-strong);line-height:1;font-variant-numeric:tabular-nums}
@@ -198,7 +199,6 @@
                             <div id="srEmpList" class="sr-emp-list custom-scrollbar"></div>
                             <div id="srEmpPicked" class="sr-picked"><span class="material-icons" style="font-size:18px;color:var(--k-gold-tx)">person</span><b id="srEmpPickedName"></b><small id="srEmpPickedMeta"></small><button type="button" onclick="srEmpClear()" title="เปลี่ยนคน"><span class="material-icons" style="font-size:18px">close</span></button></div>
                         </div>
-                        <div id="srRecentPeople" class="sr-quick"></div>
                         <div id="srEmpHist" class="sr-hist"></div>
                     </div>
                     <div class="sr-field">
