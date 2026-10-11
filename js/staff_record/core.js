@@ -591,11 +591,7 @@ window.srSave = async function() {
     if (date.slice(0, 7) === SR.month) await srLoad();
     srRenderTopics(); srRenderRecentPeople();
 };
-window.srRenderRecent = function() {
-    const box = document.getElementById('srRecent'); if (!box) return;
-    if (!SR.recent.length) { box.innerHTML = '<div class="sr-hint">ยังไม่มี</div>'; return; }
-    box.innerHTML = SR.recent.map(r => `<div class="sr-recent-i"><span class="sr-chip" style="--c:${_srTopicColor(r.topic)}">${_srEsc(r.topic)}</span><b>${_srEsc(r.user_name)}</b><small>${_srDateLabel(r.record_date)}${r.created_at ? ' · ' + _srTime(r.created_at) : ''}</small></div>`).join('');
-};
+window.srRenderRecent = function() {};   // (ส่วน "ที่ลงล่าสุด" เอาออกแล้ว — เกะกะ)
 
 // ── โหลดข้อมูลเดือน ──
 window.srLoad = async function() {
