@@ -11,7 +11,8 @@ window.SR = window.SR || {
     month: null,          // 'YYYY-MM'
     rows: [],             // ประวัติของเดือนที่เลือก
     topics: [],           // [{name,color}]
-    picked: null,         // พนักงานที่เลือกในฟอร์ม
+    picked: null,         // (คงไว้ให้โค้ดเก่า) = คนแรกที่เลือก
+    pickedList: [],       // 👥 พนักงานที่เลือก (ลงหลายคนพร้อมกันได้)
     selTopics: new Set(),
     open: new Set(),      // การ์ดพนักงานที่กางไทม์ไลน์อยู่
     recent: [],
@@ -50,6 +51,9 @@ const _srDateTimeShort = iso => { if (!iso) return ''; const d = new Date(iso); 
 // หัวข้อแยกตามแผนก: AM / OD (แผนกที่ขึ้นต้นด้วย OD = OD, อื่นๆ = AM) · หัวข้อเก่าที่ยังไม่ระบุ = ใช้ได้ทั้งสองฝั่ง
 const _srGroupOf = dept => String(dept || 'AM').toUpperCase().startsWith('OD') ? 'OD' : 'AM';
 const _srTopicIn = (t, g) => !t.group || t.group === 'ALL' || t.group === g;
+const _srTopicLimit = name => { const t = SR.topics.find(x => x.name === name); const n = t ? Number(t.limit) : 0; return n > 0 ? n : 0; };
+// นับว่าเดือนของวันที่ที่ระบุ คนนี้ผิดเรื่องนี้ไปแล้วกี่ครั้ง (ใช้ข้อมูลเดือนที่เปิดอยู่)
+const _srCountOf = (name, topic) => SR.rows.filter(r => String(r.user_name).toLowerCase() === String(name).toLowerCase() && r.topic === topic).length;
 const _srTopicColor = name => (SR.topics.find(t => t.name === name) || {}).color || '#64748b';
 const _srUsers = () => (typeof GLOBAL_USER_LIST !== 'undefined' && Array.isArray(GLOBAL_USER_LIST)) ? GLOBAL_USER_LIST : [];
 const _srUserOf = name => _srUsers().find(u => String(u.username).toLowerCase() === String(name).toLowerCase());
@@ -97,8 +101,8 @@ window.srRenderTopics = function() {
     const g = SR.topicGroup || 'AM';
     document.querySelectorAll('#srApp .sr-gtabs button').forEach(b => {
         b.classList.toggle('on', b.dataset.g === g);
-        const auto = SR.picked && _srGroupOf(SR.picked.department) === b.dataset.g;
-        b.innerHTML = `หัวข้อ ${b.dataset.g}${auto ? '<span class="auto">· แผนกของ ' + _srEsc(SR.picked.username) + '</span>' : ''}`;
+        const nIn = SR.pickedList.filter(u => _srGroupOf(u.department) === b.dataset.g).length;
+        b.innerHTML = `หัวข้อ ${b.dataset.g}${nIn ? `<span class="auto">· เลือก ${nIn} คน</span>` : ''}`;
     });
     box.innerHTML = SR.topics.map((t, i) => {
         if (!_srTopicIn(t, g)) return '';
@@ -120,7 +124,7 @@ window.srToggleTopic = function(btn, name) {
 // ประวัติเดือนนี้ของคนที่เลือก (จากข้อมูลเดือนที่เปิดอยู่ — ถ้าวันที่ที่จะลงเป็นเดือนเดียวกัน)
 function _srPickedMonthCounts() {
     const out = {};
-    if (!SR.picked) return out;
+    if (SR.pickedList.length !== 1) return out;
     const d = document.getElementById('srDate'); const ym = (d && d.value ? d.value : _srToday()).slice(0, 7);
     if (ym !== SR.month) return out;
     const k = String(SR.picked.username).toLowerCase();
@@ -150,15 +154,24 @@ window.srSyncForm = function() {
     const n = SR.selTopics.size;
     const sc = document.getElementById('srSelCount'); if (sc) sc.textContent = n ? `· เลือกแล้ว ${n} เรื่อง` : '';
 
-    const ready = !!SR.picked && !!date && n > 0;
+    const P = SR.pickedList; const np = P.length;
+    const ready = np > 0 && !!date && n > 0;
     const sum = document.getElementById('srSum');
     if (sum) {
         sum.classList.toggle('on', ready);
-        if (ready) sum.innerHTML = `จะบันทึกให้ <b>${_srEsc(SR.picked.username)}</b> วันที่ <b>${_srDateLabel(date)}</b><br>` + [...SR.selTopics].map(t => `<span class="sr-chip" style="--c:${_srTopicColor(t)};margin:3px 3px 0 0">${_srEsc(t)}</span>`).join('');
+        if (ready) {
+            // เตือนล่วงหน้าในกล่องสรุป: ใครจะถึง/เกินเกณฑ์ถ้าบันทึกรอบนี้
+            const sameMonth = date.slice(0, 7) === SR.month;
+            const hits = [];
+            if (sameMonth) P.forEach(u => [...SR.selTopics].forEach(t => { const lim = _srTopicLimit(t); if (lim && _srCountOf(u.username, t) + 1 >= lim) hits.push(`${_srEsc(u.username)} · ${_srEsc(t)} ครั้งที่ ${_srCountOf(u.username, t) + 1}/${lim}`); }));
+            sum.innerHTML = `จะบันทึกให้ <b>${np === 1 ? _srEsc(P[0].username) : np + ' คน'}</b> วันที่ <b>${_srDateLabel(date)}</b> รวม <b>${np * n} รายการ</b><br>`
+                + [...SR.selTopics].map(t => `<span class="sr-chip" style="--c:${_srTopicColor(t)};margin:3px 3px 0 0">${_srEsc(t)}</span>`).join('')
+                + (hits.length ? `<div class="sr-sum-warn"><span class="material-icons">warning</span><div><b>ถึงเกณฑ์</b><br>${hits.join('<br>')}</div></div>` : '');
+        }
     }
     const btn = document.getElementById('srSaveBtn'), lab = document.getElementById('srSaveLabel');
     if (btn) btn.disabled = !ready;
-    if (lab) lab.textContent = !SR.picked ? 'เลือกพนักงานก่อน' : (!n ? 'เลือกเรื่องที่ผิดก่อน' : `บันทึก ${n} เรื่อง ให้ ${SR.picked.username}`);
+    if (lab) lab.textContent = !np ? 'เลือกพนักงานก่อน' : (!n ? 'เลือกเรื่องที่ผิดก่อน' : (np === 1 ? `บันทึก ${n} เรื่อง ให้ ${P[0].username}` : `บันทึก ${n} เรื่อง ให้ ${np} คน (${np * n} รายการ)`));
 };
 // ── ลบ / เพิ่มหัวข้อตรงในขั้นที่ 3 ──
 async function _srSaveTopics(list) {
@@ -213,20 +226,22 @@ window.srManageTopics = async function() {
             <input type="color" value="${t.color}" data-i="${i}" class="sr-mt-c" style="width:34px;height:34px;border:0;background:none;cursor:pointer">
             <input type="text" value="${_srEsc(t.name)}" data-i="${i}" class="sr-mt-n swal2-input" style="margin:0;height:36px;flex:1;font-size:14px">
             <select class="sr-mt-g" style="height:36px;border-radius:8px;padding:0 6px;font-weight:800">${['AM','OD','ALL'].map(x => `<option value="${x}" ${((t.group || 'ALL') === x) ? 'selected' : ''}>${x === 'ALL' ? 'ทั้งคู่' : x}</option>`).join('')}</select>
+            <input type="number" min="0" max="99" class="sr-mt-l" value="${Number(t.limit) || ''}" placeholder="เกณฑ์" title="ถึงกี่ครั้ง/เดือน ถึงจะเตือน (เว้นว่าง = ไม่เตือน)" style="width:64px;height:36px;border-radius:8px;padding:0 6px;font-weight:800;text-align:center">
             <button type="button" data-i="${i}" class="sr-mt-del" style="width:34px;height:34px;border-radius:8px;border:1px solid #ef444455;color:#ef4444;background:transparent;cursor:pointer">✕</button>
         </div>`).join('');
     const res = await Swal.fire({
         title: 'แก้หัวข้อเรื่องที่ผิด',
+        footer: '<span style="font-size:12px">ช่อง "เกณฑ์" = ผิดเรื่องนี้กี่ครั้ง/เดือน ถึงจะเตือนและขึ้นป้ายแดง (เว้นว่าง = ไม่เตือน)</span>',
         html: `<div id="srMtBox" style="text-align:left;max-height:50vh;overflow:auto">${rows}</div>
                <button type="button" id="srMtAdd" style="margin-top:6px;height:36px;padding:0 14px;border-radius:10px;border:1px dashed #94a3b8;background:transparent;cursor:pointer;font-weight:800">+ เพิ่มหัวข้อ</button>
                <div style="margin-top:10px;font-size:12px;color:#94a3b8">ลบหัวข้อแล้ว ประวัติเก่าที่ใช้หัวข้อนั้นยังอยู่ครบ</div>`,
-        showCancelButton: true, confirmButtonText: 'บันทึกหัวข้อ', cancelButtonText: 'ยกเลิก', width: 520,
+        showCancelButton: true, confirmButtonText: 'บันทึกหัวข้อ', cancelButtonText: 'ยกเลิก', width: 640,
         didOpen: () => {
             const box = document.getElementById('srMtBox');
             box.addEventListener('click', e => { const b = e.target.closest('.sr-mt-del'); if (b) b.parentElement.remove(); });
             document.getElementById('srMtAdd').onclick = () => {
                 const i = box.children.length;
-                box.insertAdjacentHTML('beforeend', `<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px"><input type="color" value="${SR_PALETTE[i % SR_PALETTE.length]}" class="sr-mt-c" style="width:34px;height:34px;border:0;background:none;cursor:pointer"><input type="text" placeholder="ชื่อหัวข้อ" class="sr-mt-n swal2-input" style="margin:0;height:36px;flex:1;font-size:14px"><select class="sr-mt-g" style="height:36px;border-radius:8px;padding:0 6px;font-weight:800"><option value="${SR.topicGroup || 'AM'}">${SR.topicGroup || 'AM'}</option><option value="ALL">ทั้งคู่</option><option value="${(SR.topicGroup || 'AM') === 'AM' ? 'OD' : 'AM'}">${(SR.topicGroup || 'AM') === 'AM' ? 'OD' : 'AM'}</option></select><button type="button" class="sr-mt-del" style="width:34px;height:34px;border-radius:8px;border:1px solid #ef444455;color:#ef4444;background:transparent;cursor:pointer">✕</button></div>`);
+                box.insertAdjacentHTML('beforeend', `<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px"><input type="color" value="${SR_PALETTE[i % SR_PALETTE.length]}" class="sr-mt-c" style="width:34px;height:34px;border:0;background:none;cursor:pointer"><input type="text" placeholder="ชื่อหัวข้อ" class="sr-mt-n swal2-input" style="margin:0;height:36px;flex:1;font-size:14px"><select class="sr-mt-g" style="height:36px;border-radius:8px;padding:0 6px;font-weight:800"><option value="${SR.topicGroup || 'AM'}">${SR.topicGroup || 'AM'}</option><option value="ALL">ทั้งคู่</option><option value="${(SR.topicGroup || 'AM') === 'AM' ? 'OD' : 'AM'}">${(SR.topicGroup || 'AM') === 'AM' ? 'OD' : 'AM'}</option></select><input type="number" min="0" max="99" class="sr-mt-l" placeholder="เกณฑ์" style="width:64px;height:36px;border-radius:8px;padding:0 6px;font-weight:800;text-align:center"><button type="button" class="sr-mt-del" style="width:34px;height:34px;border-radius:8px;border:1px solid #ef444455;color:#ef4444;background:transparent;cursor:pointer">✕</button></div>`);
                 box.lastElementChild.querySelector('.sr-mt-n').focus();
             };
         },
@@ -235,7 +250,8 @@ window.srManageTopics = async function() {
             document.querySelectorAll('#srMtBox > div').forEach(r => {
                 const n = r.querySelector('.sr-mt-n').value.trim(); const c = r.querySelector('.sr-mt-c').value;
                 const gg = r.querySelector('.sr-mt-g') ? r.querySelector('.sr-mt-g').value : 'ALL';
-                if (n && !seen.has(n)) { seen.add(n); out.push({ name: n, color: c, group: gg }); }
+                const lim = r.querySelector('.sr-mt-l') ? parseInt(r.querySelector('.sr-mt-l').value, 10) : 0;
+                if (n && !seen.has(n)) { seen.add(n); const o = { name: n, color: c, group: gg }; if (lim > 0) o.limit = lim; out.push(o); }
             });
             if (!out.length) { Swal.showValidationMessage('ต้องมีอย่างน้อย 1 หัวข้อ'); return false; }
             return out;
@@ -274,7 +290,8 @@ window.srEmpFilter = function() {
     const inp = document.getElementById('srEmpSearch'), list = document.getElementById('srEmpList');
     if (!inp || !list) return;
     const q = inp.value.trim().toLowerCase();
-    const users = _srUsers().filter(u => u.username && (!q || u.username.toLowerCase().includes(q)))
+    const chosen = new Set(SR.pickedList.map(u => u.username));
+    const users = _srUsers().filter(u => u.username && !chosen.has(u.username) && (!q || u.username.toLowerCase().includes(q)))
         .sort((a, b) => a.username.localeCompare(b.username)).slice(0, 60);
     SR.empActive = users.length ? 0 : -1;
     list.innerHTML = users.length ? users.map((u, i) => `<div class="sr-emp-opt ${i === 0 ? 'act' : ''}" data-n="${_srEsc(u.username)}" onmousedown="event.preventDefault(); srEmpPick('${_srEsc(u.username).replace(/'/g, "\\'")}')">${_srEsc(u.username)}<small>${_srEsc(u.department || 'AM')}${u.allowed_shift ? ' · ' + _srEsc(String(u.allowed_shift).replace('กะ', '')) : ''}</small></div>`).join('')
@@ -295,22 +312,38 @@ window.srEmpKey = function(e) {
 };
 window.srEmpPick = function(name) {
     const u = _srUserOf(name); if (!u) return;
-    SR.picked = u;
+    if (!SR.pickedList.some(x => x.username === u.username)) SR.pickedList.push(u);
+    SR.picked = SR.pickedList[0] || null;
+    const inp = document.getElementById('srEmpSearch'); inp.value = '';
     document.getElementById('srEmpList').classList.remove('on');
-    document.getElementById('srEmpSearch').style.display = 'none';
-    document.getElementById('srEmpPicked').classList.add('on');
-    document.getElementById('srEmpPickedName').textContent = u.username;
-    document.getElementById('srEmpPickedMeta').textContent = (u.department || 'AM') + (u.allowed_shift ? ' · ' + String(u.allowed_shift).replace('กะ', '') : '');
-    SR.topicGroup = _srGroupOf(u.department);
+    srRenderPicked();
+    // แท็บหัวข้อตามแผนกของคนแรก
+    SR.topicGroup = _srGroupOf(SR.pickedList[0].department);
     [...SR.selTopics].forEach(n => { const t = SR.topics.find(x => x.name === n); if (t && !_srTopicIn(t, SR.topicGroup)) SR.selTopics.delete(n); });
     srRenderTopics(); srRenderRecentPeople();
+    inp.focus();
+};
+window.srEmpRemove = function(name) {
+    SR.pickedList = SR.pickedList.filter(x => x.username !== name);
+    SR.picked = SR.pickedList[0] || null;
+    srRenderPicked(); srRenderTopics();
 };
 window.srEmpClear = function() {
-    SR.picked = null;
+    SR.pickedList = []; SR.picked = null;
+    const inp = document.getElementById('srEmpSearch'); inp.value = ''; inp.focus();
+    srRenderPicked(); srRenderTopics(); srRenderRecentPeople();
+};
+// 👥 ชิปรายชื่อที่เลือก (กด ✕ เอาออกทีละคน)
+window.srRenderPicked = function() {
+    const box = document.getElementById('srEmpChips'); if (!box) return;
+    const P = SR.pickedList;
+    const groups = new Set(P.map(u => _srGroupOf(u.department)));
+    box.innerHTML = P.length ? P.map(u => `<span class="sr-pchip"><b>${_srEsc(u.username)}</b><small>${_srEsc(u.department || 'AM')}${u.allowed_shift ? ' · ' + _srEsc(String(u.allowed_shift).replace('กะ', '')) : ''}</small><button type="button" title="เอาออก" onclick="srEmpRemove('${_srEsc(u.username).replace(/'/g, "\\'")}')">✕</button></span>`).join('')
+        + (P.length > 1 ? `<button type="button" class="sr-pclear" onclick="srEmpClear()">ล้างทั้งหมด (${P.length})</button>` : '')
+        + (groups.size > 1 ? `<div class="sr-pmix"><span class="material-icons">info</span>เลือกทั้ง AM และ OD — หัวข้อที่เลือกจะลงให้ทุกคนเหมือนกัน</div>` : '')
+        : '';
     const inp = document.getElementById('srEmpSearch');
-    document.getElementById('srEmpPicked').classList.remove('on');
-    inp.style.display = ''; inp.value = ''; inp.focus();
-    srRenderTopics(); srRenderRecentPeople();
+    if (inp) inp.placeholder = P.length ? 'พิมพ์ชื่อเพื่อเพิ่มอีกคน' : 'พิมพ์ชื่อพนักงาน (เลือกได้หลายคน)';
 };
 if (!window.__srDocBound) {
     window.__srDocBound = true;
@@ -381,30 +414,44 @@ window.srSave = async function() {
     if (!_srPerm('staff_record_add')) return Swal.fire('ไม่มีสิทธิ์', 'บัญชีนี้ลงประวัติไม่ได้', 'warning');
     const date = document.getElementById('srDate').value;
     const note = document.getElementById('srNote').value.trim();
-    if (!SR.picked) return Swal.fire('ยังไม่ได้เลือกพนักงาน', 'พิมพ์ชื่อแล้วเลือกจากรายการ', 'warning');
+    if (!SR.pickedList.length) return Swal.fire('ยังไม่ได้เลือกพนักงาน', 'พิมพ์ชื่อแล้วเลือกจากรายการ', 'warning');
     if (!date) return Swal.fire('ยังไม่ได้เลือกวันที่', '', 'warning');
     if (!SR.selTopics.size) return Swal.fire('ยังไม่ได้เลือกเรื่องที่ผิด', 'กดเลือกได้มากกว่า 1 เรื่อง', 'warning');
 
+    // ⚠️ เด้งเตือนก่อนบันทึก ถ้ามีคนถึง/เกินเกณฑ์ของเรื่องนั้นในเดือนนี้
+    if (date.slice(0, 7) === SR.month) {
+        const hits = [];
+        SR.pickedList.forEach(u => [...SR.selTopics].forEach(t => {
+            const lim = _srTopicLimit(t); if (!lim) return;
+            const nth = _srCountOf(u.username, t) + 1;
+            if (nth >= lim) hits.push(`<tr><td style="text-align:left;padding:4px 8px"><b>${_srEsc(u.username)}</b></td><td style="text-align:left;padding:4px 8px">${_srEsc(t)}</td><td style="padding:4px 8px;font-weight:900;color:#dc2626">ครั้งที่ ${nth}/${lim}</td></tr>`);
+        }));
+        if (hits.length) {
+            const go = await Swal.fire({ icon: 'warning', title: 'มีคนถึงเกณฑ์', html: `<div style="font-size:13px;margin-bottom:8px">บันทึกรอบนี้แล้วจะถึง/เกินเกณฑ์ที่ตั้งไว้ของเดือนนี้</div><table style="width:100%;font-size:13px">${hits.join('')}</table>`, showCancelButton: true, confirmButtonText: 'บันทึกต่อ', cancelButtonText: 'กลับไปแก้', confirmButtonColor: '#dc2626' });
+            if (!go.isConfirmed) return;
+        }
+    }
     const by = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.username : '';
-    const payload = [...SR.selTopics].map(topic => ({ user_id: String(SR.picked.id ?? ''), user_name: SR.picked.username, record_date: date, topic, note: note || null, created_by: by }));
+    const payload = [];
+    SR.pickedList.forEach(u => [...SR.selTopics].forEach(topic => payload.push({ user_id: String(u.id ?? ''), user_name: u.username, record_date: date, topic, note: note || null, created_by: by })));
     const btn = document.getElementById('srSaveBtn'); btn.disabled = true;
     const { data, error } = await appDB.from('staff_records').insert(payload).select();
     btn.disabled = false;
     if (error) return Swal.fire('บันทึกไม่สำเร็จ', (error.message || '') + (String(error.message || '').includes('staff_records') ? '<br><small>ยังไม่ได้สร้างตาราง — รันไฟล์ sql/staff_records.sql ใน Supabase ก่อน</small>' : ''), 'error');
 
     _srLog((data || payload).map(r => ({ action: 'add', record_id: r.id || null, user_name: r.user_name, record_date: r.record_date, topic: r.topic, note: r.note || null })));
-    _srPushRecentPeople(SR.picked.username);
+    SR.pickedList.forEach(u => _srPushRecentPeople(u.username));
     SR.recent = [...(data || payload), ...SR.recent].slice(0, 6);
     srRenderRecent();
     // ล้างฟอร์มให้พร้อมลงคนถัดไป (คนที่เพิ่งลงไปอยู่ในปุ่ม "ล่าสุด" กดกลับมาได้ทันที)
-    const savedName = SR.picked.username;
+    const savedName = SR.pickedList.length === 1 ? SR.pickedList[0].username : SR.pickedList.length + ' คน';
     SR.selTopics.clear();
     document.getElementById('srNote').value = '';
     document.getElementById('srDate').value = _srToday();
-    SR.picked = null;
-    document.getElementById('srEmpPicked').classList.remove('on');
-    const _inp = document.getElementById('srEmpSearch'); _inp.style.display = ''; _inp.value = '';
-    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `บันทึก ${payload.length} เรื่องให้ ${savedName} แล้ว`, showConfirmButton: false, timer: 1600 });
+    SR.pickedList = []; SR.picked = null;
+    const _inp = document.getElementById('srEmpSearch'); _inp.value = '';
+    srRenderPicked();
+    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `บันทึก ${payload.length} รายการ ให้ ${savedName} แล้ว`, showConfirmButton: false, timer: 1600 });
     if (date.slice(0, 7) === SR.month) await srLoad();
     srRenderTopics(); srRenderRecentPeople();
 };
@@ -492,7 +539,11 @@ window.srRender = function() {
             return Object.entries(byM).map(([m, arr]) => `${arr.join(', ')} ${_srTH_M[m - 1]}`).join(' · ');
         };
         // แต่ละเรื่อง = 1 แถบขนาดเท่ากัน เรียงเป็นตาราง: สี | ชื่อเรื่อง | วันที่ | จำนวนครั้ง
-        const chips = Object.entries(cnt).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([t, n]) => `<div class="sr-sum-i" style="--c:${_srTopicColor(t)}" title="${_srEsc(t)} ${n} ครั้ง"><span class="sr-sum-t">${_srEsc(t)}</span><span class="sr-sum-d">${_dayList(days[t])}</span><b class="sr-sum-n">${n}</b></div>`).join('');
+        let hitAny = false;
+        const chips = Object.entries(cnt).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([t, n]) => {
+            const lim = _srTopicLimit(t); const hit = lim && n >= lim; if (hit) hitAny = true;
+            return `<div class="sr-sum-i ${hit ? 'hit' : ''}" style="--c:${_srTopicColor(t)}" title="${_srEsc(t)} ${n} ครั้ง${lim ? ` (เกณฑ์ ${lim} ครั้ง/เดือน)` : ''}"><span class="sr-sum-t">${_srEsc(t)}</span>${hit ? '<span class="sr-hit">ถึงเกณฑ์</span>' : ''}<span class="sr-sum-d">${_dayList(days[t])}</span><b class="sr-sum-n">${n}${lim ? `<small>/${lim}</small>` : ''}</b></div>`;
+        }).join('');
         const meta = u ? `<span class="sr-tag">${_srEsc(u.department || 'AM')}</span>${u.allowed_shift ? `<span class="sr-tag">${_srEsc(String(u.allowed_shift).replace('กะ', ''))}</span>` : ''}` : '<span class="sr-tag">ไม่อยู่ในระบบ</span>';
         g.items.sort((a, b) => String(b.record_date).localeCompare(String(a.record_date)) || String(b.created_at || '').localeCompare(String(a.created_at || '')));
         const tl = g.items.map(r => {
@@ -508,11 +559,11 @@ window.srRender = function() {
             </div>`;
         }).join('');
         const n = g.items.length;
-        return `<div class="sr-emp-card ${SR.open.has(key) ? 'open' : ''}" data-k="${_srEsc(key)}">
+        return `<div class="sr-emp-card ${SR.open.has(key) ? 'open' : ''} ${hitAny ? 'hit' : ''}" data-k="${_srEsc(key)}">
             <div class="sr-emp-row" onclick="srToggleEmp(this)">
                 <div class="sr-emp-top">
                     <div class="sr-av">${_srEsc(g.name.slice(0, 2).toUpperCase())}</div>
-                    <div style="min-width:0;flex:1"><div class="sr-nm">${_srEsc(g.name)}</div><div class="sr-meta">${meta}<span class="sr-tag">${Object.keys(cnt).length} เรื่อง</span></div></div>
+                    <div style="min-width:0;flex:1"><div class="sr-nm">${_srEsc(g.name)}${hitAny ? ' <span class="sr-hit">ถึงเกณฑ์</span>' : ''}</div><div class="sr-meta">${meta}<span class="sr-tag">${Object.keys(cnt).length} เรื่อง</span></div></div>
                     <div class="sr-total ${n >= 5 ? 'hot' : ''}"><b>${n}</b><small>ครั้ง</small></div>
                     <span class="sr-caret-w"><span class="material-icons sr-caret">expand_more</span><small>${SR.open.has(key) ? 'ซ่อน' : 'ดูรายละเอียด'}</small></span>
                 </div>

@@ -202,6 +202,25 @@
     #srApp .sr-log-b .chg{display:block;margin-top:2px;font-size:11.5px;color:var(--k-tx3)}
     #srApp .sr-log-b .chg s{color:var(--k-mute3)}
     @media (max-width:640px){ #srApp .sr-views{margin-left:0;width:100%} #srApp .sr-views button{flex:1;justify-content:center} #srApp .sr-log-i{grid-template-columns:52px minmax(0,1fr)} #srApp .sr-log-i .sr-log-b{grid-column:1/-1} }
+    /* 👥 รายชื่อที่เลือก (หลายคน) */
+    #srApp .sr-pchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+    #srApp .sr-pchips:empty{display:none}
+    #srApp .sr-pchip{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 4px 0 10px;border-radius:999px;background:var(--k-gold-bg);border:1px solid rgba(232,193,90,.55)}
+    #srApp .sr-pchip b{font-size:12.5px;font-weight:900;color:var(--k-tx-strong)}
+    #srApp .sr-pchip small{font-size:10.5px;font-weight:700;color:var(--k-mute)}
+    #srApp .sr-pchip button{width:24px;height:24px;border-radius:99px;border:0;background:transparent;color:var(--k-mute);font-weight:900;cursor:pointer}
+    #srApp .sr-pchip button:hover{background:var(--k-red-bg);color:var(--k-red-tx)}
+    #srApp .sr-pclear{height:32px;padding:0 10px;border-radius:999px;border:1px dashed var(--k-line3);background:transparent;color:var(--k-mute);font-size:11.5px;font-weight:800;cursor:pointer}
+    #srApp .sr-pclear:hover{color:var(--k-red-tx);border-color:var(--k-red-line)}
+    #srApp .sr-pmix{flex-basis:100%;display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:var(--k-amber-tx)}
+    #srApp .sr-pmix .material-icons{font-size:15px}
+    /* ⚠️ ถึงเกณฑ์ */
+    #srApp .sr-hit{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;background:#dc2626;color:#fff;font-size:10.5px;font-weight:900;white-space:nowrap;flex:none}
+    #srApp .sr-emp-card.hit{border-color:var(--k-red-line);box-shadow:inset 3px 0 0 #dc2626}
+    #srApp .sr-sum-i.hit{border-color:#dc2626;background:color-mix(in srgb,#dc2626 10%,var(--k-panel2))}
+    #srApp .sr-sum-n small{font-size:10px;font-weight:800;opacity:.85;margin-left:1px}
+    #srApp .sr-sum-warn{display:flex;gap:8px;margin-top:8px;padding:8px 10px;border-radius:10px;background:var(--k-red-bg);border:1px solid var(--k-red-line);color:var(--k-red-tx);font-size:12px;line-height:1.5}
+    #srApp .sr-sum-warn .material-icons{font-size:18px}
     #srApp .sr-selcount{font-size:11.5px;font-weight:800;color:var(--k-gold-tx)}
     #srApp .sr-sum{display:none;margin:0 0 10px;padding:10px 12px;border-radius:12px;background:var(--k-gold-bg);border:1px dashed rgba(232,193,90,.6);font-size:12.5px;line-height:1.55;color:var(--k-tx2)}
     #srApp .sr-sum.on{display:block}
@@ -242,9 +261,10 @@
                     <div class="sr-field">
                         <div class="sr-lbl"><span><span class="sr-step">1</span>พนักงาน</span></div>
                         <div class="sr-emp">
-                            <input id="srEmpSearch" class="sr-in" type="text" placeholder="พิมพ์ชื่อพนักงาน" autocomplete="off" oninput="srEmpFilter()" onfocus="srEmpFilter()" onkeydown="srEmpKey(event)">
+                            <input id="srEmpSearch" class="sr-in" type="text" placeholder="พิมพ์ชื่อพนักงาน (เลือกได้หลายคน)" autocomplete="off" oninput="srEmpFilter()" onfocus="srEmpFilter()" onkeydown="srEmpKey(event)">
                             <div id="srEmpList" class="sr-emp-list custom-scrollbar"></div>
-                            <div id="srEmpPicked" class="sr-picked"><span class="material-icons" style="font-size:18px;color:var(--k-gold-tx)">person</span><b id="srEmpPickedName"></b><small id="srEmpPickedMeta"></small><button type="button" onclick="srEmpClear()" title="เปลี่ยนคน"><span class="material-icons" style="font-size:18px">close</span></button></div>
+                            <div id="srEmpChips" class="sr-pchips"></div>
+                            <div id="srEmpPicked" class="sr-picked" style="display:none !important"><span class="material-icons" style="font-size:18px;color:var(--k-gold-tx)">person</span><b id="srEmpPickedName"></b><small id="srEmpPickedMeta"></small><button type="button" onclick="srEmpClear()" title="เปลี่ยนคน"><span class="material-icons" style="font-size:18px">close</span></button></div>
                         </div>
                     </div>
                     <div class="sr-field">
