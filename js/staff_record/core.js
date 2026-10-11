@@ -342,6 +342,21 @@ window.srFillFilters = function() {
         d.innerHTML = '<option value="all">ทุกแผนก</option>' + depts.map(x => `<option value="${_srEsc(x)}">${_srEsc(x)}</option>`).join('');
         d.value = depts.includes(cur) ? cur : 'all';
     }
+    // 📅 เลือกวัน: วันนี้ + วันที่มีรายการในเดือนนี้ (พร้อมจำนวน)
+    const dSel = document.getElementById('srFilterDay');
+    if (dSel) {
+        const cur = dSel.value || 'all';
+        const cnt = {}; SR.rows.forEach(r => cnt[r.record_date] = (cnt[r.record_date] || 0) + 1);
+        const today = _srToday();
+        const days = Object.keys(cnt).sort().reverse();
+        const DOW = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
+        const lab = d => { const [y, m, dd] = d.split('-').map(Number); return `${DOW[new Date(y, m - 1, dd).getDay()]} ${dd} ${_srTH_M[m - 1]}`; };
+        let opts = '<option value="all">📅 ทั้งเดือน</option>';
+        if (today.slice(0, 7) === SR.month) opts += `<option value="${today}">⭐ วันนี้ (${lab(today)}) · ${cnt[today] || 0} รายการ</option>`;
+        opts += days.filter(d => d !== today).map(d => `<option value="${d}">${lab(d)} · ${cnt[d]} รายการ</option>`).join('');
+        dSel.innerHTML = opts;
+        dSel.value = [...dSel.options].some(o => o.value === cur) ? cur : 'all';
+    }
     const t = document.getElementById('srFilterTopic');
     if (t) {
         const cur = t.value || 'all';
@@ -541,7 +556,7 @@ window.srRenderRank = function() {
 // กดชื่อในอันดับ → ไปหน้ารายชื่อ เปิดการ์ดคนนั้น
 window.srRankOpen = function(name) {
     const inp = document.getElementById('srFilterName'); if (inp) inp.value = name;
-    SR.open.add(String(name).toLowerCase());
+    SR.open.add(String(name).toLowerCase()); SR.page = 1;
     srSetView('sum'); srRender();
 };
 
@@ -615,7 +630,8 @@ window.srLoad = async function() {
 window.srShiftMonth = function(n) {
     if (n === 0) SR.month = _srToday().slice(0, 7);
     else { const [y, m] = SR.month.split('-').map(Number); const d = new Date(y, m - 1 + n, 1); SR.month = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
-    SR.open.clear();
+    SR.open.clear(); SR.page = 1;
+    const _d = document.getElementById('srFilterDay'); if (_d) _d.value = 'all';
     srLoad();
     if (SR.view === 'log') srLoadLog();
 };
@@ -627,10 +643,17 @@ window.srRender = function() {
     const fDept = document.getElementById('srFilterDept')?.value || 'all';
     const fTopic = document.getElementById('srFilterTopic')?.value || 'all';
     const fShift = document.getElementById('srFilterShift')?.value || 'all';
+    const fDay = document.getElementById('srFilterDay')?.value || 'all';
+    const hint = document.getElementById('srDayHint');
+    if (hint) {
+        if (fDay === 'all') hint.style.display = 'none';
+        else { hint.style.display = ''; hint.innerHTML = `<span class="material-icons" style="font-size:17px;color:var(--k-gold-tx)">event</span>กำลังดูเฉพาะวันที่ <b>${_srDateLabel(fDay)}</b><button type="button" onclick="document.getElementById('srFilterDay').value='all';SR.page=1;srRender()">ดูทั้งเดือน</button>`; }
+    }
 
     const rows = SR.rows.filter(r => {
         if (qName && !String(r.user_name).toLowerCase().includes(qName)) return false;
         if (fTopic !== 'all' && r.topic !== fTopic) return false;
+        if (fDay !== 'all' && r.record_date !== fDay) return false;
         if (fDept !== 'all' || fShift !== 'all') {
             const u = _srUserOf(r.user_name); if (!u) return false;
             if (fDept !== 'all' && (u.department || 'AM') !== fDept) return false;
@@ -642,6 +665,7 @@ window.srRender = function() {
     // KPI
     const people = new Set(rows.map(r => String(r.user_name).toLowerCase()));
     const _sp = _srSplit(rows);
+    const _kl = document.querySelector('#srApp .sr-kpi .l'); if (_kl) _kl.textContent = fDay === 'all' ? 'รวมทั้งเดือน' : `รวมวันที่ ${_srDateLabel(fDay)}`;
     document.getElementById('srKpiTotal').innerHTML = `${rows.length}<small>ครั้ง</small><span class="sr-kpi-split"><span class="h">ประวัติ ${_sp.hist}</span><span class="f">ใบปรับ ${_sp.fine}${_sp.amount ? ` · ฿${_sp.amount.toLocaleString('en-US')}` : ''}</span></span>`;
     document.getElementById('srKpiPeople').innerHTML = `${people.size}<small>คน</small>`;
 
@@ -658,7 +682,13 @@ window.srRender = function() {
     const canEdit = _srPerm('staff_record_edit') || _srPerm('staff_record_add');   // ลงได้ = แก้ได้
     const sorted = Object.values(groups).sort((a, b) => b.items.length - a.items.length || a.name.localeCompare(b.name));
 
-    list.innerHTML = sorted.map(g => {
+    // 📄 แบ่งหน้า หน้าละ 10 คน
+    const PER = 10;
+    const pages = Math.max(1, Math.ceil(sorted.length / PER));
+    SR.page = Math.min(Math.max(1, SR.page || 1), pages);
+    const pageItems = sorted.slice((SR.page - 1) * PER, SR.page * PER);
+
+    list.innerHTML = pageItems.map(g => {
         const key = g.name.toLowerCase();
         const u = _srUserOf(g.name);
         const cnt = {}, days = {};
@@ -709,7 +739,23 @@ window.srRender = function() {
             </div>
             <div class="sr-tl">${tl}</div>
         </div>`;
-    }).join('');
+    }).join('') + _srPager(SR.page, pages, sorted.length, PER);
+};
+function _srPager(page, pages, total, per) {
+    if (pages <= 1) return '';
+    const nums = [];
+    for (let i = 1; i <= pages; i++) { if (i === 1 || i === pages || Math.abs(i - page) <= 1) nums.push(i); else if (nums[nums.length - 1] !== '…') nums.push('…'); }
+    const from = (page - 1) * per + 1, to = Math.min(page * per, total);
+    return `<div class="sr-pager">
+        <button type="button" ${page <= 1 ? 'disabled' : ''} onclick="srGoPage(${page - 1})" title="หน้าก่อน">‹</button>
+        ${nums.map(n => n === '…' ? '<span class="gap">…</span>' : `<button type="button" class="${n === page ? 'on' : ''}" onclick="srGoPage(${n})">${n}</button>`).join('')}
+        <button type="button" ${page >= pages ? 'disabled' : ''} onclick="srGoPage(${page + 1})" title="หน้าถัดไป">›</button>
+        <small>แสดง ${from}–${to} จาก ${total} คน</small>
+    </div>`;
+}
+window.srGoPage = function(n) {
+    SR.page = n; srRender();
+    const top = document.querySelector('#srSumView .sr-card'); if (top) top.scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 window.srToggleEmp = function(row) {
     const card = row.closest('.sr-emp-card'); const k = card.dataset.k;
