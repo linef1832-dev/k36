@@ -90,10 +90,10 @@ window.srRenderTopics = function() {
     box.innerHTML = SR.topics.map((t, i) => {
         const n = hist[t.name] || 0;
         const nm = _srEsc(t.name).replace(/'/g, "\\'");
-        return `<span class="sr-topic-wrap"><button type="button" class="sr-topic ${SR.selTopics.has(t.name) ? 'on' : ''}" style="--c:${t.color}" onclick="srToggleTopic(this, '${nm}')" title="${n ? `เดือนนี้ผิดเรื่องนี้แล้ว ${n} ครั้ง` : ''}"><i></i>${_srEsc(t.name)}${n ? `<span class="sr-tc">${n}</span>` : ''}</button>`
+        return `<span class="sr-topic-wrap"><button type="button" class="sr-topic ${SR.selTopics.has(t.name) ? 'on' : ''}" style="--c:${t.color}" onclick="srToggleTopic(this, '${nm}')" title="${_srEsc(t.name)}${n ? ` · เดือนนี้ผิดเรื่องนี้แล้ว ${n} ครั้ง` : ''}"><i></i><span class="sr-tn">${_srEsc(t.name)}</span>${n ? `<span class="sr-tc">${n}</span>` : ''}<span class="sr-tk">✓</span></button>`
              + (canEdit ? `<button type="button" class="sr-tdel" title="ลบหัวข้อ ${_srEsc(t.name)}" onclick="srDeleteTopic(${i})">✕</button>` : '') + `</span>`;
     }).join('') + (canEdit ? `<button type="button" class="sr-topic add" onclick="srAddTopic()"><span class="material-icons" style="font-size:16px">add</span>เพิ่มหัวข้อ</button>` : '');
-    const eb = document.getElementById('srTopicEditBtn'); if (eb) eb.textContent = SR.topicEdit ? 'เสร็จ' : 'ลบหัวข้อ';
+    const eb = document.getElementById('srTopicEditBtn'); if (eb) { eb.classList.toggle('on', !!SR.topicEdit); const tt = eb.querySelector('.t'); if (tt) tt.textContent = SR.topicEdit ? 'เสร็จ' : 'ลบ'; }
     srSyncForm();
 };
 window.srToggleTopic = function(btn, name) {
@@ -392,12 +392,10 @@ window.srRender = function() {
     });
 
     // KPI
-    const byTopic = {}; rows.forEach(r => byTopic[r.topic] = (byTopic[r.topic] || 0) + 1);
-    const top = Object.entries(byTopic).sort((a, b) => b[1] - a[1])[0];
     const people = new Set(rows.map(r => String(r.user_name).toLowerCase()));
     document.getElementById('srKpiTotal').innerHTML = `${rows.length}<small>ครั้ง</small>`;
     document.getElementById('srKpiPeople').innerHTML = `${people.size}<small>คน</small>`;
-    document.getElementById('srKpiTop').innerHTML = top ? `${_srEsc(top[0])}<small>${top[1]} ครั้ง</small>` : '-';
+
 
     if (!rows.length) {
         list.innerHTML = `<div class="sr-empty"><span class="material-icons">sentiment_satisfied</span>${SR.rows.length ? 'ไม่พบตามตัวกรอง' : 'เดือนนี้ยังไม่มีประวัติ'}</div>`;
