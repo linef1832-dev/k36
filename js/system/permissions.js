@@ -170,6 +170,7 @@ const PERM_GROUPS = [
         items: [
             {id: 'staff_record', name: 'เข้าหน้าประวัติพนักงาน', isSub: false},
             {id: 'staff_record_add', name: 'ลงประวัติ', isSub: true},
+            {id: 'staff_record_edit', name: 'แก้ไขประวัติที่ลงไปแล้ว', isSub: true},
             {id: 'staff_record_delete', name: 'ลบประวัติ', isSub: true},
             {id: 'staff_record_view_all', name: 'ดูของทุกคน (ไม่ติก = เห็นเฉพาะของตัวเอง)', isSub: true},
             {id: 'staff_record_topics', name: 'แก้หัวข้อเรื่องที่ผิด', isSub: true}

@@ -91,11 +91,17 @@
     #srApp .sr-emp-card.open .sr-caret{transform:rotate(180deg)}
     #srApp .sr-tl{display:none;border-top:1px solid var(--k-line);background:var(--k-panel2);padding:6px 14px 10px}
     #srApp .sr-emp-card.open .sr-tl{display:block}
-    #srApp .sr-tl-i{display:grid;grid-template-columns:92px 150px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px dashed var(--k-line);font-size:12.5px}
+    #srApp .sr-tl-i{display:grid;grid-template-columns:118px 150px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px dashed var(--k-line);font-size:12.5px}
     #srApp .sr-tl-i:last-child{border-bottom:0}
     #srApp .sr-tl-d{font-weight:800;color:var(--k-tx2);font-variant-numeric:tabular-nums}
     #srApp .sr-tl-n{color:var(--k-tx2);min-width:0;overflow-wrap:anywhere}
     #srApp .sr-tl-n small{display:block;font-size:11px;color:var(--k-mute)}
+    #srApp .sr-tl-d small{display:block;font-size:11px;font-weight:700;color:var(--k-mute);margin-top:1px}
+    #srApp .sr-acts{display:flex;gap:2px}
+    #srApp .sr-edit{width:30px;height:30px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--k-mute);cursor:pointer;display:flex;align-items:center;justify-content:center}
+    #srApp .sr-edit:hover{background:var(--k-btn-h);border-color:var(--k-line3);color:var(--k-gold-tx)}
+    #srApp .sr-edit .material-icons{font-size:17px}
+    #srApp .sr-edited{font-size:10.5px;color:var(--k-mute3)}
     #srApp .sr-del{width:30px;height:30px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--k-mute);cursor:pointer;display:flex;align-items:center;justify-content:center}
     #srApp .sr-del:hover{background:var(--k-red-bg);border-color:var(--k-red-line);color:var(--k-red-tx)}
     #srApp .sr-del .material-icons{font-size:17px}
@@ -120,6 +126,15 @@
     #srApp .sr-topic.on::after{content:'✓';color:#fff !important}
     #srApp .sr-topic .sr-tc{min-width:18px;height:18px;padding:0 5px;border-radius:99px;font-size:10.5px;font-weight:900;display:inline-flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--c) 22%,transparent);color:var(--k-tx-strong)}
     #srApp .sr-topic.on .sr-tc{background:rgba(255,255,255,.28);color:#fff}
+    /* ลบ/เพิ่มหัวข้อตรงนี้เลย (เฉพาะคนมีสิทธิ์แก้หัวข้อ) */
+    #srApp .sr-topic-wrap{position:relative;display:inline-flex}
+    #srApp .sr-tdel{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:99px;border:2px solid var(--k-panel);background:#dc2626;color:#fff;font-size:11px;font-weight:900;line-height:1;display:none;align-items:center;justify-content:center;cursor:pointer;z-index:2;padding:0}
+    #srApp .sr-topics.can-edit .sr-topic-wrap:hover .sr-tdel,#srApp .sr-topics.edit-mode .sr-tdel{display:flex}
+    #srApp .sr-tdel:hover{background:#b91c1c}
+    #srApp .sr-topic.add{border-style:dashed;color:var(--k-mute)}
+    #srApp .sr-topic.add:hover{color:var(--k-gold-tx);border-color:var(--k-gold)}
+    #srApp .sr-topics.edit-mode .sr-topic:not(.add){animation:srWiggle .3s ease}
+    @keyframes srWiggle{0%,100%{transform:rotate(0)}30%{transform:rotate(-1.5deg)}70%{transform:rotate(1.5deg)}}
     #srApp .sr-selcount{font-size:11.5px;font-weight:800;color:var(--k-gold-tx)}
     #srApp .sr-sum{display:none;margin:0 0 10px;padding:10px 12px;border-radius:12px;background:var(--k-gold-bg);border:1px dashed rgba(232,193,90,.6);font-size:12.5px;line-height:1.55;color:var(--k-tx2)}
     #srApp .sr-sum.on{display:block}
@@ -174,7 +189,7 @@
                         </div>
                     </div>
                     <div class="sr-field">
-                        <div class="sr-lbl"><span><span class="sr-step">3</span>เรื่องที่ผิด <span id="srSelCount" class="sr-selcount"></span></span><a id="srTopicManageLink" onclick="srManageTopics()">แก้หัวข้อ</a></div>
+                        <div class="sr-lbl"><span><span class="sr-step">3</span>เรื่องที่ผิด <span id="srSelCount" class="sr-selcount"></span></span><span id="srTopicManageLink" style="display:flex;gap:10px"><a onclick="srToggleTopicEdit()" id="srTopicEditBtn">ลบหัวข้อ</a><a onclick="srManageTopics()">แก้ทั้งหมด</a></span></div>
                         <div id="srTopics" class="sr-topics"></div>
                     </div>
                     <div class="sr-field">
@@ -208,6 +223,7 @@
                     <div class="sr-tool">
                         <div class="sr-search"><span class="material-icons">search</span><input id="srFilterName" class="sr-in" type="text" placeholder="ค้นหาชื่อพนักงาน" oninput="srRender()"></div>
                         <select id="srFilterDept" class="sr-in" onchange="srRender()" title="กรองแผนก"><option value="all">ทุกแผนก</option></select>
+                        <select id="srFilterShift" class="sr-in" onchange="srRender()" title="กรองกะ"><option value="all">ทุกกะ</option><option value="กะเช้า">☀️ กะเช้า</option><option value="กะกลาง">🌤️ กะกลาง</option><option value="กะดึก">🌙 กะดึก</option></select>
                         <select id="srFilterTopic" class="sr-in" onchange="srRender()" title="กรองเรื่อง"><option value="all">ทุกเรื่อง</option></select>
                     </div>
                     <div id="srList" class="sr-list">
