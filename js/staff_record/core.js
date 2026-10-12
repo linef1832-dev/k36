@@ -56,11 +56,11 @@ const _srTopicLimit = name => { const t = SR.topics.find(x => x.name === name); 
 // นับว่าเดือนของวันที่ที่ระบุ คนนี้ผิดเรื่องนี้ไปแล้วกี่ครั้ง (ใช้ข้อมูลเดือนที่เปิดอยู่)
 const _srCountOf = (name, topic) => SR.rows.filter(r => !_srIsNote(r) && String(r.user_name).toLowerCase() === String(name).toLowerCase() && r.topic === topic).length;
 // แยก "ใบปรับ" (ลงอัตโนมัติจากหน้าใบปรับ) กับ "ประวัติ" (ลงเองในหน้านี้)
-const _srIsFine = r => String(r.topic || '').startsWith('ใบปรับ');
+const _srIsFine = r => !!r._fine || String(r.topic || '').startsWith('ใบปรับ');   // _fine = รายการที่มีใบปรับเรื่องเดียวกันผูกอยู่
 // แสดงผล: ใบปรับทุกข้อรวมเป็นคำว่า "ใบปรับ" คำเดียว (ไม่โชว์ข้อกฎยาวๆ) · หมายเหตุไม่โชว์ยอดเงิน (ยังเก็บไว้คิดยอดรวม)
 const _srLabel = t => String(t || '').startsWith('ใบปรับ') ? 'ใบปรับ' : String(t || '');
 const _srNoteShow = r => String(r.note || '').replace(/^\[บันทึก\]\s*/, '').replace(/\s*·?\s*(ค่าปรับ ฿[\d,]+|ไม่ได้ค่าแรง)\s*/g, ' ').replace(/^[\s·]+|[\s·]+$/g, '').trim();
-const _srFineAmount = r => { const m = String(r.note || '').match(/ค่าปรับ ฿([\d,]+)/); return m ? Number(m[1].replace(/,/g, '')) : 0; };
+const _srFineAmount = r => { if (r._fine) return _srFineAmount(r._fine); const m = String(r.note || '').match(/ค่าปรับ ฿([\d,]+)/); return m ? Number(m[1].replace(/,/g, '')) : 0; };
 // 🏷️ ประเภทรายการ: ทำผิด (นับ) / บันทึกเรื่องราว (ไม่นับ) — ถ้ายังไม่ได้เพิ่มคอลัมน์ kind จะใช้คำนำหน้า [บันทึก] ในหมายเหตุแทน
 const SR_NOTE_TAG = '[บันทึก] ';
 const _srIsNote = r => r.kind === 'note' || String(r.note || '').startsWith(SR_NOTE_TAG.trim());
@@ -70,8 +70,38 @@ const _srSplit = items => {
     const notes = items.filter(_srIsNote).length;
     items = _srOff(items);
     const fines = items.filter(_srIsFine);
-    return { notes, hist: items.length - fines.length, fine: fines.length, amount: fines.reduce((a, r) => a + _srFineAmount(r), 0), nowage: fines.filter(r => String(r.note || '').includes('ไม่ได้ค่าแรง')).length };
+    return { notes, hist: items.length - fines.length, fine: fines.length, amount: fines.reduce((a, r) => a + _srFineAmount(r), 0), nowage: fines.filter(r => String((r._fine || r).note || '').includes('ไม่ได้ค่าแรง')).length };
 };
+const _srNorm = t => String(t || '').replace(/^\[บันทึก\]\s*/, '').replace(/\s*·?\s*(ค่าปรับ ฿[\d,]+|ไม่ได้ค่าแรง)\s*/g, ' ').replace(/[\s·.,()\-]+/g, '').toLowerCase();
+const _srSameStory = (a, b) => {
+    const x = _srNorm(a), y = _srNorm(b);
+    if (!x || !y) return false;
+    if (x === y || x.includes(y) || y.includes(x)) return true;
+    // คำซ้ำกันเกินครึ่ง = เรื่องเดียวกัน
+    const sa = new Set(String(a).split(/[\s·]+/).filter(w => w.length > 1)), sb = String(b).split(/[\s·]+/).filter(w => w.length > 1);
+    if (!sa.size || !sb.length) return false;
+    const hit = sb.filter(w => sa.has(w)).length;
+    return hit / Math.max(sa.size, sb.length) >= 0.6;
+};
+function _srMerged(rows) {
+    const fines = rows.filter(r => String(r.topic || '').startsWith('ใบปรับ') && !_srIsNote(r));
+    if (!fines.length) return rows;
+    const used = new Set(), out = [];
+    const manual = rows.filter(r => !String(r.topic || '').startsWith('ใบปรับ'));
+    const pairOf = new Map();
+    fines.forEach(f => {
+        const m = manual.find(r => !pairOf.has(r) && !_srIsNote(r)
+            && String(r.user_name).toLowerCase() === String(f.user_name).toLowerCase()
+            && String(r.record_date) === String(f.record_date)
+            && _srSameStory(r.note, f.note));
+        if (m) { pairOf.set(m, f); used.add(f); }
+    });
+    rows.forEach(r => {
+        if (used.has(r)) return;   // ใบปรับที่ถูกรวมเข้ากับประวัติแล้ว ไม่แสดงซ้ำ
+        out.push(pairOf.has(r) ? Object.assign(Object.create(Object.getPrototypeOf(r)), r, { _fine: pairOf.get(r) }) : r);
+    });
+    return out;
+}
 const _srTopicColor = name => (SR.topics.find(t => t.name === name) || {}).color || (String(name).startsWith('ใบปรับ') ? '#ef4444' : '#64748b');   // รายการจากใบปรับ = สีแดง
 const _srUsers = () => (typeof GLOBAL_USER_LIST !== 'undefined' && Array.isArray(GLOBAL_USER_LIST)) ? GLOBAL_USER_LIST : [];
 const _srUserOf = name => _srUsers().find(u => String(u.username).toLowerCase() === String(name).toLowerCase());
@@ -528,7 +558,7 @@ window.srRenderRank = function() {
     if (tSel) { const cur = tSel.value || 'all'; const ts = [...new Set(SR.rows.map(r => _srLabel(r.topic)))].sort(); tSel.innerHTML = '<option value="all">ทุกเรื่อง</option>' + ts.map(x => `<option value="${_srEsc(x)}">${_srEsc(x)}</option>`).join(''); tSel.value = ts.includes(cur) ? cur : 'all'; }
     const type = SR.rankType || 'all', fD = dSel ? dSel.value : 'all', fS = document.getElementById('srRankShift')?.value || 'all', fT = tSel ? tSel.value : 'all';
 
-    const rows = SR.rows.filter(r => {
+    const rows = _srMerged(SR.rows).filter(r => {
         if (_srIsNote(r)) return false;   // บันทึกเรื่องราวไม่นับในอันดับ
         if (type === 'hist' && _srIsFine(r)) return false;
         if (type === 'fine' && !_srIsFine(r)) return false;
@@ -679,7 +709,7 @@ window.srRender = function() {
         else { hint.style.display = ''; hint.innerHTML = `<span class="material-icons" style="font-size:17px;color:var(--k-gold-tx)">event</span>กำลังดูเฉพาะวันที่ <b>${_srDateLabel(fDay)}</b><button type="button" onclick="document.getElementById('srFilterDay').value='all';SR.page=1;srRender()">ดูทั้งเดือน</button>`; }
     }
 
-    const rows = SR.rows.filter(r => {
+    const rows = _srMerged(SR.rows).filter(r => {
         if (qName && !String(r.user_name).toLowerCase().includes(qName)) return false;
         if (fTopic !== 'all' && _srLabel(r.topic) !== fTopic) return false;
         if (fDay !== 'all' && r.record_date !== fDay) return false;
@@ -746,8 +776,8 @@ window.srRender = function() {
             const isN = _srIsNote(r); const nt = _srNoteShow(r);
             return `<div class="sr-tl-i ${isN ? 'is-note' : ''}">
                 <div class="sr-tl-d">${dd} ${_srTH_M[mm - 1]} ${yy + 543}<small>บันทึก ${_srTime(r.created_at) || '-'}</small></div>
-                <div class="sr-tl-t"><span class="sr-chip" style="--c:${_srTopicColor(r.topic)}" title="${_srEsc(r.topic)}">${_srEsc(_srLabel(r.topic))}</span><span class="sr-kind ${isN ? 'n' : 'o'}">${isN ? '📝 บันทึก' : '⚠ ทำผิด'}</span></div>
-                <div class="sr-tl-n">${nt ? _srEsc(nt) : '<span style="color:var(--k-mute3)">—</span>'}<small>ลงโดย ${_srEsc(r.created_by || '-')} · ${_srDateTimeShort(r.created_at)}</small></div>
+                <div class="sr-tl-t"><span class="sr-chip" style="--c:${_srTopicColor(r.topic)}" title="${_srEsc(r.topic)}">${_srEsc(_srLabel(r.topic))}</span><span class="sr-kind ${isN ? 'n' : 'o'}">${isN ? '📝 บันทึก' : '⚠ ทำผิด'}</span>${r._fine ? `<span class="sr-kind f" title="${_srEsc(r._fine.topic)}">+ ใบปรับ</span>` : ''}</div>
+                <div class="sr-tl-n">${nt ? _srEsc(nt) : '<span style="color:var(--k-mute3)">—</span>'}<small>ลงโดย ${_srEsc(r.created_by || '-')} · ${_srDateTimeShort(r.created_at)}${r._fine ? ` · ออกใบปรับโดย ${_srEsc(r._fine.created_by || '-')}` : ''}</small></div>
                 <div class="sr-acts">
                     ${canEdit ? `<button type="button" class="sr-edit" title="แก้ไขรายการนี้" onclick="srEdit(${Number(r.id)})"><span class="material-icons">edit</span></button>` : ''}
                     ${canDel ? `<button type="button" class="sr-del" title="ลบรายการนี้" onclick="srDelete(${Number(r.id)})"><span class="material-icons">delete_outline</span></button>` : ''}
