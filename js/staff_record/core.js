@@ -85,7 +85,6 @@ const _srSameStory = (a, b) => {
 };
 function _srMerged(rows) {
     const fines = rows.filter(r => String(r.topic || '').startsWith('ใบปรับ') && !_srIsNote(r));
-    if (!fines.length) return rows;
     const used = new Set(), out = [];
     const manual = rows.filter(r => !String(r.topic || '').startsWith('ใบปรับ'));
     const pairOf = new Map();
@@ -96,9 +95,17 @@ function _srMerged(rows) {
             && _srSameStory(r.note, f.note));
         if (m) { pairOf.set(m, f); used.add(f); }
     });
+    // หัวข้อที่มีในระบบ เรียงชื่อยาวก่อน (กันจับคำสั้นผิด)
+    const names = SR.topics.map(t => t.name).filter(Boolean).sort((a, b) => b.length - a.length);
+    const guess = note => { const n = String(note || ''); return names.find(t => n.includes(t)) || null; };
     rows.forEach(r => {
         if (used.has(r)) return;   // ใบปรับที่ถูกรวมเข้ากับประวัติแล้ว ไม่แสดงซ้ำ
-        out.push(pairOf.has(r) ? Object.assign(Object.create(Object.getPrototypeOf(r)), r, { _fine: pairOf.get(r) }) : r);
+        if (pairOf.has(r)) { out.push(Object.assign(Object.create(Object.getPrototypeOf(r)), r, { _fine: pairOf.get(r) })); return; }
+        if (String(r.topic || '').startsWith('ใบปรับ')) {
+            const g = guess(r.note);
+            if (g) { out.push(Object.assign(Object.create(Object.getPrototypeOf(r)), r, { topic: g, _fine: r })); return; }
+        }
+        out.push(r);
     });
     return out;
 }
@@ -777,7 +784,7 @@ window.srRender = function() {
             return `<div class="sr-tl-i ${isN ? 'is-note' : ''}">
                 <div class="sr-tl-d">${dd} ${_srTH_M[mm - 1]} ${yy + 543}<small>บันทึก ${_srTime(r.created_at) || '-'}</small></div>
                 <div class="sr-tl-t"><span class="sr-chip" style="--c:${_srTopicColor(r.topic)}" title="${_srEsc(r.topic)}">${_srEsc(_srLabel(r.topic))}</span><span class="sr-kind ${isN ? 'n' : 'o'}">${isN ? '📝 บันทึก' : '⚠ ทำผิด'}</span>${r._fine ? `<span class="sr-kind f" title="${_srEsc(r._fine.topic)}">+ ใบปรับ</span>` : ''}</div>
-                <div class="sr-tl-n">${nt ? _srEsc(nt) : '<span style="color:var(--k-mute3)">—</span>'}<small>ลงโดย ${_srEsc(r.created_by || '-')} · ${_srDateTimeShort(r.created_at)}${r._fine ? ` · ออกใบปรับโดย ${_srEsc(r._fine.created_by || '-')}` : ''}</small></div>
+                <div class="sr-tl-n">${nt ? _srEsc(nt) : '<span style="color:var(--k-mute3)">—</span>'}<small>ลงโดย ${_srEsc(r.created_by || '-')} · ${_srDateTimeShort(r.created_at)}${r._fine && r._fine.id !== r.id ? ` · ออกใบปรับโดย ${_srEsc(r._fine.created_by || '-')}` : ''}</small></div>
                 <div class="sr-acts">
                     ${canEdit ? `<button type="button" class="sr-edit" title="แก้ไขรายการนี้" onclick="srEdit(${Number(r.id)})"><span class="material-icons">edit</span></button>` : ''}
                     ${canDel ? `<button type="button" class="sr-del" title="ลบรายการนี้" onclick="srDelete(${Number(r.id)})"><span class="material-icons">delete_outline</span></button>` : ''}
