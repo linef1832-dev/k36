@@ -124,11 +124,6 @@ window.submitFine = async function(e) {
 
         if (dbError) throw dbError;
 
-        // 📒 ลงประวัติพนักงานให้อัตโนมัติ (หน้า "ประวัติพนักงาน") — ถ้าพลาด ใบปรับยังออกได้ตามปกติ
-        _fineToStaffRecord({
-            fine: (_fineRows && _fineRows[0]) || null, user_id: targetId, user_name: empName, rule: ruleText,
-            note: finalNote, amount: amountToSave, date: offenseDateVal
-        });
 
         Swal.fire({icon: 'success', title: 'ออกใบปรับสำเร็จ', timer: 1500, showConfirmButton: false});
         
@@ -514,7 +509,7 @@ window.deleteFine = async function(id) {
     if(res.isConfirmed) {
         Swal.fire({title: 'กำลังลบ...', didOpen: () => Swal.showLoading()});
         await appDB.from('fines').delete().eq('id', id);
-        await _fineRemoveStaffRecord({ id });   // ลบประวัติพนักงานที่มาจากใบปรับนี้ด้วย
+        await _fineRemoveStaffRecord({ id });   // เก็บกวาด: ถ้ามีประวัติเก่าที่เคยดึงมาจากใบปรับนี้ ลบตาม
         fetchFinesData(true);
         Swal.fire('ลบสำเร็จ', '', 'success');
     }

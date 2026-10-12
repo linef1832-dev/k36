@@ -425,11 +425,6 @@
             <section id="srRankView" style="min-width:0;display:none">
                 <div class="sr-card">
                     <div class="sr-tool">
-                        <div class="sr-rk-type" role="tablist">
-                            <button type="button" data-t="all" class="on" onclick="srRankType('all')">รวมทั้งหมด</button>
-                            <button type="button" data-t="hist" onclick="srRankType('hist')">ประวัติ</button>
-                            <button type="button" data-t="fine" onclick="srRankType('fine')">ใบปรับ</button>
-                        </div>
                         <select id="srRankDept" class="sr-in" onchange="srRenderRank()" title="กรองแผนก"><option value="all">ทุกแผนก</option></select>
                         <select id="srRankShift" class="sr-in" onchange="srRenderRank()" title="กรองกะ"><option value="all">ทุกกะ</option><option value="กะเช้า">☀️ กะเช้า</option><option value="กะกลาง">🌤️ กะกลาง</option><option value="กะดึก">🌙 กะดึก</option></select>
                         <select id="srRankTopic" class="sr-in" onchange="srRenderRank()" title="เฉพาะเรื่อง"><option value="all">ทุกเรื่อง</option></select>

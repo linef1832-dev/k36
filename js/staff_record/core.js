@@ -83,32 +83,8 @@ const _srSameStory = (a, b) => {
     const hit = sb.filter(w => sa.has(w)).length;
     return hit / Math.max(sa.size, sb.length) >= 0.6;
 };
-function _srMerged(rows) {
-    const fines = rows.filter(r => String(r.topic || '').startsWith('ใบปรับ') && !_srIsNote(r));
-    const used = new Set(), out = [];
-    const manual = rows.filter(r => !String(r.topic || '').startsWith('ใบปรับ'));
-    const pairOf = new Map();
-    fines.forEach(f => {
-        const m = manual.find(r => !pairOf.has(r) && !_srIsNote(r)
-            && String(r.user_name).toLowerCase() === String(f.user_name).toLowerCase()
-            && String(r.record_date) === String(f.record_date)
-            && _srSameStory(r.note, f.note));
-        if (m) { pairOf.set(m, f); used.add(f); }
-    });
-    // หัวข้อที่มีในระบบ เรียงชื่อยาวก่อน (กันจับคำสั้นผิด)
-    const names = SR.topics.map(t => t.name).filter(Boolean).sort((a, b) => b.length - a.length);
-    const guess = note => { const n = String(note || ''); return names.find(t => n.includes(t)) || null; };
-    rows.forEach(r => {
-        if (used.has(r)) return;   // ใบปรับที่ถูกรวมเข้ากับประวัติแล้ว ไม่แสดงซ้ำ
-        if (pairOf.has(r)) { out.push(Object.assign(Object.create(Object.getPrototypeOf(r)), r, { _fine: pairOf.get(r) })); return; }
-        if (String(r.topic || '').startsWith('ใบปรับ')) {
-            const g = guess(r.note);
-            if (g) { out.push(Object.assign(Object.create(Object.getPrototypeOf(r)), r, { topic: g, _fine: r })); return; }
-        }
-        out.push(r);
-    });
-    return out;
-}
+function _srMerged(rows) { return rows; }   // (ไม่มีใบปรับในหน้านี้แล้ว — ไม่ต้องรวม)
+
 const _srTopicColor = name => (SR.topics.find(t => t.name === name) || {}).color || (String(name).startsWith('ใบปรับ') ? '#ef4444' : '#64748b');   // รายการจากใบปรับ = สีแดง
 const _srUsers = () => (typeof GLOBAL_USER_LIST !== 'undefined' && Array.isArray(GLOBAL_USER_LIST)) ? GLOBAL_USER_LIST : [];
 const _srUserOf = name => _srUsers().find(u => String(u.username).toLowerCase() === String(name).toLowerCase());
@@ -521,7 +497,7 @@ window.srLoadLog = async function() {
         box.innerHTML = `<div class="sr-empty"><span class="material-icons">error_outline</span>โหลดประวัติไม่ได้: ${_srEsc(error.message)}${String(error.message).includes('staff_record_logs') ? '<br>ยังไม่ได้สร้างตาราง — รันไฟล์ <b>staff_record_logs.sql</b> ใน Supabase ก่อน' : ''}</div>`;
         return;
     }
-    SR.logs = data || [];
+    SR.logs = (data || []).filter(l => !String(l.topic || '').startsWith('ใบปรับ'));
     srRenderLog();
 };
 window.srRenderLog = function() {
@@ -584,7 +560,7 @@ window.srRenderRank = function() {
     list.forEach((x, i) => { if (x.n !== prev) { rank = i + 1; prev = x.n; } x.rank = rank; });
     const max = list[0].n;
     const meta = x => { const u = _srUserOf(x.name); return u ? `${_srEsc(u.department || 'AM')}${u.allowed_shift ? ' · ' + _srEsc(String(u.allowed_shift).replace('กะ', '')) : ''}` : 'ไม่อยู่ในระบบ'; };
-    const splitTags = x => `${x.sp.hist ? `<span class="h">ประวัติ ${x.sp.hist}</span>` : ''}${x.sp.fine ? `<span class="f">ใบปรับ ${x.sp.fine}${x.sp.amount ? ' · ฿' + x.sp.amount.toLocaleString('en-US') : ''}</span>` : ''}`;
+    const splitTags = x => '';
     const topTopics = x => { const c = {}; x.items.forEach(r => { const k = _srLabel(r.topic); c[k] = (c[k] || 0) + 1; }); return Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([t, n]) => `<span style="--c:${_srTopicColor(t)}">${_srEsc(t.replace(/^ใบปรับ:\s*/, 'ใบปรับ · '))} ×${n}</span>`).join(''); };
     const go = name => `srRankOpen('${_srEsc(name).replace(/'/g, "\\'")}')`;
 
@@ -605,12 +581,12 @@ window.srRenderRank = function() {
             <div class="sr-rk-no">${x.rank}</div>
             <div class="sr-rk-nm"><b>${_srEsc(x.name)}</b><small>${meta(x)}</small></div>
             <div class="sr-rk-bar">
-                <div class="sr-rk-track"><i class="h" style="width:${x.sp.hist / max * 100}%"></i><i class="f" style="width:${x.sp.fine / max * 100}%"></i></div>
+                <div class="sr-rk-track"><i class="h" style="width:${x.n / max * 100}%"></i></div>
                 <div class="sr-rk-tp">${topTopics(x)}</div>
             </div>
-            <div class="sr-rk-c"><b>${x.n}</b><small>ครั้ง</small>${x.sp.amount ? `<em>฿${x.sp.amount.toLocaleString('en-US')}</em>` : ''}</div>
+            <div class="sr-rk-c"><b>${x.n}</b><small>ครั้ง</small></div>
         </div>`).join('');
-    box.innerHTML = pod + (rest ? `<div class="sr-rk-legend"><span><i style="background:#E8C15A"></i>ประวัติ</span><span><i style="background:#ef4444"></i>ใบปรับ</span><span>· ทั้งหมด ${list.length} คน</span></div>` + rest : '');
+    box.innerHTML = pod + (rest ? `<div class="sr-rk-legend"><span>ทั้งหมด ${list.length} คน</span></div>` + rest : '');
 };
 // กดชื่อในอันดับ → ไปหน้ารายชื่อ เปิดการ์ดคนนั้น
 window.srRankOpen = function(name) {
@@ -687,7 +663,8 @@ window.srLoad = async function() {
         if (list) list.innerHTML = `<div class="sr-empty"><span class="material-icons">error_outline</span>โหลดข้อมูลไม่ได้: ${_srEsc(error.message)}${String(error.message).includes('staff_records') ? '<br>ยังไม่ได้สร้างตาราง — รันไฟล์ <b>sql/staff_records.sql</b> ใน Supabase ก่อน' : ''}</div>`;
         return;
     }
-    SR.rows = data || [];
+    // 🚫 หน้านี้ไม่แสดงใบปรับแล้ว (ดูใบปรับที่หน้าระบบใบปรับ) — ตัดรายการที่มาจากใบปรับทิ้งตั้งแต่ตอนโหลด
+    SR.rows = (data || []).filter(r => !r.fine_id && !String(r.topic || '').startsWith('ใบปรับ'));
     srFillFilters();
     srRender();
     srRenderTopics();
@@ -732,7 +709,7 @@ window.srRender = function() {
     const people = new Set(rows.map(r => String(r.user_name).toLowerCase()));
     const _sp = _srSplit(rows);
     const _kl = document.querySelector('#srApp .sr-kpi .l'); if (_kl) _kl.textContent = fDay === 'all' ? 'รวมทั้งเดือน' : `รวมวันที่ ${_srDateLabel(fDay)}`;
-    document.getElementById('srKpiTotal').innerHTML = `${_srOff(rows).length}<small>ครั้ง</small><span class="sr-kpi-split"><span class="h">ประวัติ ${_sp.hist}</span><span class="f">ใบปรับ ${_sp.fine}${_sp.amount ? ` · ฿${_sp.amount.toLocaleString('en-US')}` : ''}</span>${_sp.notes ? `<span class="n">📝 บันทึก ${_sp.notes}</span>` : ''}</span>`;
+    document.getElementById('srKpiTotal').innerHTML = `${_srOff(rows).length}<small>ครั้ง</small>${_sp.notes ? `<span class="sr-kpi-split"><span class="n">📝 บันทึก ${_sp.notes}</span></span>` : ''}`;
     document.getElementById('srKpiPeople').innerHTML = `${people.size}<small>คน</small>`;
 
 
@@ -780,7 +757,7 @@ window.srRender = function() {
         g.items.sort((a, b) => String(b.record_date).localeCompare(String(a.record_date)) || String(b.created_at || '').localeCompare(String(a.created_at || '')));
         const tl = g.items.map(r => {
             const [yy, mm, dd] = String(r.record_date).split('-').map(Number);
-            const isN = _srIsNote(r); const nt = _srNoteShow(r);
+            const isN = _srIsNote(r); const nt = _srNoteShow(r) || (r._fine && r._fine.id !== r.id ? _srNoteShow(r._fine) : '');   // ประวัติไม่ได้เขียนหมายเหตุ → ใช้หมายเหตุจากใบปรับ
             return `<div class="sr-tl-i ${isN ? 'is-note' : ''}">
                 <div class="sr-tl-d">${dd} ${_srTH_M[mm - 1]} ${yy + 543}<small>บันทึก ${_srTime(r.created_at) || '-'}</small></div>
                 <div class="sr-tl-t"><span class="sr-chip" style="--c:${_srTopicColor(r.topic)}" title="${_srEsc(r.topic)}">${_srEsc(_srLabel(r.topic))}</span><span class="sr-kind ${isN ? 'n' : 'o'}">${isN ? '📝 บันทึก' : '⚠ ทำผิด'}</span>${r._fine ? `<span class="sr-kind f" title="${_srEsc(r._fine.topic)}">+ ใบปรับ</span>` : ''}</div>
@@ -797,10 +774,7 @@ window.srRender = function() {
             <div class="sr-emp-row" onclick="srToggleEmp(this)">
                 <div class="sr-emp-top">
                     <div style="min-width:0;flex:1"><div class="sr-nm">${_srEsc(g.name)}${hitAny ? ' <span class="sr-hit">ถึงเกณฑ์</span>' : ''}</div><div class="sr-meta">${meta}<span class="sr-tag">${Object.keys(cnt).length} เรื่อง</span>${sp.notes ? `<span class="sr-tag note">📝 บันทึก ${sp.notes}</span>` : ''}</div></div>
-                    <div class="sr-split">
-                        <div class="sr-sp h" title="ลงประวัติในหน้านี้"><small>ประวัติ</small><b>${sp.hist}</b></div>
-                        <div class="sr-sp f ${sp.fine ? 'on' : ''}" title="มาจากการออกใบปรับ"><small>ใบปรับ</small><b>${sp.fine}</b>${sp.amount ? `<em>฿${sp.amount.toLocaleString('en-US')}</em>` : (sp.nowage ? '<em>ไม่ได้ค่าแรง</em>' : '')}</div>
-                    </div>
+                    <div class="sr-total ${sp.hist >= 5 ? 'hot' : ''}"><b>${sp.hist}</b><small>ครั้ง</small></div>
                     <span class="sr-caret-w"><span class="material-icons sr-caret">expand_more</span><small>${SR.open.has(key) ? 'ซ่อน' : 'ดูรายละเอียด'}</small></span>
                 </div>
                 <div class="sr-sum-grid">${chips}</div>
