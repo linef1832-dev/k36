@@ -57,6 +57,9 @@ const _srTopicLimit = name => { const t = SR.topics.find(x => x.name === name); 
 const _srCountOf = (name, topic) => SR.rows.filter(r => !_srIsNote(r) && String(r.user_name).toLowerCase() === String(name).toLowerCase() && r.topic === topic).length;
 // แยก "ใบปรับ" (ลงอัตโนมัติจากหน้าใบปรับ) กับ "ประวัติ" (ลงเองในหน้านี้)
 const _srIsFine = r => String(r.topic || '').startsWith('ใบปรับ');
+// แสดงผล: ใบปรับทุกข้อรวมเป็นคำว่า "ใบปรับ" คำเดียว (ไม่โชว์ข้อกฎยาวๆ) · หมายเหตุไม่โชว์ยอดเงิน (ยังเก็บไว้คิดยอดรวม)
+const _srLabel = t => String(t || '').startsWith('ใบปรับ') ? 'ใบปรับ' : String(t || '');
+const _srNoteShow = r => String(r.note || '').replace(/^\[บันทึก\]\s*/, '').replace(/\s*·?\s*(ค่าปรับ ฿[\d,]+|ไม่ได้ค่าแรง)\s*/g, ' ').replace(/^[\s·]+|[\s·]+$/g, '').trim();
 const _srFineAmount = r => { const m = String(r.note || '').match(/ค่าปรับ ฿([\d,]+)/); return m ? Number(m[1].replace(/,/g, '')) : 0; };
 // 🏷️ ประเภทรายการ: ทำผิด (นับ) / บันทึกเรื่องราว (ไม่นับ) — ถ้ายังไม่ได้เพิ่มคอลัมน์ kind จะใช้คำนำหน้า [บันทึก] ในหมายเหตุแทน
 const SR_NOTE_TAG = '[บันทึก] ';
@@ -378,7 +381,7 @@ window.srFillFilters = function() {
     const t = document.getElementById('srFilterTopic');
     if (t) {
         const cur = t.value || 'all';
-        const names = [...new Set([...SR.topics.map(x => x.name), ...SR.rows.map(r => r.topic)])];
+        const names = [...new Set([...SR.topics.map(x => x.name), ...SR.rows.map(r => _srLabel(r.topic))])];
         t.innerHTML = '<option value="all">ทุกเรื่อง</option>' + names.map(x => `<option value="${_srEsc(x)}">${_srEsc(x)}</option>`).join('');
         t.value = names.includes(cur) ? cur : 'all';
     }
@@ -500,10 +503,10 @@ window.srRenderLog = function() {
         let body = '';
         if (l.action === 'topics') body = `${who} ${_srEsc(l.detail || 'แก้หัวข้อ')}`;
         else {
-            const tag = l.topic ? `<span class="sr-chip" style="--c:${_srTopicColor(l.topic)}">${_srEsc(l.topic)}</span>` : '';
+            const tag = l.topic ? `<span class="sr-chip" style="--c:${_srTopicColor(l.topic)}" title="${_srEsc(l.topic)}">${_srEsc(_srLabel(l.topic))}</span>` : '';
             const verb = l.action === 'add' ? 'ลงประวัติให้' : (l.action === 'edit' ? 'แก้ไขประวัติของ' : 'ลบประวัติของ');
             body = `${who} ${verb} <b>${_srEsc(l.user_name || '-')}</b> ${tag}`
-                 + `<small>วันที่เกิดเรื่อง ${_srDateLabel(l.record_date)}${l.note ? ' · หมายเหตุ: ' + _srEsc(l.note) : ''}</small>`
+                 + `<small>วันที่เกิดเรื่อง ${_srDateLabel(l.record_date)}${_srNoteShow(l) ? ' · หมายเหตุ: ' + _srEsc(_srNoteShow(l)) : ''}</small>`
                  + (l.detail ? `<span class="chg">${l.detail}</span>` : '');
         }
         html += `<div class="sr-log-i"><div class="sr-log-time">${_srTime(l.created_at)}</div><div><span class="sr-act ${_srEsc(l.action)}">${ACT[l.action] || _srEsc(l.action)}</span></div><div class="sr-log-b">${body}</div></div>`;
@@ -522,14 +525,14 @@ window.srRenderRank = function() {
     // ตัวกรองแผนก/เรื่อง เติมตามข้อมูลล่าสุด
     const dSel = document.getElementById('srRankDept'), tSel = document.getElementById('srRankTopic');
     if (dSel) { const cur = dSel.value || 'all'; const ds = [...new Set(_srUsers().map(u => u.department || 'AM'))].sort(); dSel.innerHTML = '<option value="all">ทุกแผนก</option>' + ds.map(x => `<option value="${_srEsc(x)}">${_srEsc(x)}</option>`).join(''); dSel.value = ds.includes(cur) ? cur : 'all'; }
-    if (tSel) { const cur = tSel.value || 'all'; const ts = [...new Set(SR.rows.map(r => r.topic))].sort(); tSel.innerHTML = '<option value="all">ทุกเรื่อง</option>' + ts.map(x => `<option value="${_srEsc(x)}">${_srEsc(x)}</option>`).join(''); tSel.value = ts.includes(cur) ? cur : 'all'; }
+    if (tSel) { const cur = tSel.value || 'all'; const ts = [...new Set(SR.rows.map(r => _srLabel(r.topic)))].sort(); tSel.innerHTML = '<option value="all">ทุกเรื่อง</option>' + ts.map(x => `<option value="${_srEsc(x)}">${_srEsc(x)}</option>`).join(''); tSel.value = ts.includes(cur) ? cur : 'all'; }
     const type = SR.rankType || 'all', fD = dSel ? dSel.value : 'all', fS = document.getElementById('srRankShift')?.value || 'all', fT = tSel ? tSel.value : 'all';
 
     const rows = SR.rows.filter(r => {
         if (_srIsNote(r)) return false;   // บันทึกเรื่องราวไม่นับในอันดับ
         if (type === 'hist' && _srIsFine(r)) return false;
         if (type === 'fine' && !_srIsFine(r)) return false;
-        if (fT !== 'all' && r.topic !== fT) return false;
+        if (fT !== 'all' && _srLabel(r.topic) !== fT) return false;
         if (fD !== 'all' || fS !== 'all') { const u = _srUserOf(r.user_name); if (!u) return false; if (fD !== 'all' && (u.department || 'AM') !== fD) return false; if (fS !== 'all' && u.allowed_shift !== fS) return false; }
         return true;
     });
@@ -545,7 +548,7 @@ window.srRenderRank = function() {
     const max = list[0].n;
     const meta = x => { const u = _srUserOf(x.name); return u ? `${_srEsc(u.department || 'AM')}${u.allowed_shift ? ' · ' + _srEsc(String(u.allowed_shift).replace('กะ', '')) : ''}` : 'ไม่อยู่ในระบบ'; };
     const splitTags = x => `${x.sp.hist ? `<span class="h">ประวัติ ${x.sp.hist}</span>` : ''}${x.sp.fine ? `<span class="f">ใบปรับ ${x.sp.fine}${x.sp.amount ? ' · ฿' + x.sp.amount.toLocaleString('en-US') : ''}</span>` : ''}`;
-    const topTopics = x => { const c = {}; x.items.forEach(r => c[r.topic] = (c[r.topic] || 0) + 1); return Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([t, n]) => `<span style="--c:${_srTopicColor(t)}">${_srEsc(t.replace(/^ใบปรับ:\s*/, 'ใบปรับ · '))} ×${n}</span>`).join(''); };
+    const topTopics = x => { const c = {}; x.items.forEach(r => { const k = _srLabel(r.topic); c[k] = (c[k] || 0) + 1; }); return Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([t, n]) => `<span style="--c:${_srTopicColor(t)}">${_srEsc(t.replace(/^ใบปรับ:\s*/, 'ใบปรับ · '))} ×${n}</span>`).join(''); };
     const go = name => `srRankOpen('${_srEsc(name).replace(/'/g, "\\'")}')`;
 
     // โพเดียม 3 อันดับแรก (เรียง 2-1-3)
@@ -678,7 +681,7 @@ window.srRender = function() {
 
     const rows = SR.rows.filter(r => {
         if (qName && !String(r.user_name).toLowerCase().includes(qName)) return false;
-        if (fTopic !== 'all' && r.topic !== fTopic) return false;
+        if (fTopic !== 'all' && _srLabel(r.topic) !== fTopic) return false;
         if (fDay !== 'all' && r.record_date !== fDay) return false;
         if (fDept !== 'all' || fShift !== 'all') {
             const u = _srUserOf(r.user_name); if (!u) return false;
@@ -719,9 +722,10 @@ window.srRender = function() {
         const u = _srUserOf(g.name);
         const cnt = {}, days = {}, ncnt = {};
         g.items.forEach(r => {
-            if (_srIsNote(r)) { ncnt[r.topic] = (ncnt[r.topic] || 0) + 1; return; }   // บันทึกเรื่องราว ไม่นับ
-            cnt[r.topic] = (cnt[r.topic] || 0) + 1;
-            (days[r.topic] = days[r.topic] || new Set()).add(String(r.record_date));
+            const k = _srLabel(r.topic);
+            if (_srIsNote(r)) { ncnt[k] = (ncnt[k] || 0) + 1; return; }   // บันทึกเรื่องราว ไม่นับ
+            cnt[k] = (cnt[k] || 0) + 1;
+            (days[k] = days[k] || new Set()).add(String(r.record_date));
         });
         // วันที่ของแต่ละเรื่อง เช่น "11, 14 ต.ค." (เรียงจากวันแรก)
         const _dayList = set => {
@@ -739,10 +743,10 @@ window.srRender = function() {
         g.items.sort((a, b) => String(b.record_date).localeCompare(String(a.record_date)) || String(b.created_at || '').localeCompare(String(a.created_at || '')));
         const tl = g.items.map(r => {
             const [yy, mm, dd] = String(r.record_date).split('-').map(Number);
-            const isN = _srIsNote(r); const nt = _srNoteText(r);
+            const isN = _srIsNote(r); const nt = _srNoteShow(r);
             return `<div class="sr-tl-i ${isN ? 'is-note' : ''}">
                 <div class="sr-tl-d">${dd} ${_srTH_M[mm - 1]} ${yy + 543}<small>บันทึก ${_srTime(r.created_at) || '-'}</small></div>
-                <div class="sr-tl-t"><span class="sr-chip" style="--c:${_srTopicColor(r.topic)}">${_srEsc(r.topic)}</span><span class="sr-kind ${isN ? 'n' : 'o'}">${isN ? '📝 บันทึก' : '⚠ ทำผิด'}</span></div>
+                <div class="sr-tl-t"><span class="sr-chip" style="--c:${_srTopicColor(r.topic)}" title="${_srEsc(r.topic)}">${_srEsc(_srLabel(r.topic))}</span><span class="sr-kind ${isN ? 'n' : 'o'}">${isN ? '📝 บันทึก' : '⚠ ทำผิด'}</span></div>
                 <div class="sr-tl-n">${nt ? _srEsc(nt) : '<span style="color:var(--k-mute3)">—</span>'}<small>ลงโดย ${_srEsc(r.created_by || '-')} · ${_srDateTimeShort(r.created_at)}</small></div>
                 <div class="sr-acts">
                     ${canEdit ? `<button type="button" class="sr-edit" title="แก้ไขรายการนี้" onclick="srEdit(${Number(r.id)})"><span class="material-icons">edit</span></button>` : ''}
