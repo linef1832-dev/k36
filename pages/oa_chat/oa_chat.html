@@ -52,15 +52,16 @@
                     <input type="date" id="oaTo" class="oa-input" onchange="oa_setRange('custom')">
                 </div>
             </div>
-            <div class="flex flex-wrap items-center gap-2 mt-3">
-                <div class="relative" style="width:220px;max-width:100%">
-                    <span class="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base">search</span>
-                    <input id="oaSearch" oninput="oa_render()" placeholder="ค้นหาพนักงาน" class="oa-input w-full" style="padding-left:34px">
-                </div>
-                <div id="oaDeptChips" class="flex flex-wrap gap-1.5"></div>
+            <div class="oa-search-wrap mt-3">
+                <span class="material-icons oa-search-ic">search</span>
+                <input id="oaSearch" oninput="oa_render()" placeholder="ค้นหาชื่อพนักงาน" class="oa-search-in">
+                <button id="oaClearF" onclick="oa_clearFilters()" class="oa-clearf" title="ล้างตัวกรอง" style="display:none">ล้างตัวกรอง</button>
             </div>
-            <div class="oa-filter-row"><span class="oa-flabel">กะ</span><div id="oaShiftChips" class="flex flex-wrap gap-1.5"></div></div>
-            <div class="oa-filter-row"><span class="oa-flabel">เว็บ</span><div id="oaSiteChips" class="flex flex-wrap gap-1.5"></div></div>
+            <div class="oa-filters">
+                <div class="oa-fgroup"><div class="oa-flabel"><span class="material-icons">groups</span>แผนก</div><div id="oaDeptChips" class="oa-chipwrap"></div></div>
+                <div class="oa-fgroup"><div class="oa-flabel"><span class="material-icons">schedule</span>กะ</div><div id="oaShiftChips" class="oa-chipwrap"></div></div>
+                <div class="oa-fgroup"><div class="oa-flabel"><span class="material-icons">language</span>เว็บ</div><div id="oaSiteChips" class="oa-chipwrap"></div></div>
+            </div>
         </div>
 
         <!-- มุมมอง: รายการแชท -->
@@ -185,4 +186,27 @@
     .dark #oaApp .oa-pg { background:#0f172a; border-color:#334155; color:#cbd5e1; }
     #oaApp .oa-pg.on { background:#10b981; border-color:#10b981; color:#fff; }
     #oaApp .oa-pg:disabled { opacity:.35; cursor:default; }
+    /* ── แถบกรอง (ออกแบบใหม่) ── */
+    #oaApp .oa-search-wrap { position:relative; display:flex; align-items:center; gap:8px; }
+    #oaApp .oa-search-ic { position:absolute; left:13px; color:#94a3b8; font-size:19px; pointer-events:none; }
+    #oaApp .oa-search-in { flex:1; padding:11px 14px 11px 40px; border-radius:12px; border:1px solid #e2e8f0; background:#f8fafc; color:#334155; font-size:13.5px; font-weight:600; outline:none; transition:.15s; }
+    .dark #oaApp .oa-search-in { background:#0f172a; border-color:#334155; color:#e2e8f0; }
+    #oaApp .oa-search-in:focus { border-color:#10b981; box-shadow:0 0 0 3px rgba(16,185,129,.14); background:#fff; }
+    .dark #oaApp .oa-search-in:focus { background:#1e293b; }
+    #oaApp .oa-clearf { flex:none; padding:9px 14px; border-radius:11px; border:1px solid #fecaca; background:#fef2f2; color:#dc2626; font-size:12.5px; font-weight:800; cursor:pointer; white-space:nowrap; }
+    .dark #oaApp .oa-clearf { background:rgba(239,68,68,.12); border-color:rgba(239,68,68,.35); color:#fca5a5; }
+    #oaApp .oa-clearf:hover { background:#fee2e2; }
+    #oaApp .oa-filters { display:flex; flex-direction:column; gap:10px; margin-top:12px; }
+    #oaApp .oa-fgroup { display:flex; align-items:flex-start; gap:10px; }
+    #oaApp .oa-flabel { flex:none; width:64px; display:flex; align-items:center; gap:5px; font-size:12px; font-weight:800; color:#64748b; padding-top:7px; }
+    .dark #oaApp .oa-flabel { color:#94a3b8; }
+    #oaApp .oa-flabel .material-icons { font-size:16px; }
+    #oaApp .oa-chipwrap { flex:1; display:flex; flex-wrap:wrap; gap:6px; }
+    #oaApp .oa-chip { padding:6px 13px; border-radius:999px; font-size:12.5px; font-weight:700; cursor:pointer; border:1px solid #e2e8f0; background:#fff; color:#475569; transition:.12s; }
+    .dark #oaApp .oa-chip { background:#0f172a; border-color:#334155; color:#cbd5e1; }
+    #oaApp .oa-chip:hover { border-color:#10b981; color:#059669; }
+    #oaApp .oa-chip.on { background:#10b981; border-color:#10b981; color:#fff; box-shadow:0 2px 8px rgba(16,185,129,.3); }
+    #oaApp .oa-chip-site { }
+    #oaApp .oa-chip-site:hover { border-color:#8b5cf6; color:#7c3aed; }
+    #oaApp .oa-chip-site.on { background:#8b5cf6; border-color:#8b5cf6; color:#fff; box-shadow:0 2px 8px rgba(139,92,246,.3); }
 </style>

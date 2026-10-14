@@ -88,15 +88,20 @@ function oa_renderDept() {
 window.oa_setDept = function (d) { window._oa.dept = (window._oa.dept === d ? 'ALL' : d); window.oa_render(); };
 window.oa_setShift = function (s) { window._oa.shift = (window._oa.shift === s ? 'ALL' : s); window.oa_render(); };
 window.oa_setSite = function (s) { window._oa.site = (window._oa.site === s ? 'ALL' : s); window.oa_render(); };
+window.oa_clearFilters = function () { const o = window._oa; o.dept = 'ALL'; o.shift = 'ALL'; o.site = 'ALL'; const si = document.getElementById('oaSearch'); if (si) si.value = ''; window.oa_render(); };
 function oa_renderChips() {
     const o = window._oa;
+    // ปุ่มล้างตัวกรอง โผล่เมื่อมีการกรอง
+    const cf = document.getElementById('oaClearF'); const q = (document.getElementById('oaSearch') || {}).value || '';
+    if (cf) cf.style.display = (o.dept !== 'ALL' || o.shift !== 'ALL' || o.site !== 'ALL' || q) ? '' : 'none';
     // กะ
     const sh = document.getElementById('oaShiftChips');
-    if (sh) sh.innerHTML = ['เช้า', 'กลาง', 'ดึก'].map(k => `<button class="oa-chip ${o.shift === k ? 'on' : ''}" onclick="oa_setShift('${k}')">กะ${k}</button>`).join('');
+    if (sh) { sh.innerHTML = ['เช้า', 'กลาง', 'ดึก'].map(k => `<button class="oa-chip ${o.shift === k ? 'on' : ''}" onclick="oa_setShift('${k}')">กะ${k}</button>`).join(''); const g = sh.closest('.oa-fgroup'); if (g) g.style.display = ''; }
     // เว็บ (จากข้อมูลที่โหลด)
     const st = document.getElementById('oaSiteChips');
     if (st) { const sites = new Set(); Object.values(o.siteMap).forEach(set => set.forEach(v => sites.add(v))); const arr = [...sites].sort();
-        st.innerHTML = arr.map(k => `<button class="oa-chip oa-chip-site ${o.site === k ? 'on' : ''}" onclick="oa_setSite('${oa_esc(k).replace(/'/g,"\\'")}')">${oa_esc(k)}</button>`).join(''); }
+        st.innerHTML = arr.map(k => `<button class="oa-chip oa-chip-site ${o.site === k ? 'on' : ''}" onclick="oa_setSite('${oa_esc(k).replace(/'/g,"\\'")}')">${oa_esc(k)}</button>`).join('');
+        const g = st.closest('.oa-fgroup'); if (g) g.style.display = arr.length ? '' : 'none'; }
 }
 
 window.oa_render = function () {
