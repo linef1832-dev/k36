@@ -20,11 +20,18 @@ window.oa_setRange = function (r) {
     else { if (f.value > t.value) t.value = f.value; }
     document.querySelectorAll('#oaRangeSeg button').forEach(b => b.classList.toggle('on', b.dataset.r === r));
     const live = document.getElementById('oaRangeLive'); if (live) { const lbl = { today: 'วันนี้', yesterday: 'เมื่อวาน', '7d': '7 วันล่าสุด', month: 'เดือนนี้', custom: f.value + ' — ' + t.value }[r] || ''; live.textContent = lbl; }
-    window.oa_load();
+    // ถ้าช่วงใหม่อยู่ในข้อมูลที่โหลดไว้ครอบคลุมแล้ว → กรองในเครื่องทันที (ไม่หน่วง) แล้วซิงก์เบื้องหลัง
+    if (o._loadedFrom && o._loadedTo && f.value >= o._loadedFrom && t.value <= o._loadedTo && o.rows.length >= 0) {
+        o._viewFrom = f.value; o._viewTo = t.value; window.oa_render();
+        clearTimeout(o._syncT); o._syncT = setTimeout(() => window.oa_load(), 400);
+    } else {
+        window.oa_load();
+    }
 };
 
 window.oa_load = async function () {
     const o = window._oa, f = document.getElementById('oaFrom').value, t = document.getElementById('oaTo').value;
+    o._viewFrom = f; o._viewTo = t;
     try {
         if (!Object.keys(o.users).length) {
             const { data: us } = await window.appDB.from('users').select('id, username, name, department');
@@ -36,7 +43,7 @@ window.oa_load = async function () {
             if (error) throw error;
             all = all.concat(data || []); if (!data || data.length < 1000) break; from += 1000;
         }
-        o.rows = all;
+        o.rows = all; o._loadedFrom = f; o._loadedTo = t;
         const up = document.getElementById('oaUpdated'); if (up) up.textContent = 'อัปเดต ' + new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
         oa_renderDept(); window.oa_render();
     } catch (e) {
@@ -58,7 +65,8 @@ window.oa_setDept = function (d) { window._oa.dept = (window._oa.dept === d ? 'A
 
 window.oa_render = function () {
     const o = window._oa, q = (document.getElementById('oaSearch') || {}).value || '';
-    const rows = o.rows.filter(r => (o.dept === 'ALL' || oa_deptOf(r) === o.dept) && (!q || oa_nameOf(r).toLowerCase().includes(q.toLowerCase())));
+    const vf = o._viewFrom, vt = o._viewTo;
+    const rows = o.rows.filter(r => (!vf || (r.work_date >= vf && r.work_date <= vt)) && (o.dept === 'ALL' || oa_deptOf(r) === o.dept) && (!q || oa_nameOf(r).toLowerCase().includes(q.toLowerCase())));
     const by = {};
     rows.forEach(r => { const k = String(r.user_id); const x = by[k] || (by[k] = { name: oa_nameOf(r), dept: oa_deptOf(r), n: 0, last: null, rows: [] }); x.n++; x.rows.push(r); if (!x.last || r.last_at > x.last) x.last = r.last_at; });
     const list = Object.entries(by).sort((a, b) => b[1].n - a[1].n || a[1].name.localeCompare(b[1].name, 'th'));
