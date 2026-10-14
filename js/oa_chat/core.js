@@ -66,10 +66,6 @@ window.oa_render = function () {
     const total = rows.length, people = list.length, max = list.length ? list[0][1].n : 1;
     const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
     set('oaTotal', total); set('oaPeople', people); set('oaAvg', people ? (total / people).toFixed(1) : '–'); set('oaTop', list.length ? list[0][1].n : '–'); set('oaTopName', list.length ? list[0][1].name : '');
-    // รายชั่วโมง (เวลาที่ตอบครั้งแรกของแต่ละแชท)
-    const hrs = new Array(24).fill(0); rows.forEach(r => { const h = new Date(r.first_at).getHours(); if (!isNaN(h)) hrs[h]++; });
-    const hm = Math.max(1, ...hrs);
-    const H = document.getElementById('oaHours'); if (H) H.innerHTML = hrs.map((n, h) => `<div class="oa-h ${n ? '' : 'zero'}" title="${oa_pad(h)}:00 – ${n} แชท"><i style="height:${Math.max(2, Math.round(n / hm * 86))}px"></i><span>${h % 3 === 0 ? oa_pad(h) : ''}</span></div>`).join('');
     // รายชื่อ
     const L = document.getElementById('oaList'); if (!L) return;
     if (!list.length) { L.innerHTML = '<div class="text-center text-slate-400 py-10 text-sm">ยังไม่มีการตอบแชทในช่วงนี้</div>'; return; }
