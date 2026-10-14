@@ -83,20 +83,6 @@
     </div>
 </div>
 
-<!-- สถิติส่วนตัว -->
-<div id="oaStatModal" class="oa-modal" onclick="if(event.target===this)oa_closeStat()">
-  <div class="oa-modal-box">
-    <div class="oa-modal-head"><div><div class="oa-modal-name" id="osName">–</div><div class="oa-modal-dep" id="osDep"></div></div><button onclick="oa_closeStat()" class="oa-modal-x">✕</button></div>
-    <div class="oa-stat-grid">
-      <div class="oa-stat-c"><b id="osTotal">–</b><small>รวมช่วงนี้</small></div>
-      <div class="oa-stat-c"><b id="osDays">–</b><small>วันที่ตอบ</small></div>
-      <div class="oa-stat-c"><b id="osAvg">–</b><small>เฉลี่ย/วัน</small></div>
-      <div class="oa-stat-c oa-stat-best"><b id="osBest">–</b><small id="osBestD">มากสุด/วัน</small></div>
-    </div>
-    <div class="oa-stat-sub">รายวัน</div>
-    <div id="osDaily" class="oa-stat-daily"></div>
-  </div>
-</div>
 <style>
     #oaApp .oa-tabs { display:flex; gap:6px; background:#fff; padding:5px; border-radius:15px; border:1px solid #eef0f4; box-shadow:0 2px 10px rgba(0,0,0,.05); }
     .dark #oaApp .oa-tabs { background:#1e293b; border-color:#334155; }
@@ -193,4 +179,10 @@
     .oa-sd-bar { flex:1; height:16px; border-radius:8px; background:#ecfdf5; overflow:hidden; } .dark .oa-sd-bar { background:rgba(16,185,129,.12); }
     .oa-sd-bar i { display:block; height:100%; background:linear-gradient(90deg,#10b981,#34d399); border-radius:8px; }
     .oa-sd-n { font:900 13px ui-monospace,Consolas; color:#059669; min-width:28px; text-align:right; } .dark .oa-sd-n { color:#34d399; }
+    #oaApp .oa-paged { }
+    #oaApp .oa-pager { display:flex; align-items:center; justify-content:center; gap:5px; margin-top:10px; flex-wrap:wrap; }
+    #oaApp .oa-pg { min-width:30px; height:30px; padding:0 7px; border-radius:8px; border:1px solid #e2e8f0; background:#fff; color:#475569; font-weight:800; font-size:12.5px; cursor:pointer; }
+    .dark #oaApp .oa-pg { background:#0f172a; border-color:#334155; color:#cbd5e1; }
+    #oaApp .oa-pg.on { background:#10b981; border-color:#10b981; color:#fff; }
+    #oaApp .oa-pg:disabled { opacity:.35; cursor:default; }
 </style>

@@ -116,12 +116,11 @@ window.oa_render = function () {
     // อันดับ 4 เป็นต้นไปในรายการ (1-3 อยู่บนแท่นแล้ว แต่ยังกดดูรายละเอียดได้ทุกคน)
     L.innerHTML = list.map(([id, x], i) => {
         const days = {}; x.rows.forEach(r => { (days[r.work_date] = days[r.work_date] || []).push(r); });
-        const detail = Object.keys(days).sort().reverse().map(d => `<div class="oa-day">${new Date(d + 'T00:00:00').toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short' })} · ${days[d].length} แชท</div>` +
-            days[d].slice().sort((a, b) => String(b.last_at || b.first_at).localeCompare(String(a.last_at || a.first_at))).map(r => { const nm = r.chat_name || 'ลูกค้า ' + String(r.chat_id).slice(-6); return `<div class="oa-chat"><span class="oa-cust"><span class="oa-cname">${oa_esc(nm)}</span><button class="oa-copy" onclick="oa_copyName(event,'${oa_esc(nm).replace(/'/g,"\\'")}')" title="คัดลอกชื่อ"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span><span>${oa_time(r.last_at || r.first_at)}</span></div>`; }).join('')).join('');
+        const detail = `<div class="oa-paged" data-uid="${id}"></div>`;
         const rk = i < 3 ? '<span style="font-size:15px">' + ['🥇','🥈','🥉'][i] + '</span>' : (i + 1);
         return `<div class="oa-row ${o.open.has(id) ? 'open' : ''}" onclick="oa_toggle('${id}')">
             <span class="oa-rank">${rk}</span>
-            <div class="min-w-0"><div class="oa-name truncate" onclick="event.stopPropagation();oa_openStat('${id}')">${oa_esc(x.name)}</div><div class="oa-meta">${(x.dept && x.dept !== '-') ? oa_esc(x.dept) + ' · ' : ''}ตอบล่าสุด ${x.last ? oa_time(x.last) : '-'}</div><div class="oa-bar"><i style="width:${Math.max(3, Math.round(x.n / max * 100))}%"></i></div></div>
+            <div class="min-w-0"><div class="oa-name truncate">${oa_esc(x.name)}</div><div class="oa-meta">${(x.dept && x.dept !== '-') ? oa_esc(x.dept) + ' · ' : ''}ตอบล่าสุด ${x.last ? oa_time(x.last) : '-'}</div><div class="oa-bar"><i style="width:${Math.max(3, Math.round(x.n / max * 100))}%"></i></div></div>
             <div class="oa-n">${x.n}<small>แชท</small></div>
             <span class="material-icons oa-chev">chevron_right</span>
         </div><div class="oa-detail">${detail}</div>`;
@@ -145,7 +144,7 @@ window.oa_renderRank = function (list, max) {
         const rk = i < 3 ? '<span style="font-size:15px">' + ['🥇','🥈','🥉'][i] + '</span>' : (i + 1);
         return `<div class="oa-row" style="grid-template-columns:40px 1fr auto;cursor:default">
             <span class="oa-rank">${rk}</span>
-            <div class="min-w-0"><div class="oa-name truncate" onclick="event.stopPropagation();oa_openStat('${id}')">${oa_esc(x.name)}</div><div class="oa-meta">${(x.dept && x.dept !== '-') ? oa_esc(x.dept) : ''}</div><div class="oa-bar"><i style="width:${Math.max(3, Math.round(x.n / max * 100))}%"></i></div></div>
+            <div class="min-w-0"><div class="oa-name truncate">${oa_esc(x.name)}</div><div class="oa-meta">${(x.dept && x.dept !== '-') ? oa_esc(x.dept) : ''}</div><div class="oa-bar"><i style="width:${Math.max(3, Math.round(x.n / max * 100))}%"></i></div></div>
             <div class="oa-n">${x.n}<small>แชท</small></div>
         </div>`;
     }).join('');
@@ -157,7 +156,25 @@ window.oa_setTab = function (tb) {
     if (vl) vl.style.display = tb === 'list' ? '' : 'none';
     if (vr) vr.style.display = tb === 'rank' ? '' : 'none';
 };
-window.oa_toggle = function (id) { const s = window._oa.open; if (s.has(id)) s.delete(id); else s.add(id); window.oa_render(); };
+window._oa._chatPage = window._oa._chatPage || {};
+window.oa_toggle = function (id) { const st = window._oa.open; if (st.has(id)) st.delete(id); else { st.add(id); window._oa._chatPage[id] = 0; } window.oa_render(); setTimeout(() => oa_drawChats(id), 0); };
+window.oa_drawChats = function (id) {
+    const box = document.querySelector(`.oa-paged[data-uid="${id}"]`); if (!box) return;
+    const x = (window._oa._byUser || {})[id]; if (!x) return;
+    const PER = 10;
+    const all = x.rows.slice().sort((a, b) => String(b.last_at || b.first_at).localeCompare(String(a.last_at || a.first_at)));
+    const pages = Math.max(1, Math.ceil(all.length / PER));
+    let p = window._oa._chatPage[id] || 0; if (p >= pages) p = 0; window._oa._chatPage[id] = p;
+    const slice = all.slice(p * PER, p * PER + PER);
+    const esc = oa_esc;
+    let html = slice.map(r => { const nm = r.chat_name || 'ลูกค้า ' + String(r.chat_id).slice(-6); return `<div class="oa-chat"><span class="oa-cust"><span class="oa-cname">${esc(nm)}</span><button class="oa-copy" onclick="oa_copyName(event,'${esc(nm).replace(/'/g,"\\'")}')" title="คัดลอกชื่อ"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span><span>${oa_time(r.last_at || r.first_at)}</span></div>`; }).join('');
+    if (pages > 1) {
+        let nums = ''; for (let i = 0; i < pages; i++) nums += `<button class="oa-pg ${i === p ? 'on' : ''}" data-p="${i}">${i + 1}</button>`;
+        html += `<div class="oa-pager"><button class="oa-pg nav" data-p="${p - 1}" ${p === 0 ? 'disabled' : ''}>‹</button>${nums}<button class="oa-pg nav" data-p="${p + 1}" ${p === pages - 1 ? 'disabled' : ''}>›</button></div>`;
+    }
+    box.innerHTML = html;
+    box.querySelectorAll('.oa-pg').forEach(b => b.onclick = (e) => { e.stopPropagation(); const np = +b.dataset.p; if (np >= 0 && np < pages) { window._oa._chatPage[id] = np; oa_drawChats(id); } });
+};
 
 window.oa_exportCSV = function () {
     if (!oa_can('oa_chat_export')) { alert('ไม่มีสิทธิ์ดาวน์โหลด'); return; }
@@ -194,17 +211,3 @@ function oa_copyToast(name) {
 }
 
 
-// สถิติส่วนตัว (คลิกชื่อ)
-window.oa_openStat = function (userId) {
-    const by = window._oa._byUser || {}; const x = by[userId]; if (!x) return;
-    const days = {}; x.rows.forEach(r => { days[r.work_date] = (days[r.work_date] || 0) + 1; });
-    const keys = Object.keys(days).sort(); const total = x.n, nd = keys.length, avg = nd ? (total / nd).toFixed(1) : '0';
-    let bestK = '', bestV = 0; keys.forEach(k => { if (days[k] > bestV) { bestV = days[k]; bestK = k; } });
-    const S = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
-    S('osName', x.name); S('osDep', (x.dept && x.dept !== '-') ? x.dept : ''); S('osTotal', total); S('osDays', nd); S('osAvg', avg);
-    S('osBest', bestV || '–'); S('osBestD', bestK ? 'มากสุด · ' + new Date(bestK + 'T00:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }) : 'มากสุด/วัน');
-    const max = Math.max(1, ...keys.map(k => days[k]));
-    document.getElementById('osDaily').innerHTML = keys.slice().reverse().map(k => `<div class="oa-sd-row"><span class="oa-sd-d">${new Date(k + 'T00:00:00').toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short' })}</span><div class="oa-sd-bar"><i style="width:${Math.round(days[k] / max * 100)}%"></i></div><span class="oa-sd-n">${days[k]}</span></div>`).join('');
-    document.getElementById('oaStatModal').classList.add('show');
-};
-window.oa_closeStat = function () { document.getElementById('oaStatModal').classList.remove('show'); };
