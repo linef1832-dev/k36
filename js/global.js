@@ -744,6 +744,7 @@ window.cleanupPageIntervals = function() {
 // ชื่อในรายการ = path ต่อจาก js/ (ไม่ต้องมี .js) — loadScript ประกอบเป็น ./js/{ชื่อ}.js เอง
 const PAGE_SCRIPTS = {
     bell:              ['bell/core'],   // 🔔 กระดิ่งเรียกพนักงาน
+    oa_chat:           ['oa_chat/core'],   // 💬 ตรวจนับแชท LINE OA
     breaktable: ['breaktable/core'],   // 📊 ตารางลงเวลาพักทั้งหมด (ใช้ fetchData จาก system/users.js ที่โหลดไว้แล้ว)
     break_audit:       ['break_audit/core'],
     staff_record:      ['staff_record/core'],   // 📒 ประวัติการทำงานพนักงาน   // ⏱️ ตรวจเวลาลุกจากที่นั่ง (อ่าน export กลุ่ม Telegram)
@@ -1213,6 +1214,9 @@ async function showPage(pageName) {
                 }
                 else if (pageName === 'bell') {
                     if (typeof initBell === 'function') await initBell();
+                }
+                else if (pageName === 'oa_chat') {
+                    if (typeof initOaChat === 'function') await initOaChat();
                 }
                 else if (pageName === 'staff_record') {
                     if (typeof initStaffRecord === 'function') await initStaffRecord();
