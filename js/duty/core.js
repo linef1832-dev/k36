@@ -1481,7 +1481,10 @@ window.renderRosterGrid = async function(rosterData) {
 
     cardGrid.innerHTML = '';
     let finalGridHtml = '';
-    const _dmItems = [];   // 🗂️ รายการเว็บด้านซ้าย (แบบรายการเว็บ + รายละเอียด)
+    const _dmItems = [];
+    // 🙋 หาว่า "ตัวเรา" อยู่เว็บไหน (เทียบ id ก่อน ไม่มีค่อยเทียบชื่อ)
+    const _me = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : null;
+    const _isMe = u => !!(_me && u && ((u.id != null && _me.id != null && String(u.id) === String(_me.id)) || (u.username && _me.username && String(u.username).toLowerCase() === String(_me.username).toLowerCase())));   // 🗂️ รายการเว็บด้านซ้าย (แบบรายการเว็บ + รายละเอียด)
 
     currentRosterData = rosterData;
     // ในโหมดตัวอย่าง ตัดสิทธิ์แก้ไขทั้งหมด เพราะยังไม่มีตารางจริงให้แก้
@@ -1708,10 +1711,10 @@ window.renderRosterGrid = async function(rosterData) {
             const nameTxt = window.escapeHtml(String(a.username).replace(/<[^>]*>/g, '').replace(/^\s*warning\s*/, '').trim());
 
             return `
-            <div class="duty-user-card dc-card ${isMissing ? 'missing' : ''} group ${cursorClass}" data-name="${window.escapeHtml((a.username || '').toLowerCase())}" ${dragAttrs}>
+            <div class="duty-user-card dc-card ${isMissing ? 'missing' : ''} ${_isMe(a) ? 'me' : ''} group ${cursorClass}" data-name="${window.escapeHtml((a.username || '').toLowerCase())}" ${dragAttrs}>
                 <div class="dc-top">
                     <span class="dc-st ${isMissing ? 'bad' : ''}"></span>
-                    <span class="dc-name">${nameTxt}</span>
+                    <span class="dc-name">${nameTxt}</span>${_isMe(a) ? '<span class="dc-me">ฉัน</span>' : ''}
                     ${secHtml}
                 </div>
                 ${isMissing ? '' : `<div class="dc-mid">${breakTimeHtml}${stayPinHtml}</div>`}
@@ -1813,7 +1816,7 @@ window.renderRosterGrid = async function(rosterData) {
             people: assignees.map(a => {
                 const miss = String(a.username).includes('ขาดคน');
                 const slots = miss ? [] : (window.currentDutySchedules || []).filter(sc => sc.staff_name === a.username).map(sc => String(sc.time_slot || '')).join(',').split(',').map(x => x.trim()).filter(Boolean).sort();
-                return { id: a.id, name: String(a.username).replace(/<[^>]*>/g, '').trim(), miss, slots, sec: a.secondary_team || '', drag: !miss && a.id && isAdmin };
+                return { id: a.id, name: String(a.username).replace(/<[^>]*>/g, '').trim(), miss, slots, sec: a.secondary_team || '', drag: !miss && a.id && isAdmin, me: _isMe(a) };
             }) });
         finalGridHtml += `
             <div class="duty-site-card dc-site flex flex-col h-[500px] overflow-hidden w-full" data-team="${team}" style="--tc-border:currentColor">
@@ -1849,7 +1852,7 @@ window.renderRosterGrid = async function(rosterData) {
     const _list = _dmItems.map(it => `
         <button type="button" class="dm-item" data-team="${it.team}" onclick="dmSelect('${it.team}')" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${it.team}')" title="ดูเว็บ ${it.title} · ลากชื่อมาวางเพื่อย้ายเข้าเว็บนี้">
             <span class="dm-bar ${it.color.bg}"></span>
-            <span class="dm-name">${it.title}</span>
+            <span class="dm-name">${it.title}</span>${it.people.some(p => p.me) ? '<span class="dc-me">ฉัน</span>' : ''}
             ${it.missing ? '<span class="dm-flag bad" title="ขาดคน">ขาดคน</span>' : (it.warn ? '<span class="dm-flag warn" title="พักพร้อมกันเกิน">พักชน</span>' : '')}
             <span class="dm-cnt">${it.count}</span>
             ${it.standby ? `<span class="dm-sb" title="สแตนด์บายช่วย ${it.standby} คน">+${it.standby}</span>` : ''}
@@ -1859,8 +1862,8 @@ window.renderRosterGrid = async function(rosterData) {
         const st = it.missing ? ['bad', 'ขาดคน'] : (it.warn ? ['warn', 'พักชนกัน'] : ['ok', 'พร้อม']);
         const chips = it.people.map(p => p.miss
             ? `<span class="ov-p miss"><b>ขาดคน</b></span>`
-            : `<span class="ov-p duty-user-card ${p.drag ? 'can' : ''}" data-name="${window.escapeHtml(p.name.toLowerCase())}" ${p.drag ? `draggable="true" ondragstart="handleDragStart(event, '${p.id}', '${window.escapeJsAttr(p.name)}', '${it.team}')"` : ''} title="${window.escapeHtml(p.name)}${p.sec ? ' · งานรอง ' + p.sec : ''}">
-                <b>${window.escapeHtml(p.name)}</b>
+            : `<span class="ov-p duty-user-card ${p.drag ? 'can' : ''} ${p.me ? 'me' : ''}" data-name="${window.escapeHtml(p.name.toLowerCase())}" ${p.drag ? `draggable="true" ondragstart="handleDragStart(event, '${p.id}', '${window.escapeJsAttr(p.name)}', '${it.team}')"` : ''} title="${window.escapeHtml(p.name)}${p.sec ? ' · งานรอง ' + p.sec : ''}">
+                <b>${window.escapeHtml(p.name)}</b>${p.me ? '<span class="dc-me">ฉัน</span>' : ''}
                 <small class="${p.slots.length ? '' : 'none'}">${p.slots.length ? p.slots.map(x => x.split('-')[0]).join(' · ') : 'ยังไม่ลงพัก'}</small>
                 ${p.sec ? `<i>รอง ${p.sec}</i>` : ''}
             </span>`).join('') || '<span class="ov-empty">ยังไม่มีคน · ลากชื่อมาวางได้</span>';
@@ -1882,11 +1885,35 @@ window.renderRosterGrid = async function(rosterData) {
                 ${_ovRows}
             </div>
         </section>`;
+    // 🙋 แถบบอกตำแหน่งของเรา
+    let _meBar = '';
+    if (_me) {
+        const mine = _dmItems.find(it => it.people.some(p => p.me));
+        const leave = (window.currentDutyLeaveData || []).find(l => _isMe({ id: l.user_id, username: l.username }));
+        const sb = _dmItems.filter(it => it.standbyNames.some(n => _me.username && String(n).toLowerCase() === String(_me.username).toLowerCase())).map(it => it.title);
+        if (mine) {
+            const meP = mine.people.find(p => p.me);
+            _meBar = `<button type="button" class="dv-me" onclick="dmSelect('${mine.team}'); dutySetView('list')" title="เปิดดูเว็บของฉัน">
+                <span class="material-icons">person_pin_circle</span>
+                <span>คุณ <b>${window.escapeHtml(_me.username)}</b> อยู่เว็บ <b class="dv-team ${mine.color.bg} ${mine.color.text}">${mine.title}</b>${meP.sec ? ` · งานรอง <b>${meP.sec}</b>` : ''}${meP.slots.length ? ` · พัก <b>${meP.slots.join(', ')}</b>` : ' · <em>ยังไม่ลงเวลาพัก</em>'}</span>
+                <span class="dv-go">ดูเว็บของฉัน →</span>
+            </button>`;
+        } else if (leave) {
+            _meBar = `<div class="dv-me off"><span class="material-icons">event_busy</span><span>คุณ <b>${window.escapeHtml(_me.username)}</b> ลาหยุดในกะนี้</span></div>`;
+        } else if (sb.length) {
+            _meBar = `<div class="dv-me"><span class="material-icons">transfer_within_a_station</span><span>คุณ <b>${window.escapeHtml(_me.username)}</b> สแตนด์บายช่วยเว็บ <b>${sb.join(', ')}</b></span></div>`;
+        } else if (_me.role === 'staff') {
+            _meBar = `<div class="dv-me off"><span class="material-icons">info</span><span>คุณ <b>${window.escapeHtml(_me.username)}</b> ยังไม่อยู่ในตารางกะนี้</span></div>`;
+        }
+    }
     const _view = window._dutyView || (() => { try { return localStorage.getItem('duty_view') || 'list'; } catch (e) { return 'list'; } })();
     cardGrid.innerHTML = `${_previewNote}
-        <div class="dv-switch" style="grid-column:1/-1" role="tablist">
+        <div class="dv-top" style="grid-column:1/-1">
+        <div class="dv-switch" role="tablist">
             <button type="button" data-v="list" class="${_view === 'list' ? 'on' : ''}" onclick="dutySetView('list')"><span class="material-icons">view_sidebar</span> รายการเว็บ</button>
             <button type="button" data-v="overview" class="${_view === 'overview' ? 'on' : ''}" onclick="dutySetView('overview')"><span class="material-icons">table_rows</span> ภาพรวม</button>
+        </div>
+        ${_meBar}
         </div>
         <div class="dv-overview" style="grid-column:1/-1;${_view === 'overview' ? '' : 'display:none'}">${_overview}</div>
         <div class="dm-wrap" style="grid-column:1/-1;${_view === 'list' ? '' : 'display:none'}">
