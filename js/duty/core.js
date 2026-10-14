@@ -307,13 +307,29 @@ window.subscribeDutyChanges = function() {
     if (window._dutyPollingTimer) clearInterval(window._dutyPollingTimer);
     window._dutyPollingTimer = setInterval(() => {
         const dutyApp = document.getElementById('dutyApp');
+        // [FIX] ออกจากหน้าจัดหน้าที่แล้ว → หยุดตัวจับเวลา (เดิมวนต่อไปเรื่อยๆ ทั้งที่ไม่ได้ใช้)
+        if (!dutyApp) { clearInterval(window._dutyPollingTimer); window._dutyPollingTimer = null; return; }
         if (dutyApp && !dutyApp.classList.contains('hidden')) {
             // เช็คทุก 30 วิว่ามีของใหม่ไหม
+            // แท็บไม่ได้เปิดดูอยู่ → ไม่ต้องถาม (กลับมาที่แท็บเมื่อไหร่ เช็คให้ทันที)
+            if (document.hidden) return;
             if (typeof window.refreshDutyData === 'function') {
+                window._dutyPollTick = true;
                 window.refreshDutyData();
             }
         }
-    }, 30000);
+    }, 120000);   // ⚡ เดิม 30 วิ → 2 นาที (ระบบแจ้งสดยังส่งการเปลี่ยนแปลงทันทีเหมือนเดิม นี่เป็นแค่ตัวกันพลาด)
+    if (!window.__dutyVisBound) {
+        window.__dutyVisBound = true;
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) return;
+            const dutyApp = document.getElementById('dutyApp');
+            if (dutyApp && !dutyApp.classList.contains('hidden') && typeof window.refreshDutyData === 'function') {
+                window._dutyPollTick = true;   // กลับมาที่แท็บ: เช็คของใหม่ ถ้าเหมือนเดิมไม่วาดซ้ำ
+                window.refreshDutyData();
+            }
+        });
+    }
 }
 
 window.applyDutyRoleUI = function() {
@@ -478,6 +494,15 @@ window.refreshDutyData = async function() {
                 .eq('task_type', 'individual_shift_update')
                 .gte('scheduled_for', taskDayStart).lte('scheduled_for', taskDayEnd)
         ]);
+
+        // ⚡ [ประหยัด] รอบเช็คอัตโนมัติ: ข้อมูลเหมือนรอบก่อนทุกอย่าง → ไม่ต้องวาดกระดานใหม่
+        //    (การเปลี่ยนจริงยังเห็นทันทีผ่านระบบแจ้งสด — รอบนี้เป็นแค่ตัวกันพลาด)
+        try {
+            const _sig = JSON.stringify([targetDate, shiftFilter, currentDutyDept, leavesRes && leavesRes.data, schedulesRes && schedulesRes.data, settingsRes && settingsRes.data, swapRes && swapRes.data]);
+            const _isPoll = window._dutyPollTick === true; window._dutyPollTick = false;
+            if (_isPoll && window._dutyLastSig === _sig) return;
+            window._dutyLastSig = _sig;
+        } catch (e) {}
 
         // ── หาคนที่ "วันนี้เปลี่ยนไปเข้ากะดึก" (เช้า→ดึก) ──
         window.currentDutyShiftToday = {};   // user_id -> กะที่ต้องทำงานจริงวันนั้น
@@ -1601,6 +1626,7 @@ window.renderRosterGrid = async function(rosterData) {
                 const byDay = {};   // ชื่อ -> { วันที่ย้อนหลัง -> รายการ }
                 (histData || []).forEach(row => {
                     const meta = metaOf[row.key];
+                    if (!meta) return;   // กันแถวที่ไม่ใช่ตารางย้อนหลัง
                     let roster = null;
                     try { roster = JSON.parse(row.value); } catch (e) { return; }
                     for (const t in roster) {
@@ -1847,8 +1873,9 @@ window.renderRosterGrid = async function(rosterData) {
     });
 
     // 🗂️ แบบใหม่: ซ้าย = รายการเว็บ (กด = ดูเว็บนั้น · ลากคนมาวาง = ย้ายเข้าเว็บนั้น) · ขวา = รายละเอียดเว็บที่เลือก
-    const _previewNote = window.isRosterPreview ? finalGridHtml.slice(0, finalGridHtml.indexOf('<div class="duty-site-card')) : '';
-    const _cards = window.isRosterPreview ? finalGridHtml.slice(finalGridHtml.indexOf('<div class="duty-site-card')) : finalGridHtml;
+    const _cut = finalGridHtml.indexOf('<div class="duty-site-card');   // [FIX] ไม่มีเว็บเลย (-1) → เดิมตัดข้อความผิด
+    const _previewNote = window.isRosterPreview ? (_cut < 0 ? finalGridHtml : finalGridHtml.slice(0, _cut)) : '';
+    const _cards = window.isRosterPreview ? (_cut < 0 ? '' : finalGridHtml.slice(_cut)) : finalGridHtml;
     const _list = _dmItems.map(it => `
         <button type="button" class="dm-item" data-team="${it.team}" onclick="dmSelect('${it.team}')" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${it.team}')" title="ดูเว็บ ${it.title} · ลากชื่อมาวางเพื่อย้ายเข้าเว็บนี้">
             <span class="dm-bar ${it.color.bg}"></span>
@@ -1924,6 +1951,9 @@ window.renderRosterGrid = async function(rosterData) {
             <section class="dm-detail">${_cards}</section>
         </div>`;
     window.dmApply();
+    // 🔎 [FIX] วาดใหม่ (อัปเดตอัตโนมัติทุก 30 วิ / มีคนแก้จากเครื่องอื่น / หลังย้ายคน) แล้วคำค้นหาหลุด → ใส่กลับให้
+    const _si = document.getElementById('dutySearchInput');
+    if (_si && _si.value && typeof window.filterDutyResult === 'function') window.filterDutyResult();
 };
 
 // 🗂️ เลือกเว็บที่จะดู (จำไว้ในเครื่อง ไม่หายตอนเปลี่ยนวัน/กะ)
@@ -2150,6 +2180,17 @@ window.filterDutyResult = function() {
         }
     });
     if (typeof window.dmApply === 'function') window.dmApply();
+    // 📋 มุมมองภาพรวม: ชิปที่ไม่ตรงคำค้นจาง · แถวเว็บที่ไม่มีคนที่ค้นซ่อน
+    document.querySelectorAll('#dutyResultGrid .ov-table .ov-row:not(.ov-h)').forEach(row => {
+        let hit = false;
+        row.querySelectorAll('.ov-p[data-name]').forEach(ch => {
+            const m = !term || ch.dataset.name.includes(term);
+            if (m && term) hit = true;
+            ch.style.opacity = m ? '' : '.3';
+            ch.style.outline = (m && term) ? '2px solid #E8C15A' : '';
+        });
+        row.style.display = (!term || hit) ? '' : 'none';
+    });
 
     // 🟢 2. จัดการค้นหาในรูปแบบ ตาราง (Matrix) ของผู้สอน OD
     const matrixGrid = document.getElementById('dutyMatrixGrid');

@@ -257,19 +257,7 @@ window.openStayPinListModal = async function() {
 //   2) เพิ่ม/ลดคนต่อเว็บ → เด้ง toast บอกว่าดึง/คืนคนจากเว็บไหน — override manualAdjustReq
 // * ใช้ตัวแปร sortedTeams / currentDutyDept ได้ปกติ — ทุกไฟล์ duty/* โหลดเป็น scope เดียวกัน (ต้องโหลดหลัง core เสมอ)
 // ============================================================
-(function () {
-    // ── แพตช์ 1: ชื่อเต็ม ไม่โดนตัด + ให้ป้าย (เมื่อวานทำ/รองเมื่อวาน) ตกบรรทัดแทนที่จะบีบชื่อ ──
-    try {
-        if (!document.getElementById('dutyNameFixStyle')) {
-            const st = document.createElement('style');
-            st.id = 'dutyNameFixStyle';
-            st.textContent =
-                '.duty-user-card span.truncate.tracking-wide{white-space:normal !important;overflow:visible !important;text-overflow:clip !important;}' +
-                '.duty-user-card .flex.items-center.gap-2\\.5{flex-wrap:wrap;}';
-            document.head.appendChild(st);
-        }
-    } catch (e) { console.warn('[dutyPatch] name-fix css failed', e); }
-})();
+// (แพตช์ 1 เดิม: CSS ให้ชื่อเต็มในการ์ดแบบเก่า — การ์ดแบบใหม่ไม่ใช้คลาสเหล่านั้นแล้ว จึงลบออก)
 
 // ── แพตช์ 2: ปรับยอดคนต่อเว็บ แล้วบอกว่าระบบดึง/คืนคนจากเว็บไหน ──
 // 🗑️ [ลบตัวซ้ำ] เดิมไฟล์นี้มี manualAdjustReq เวอร์ชันเก่า (โยกอัตโนมัติ+toast) ประกาศซ้ำ
