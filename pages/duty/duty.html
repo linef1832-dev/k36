@@ -59,7 +59,42 @@
     #dutyApp .dc-h i{font-style:normal;font-size:10px;color:var(--k-amber-tx)}
     #dutyApp .dc-h em{font-style:normal;font-size:10px;color:var(--k-mute)}
     #dutyApp .dc-dot{width:8px;height:8px;border-radius:3px;display:inline-block;flex:none}
+    /* 🗂️ แบบรายการเว็บ + รายละเอียด */
+    #dutyApp .dm-wrap{display:grid;grid-template-columns:230px minmax(0,1fr);gap:14px;align-items:start}
+    #dutyApp .dm-list{position:sticky;top:0;display:flex;flex-direction:column;gap:4px;padding:10px;border-radius:16px;background:var(--k-panel);border:1px solid var(--k-line);max-height:calc(100vh - 220px);overflow-y:auto}
+    #dutyApp .dm-lh{display:flex;align-items:center;justify-content:space-between;padding:2px 6px 8px;font-size:12px;font-weight:800;color:var(--k-mute)}
+    #dutyApp .dm-lh span{font-size:11px;padding:1px 8px;border-radius:999px;background:var(--k-panel2);border:1px solid var(--k-line2)}
+    #dutyApp .dm-item{display:flex;align-items:center;gap:9px;width:100%;height:46px;padding:0 10px;border-radius:11px;border:1px solid transparent;background:transparent;color:var(--k-tx);font:inherit;text-align:left;cursor:pointer;transition:background .12s,border-color .12s,opacity .12s}
+    #dutyApp .dm-item:hover{background:var(--k-btn-h)}
+    #dutyApp .dm-item.on{background:var(--k-card);border-color:#E8C15A;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+    #dutyApp .dm-item.dim{opacity:.35}
+    #dutyApp .dm-item.can{border-color:#22c55e;background:rgba(34,197,94,.08)}
+    #dutyApp .dm-item.cant{opacity:.35}
+    #dutyApp .dm-bar{width:6px;height:26px;border-radius:3px;flex:none}
+    #dutyApp .dm-name{flex:1;min-width:0;font-size:14.5px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #dutyApp .dm-flag{font-size:10px;font-weight:900;padding:1px 6px;border-radius:999px;flex:none}
+    #dutyApp .dm-flag.bad{color:#fff;background:#dc2626}
+    #dutyApp .dm-flag.warn{color:var(--k-amber-tx);background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4)}
+    #dutyApp .dm-cnt{min-width:26px;height:24px;padding:0 7px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;background:var(--k-panel2);border:1px solid var(--k-line2);font-variant-numeric:tabular-nums;flex:none}
+    #dutyApp .dm-sb{font-size:10.5px;font-weight:900;color:var(--k-gold-tx);flex:none}
+    #dutyApp .dm-detail{min-width:0}
+    #dutyApp .dm-detail > .duty-site-card{display:none !important}
+    #dutyApp .dm-detail > .duty-site-card.dm-on{display:flex !important;height:auto !important;min-height:420px}
+    #dutyApp .dm-detail .dc-head{padding:16px 18px}
+    #dutyApp .dm-detail .dc-team{font-size:24px}
+    #dutyApp .dm-detail .dc-cnt{height:32px;padding:0 12px;font-size:12.5px}
+    #dutyApp .dm-detail .dc-cnt b{font-size:15px}
+    #dutyApp .dm-detail .dc-list{display:grid !important;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px !important;padding:14px !important;overflow:visible !important;align-content:start}
+    #dutyApp .dm-detail .dc-card{padding:14px 16px}
+    #dutyApp .dm-detail .dc-name{font-size:16.5px}
+    @media (max-width:900px){
+        #dutyApp .dm-wrap{grid-template-columns:1fr}
+        #dutyApp .dm-list{position:static;flex-direction:row;overflow-x:auto;max-height:none}
+        #dutyApp .dm-lh{display:none}
+        #dutyApp .dm-item{width:auto;flex:none}
+    }
 </style>
+
 <div id="dutyApp" class="k-auto-light fade-in flex flex-col h-full relative rounded-2xl overflow-hidden" style="background:var(--k-bg)">
 
     <div class="fade-in flex flex-col h-full relative pb-10 w-full max-w-full">

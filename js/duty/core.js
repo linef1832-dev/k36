@@ -1481,6 +1481,7 @@ window.renderRosterGrid = async function(rosterData) {
 
     cardGrid.innerHTML = '';
     let finalGridHtml = '';
+    const _dmItems = [];   // 🗂️ รายการเว็บด้านซ้าย (แบบรายการเว็บ + รายละเอียด)
 
     currentRosterData = rosterData;
     // ในโหมดตัวอย่าง ตัดสิทธิ์แก้ไขทั้งหมด เพราะยังไม่มีตารางจริงให้แก้
@@ -1807,8 +1808,9 @@ window.renderRosterGrid = async function(rosterData) {
             }
         }
 
+        _dmItems.push({ team, title: _title, color: colorClass, count: primaryCount, standby: standbyCount, warn: !!breakWarnHtml, missing: assignees.some(u => String(u.username).includes('ขาดคน')) || primaryCount === 0 });
         finalGridHtml += `
-            <div class="duty-site-card dc-site flex flex-col h-[500px] overflow-hidden w-full" style="--tc-border:currentColor">
+            <div class="duty-site-card dc-site flex flex-col h-[500px] overflow-hidden w-full" data-team="${team}" style="--tc-border:currentColor">
                 <div class="dc-head ${colorClass.bg} ${colorClass.text}">
                     <div class="dc-head-l">
                         <h4 class="dc-team">${_title}</h4>
@@ -1835,7 +1837,54 @@ window.renderRosterGrid = async function(rosterData) {
         `;
     });
 
-   cardGrid.innerHTML = finalGridHtml;
+    // 🗂️ แบบใหม่: ซ้าย = รายการเว็บ (กด = ดูเว็บนั้น · ลากคนมาวาง = ย้ายเข้าเว็บนั้น) · ขวา = รายละเอียดเว็บที่เลือก
+    const _previewNote = window.isRosterPreview ? finalGridHtml.slice(0, finalGridHtml.indexOf('<div class="duty-site-card')) : '';
+    const _cards = window.isRosterPreview ? finalGridHtml.slice(finalGridHtml.indexOf('<div class="duty-site-card')) : finalGridHtml;
+    const _list = _dmItems.map(it => `
+        <button type="button" class="dm-item" data-team="${it.team}" onclick="dmSelect('${it.team}')" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${it.team}')" title="ดูเว็บ ${it.title} · ลากชื่อมาวางเพื่อย้ายเข้าเว็บนี้">
+            <span class="dm-bar ${it.color.bg}"></span>
+            <span class="dm-name">${it.title}</span>
+            ${it.missing ? '<span class="dm-flag bad" title="ขาดคน">ขาดคน</span>' : (it.warn ? '<span class="dm-flag warn" title="พักพร้อมกันเกิน">พักชน</span>' : '')}
+            <span class="dm-cnt">${it.count}</span>
+            ${it.standby ? `<span class="dm-sb" title="สแตนด์บายช่วย ${it.standby} คน">+${it.standby}</span>` : ''}
+        </button>`).join('');
+    cardGrid.innerHTML = `${_previewNote}
+        <div class="dm-wrap" style="grid-column:1/-1">
+            <aside class="dm-list custom-scrollbar">
+                <div class="dm-lh">เว็บทั้งหมด <span>${_dmItems.length}</span></div>
+                ${_list}
+            </aside>
+            <section class="dm-detail">${_cards}</section>
+        </div>`;
+    window.dmApply();
+};
+
+// 🗂️ เลือกเว็บที่จะดู (จำไว้ในเครื่อง ไม่หายตอนเปลี่ยนวัน/กะ)
+window.dmSelect = function(team) {
+    window._dmSel = team;
+    try { localStorage.setItem('duty_dm_sel_' + currentDutyDept, team); } catch (e) {}
+    window.dmApply();
+};
+window.dmApply = function() {
+    const wrap = document.querySelector('#dutyResultGrid .dm-wrap'); if (!wrap) return;
+    const cards = [...wrap.querySelectorAll('.dm-detail > .duty-site-card')];
+    if (!cards.length) return;
+    let sel = window._dmSel;
+    if (!sel) { try { sel = localStorage.getItem('duty_dm_sel_' + currentDutyDept); } catch (e) {} }
+    // ค้นหาอยู่ → เว็บที่เลือกไม่มีคนที่ค้น → เลื่อนไปเว็บแรกที่เจอ
+    const searching = !!(document.getElementById('dutySearchInput') || {}).value;
+    const visible = c => !searching || c.dataset.match === '1';
+    if (!cards.some(c => c.dataset.team === sel && visible(c))) {
+        const first = cards.find(visible) || cards[0];
+        sel = first.dataset.team;
+    }
+    window._dmSel = sel;
+    cards.forEach(c => c.classList.toggle('dm-on', c.dataset.team === sel));
+    wrap.querySelectorAll('.dm-item').forEach(b => {
+        b.classList.toggle('on', b.dataset.team === sel);
+        const card = cards.find(c => c.dataset.team === b.dataset.team);
+        b.classList.toggle('dim', searching && !(card && card.dataset.match === '1'));
+    });
 };
 
 window.selectSecOption = function(el, val) {
@@ -2016,12 +2065,14 @@ window.filterDutyResult = function() {
         });
 
         // ถ้าในเว็บนั้นไม่มีคนที่เราค้นหาเลย ก็ซ่อนการ์ดเว็บนั้นทิ้งไปเลย
+        if (card.closest('.dm-detail')) { card.dataset.match = cardHasMatch ? '1' : '0'; card.style.display = ''; return; }   // แบบรายการเว็บ: ให้ dmApply จัดการ
         if(term === '') {
             card.style.display = 'flex'; 
         } else { 
             card.style.display = cardHasMatch ? 'flex' : 'none'; 
         }
     });
+    if (typeof window.dmApply === 'function') window.dmApply();
 
     // 🟢 2. จัดการค้นหาในรูปแบบ ตาราง (Matrix) ของผู้สอน OD
     const matrixGrid = document.getElementById('dutyMatrixGrid');
