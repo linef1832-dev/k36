@@ -153,7 +153,9 @@ window.initDutyApp = async function() {
 
         // 🚀 ดึง users + access matrix/roles ขนานกัน (อิสระต่อกัน)
         const initFetches = [window.loadDutyAccessAndRoles()];
-        if (GLOBAL_USER_LIST.length === 0 && typeof fetchUsers === 'function') {
+        // 👥 ดึงรายชื่อพนักงานใหม่ทุกครั้งที่เปิดหน้า (เดิมดึงเฉพาะตอนรายชื่อว่าง →
+        //    พนักงานที่เพิ่งเพิ่มเข้าระบบ/ย้ายกะ/ย้ายแผนก ไม่โผล่ในหน้าจัดหน้าที่จนกว่าจะรีเฟรชทั้งเว็บ)
+        if (typeof fetchUsers === 'function') {
             initFetches.push(fetchUsers());
         }
         await Promise.all(initFetches);
@@ -861,6 +863,8 @@ window.fillRotationGapInput = function() {
 
 window.addStaffToRoster = async function() {
     if (window.blockIfPreview()) return;   // โหมดตัวอย่าง: ห้ามเขียนตารางลง DB
+    // 👥 โหลดรายชื่อล่าสุดก่อนเปิดกล่อง — คนที่เพิ่งเพิ่ม/แก้กะ/แก้แผนกจะได้อยู่ในรายการ
+    if (typeof fetchUsers === 'function') { try { await fetchUsers(); } catch (e) {} }
     const targetDate = document.getElementById('dutyDate').value;
     const shiftFilter = document.getElementById('dutyShiftSelect').value;
     if (!targetDate) return Swal.fire('!', 'กรุณาเลือกวันที่ก่อน', 'warning');
@@ -1144,6 +1148,8 @@ window.clearDutyRoster = async function() {
 };
 
 window.generateDutyRoster = async function() {
+    // 👥 สุ่มจากรายชื่อล่าสุดเสมอ (คนที่เพิ่งเพิ่มเข้าระบบจะได้ถูกจัดด้วย)
+    if (typeof fetchUsers === 'function') { try { await fetchUsers(); } catch (e) {} }
     const targetDate = document.getElementById('dutyDate').value;
     const shiftFilter = document.getElementById('dutyShiftSelect').value;
     if(!targetDate) return Swal.fire('!', 'กรุณาเลือกวันที่ก่อน', 'warning');
