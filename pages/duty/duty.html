@@ -306,36 +306,70 @@
                     </div>
                 </div>
                 
-                <div class="w-full md:w-64 bg-white dark:bg-slate-800 border-l border-gray-200 dark:border-slate-700 flex flex-col shrink-0 shadow-[-5px_0_15px_rgba(0,0,0,0.1)] transition-colors duration-300"
-                     ondragover="handleDragOver(event)" ondrop="handleDrop(event, 'leaveList')">
-                    <div class="bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-100 p-2 text-center font-bold text-xs border-b border-red-100 dark:border-red-900/50 flex justify-center items-center gap-1 pointer-events-none">
-                        <span class="material-icons text-[14px]">event_busy</span> ลาหยุด <span id="leaveCountBadge" class="bg-red-600 text-white px-2 py-0.5 rounded-full text-[10px]">0</span>
+                <!-- 🏖️ แผงลาหยุด (ออกแบบใหม่) — id / onchange เดิม -->
+                <div class="lv-panel w-full md:w-64 flex flex-col shrink-0" ondragover="handleDragOver(event)" ondrop="handleDrop(event, 'leaveList')">
+                    <div class="lv-head">
+                        <span class="lv-ic"><span class="material-icons">event_busy</span></span>
+                        <div class="lv-ht"><b>ลาหยุด</b><small>กดชื่อ = ดึงกลับมาทำงาน</small></div>
+                        <span id="leaveCountBadge" class="lv-badge">0</span>
                     </div>
-                    
-                    <div class="p-1.5 bg-gray-50 dark:bg-slate-900/50 border-b border-gray-200 dark:border-slate-700 flex flex-col gap-1.5">
-                        <select id="dutyLeaveShiftFilter" onchange="renderDutyLeaveBox()" class="w-full text-[10px] p-1 rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-gray-200 outline-none focus:border-red-400 font-bold cursor-pointer">
-                            <option value="all">-- ทุกกะ --</option>
-                            <option value="กะเช้า">☀️ เฉพาะ กะเช้า</option>
-                            <option value="กะกลาง">🌤️ เฉพาะ กะกลาง</option>
-                            <option value="กะดึก">🌙 เฉพาะ กะดึก</option>
-                            <option value="all_shift">🌐 เฉพาะ กะอิสระ</option>
+                    <div class="lv-filters">
+                        <select id="dutyLeaveShiftFilter" onchange="renderDutyLeaveBox()" class="lv-sel" title="กรองกะ">
+                            <option value="all">ทุกกะ</option>
+                            <option value="กะเช้า">☀️ เช้า</option>
+                            <option value="กะกลาง">🌤️ กลาง</option>
+                            <option value="กะดึก">🌙 ดึก</option>
+                            <option value="all_shift">🌐 อิสระ</option>
                         </select>
-                        <select id="dutyLeaveTypeFilter" onchange="renderDutyLeaveBox()" class="w-full text-[10px] p-1 rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-gray-200 outline-none focus:border-red-400 font-bold cursor-pointer">
-                            <option value="all">-- ทุกประเภทการลา --</option>
-                            <option value="X">✕ หยุดปกติ (X)</option>
-                            <option value="XX">XX เปลี่ยนกะ</option>
-                            <option value="X4">X4 ลาครึ่งวัน</option>
-                            <option value="KL">KL ลากิจ</option>
-                            <option value="TL">TL สลับวันหยุด</option>
-                            <option value="PN">PN พักร้อน</option>
+                        <select id="dutyLeaveTypeFilter" onchange="renderDutyLeaveBox()" class="lv-sel" title="กรองประเภทการลา">
+                            <option value="all">ทุกประเภท</option>
+                            <option value="X">หยุดปกติ (X)</option>
+                            <option value="XX">เปลี่ยนกะ (XX)</option>
+                            <option value="X4">ลาครึ่งวัน (X4)</option>
+                            <option value="KL">ลากิจ (KL)</option>
+                            <option value="TL">สลับวันหยุด (TL)</option>
+                            <option value="PN">พักร้อน (PN)</option>
                         </select>
                     </div>
-                    <div id="dutyLeaveList" class="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1.5 content-start">
-                        <div class="text-center text-xs text-gray-400 mt-4">รอประมวลผล...</div>
+                    <div id="dutyLeaveList" class="lv-list flex-1 overflow-y-auto custom-scrollbar content-start">
+                        <div class="lv-empty">รอประมวลผล...</div>
                     </div>
+                    <div class="lv-foot"><span class="material-icons">pan_tool_alt</span>ลากชื่อจากเว็บมาวางที่นี่ = ให้หยุด</div>
                 </div>
             </div>
         </div>
+
+        <style id="lv-style">
+            #dutyApp .lv-panel{background:var(--k-panel);border-left:1px solid var(--k-line)}
+            #dutyApp .lv-head{display:flex;align-items:center;gap:9px;padding:12px;border-bottom:1px solid var(--k-line);pointer-events:none}
+            #dutyApp .lv-ic{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:var(--k-red-bg);color:var(--k-red-tx);flex:none}
+            #dutyApp .lv-ic .material-icons{font-size:18px}
+            #dutyApp .lv-ht{flex:1;min-width:0}
+            #dutyApp .lv-ht b{display:block;font-size:14px;font-weight:900;color:var(--k-tx-strong)}
+            #dutyApp .lv-ht small{display:block;font-size:10.5px;font-weight:600;color:var(--k-mute)}
+            #dutyApp .lv-badge{min-width:28px;height:28px;padding:0 8px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:#dc2626;color:#fff;font-size:14px;font-weight:900;font-variant-numeric:tabular-nums}
+            #dutyApp .lv-filters{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px 10px;border-bottom:1px solid var(--k-line);background:var(--k-panel2)}
+            #dutyApp .lv-sel{width:100%;height:32px;padding:0 6px;border-radius:9px;background:var(--k-field);border:1px solid var(--k-line2);color:var(--k-tx);font-size:11.5px;font-weight:800;outline:none;cursor:pointer}
+            #dutyApp .lv-sel:focus{border-color:var(--k-gold)}
+            #dutyApp .lv-sel option{background:var(--k-field);color:var(--k-tx)}
+            #dutyApp .lv-list{padding:8px 10px}
+            #dutyApp .lv-grp{margin-bottom:10px}
+            #dutyApp .lv-gh{display:flex;align-items:center;gap:6px;margin:2px 2px 6px;font-size:11px;font-weight:900;color:var(--k-tx3)}
+            #dutyApp .lv-gh i{width:8px;height:8px;border-radius:99px;background:var(--c)}
+            #dutyApp .lv-gh span{margin-left:auto;font-size:10.5px;font-weight:900;padding:0 7px;border-radius:999px;background:color-mix(in srgb,var(--c) 15%,transparent);color:var(--k-tx2)}
+            #dutyApp .lv-row{position:relative;display:flex;align-items:center;gap:8px;height:38px;padding:0 10px 0 12px;margin-bottom:5px;border-radius:10px;background:var(--k-card);border:1px solid var(--k-line);cursor:pointer;overflow:hidden;transition:border-color .15s,background .15s}
+            #dutyApp .lv-row::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c)}
+            #dutyApp .lv-row b{flex:1;min-width:0;font-size:13px;font-weight:900;color:var(--k-tx-strong);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+            #dutyApp .lv-sh{font-size:10.5px;font-weight:800;padding:1px 7px;border-radius:999px;background:var(--k-panel2);border:1px solid var(--k-line2);color:var(--k-mute);flex:none}
+            #dutyApp .lv-back{display:none;align-items:center;gap:3px;font-size:10.5px;font-weight:900;color:var(--k-gold-tx);flex:none}
+            #dutyApp .lv-back .material-icons{font-size:14px}
+            #dutyApp .lv-row:hover{border-color:var(--k-gold);background:var(--k-btn-h)}
+            #dutyApp .lv-row:hover .lv-sh{display:none}
+            #dutyApp .lv-row:hover .lv-back{display:inline-flex}
+            #dutyApp .lv-empty{padding:30px 10px;text-align:center;font-size:12px;font-weight:700;color:var(--k-mute)}
+            #dutyApp .lv-foot{display:flex;align-items:center;justify-content:center;gap:5px;padding:8px;border-top:1px dashed var(--k-line);font-size:10.5px;font-weight:700;color:var(--k-mute);pointer-events:none}
+            #dutyApp .lv-foot .material-icons{font-size:14px}
+        </style>
 
         <!-- ⚙️ แท็บตั้งค่าสิทธิ์และหัวข้อ (ออกแบบใหม่ + ติกทั้งแถว/ทั้งคอลัมน์/ทั้งหมด) — id เดิมทุกตัว -->
         <style>

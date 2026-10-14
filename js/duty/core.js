@@ -727,33 +727,37 @@ window.renderDutyLeaveBox = function() {
     }
 
     leaveBadge.innerText = filteredLeaves.length;
-    let leaveHtml = '';
 
-    if (filteredLeaves.length > 0) {
-        filteredLeaves.sort((a, b) => a.username.localeCompare(b.username));
-        filteredLeaves.forEach(l => {
-            const rsn = l.reason || 'X';
-            const style = LEAVE_STYLES[rsn] || { text: rsn, color: 'text-gray-600 bg-gray-100 border-gray-300 dark:bg-slate-700 dark:text-gray-300', border: 'border-gray-200 dark:border-slate-600' };
-            let displayRsn = style.text;
-            let badgeColor = style.color;
-            let boxBorder = style.border;
-
-            const shiftTag = l.originalShift && l.originalShift !== '?' ? `<span class="text-[8px] text-gray-400 ml-1">(${l.originalShift.replace('กะ','')})</span>` : '';
-
-            leaveHtml += `
-                <div onclick="restoreFromLeave('${l.user_id}', '${window.escapeJsAttr(l.username)}')" title="คลิกเพื่อดึงกลับมาทำงาน" class="bg-white dark:bg-slate-700 p-1.5 rounded-lg border ${boxBorder} shadow-sm flex justify-between items-center mb-1.5 transition-all hover:bg-blue-50 dark:hover:bg-slate-600 group cursor-pointer hover:border-blue-500">
-                    <span class="text-[11px] font-bold text-slate-700 dark:text-gray-200 truncate pr-2 flex items-center">
-                        <span class="material-icons text-[14px] text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity mr-1">settings_backup_restore</span>
-                        ${window.escapeHtml(l.username)} ${shiftTag}
-                    </span>
-                    <span class="text-[9px] font-black ${badgeColor} px-1.5 py-0.5 rounded border shadow-sm whitespace-nowrap group-hover:scale-105 transition-transform">${displayRsn}</span>
-                </div>
-            `;
-        });
-        leaveContainer.innerHTML = leaveHtml; 
-    } else { 
-        leaveContainer.innerHTML = `<div class="text-center text-[10px] text-gray-400 mt-4">ไม่มีข้อมูลตามตัวกรอง</div>`; 
+    // 🏖️ จัดกลุ่มตามประเภทการลา: หัวกลุ่มบอกจำนวน · แต่ละชื่อมีแถบสีตามประเภท
+    const LV_META = [
+        { key: 'X',  label: 'หยุดปกติ',     color: '#ef4444', match: r => r === 'X' || r === 'Table-Booking' },
+        { key: 'XX', label: 'เปลี่ยนกะ',     color: '#eab308', match: r => r === 'XX' },
+        { key: 'X4', label: 'ลาครึ่งวัน',    color: '#ec4899', match: r => r === 'X4' },
+        { key: 'KL', label: 'ลากิจ',        color: '#22c55e', match: r => r === 'KL' },
+        { key: 'TL', label: 'สลับวันหยุด',   color: '#3b82f6', match: r => r === 'TL' || r === 'TX' },
+        { key: 'PN', label: 'พักร้อน',       color: '#d97706', match: r => r === 'PN' }
+    ];
+    if (filteredLeaves.length === 0) {
+        leaveContainer.innerHTML = `<div class="lv-empty">ไม่มีคนลาตามตัวกรองนี้</div>`;
+        return;
     }
+    const used = new Set();
+    let leaveHtml = '';
+    const rowOf = (l, color) => {
+        const sh = l.originalShift && l.originalShift !== '?' ? (l.originalShift === 'all' ? 'อิสระ' : String(l.originalShift).replace('กะ', '')) : '';
+        return `<div class="lv-row" style="--c:${color}" onclick="restoreFromLeave('${l.user_id}', '${window.escapeJsAttr(l.username)}')" title="คลิกเพื่อดึงกลับมาทำงาน">
+            <b>${window.escapeHtml(l.username)}</b>${sh ? `<span class="lv-sh">${sh}</span>` : ''}<span class="lv-back"><span class="material-icons">settings_backup_restore</span>ดึงกลับ</span>
+        </div>`;
+    };
+    LV_META.forEach(m => {
+        const list = filteredLeaves.filter(l => m.match(l.reason || 'X')).sort((a, b) => a.username.localeCompare(b.username));
+        if (!list.length) return;
+        list.forEach(l => used.add(l));
+        leaveHtml += `<div class="lv-grp"><div class="lv-gh" style="--c:${m.color}"><i></i>${m.label}<span>${list.length}</span></div>${list.map(l => rowOf(l, m.color)).join('')}</div>`;
+    });
+    const others = filteredLeaves.filter(l => !used.has(l)).sort((a, b) => a.username.localeCompare(b.username));
+    if (others.length) leaveHtml += `<div class="lv-grp"><div class="lv-gh" style="--c:#64748b"><i></i>อื่นๆ<span>${others.length}</span></div>${others.map(l => rowOf(l, '#64748b')).join('')}</div>`;
+    leaveContainer.innerHTML = leaveHtml;
 };
 
 window.restoreFromLeave = async function(userId, username) {
