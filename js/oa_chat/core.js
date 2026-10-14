@@ -19,6 +19,7 @@ window.oa_setRange = function (r) {
     else if (r === 'month') { const d = oa_workDate(0); f.value = d.slice(0, 8) + '01'; t.value = d; }
     else { if (f.value > t.value) t.value = f.value; }
     document.querySelectorAll('#oaRangeSeg button').forEach(b => b.classList.toggle('on', b.dataset.r === r));
+    const live = document.getElementById('oaRangeLive'); if (live) { const lbl = { today: 'วันนี้', yesterday: 'เมื่อวาน', '7d': '7 วันล่าสุด', month: 'เดือนนี้', custom: f.value + ' — ' + t.value }[r] || ''; live.textContent = lbl; }
     window.oa_load();
 };
 
@@ -58,28 +59,43 @@ window.oa_setDept = function (d) { window._oa.dept = (window._oa.dept === d ? 'A
 window.oa_render = function () {
     const o = window._oa, q = (document.getElementById('oaSearch') || {}).value || '';
     const rows = o.rows.filter(r => (o.dept === 'ALL' || oa_deptOf(r) === o.dept) && (!q || oa_nameOf(r).toLowerCase().includes(q.toLowerCase())));
-    // สรุปต่อพนักงาน
     const by = {};
     rows.forEach(r => { const k = String(r.user_id); const x = by[k] || (by[k] = { name: oa_nameOf(r), dept: oa_deptOf(r), n: 0, last: null, rows: [] }); x.n++; x.rows.push(r); if (!x.last || r.last_at > x.last) x.last = r.last_at; });
-    const list = Object.entries(by).sort((a, b) => b[1].n - a[1].n);
+    const list = Object.entries(by).sort((a, b) => b[1].n - a[1].n || a[1].name.localeCompare(b[1].name, 'th'));
     const total = rows.length, people = list.length, max = list.length ? list[0][1].n : 1;
     const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
-    set('oaTotal', total); set('oaPeople', people); set('oaAvg', people ? (total / people).toFixed(1) : '–'); set('oaTop', list.length ? list[0][1].n : '–'); set('oaTopName', list.length ? list[0][1].name : '');
-    // รายชื่อ
+    set('oaTotal', total); set('oaPeople', people); set('oaAvg', people ? (total / people).toFixed(1) : '–');
+
+    // แท่นอันดับ Top 3
+    const P = document.getElementById('oaPodium');
+    if (P) {
+        const medal = ['🥇', '🥈', '🥉'], cls = ['p1', 'p2', 'p3'];
+        P.innerHTML = [0, 1, 2].map(i => {
+            const it = list[i];
+            if (!it) return `<div class="oa-pod ${cls[i]} empty"><div class="medal">${medal[i]}</div><div class="nm">—</div><div class="cnt">0</div><div class="unit">แชท</div></div>`;
+            const x = it[1];
+            return `<div class="oa-pod ${cls[i]}"><div class="medal">${medal[i]}</div><div class="nm">${oa_esc(x.name)}</div><div class="dp">${(x.dept && x.dept !== '-') ? oa_esc(x.dept) : '&nbsp;'}</div><div class="cnt">${x.n}</div><div class="unit">แชท</div></div>`;
+        }).join('');
+        P.style.display = list.length ? '' : 'none';
+    }
+
     const L = document.getElementById('oaList'); if (!L) return;
-    if (!list.length) { L.innerHTML = '<div class="text-center text-slate-400 py-10 text-sm">ยังไม่มีการตอบแชทในช่วงนี้</div>'; return; }
+    if (!list.length) { L.innerHTML = '<div class="text-center text-slate-400 py-12 text-sm">ยังไม่มีการตอบแชทในช่วงนี้</div>'; return; }
+    // อันดับ 4 เป็นต้นไปในรายการ (1-3 อยู่บนแท่นแล้ว แต่ยังกดดูรายละเอียดได้ทุกคน)
     L.innerHTML = list.map(([id, x], i) => {
         const days = {}; x.rows.forEach(r => { (days[r.work_date] = days[r.work_date] || []).push(r); });
         const detail = Object.keys(days).sort().reverse().map(d => `<div class="oa-day">${new Date(d + 'T00:00:00').toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short' })} · ${days[d].length} แชท</div>` +
             days[d].slice().sort((a, b) => String(a.first_at).localeCompare(String(b.first_at))).map(r => { const nm = r.chat_name || 'ลูกค้า ' + String(r.chat_id).slice(-6); return `<div class="oa-chat"><span class="oa-cust"><span class="oa-cname">${oa_esc(nm)}</span><button class="oa-copy" onclick="oa_copyName(event,'${oa_esc(nm).replace(/'/g,"\\'")}')" title="คัดลอกชื่อ"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span><span>${oa_time(r.first_at)}${r.last_at && r.last_at !== r.first_at ? ' – ' + oa_time(r.last_at) : ''}</span></div>`; }).join('')).join('');
+        const rk = i < 3 ? '<span style="font-size:15px">' + ['🥇','🥈','🥉'][i] + '</span>' : (i + 1);
         return `<div class="oa-row ${o.open.has(id) ? 'open' : ''}" onclick="oa_toggle('${id}')">
-            <span class="oa-rank ${i < 3 ? 'r' + (i + 1) : ''}">${i + 1}</span>
-            <div class="min-w-0"><div class="oa-name truncate">${oa_esc(x.name)}</div><div class="oa-meta">${oa_esc(x.dept)} · ตอบล่าสุด ${x.last ? oa_time(x.last) : '-'}</div><div class="oa-bar"><i style="width:${Math.max(3, Math.round(x.n / max * 100))}%"></i></div></div>
+            <span class="oa-rank">${rk}</span>
+            <div class="min-w-0"><div class="oa-name truncate">${oa_esc(x.name)}</div><div class="oa-meta">${(x.dept && x.dept !== '-') ? oa_esc(x.dept) + ' · ' : ''}ตอบล่าสุด ${x.last ? oa_time(x.last) : '-'}</div><div class="oa-bar"><i style="width:${Math.max(3, Math.round(x.n / max * 100))}%"></i></div></div>
             <div class="oa-n">${x.n}<small>แชท</small></div>
             <span class="material-icons oa-chev">chevron_right</span>
         </div><div class="oa-detail">${detail}</div>`;
     }).join('');
 };
+
 window.oa_toggle = function (id) { const s = window._oa.open; if (s.has(id)) s.delete(id); else s.add(id); window.oa_render(); };
 
 window.oa_exportCSV = function () {
