@@ -1835,15 +1835,7 @@ window.renderRosterGrid = async function(rosterData) {
 };
 
 window.selectSecOption = function(el, val) {
-    document.querySelectorAll('.sec-opt').forEach(opt => {
-        opt.className = opt.className.replace(/ring-2 ring-(blue|red)-500 bg-(blue|red)-50 dark:bg-(blue|red)-900\/(20|30) shadow-md/g, '');
-        if(!opt.className.includes('bg-gray-50') && !opt.className.includes('bg-white')) {
-            if(opt.innerText.includes('ปลดงาน')) opt.classList.add('bg-gray-50', 'dark:bg-slate-800');
-            else opt.classList.add('bg-white', 'dark:bg-slate-800');
-        }
-    });
-    if(val === 'none') el.className += ' ring-2 ring-red-500 bg-red-50 dark:bg-red-900/30';
-    else el.className += ' ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/30 shadow-md';
+    document.querySelectorAll('.secx-opt').forEach(o => o.classList.toggle('on', o === el));
     document.getElementById('swal-sec-val').value = val;
 };
 
@@ -1860,37 +1852,54 @@ window.changeSecondaryTeam = async function(primaryTeam, userId, username) {
     let currentUserData = currentRosterData[primaryTeam].find(u => String(u.id) === String(userId));
     let currentSec = currentUserData ? currentUserData.secondary_team : null;
 
-    let htmlContent = `<div class="mt-4 flex flex-col gap-2.5 max-h-[45vh] overflow-y-auto custom-scrollbar p-1">`;
-    const noneActive = !currentSec ? 'ring-2 ring-red-500 bg-red-50 dark:bg-red-900/30' : 'bg-gray-50 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-900/20';
-    htmlContent += `
-        <div onclick="selectSecOption(this, 'none')" class="sec-opt p-3 rounded-xl border border-gray-200 dark:border-slate-600 cursor-pointer transition-all flex items-center justify-between group ${noneActive}">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/50 text-red-500 flex items-center justify-center group-hover:scale-110 transition"><span class="material-icons text-lg">block</span></div>
-                <div class="text-left"><div class="font-bold text-slate-700 dark:text-gray-200 text-sm">ปลดงานรองออก</div><div class="text-[10px] text-gray-500 dark:text-gray-400">ไม่ต้องสแตนด์บายช่วยเว็บอื่น</div></div>
-            </div>
+    // 🎨 กล่องเลือกงานรองแบบใหม่: ปุ่มเว็บเป็นตาราง 2 คอลัมน์ ขนาดเท่ากัน · แถบสีประจำเว็บด้านซ้าย · เลือกแล้วขอบทอง + ✓
+    if (!document.getElementById('secx-css')) {
+        const st = document.createElement('style'); st.id = 'secx-css';
+        st.textContent = `
+        .secx-wrap{display:flex;flex-direction:column;gap:10px;margin-top:6px;text-align:left}
+        .secx-none{display:flex;align-items:center;gap:12px;padding:12px 14px !important;border-radius:12px;border:1px solid var(--k-line2);background:var(--k-panel2);cursor:pointer;transition:border-color .15s,background .15s}
+        .secx-none .material-icons{font-size:20px;color:var(--k-red-tx)}
+        .secx-none b{display:block;font-size:13.5px;font-weight:900;color:var(--k-tx-strong)}
+        .secx-none small{display:block;font-size:11.5px;font-weight:600;color:var(--k-mute)}
+        .secx-none.on{border-color:#ef4444;background:var(--k-red-bg)}
+        .secx-lbl{font-size:11.5px;font-weight:800;color:var(--k-mute);margin:2px 2px -2px}
+        .secx-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:46vh;overflow-y:auto;padding:2px}
+        .secx-opt{position:relative;display:flex;align-items:center;gap:10px;height:52px;padding:0 12px 0 16px;border-radius:12px;border:1px solid var(--k-line2);background:var(--k-card);cursor:pointer;overflow:hidden;transition:border-color .15s,background .15s,transform .08s}
+        .secx-opt:hover{border-color:var(--k-line4)}
+        .secx-opt:active{transform:scale(.98)}
+        .secx-bar{position:absolute;left:0;top:0;bottom:0;width:5px}
+        .secx-opt b{flex:1;min-width:0;font-size:15px;font-weight:900;color:var(--k-tx-strong);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .secx-ck{width:22px;height:22px;border-radius:7px;border:2px solid var(--k-line3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:transparent;flex:none}
+        .secx-opt.on{border-color:#E8C15A;background:color-mix(in srgb,#E8C15A 10%,var(--k-card));box-shadow:0 0 0 2px rgba(232,193,90,.25)}
+        .secx-opt.on .secx-ck{background:#E8C15A;border-color:#E8C15A;color:#1b1406}
+        .secx-cur{font-size:10px;font-weight:800;padding:1px 7px;border-radius:999px;background:rgba(232,193,90,.15);color:var(--k-gold-tx);border:1px solid rgba(232,193,90,.4)}
+        .secx-confirm{color:#1b1406 !important;font-weight:900 !important}
+        @media (max-width:420px){ .secx-grid{grid-template-columns:1fr} }`;
+        document.head.appendChild(st);
+    }
+    let htmlContent = `<div class="secx-wrap">
+        <div onclick="selectSecOption(this, 'none')" class="secx-opt secx-none ${!currentSec ? 'on' : ''}" style="height:auto">
+            <span class="material-icons">block</span>
+            <div><b>ไม่มีงานรอง</b><small>ไม่ต้องสแตนด์บายช่วยเว็บอื่น</small></div>
         </div>
-    `;
-
+        <div class="secx-lbl">หรือเลือกเว็บที่จะสแตนด์บายช่วย</div>
+        <div class="secx-grid custom-scrollbar">`;
     possibleSecondary.forEach(t => {
-        const isActive = currentSec === t ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/30 shadow-md' : 'bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/20';
         const teamColor = TEAM_COLORS[t] || TEAM_COLORS['DEFAULT'];
-        htmlContent += `
-            <div onclick="selectSecOption(this, '${t}')" class="sec-opt p-3 rounded-xl border border-gray-200 dark:border-slate-600 cursor-pointer transition-all flex items-center justify-between group overflow-hidden relative ${isActive}">
-                <div class="absolute left-0 top-0 bottom-0 w-1.5 ${teamColor.bg}"></div>
-                <div class="flex items-center gap-3 pl-3 z-10">
-                    <div class="w-10 h-10 rounded-full ${teamColor.lightBg} ${teamColor.lightText} flex items-center justify-center font-bold text-sm shadow-inner group-hover:scale-110 transition">${t.substring(0,2)}</div>
-                    <div class="text-left"><div class="font-black text-slate-800 dark:text-white text-base">${t}</div><div class="text-[10px] text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-0.5"><span class="material-icons text-[12px] text-blue-500">support_agent</span> สแตนด์บายช่วยแชท</div></div>
-                </div>
-            </div>
-        `;
+        const on = currentSec === t;
+        htmlContent += `<div onclick="selectSecOption(this, '${t}')" class="secx-opt ${on ? 'on' : ''}" title="สแตนด์บายช่วยแชทเว็บ ${t}">
+                <span class="secx-bar ${teamColor.bg}"></span>
+                <b>${t}</b>${on ? '<span class="secx-cur">ตอนนี้</span>' : ''}
+                <span class="secx-ck">✓</span>
+            </div>`;
     });
-    
-    htmlContent += `</div><input type="hidden" id="swal-sec-val" value="${currentSec || 'none'}">`;
+    htmlContent += `</div></div>`;
+    htmlContent += `<input type="hidden" id="swal-sec-val" value="${currentSec || 'none'}">`;
 
     const { isConfirmed } = await Swal.fire({
-        title: `<div class="text-xl font-black mb-1">สแตนด์บายช่วย (${username})</div>`, html: `<div class="text-xs text-gray-500 mb-2">กดเลือกการ์ดด้านล่างเพื่อกำหนดงานรอง</div>${htmlContent}`,
-        showCancelButton: true, confirmButtonText: 'บันทึกงานรอง', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#3b82f6', cancelButtonColor: '#64748b',
-        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' },
+        title: `<div style="font-size:19px;font-weight:900">งานรองของ ${window.escapeHtml(username)}</div><div style="font-size:12px;font-weight:600;color:var(--k-mute);margin-top:4px">เว็บหลัก: ${window.escapeHtml(primaryTeam)} · เลือกเว็บที่จะสแตนด์บายช่วย</div>`, html: htmlContent,
+        showCancelButton: true, confirmButtonText: 'บันทึกงานรอง', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#E8C15A', cancelButtonColor: '#64748b', reverseButtons: true, width: 520,
+        customClass: { popup: 'rounded-3xl', confirmButton: 'secx-confirm' },
         preConfirm: () => document.getElementById('swal-sec-val').value
     });
 
