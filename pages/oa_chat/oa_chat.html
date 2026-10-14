@@ -23,6 +23,12 @@
 
     <div class="px-4 md:px-5 max-w-5xl mx-auto w-full -mt-7 relative z-10 space-y-4">
 
+        <!-- แท็บ -->
+        <div class="oa-tabs">
+            <button data-t="list" class="on" onclick="oa_setTab('list')"><span class="material-icons text-sm">chat</span> รายการแชท</button>
+            <button data-t="rank" onclick="oa_setTab('rank')"><span class="material-icons text-sm">emoji_events</span> จัดอันดับ</button>
+        </div>
+
         <!-- แถบควบคุม -->
         <div class="oa-panel">
             <div class="flex flex-wrap items-center gap-2">
@@ -46,21 +52,31 @@
             </div>
         </div>
 
-        <!-- แท่นอันดับ Top 3 -->
-        <div id="oaPodium" class="oa-podium"></div>
-
-        <!-- อันดับที่เหลือ -->
-        <div class="oa-panel p-0 overflow-hidden">
+        <!-- มุมมอง: รายการแชท -->
+        <div id="oaViewList" class="oa-panel p-0 overflow-hidden">
             <div class="px-4 py-3 border-b border-gray-100 dark:border-slate-700 flex items-center justify-between">
-                <div class="font-bold text-slate-700 dark:text-slate-200">🏆 จัดอันดับพนักงาน</div>
+                <div class="font-bold text-slate-700 dark:text-slate-200">รายการพนักงานที่ตอบ</div>
                 <div class="text-xs text-slate-400" id="oaUpdated"></div>
             </div>
             <div id="oaList" class="divide-y divide-gray-50 dark:divide-slate-700/50"><div class="text-center text-slate-400 py-12 text-sm">กำลังโหลด...</div></div>
+        </div>
+
+        <!-- มุมมอง: จัดอันดับ -->
+        <div id="oaViewRank" style="display:none" class="space-y-4">
+            <div id="oaPodium" class="oa-podium"></div>
+            <div class="oa-panel p-0 overflow-hidden">
+                <div class="px-4 py-3 border-b border-gray-100 dark:border-slate-700 font-bold text-slate-700 dark:text-slate-200">🏆 อันดับทั้งหมด</div>
+                <div id="oaRankList" class="divide-y divide-gray-50 dark:divide-slate-700/50"></div>
+            </div>
         </div>
     </div>
 </div>
 
 <style>
+    #oaApp .oa-tabs { display:flex; gap:6px; background:#fff; padding:5px; border-radius:15px; border:1px solid #eef0f4; box-shadow:0 2px 10px rgba(0,0,0,.05); }
+    .dark #oaApp .oa-tabs { background:#1e293b; border-color:#334155; }
+    #oaApp .oa-tabs button { flex:1; display:inline-flex; align-items:center; justify-content:center; gap:7px; padding:11px; border:0; border-radius:11px; background:transparent; color:#64748b; font-weight:800; font-size:14px; cursor:pointer; transition:.15s; }
+    #oaApp .oa-tabs button.on { background:linear-gradient(135deg,#10b981,#059669); color:#fff; box-shadow:0 4px 12px rgba(16,185,129,.35); }
     #oaApp .oa-hero-head { background:linear-gradient(135deg,#059669 0%,#10b981 55%,#34d399 100%); color:#fff; padding:22px 0 42px; position:relative; overflow:hidden; }
     #oaApp .oa-hero-head:after { content:""; position:absolute; right:-80px; top:-80px; width:300px; height:300px; border-radius:50%; background:rgba(255,255,255,.1); }
     #oaApp .oa-hero-inner { max-width:64rem; margin:0 auto; padding:0 20px; position:relative; z-index:1; }

@@ -2,7 +2,7 @@
 //  💬 ตรวจนับแชท LINE OA — อ่านตาราง oa_replies (เขียนโดยแอป BIZ Checker + ส่วนเสริม Chrome)
 //  1 แถว = พนักงาน 1 คน ตอบลูกค้า 1 คน ใน 1 วันทำงาน (ตัดวันที่ 08:00)
 // =====================================================================
-window._oa = window._oa || { rows: [], users: {}, range: 'today', dept: 'ALL', open: new Set() };
+window._oa = window._oa || { rows: [], users: {}, range: 'today', dept: 'ALL', open: new Set(), tab: 'list' };
 const oa_pad = (n) => String(n).padStart(2, '0');
 const oa_iso = (d) => `${d.getFullYear()}-${oa_pad(d.getMonth() + 1)}-${oa_pad(d.getDate())}`;
 function oa_workDate(off = 0) { const t = new Date(); if (t.getHours() < 8) t.setDate(t.getDate() - 1); t.setDate(t.getDate() + off); return oa_iso(t); }
@@ -66,18 +66,7 @@ window.oa_render = function () {
     const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
     set('oaTotal', total); set('oaPeople', people); set('oaAvg', people ? (total / people).toFixed(1) : '–');
 
-    // แท่นอันดับ Top 3
-    const P = document.getElementById('oaPodium');
-    if (P) {
-        const medal = ['🥇', '🥈', '🥉'], cls = ['p1', 'p2', 'p3'];
-        P.innerHTML = [0, 1, 2].map(i => {
-            const it = list[i];
-            if (!it) return `<div class="oa-pod ${cls[i]} empty"><div class="medal">${medal[i]}</div><div class="nm">—</div><div class="cnt">0</div><div class="unit">แชท</div></div>`;
-            const x = it[1];
-            return `<div class="oa-pod ${cls[i]}"><div class="medal">${medal[i]}</div><div class="nm">${oa_esc(x.name)}</div><div class="dp">${(x.dept && x.dept !== '-') ? oa_esc(x.dept) : '&nbsp;'}</div><div class="cnt">${x.n}</div><div class="unit">แชท</div></div>`;
-        }).join('');
-        P.style.display = list.length ? '' : 'none';
-    }
+    oa_renderRank(list, max);
 
     const L = document.getElementById('oaList'); if (!L) return;
     if (!list.length) { L.innerHTML = '<div class="text-center text-slate-400 py-12 text-sm">ยังไม่มีการตอบแชทในช่วงนี้</div>'; return; }
@@ -96,6 +85,35 @@ window.oa_render = function () {
     }).join('');
 };
 
+window.oa_renderRank = function (list, max) {
+    const P = document.getElementById('oaPodium');
+    if (P) {
+        const medal = ['🥇', '🥈', '🥉'], cls = ['p1', 'p2', 'p3'];
+        P.innerHTML = [0, 1, 2].map(i => {
+            const it = list[i];
+            if (!it) return `<div class="oa-pod ${cls[i]} empty"><div class="medal">${medal[i]}</div><div class="nm">—</div><div class="cnt">0</div><div class="unit">แชท</div></div>`;
+            const x = it[1];
+            return `<div class="oa-pod ${cls[i]}"><div class="medal">${medal[i]}</div><div class="nm">${oa_esc(x.name)}</div><div class="dp">${(x.dept && x.dept !== '-') ? oa_esc(x.dept) : '&nbsp;'}</div><div class="cnt">${x.n}</div><div class="unit">แชท</div></div>`;
+        }).join('');
+    }
+    const R = document.getElementById('oaRankList'); if (!R) return;
+    if (!list.length) { R.innerHTML = '<div class="text-center text-slate-400 py-10 text-sm">ยังไม่มีข้อมูล</div>'; return; }
+    R.innerHTML = list.map(([id, x], i) => {
+        const rk = i < 3 ? '<span style="font-size:15px">' + ['🥇','🥈','🥉'][i] + '</span>' : (i + 1);
+        return `<div class="oa-row" style="grid-template-columns:40px 1fr auto;cursor:default">
+            <span class="oa-rank">${rk}</span>
+            <div class="min-w-0"><div class="oa-name truncate">${oa_esc(x.name)}</div><div class="oa-meta">${(x.dept && x.dept !== '-') ? oa_esc(x.dept) : ''}</div><div class="oa-bar"><i style="width:${Math.max(3, Math.round(x.n / max * 100))}%"></i></div></div>
+            <div class="oa-n">${x.n}<small>แชท</small></div>
+        </div>`;
+    }).join('');
+};
+window.oa_setTab = function (tb) {
+    window._oa.tab = tb;
+    document.querySelectorAll('.oa-tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === tb));
+    const vl = document.getElementById('oaViewList'), vr = document.getElementById('oaViewRank');
+    if (vl) vl.style.display = tb === 'list' ? '' : 'none';
+    if (vr) vr.style.display = tb === 'rank' ? '' : 'none';
+};
 window.oa_toggle = function (id) { const s = window._oa.open; if (s.has(id)) s.delete(id); else s.add(id); window.oa_render(); };
 
 window.oa_exportCSV = function () {
@@ -111,7 +129,8 @@ window.oa_exportCSV = function () {
 window.initOaChat = async function () {
     window._oa.open = new Set();
     const b = document.getElementById('oaBtnCsv'); if (b) b.style.display = oa_can('oa_chat_export') ? '' : 'none';
-    window.oa_setRange(window._oa.range && window._oa.range !== 'custom' ? window._oa.range : 'today');
+    oa_setTab('list');
+    window.oa_setRange('today');
     if (typeof window.registerPageInterval === 'function') window.registerPageInterval(setInterval(() => { if (window._currentPageName === 'oa_chat') window.oa_load(); }, 60000));
 };
 
