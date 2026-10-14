@@ -1808,7 +1808,13 @@ window.renderRosterGrid = async function(rosterData) {
             }
         }
 
-        _dmItems.push({ team, title: _title, color: colorClass, count: primaryCount, standby: standbyCount, warn: !!breakWarnHtml, missing: assignees.some(u => String(u.username).includes('ขาดคน')) || primaryCount === 0 });
+        _dmItems.push({ team, title: _title, color: colorClass, count: primaryCount, standby: standbyCount, warn: !!breakWarnHtml, missing: assignees.some(u => String(u.username).includes('ขาดคน')) || primaryCount === 0,
+            standbyNames: standbyList.map(x => x.name),
+            people: assignees.map(a => {
+                const miss = String(a.username).includes('ขาดคน');
+                const slots = miss ? [] : (window.currentDutySchedules || []).filter(sc => sc.staff_name === a.username).map(sc => String(sc.time_slot || '')).join(',').split(',').map(x => x.trim()).filter(Boolean).sort();
+                return { id: a.id, name: String(a.username).replace(/<[^>]*>/g, '').trim(), miss, slots, sec: a.secondary_team || '', drag: !miss && a.id && isAdmin };
+            }) });
         finalGridHtml += `
             <div class="duty-site-card dc-site flex flex-col h-[500px] overflow-hidden w-full" data-team="${team}" style="--tc-border:currentColor">
                 <div class="dc-head ${colorClass.bg} ${colorClass.text}">
@@ -1848,8 +1854,42 @@ window.renderRosterGrid = async function(rosterData) {
             <span class="dm-cnt">${it.count}</span>
             ${it.standby ? `<span class="dm-sb" title="สแตนด์บายช่วย ${it.standby} คน">+${it.standby}</span>` : ''}
         </button>`).join('');
+    // 📋 มุมมองภาพรวม: แถวละเว็บ — เห็นทุกเว็บในจอเดียว
+    const _ovRows = _dmItems.map(it => {
+        const st = it.missing ? ['bad', 'ขาดคน'] : (it.warn ? ['warn', 'พักชนกัน'] : ['ok', 'พร้อม']);
+        const chips = it.people.map(p => p.miss
+            ? `<span class="ov-p miss"><b>ขาดคน</b></span>`
+            : `<span class="ov-p duty-user-card ${p.drag ? 'can' : ''}" data-name="${window.escapeHtml(p.name.toLowerCase())}" ${p.drag ? `draggable="true" ondragstart="handleDragStart(event, '${p.id}', '${window.escapeJsAttr(p.name)}', '${it.team}')"` : ''} title="${window.escapeHtml(p.name)}${p.sec ? ' · งานรอง ' + p.sec : ''}">
+                <b>${window.escapeHtml(p.name)}</b>
+                <small class="${p.slots.length ? '' : 'none'}">${p.slots.length ? p.slots.map(x => x.split('-')[0]).join(' · ') : 'ยังไม่ลงพัก'}</small>
+                ${p.sec ? `<i>รอง ${p.sec}</i>` : ''}
+            </span>`).join('') || '<span class="ov-empty">ยังไม่มีคน · ลากชื่อมาวางได้</span>';
+        return `<div class="ov-row" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${it.team}')">
+            <button type="button" class="ov-team" onclick="dmSelect('${it.team}'); dutySetView('list')" title="เปิดดูเว็บ ${it.title}">
+                <span class="ov-bar ${it.color.bg}"></span>
+                <span><b>${it.title}</b><small>${it.count} คน</small></span>
+            </button>
+            <div class="ov-people">${chips}</div>
+            <div class="ov-sb">${it.standbyNames.length ? it.standbyNames.map(n => window.escapeHtml(n)).join(', ') : '—'}</div>
+            <div class="ov-st"><span class="${st[0]}">${st[1]}</span></div>
+        </div>`;
+    }).join('');
+    const _okN = _dmItems.filter(x => !x.missing).length, _missN = _dmItems.filter(x => x.missing).length;
+    const _overview = `<section class="ov-wrap">
+            <div class="ov-sum"><span>เว็บพร้อม <b>${_okN}/${_dmItems.length}</b></span>${_missN ? `<span class="bad">ขาดคน <b>${_missN}</b> เว็บ</span>` : ''}<span>คนทำงาน <b>${_dmItems.reduce((a, x) => a + x.count, 0)}</b></span></div>
+            <div class="ov-table">
+                <div class="ov-row ov-h"><div>เว็บ</div><div>คนประจำ · เวลาพัก</div><div>สแตนด์บายช่วย</div><div style="text-align:right">สถานะ</div></div>
+                ${_ovRows}
+            </div>
+        </section>`;
+    const _view = window._dutyView || (() => { try { return localStorage.getItem('duty_view') || 'list'; } catch (e) { return 'list'; } })();
     cardGrid.innerHTML = `${_previewNote}
-        <div class="dm-wrap" style="grid-column:1/-1">
+        <div class="dv-switch" style="grid-column:1/-1" role="tablist">
+            <button type="button" data-v="list" class="${_view === 'list' ? 'on' : ''}" onclick="dutySetView('list')"><span class="material-icons">view_sidebar</span> รายการเว็บ</button>
+            <button type="button" data-v="overview" class="${_view === 'overview' ? 'on' : ''}" onclick="dutySetView('overview')"><span class="material-icons">table_rows</span> ภาพรวม</button>
+        </div>
+        <div class="dv-overview" style="grid-column:1/-1;${_view === 'overview' ? '' : 'display:none'}">${_overview}</div>
+        <div class="dm-wrap" style="grid-column:1/-1;${_view === 'list' ? '' : 'display:none'}">
             <aside class="dm-list custom-scrollbar">
                 <div class="dm-lh">เว็บทั้งหมด <span>${_dmItems.length}</span></div>
                 ${_list}
@@ -1860,6 +1900,16 @@ window.renderRosterGrid = async function(rosterData) {
 };
 
 // 🗂️ เลือกเว็บที่จะดู (จำไว้ในเครื่อง ไม่หายตอนเปลี่ยนวัน/กะ)
+// 🔀 สลับมุมมอง รายการเว็บ / ภาพรวม (จำไว้ในเครื่อง)
+window.dutySetView = function(v) {
+    window._dutyView = v;
+    try { localStorage.setItem('duty_view', v); } catch (e) {}
+    const g = document.getElementById('dutyResultGrid'); if (!g) return;
+    const ov = g.querySelector('.dv-overview'), dm = g.querySelector('.dm-wrap');
+    if (ov) ov.style.display = v === 'overview' ? '' : 'none';
+    if (dm) dm.style.display = v === 'list' ? '' : 'none';
+    g.querySelectorAll('.dv-switch button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+};
 window.dmSelect = function(team) {
     window._dmSel = team;
     try { localStorage.setItem('duty_dm_sel_' + currentDutyDept, team); } catch (e) {}
