@@ -79,9 +79,9 @@ function oa_renderDept() {
     if (window._oa.dept !== 'ALL' && !ds[window._oa.dept]) window._oa.dept = 'ALL';
     el.innerHTML = keys.filter(k => k && k !== '-').map(k => `<button class="oa-chip ${window._oa.dept === k ? 'on' : ''}" onclick="oa_setDept('${oa_esc(k).replace(/'/g, "\\'")}')">${oa_esc(k)}</button>`).join('');
 }
-window.oa_setDept = function (d) { window._oa.dept = (window._oa.dept === d ? 'ALL' : d); oa_renderChips(); window.oa_render(); };
-window.oa_setShift = function (s) { window._oa.shift = (window._oa.shift === s ? 'ALL' : s); oa_renderChips(); window.oa_render(); };
-window.oa_setSite = function (s) { window._oa.site = (window._oa.site === s ? 'ALL' : s); oa_renderChips(); window.oa_render(); };
+window.oa_setDept = function (d) { window._oa.dept = (window._oa.dept === d ? 'ALL' : d); window.oa_render(); };
+window.oa_setShift = function (s) { window._oa.shift = (window._oa.shift === s ? 'ALL' : s); window.oa_render(); };
+window.oa_setSite = function (s) { window._oa.site = (window._oa.site === s ? 'ALL' : s); window.oa_render(); };
 function oa_renderChips() {
     const o = window._oa;
     // กะ
@@ -95,6 +95,7 @@ function oa_renderChips() {
 
 window.oa_render = function () {
     const o = window._oa, q = (document.getElementById('oaSearch') || {}).value || '';
+    try { oa_renderChips(); } catch (e) {}
     const vf = o._viewFrom, vt = o._viewTo;
     const rows = o.rows.filter(r => (!vf || (r.work_date >= vf && r.work_date <= vt))
         && (o.dept === 'ALL' || oa_deptOf(r) === o.dept)
