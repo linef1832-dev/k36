@@ -51,10 +51,9 @@ function oa_renderDept() {
     const ds = {}; window._oa.rows.forEach(r => { const d = oa_deptOf(r); ds[d] = (ds[d] || 0) + 1; });
     const keys = Object.keys(ds).sort((a, b) => a.localeCompare(b, 'th'));
     if (window._oa.dept !== 'ALL' && !ds[window._oa.dept]) window._oa.dept = 'ALL';
-    el.innerHTML = `<button class="oa-chip ${window._oa.dept === 'ALL' ? 'on' : ''}" onclick="oa_setDept('ALL')">ทุกแผนก</button>` +
-        keys.map(k => `<button class="oa-chip ${window._oa.dept === k ? 'on' : ''}" onclick="oa_setDept('${oa_esc(k).replace(/'/g, "\\'")}')">${oa_esc(k)}</button>`).join('');
+    el.innerHTML = keys.filter(k => k && k !== '-').map(k => `<button class="oa-chip ${window._oa.dept === k ? 'on' : ''}" onclick="oa_setDept('${oa_esc(k).replace(/'/g, "\\'")}')">${oa_esc(k)}</button>`).join('');
 }
-window.oa_setDept = function (d) { window._oa.dept = d; oa_renderDept(); window.oa_render(); };
+window.oa_setDept = function (d) { window._oa.dept = (window._oa.dept === d ? 'ALL' : d); oa_renderDept(); window.oa_render(); };
 
 window.oa_render = function () {
     const o = window._oa, q = (document.getElementById('oaSearch') || {}).value || '';
@@ -72,7 +71,7 @@ window.oa_render = function () {
     L.innerHTML = list.map(([id, x], i) => {
         const days = {}; x.rows.forEach(r => { (days[r.work_date] = days[r.work_date] || []).push(r); });
         const detail = Object.keys(days).sort().reverse().map(d => `<div class="oa-day">${new Date(d + 'T00:00:00').toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short' })} · ${days[d].length} แชท</div>` +
-            days[d].slice().sort((a, b) => String(a.first_at).localeCompare(String(b.first_at))).map(r => `<div class="oa-chat"><span>${oa_esc(r.chat_name || 'ลูกค้า ' + String(r.chat_id).slice(-6))}</span><span>${oa_time(r.first_at)}${r.last_at && r.last_at !== r.first_at ? ' – ' + oa_time(r.last_at) : ''}</span></div>`).join('')).join('');
+            days[d].slice().sort((a, b) => String(a.first_at).localeCompare(String(b.first_at))).map(r => { const nm = r.chat_name || 'ลูกค้า ' + String(r.chat_id).slice(-6); return `<div class="oa-chat"><span class="oa-cust">${oa_esc(nm)}<button class="oa-copy" onclick="oa_copyName(event,'${oa_esc(nm).replace(/'/g,"\\'")}')" title="คัดลอกชื่อ"><span class="material-icons">content_copy</span></button></span><span>${oa_time(r.first_at)}${r.last_at && r.last_at !== r.first_at ? ' – ' + oa_time(r.last_at) : ''}</span></div>`; }).join('')).join('');
         return `<div class="oa-row ${o.open.has(id) ? 'open' : ''}" onclick="oa_toggle('${id}')">
             <span class="oa-rank ${i < 3 ? 'r' + (i + 1) : ''}">${i + 1}</span>
             <div class="min-w-0"><div class="oa-name truncate">${oa_esc(x.name)}</div><div class="oa-meta">${oa_esc(x.dept)} · ตอบล่าสุด ${x.last ? oa_time(x.last) : '-'}</div><div class="oa-bar"><i style="width:${Math.max(3, Math.round(x.n / max * 100))}%"></i></div></div>
@@ -99,3 +98,19 @@ window.initOaChat = async function () {
     window.oa_setRange(window._oa.range && window._oa.range !== 'custom' ? window._oa.range : 'today');
     if (typeof window.registerPageInterval === 'function') window.registerPageInterval(setInterval(() => { if (window._currentPageName === 'oa_chat') window.oa_load(); }, 60000));
 };
+
+
+// คัดลอกชื่อลูกค้า
+window.oa_copyName = function (ev, name) {
+    ev.stopPropagation();
+    const done = () => oa_copyToast(name);
+    try { navigator.clipboard.writeText(name).then(done, () => fb()); } catch (e) { fb(); }
+    function fb() { try { const t = document.createElement('textarea'); t.value = name; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); } catch (e) {} done(); }
+};
+function oa_copyToast(name) {
+    let tp = document.getElementById('oaCopyToast');
+    if (!tp) { tp = document.createElement('div'); tp.id = 'oaCopyToast'; document.body.appendChild(tp); tp.style.cssText = 'position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(16px);z-index:99999;background:#111827;color:#fff;padding:11px 18px;border-radius:12px;font:700 13px \'Segoe UI\',Tahoma;box-shadow:0 10px 30px rgba(0,0,0,.4);border:1px solid rgba(16,185,129,.5);opacity:0;transition:.18s;white-space:nowrap;max-width:80vw;overflow:hidden;text-overflow:ellipsis;'; }
+    tp.innerHTML = '<span style="color:#34d399;font-weight:900;margin-right:7px">✓</span>คัดลอกชื่อแล้ว · ' + oa_esc(name);
+    requestAnimationFrame(() => { tp.style.opacity = '1'; tp.style.transform = 'translateX(-50%) translateY(0)'; });
+    clearTimeout(tp._t); tp._t = setTimeout(() => { tp.style.opacity = '0'; tp.style.transform = 'translateX(-50%) translateY(16px)'; }, 1600);
+}
