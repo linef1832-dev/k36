@@ -115,7 +115,7 @@ window.handleDrop = async function(event, toTeam) {
             window.debouncedBroadcast('duty-updates', 'force_reload');
             await window.refreshDutyData();
 
-            Swal.fire({icon: 'success', title: 'อัปเดตสถานะสำเร็จ!', timer: 1500, showConfirmButton: false});
+            Swal.fire({icon: 'success', title: 'อัปเดตสถานะสำเร็จ!', html: `<b>${window.escapeHtml(username)}</b> ออกจากเว็บ <b>${window.escapeHtml(fromTeam)}</b> → ลาหยุด (<b>${window.escapeHtml(leaveReason)}</b>)`, timer: 2600, showConfirmButton: false});
         } catch (err) { Swal.fire('เกิดข้อผิดพลาด', err.message, 'error'); }
         
         draggedUser = null;
@@ -179,8 +179,23 @@ window.handleDrop = async function(event, toTeam) {
         if (typeof window.updateDutyStats === 'function') window.updateDutyStats();
 
         window.debouncedBroadcast('duty-updates', 'force_reload');
-        if (pinMovedNote) Swal.fire({ icon: 'success', title: 'ย้ายสำเร็จ', html: pinMovedNote, timer: 2600, showConfirmButton: false });
-        else Swal.fire({icon: 'success', title: 'ย้ายสำเร็จ', timer: 1000, showConfirmButton: false});
+        // ✅ บอกให้ชัดว่าย้ายใคร จากเว็บไหน ไปเว็บไหน + ปุ่ม "ย้ายกลับ" เผื่อวางผิดเว็บ
+        const _chip = t => { const c = TEAM_COLORS[t] || TEAM_COLORS['DEFAULT']; return `<span class="${c.bg} ${c.text}" style="display:inline-block;padding:3px 12px;border-radius:8px;font-weight:900;font-size:15px">${t}</span>`; };
+        const undo = await Swal.fire({
+            icon: 'success',
+            title: 'ย้ายสำเร็จ',
+            html: `<div style="font-size:15px;line-height:2"><b style="font-size:17px">${window.escapeHtml(username)}</b><br>${_chip(fromTeam)} <span style="margin:0 6px;opacity:.6">→</span> ${_chip(toTeam)}</div>${pinMovedNote}
+                   <div style="margin-top:8px;font-size:12px;opacity:.7">วางผิดเว็บ? กด "ย้ายกลับ" ได้ภายใน 6 วินาที</div>`,
+            showConfirmButton: true, confirmButtonText: 'ตกลง', confirmButtonColor: '#10b981',
+            showDenyButton: true, denyButtonText: `↩ ย้ายกลับ ${fromTeam}`, denyButtonColor: '#64748b',
+            timer: 6000, timerProgressBar: true,
+            didOpen: () => { try { Swal.hideLoading(); } catch (e) {} }   // ล้างตัวโหลดจากกล่อง "กำลังอัปเดต" ไม่งั้นปุ่มตกลงค้างเป็นวงหมุน
+        });
+        if (undo.isDenied) {
+            draggedUser = { id, username, fromTeam: toTeam };
+            await window.handleDrop({ preventDefault() {}, target: document.body }, fromTeam);
+            return;
+        }
     } catch (e) {
         console.error(e);
         Swal.fire('Error', 'เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error');
