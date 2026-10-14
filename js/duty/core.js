@@ -1648,46 +1648,23 @@ window.renderRosterGrid = async function(rosterData) {
             let breakTimeHtml = '';
             if (!isMissing) {
                 const mySchedules = (window.currentDutySchedules || []).filter(s => s.staff_name === a.username);
-                
                 if (mySchedules && mySchedules.length > 0) {
-                    const timeSlotsText = mySchedules.map(s => String(s.time_slot || '')).sort((t1, t2) => t1.localeCompare(t2)).join(', ');
-                    
-                    // ปรับ text-[10px] เป็น text-xs (ใหญ่ขึ้น), เพิ่มช่องว่าง gap-1.5, ขยายไอคอนเป็น text-[14px], ปรับ Padding px-2.5 py-1
-                    breakTimeHtml = `<div class="mt-1.5 flex items-center gap-1.5 text-xs font-bold text-sky-600 bg-sky-50 dark:bg-sky-900/30 dark:text-sky-400 px-2.5 py-1 rounded-md border border-sky-200 dark:border-sky-800/50 w-fit shadow-sm cursor-default"><span class="material-icons text-[14px]">restaurant</span> พัก: ${timeSlotsText}</div>`;
+                    const slots = mySchedules.map(s => String(s.time_slot || '')).join(',').split(',').map(x => x.trim()).filter(Boolean).sort((t1, t2) => t1.localeCompare(t2));
+                    breakTimeHtml = `<span class="dc-break" title="เวลาพัก: ${slots.join(', ')}"><span class="material-icons">restaurant</span>${slots.map(x => `<b>${x.replace(/\s/g, '')}</b>`).join('')}</span>`;
                 } else {
-                    breakTimeHtml = `<div class="mt-1.5 flex items-center gap-1.5 text-xs font-bold text-red-500 bg-red-50 dark:bg-red-900/30 dark:text-red-400 px-2.5 py-1 rounded-md border border-red-200 dark:border-red-800/50 w-fit shadow-sm"><span class="material-icons text-[14px]">warning</span> ยังไม่ลงเวลา</div>`;
+                    breakTimeHtml = `<span class="dc-break none"><span class="material-icons">schedule</span>ยังไม่ลงเวลาพัก</span>`;
                 }
             }
             // 🌟 -----------------------------------
 
             let secHtml = '';
             if (a.secondary_team && !isMissing) {
-                const secTeamColors = TEAM_COLORS[a.secondary_team] || TEAM_COLORS['DEFAULT'];
+                const sc2 = TEAM_COLORS[a.secondary_team] || TEAM_COLORS['DEFAULT'];
                 const actionClick = isAdmin ? `onclick="event.stopPropagation(); changeSecondaryTeam('${team}', '${a.id}', '${window.escapeJsAttr(a.username)}')"` : '';
-                const hoverFx = isAdmin ? 'hover:border-transparent hover:shadow-md cursor-pointer' : 'border-gray-200 dark:border-slate-600';
-
-                secHtml = `
-                <div ${actionClick} title="${isAdmin ? 'คลิกเพื่อเปลี่ยนงานรอง' : 'นี่คืองานรองของคุณ'}" class="mt-2.5 flex flex-col w-full bg-white dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-700 shadow-inner ${hoverFx} overflow-hidden group/sec">
-                    <div class="flex items-stretch">
-                        <div class="w-1.5 ${secTeamColors.bg} ${secTeamColors.border} border-r shadow-inner"></div>
-                        <div class="flex-1 p-2 flex items-center justify-between gap-2">
-                            <div class="flex items-center gap-1.5">
-                                <span class="material-icons text-[14px] text-gray-400 group-hover/sec:text-indigo-500 transition">transfer_within_a_station</span>
-                                <span class="text-[9.5px] font-bold text-gray-500 dark:text-gray-400 tracking-wide">สแตนด์บายช่วย :</span>
-                            </div>
-                            <span class="text-[11px] font-black ${secTeamColors.text} ${secTeamColors.bg} px-2.5 py-0.5 rounded-full shadow-sm border ${secTeamColors.border} flex items-center gap-1">
-                                ${a.secondary_team}
-                                ${isAdmin ? '<span class="material-icons text-[10px] opacity-70 ml-0.5">edit</span>' : ''}
-                            </span>
-                        </div>
-                    </div>
-                </div>`;
+                secHtml = `<span ${actionClick} class="dc-sec ${isAdmin ? 'can' : ''}" title="${isAdmin ? 'งานรอง (สแตนด์บายช่วย) — คลิกเพื่อเปลี่ยน' : 'งานรองของคุณ: สแตนด์บายช่วยเว็บนี้'}">
+                    <span class="material-icons">transfer_within_a_station</span>รอง <b class="${sc2.bg} ${sc2.text}">${a.secondary_team}</b>${isAdmin ? '<span class="material-icons ed">edit</span>' : ''}</span>`;
             } else if (!isMissing && isAdmin) {
-                secHtml = `
-                <div onclick="event.stopPropagation(); changeSecondaryTeam('${team}', '${a.id}', '${window.escapeJsAttr(a.username)}')" class="mt-2.5 flex items-center justify-center gap-1.5 w-full bg-slate-50 dark:bg-slate-800/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-gray-400 hover:text-indigo-500 border border-dashed border-gray-300 dark:border-slate-600 hover:border-indigo-400 py-2 rounded-lg text-[9.5px] font-bold transition cursor-pointer group/add shadow-inner">
-                    <span class="material-icons text-[14px] group-hover/add:rotate-90 transition-transform">add_task</span>
-                    แจกงานรองให้พนักงาน
-                </div>`;
+                secHtml = `<span onclick="event.stopPropagation(); changeSecondaryTeam('${team}', '${a.id}', '${window.escapeJsAttr(a.username)}')" class="dc-sec add" title="แจกงานรอง (สแตนด์บายช่วยเว็บอื่น)"><span class="material-icons">add</span>งานรอง</span>`;
             }
             const odTaskHtml = '';   // (ป้ายแจกโปร/เคส TG ถูกถอดออก)
             // 📌 ป้าย/ปุ่ม "อยู่ต่ออีกกี่วัน"
@@ -1710,37 +1687,32 @@ window.renderRosterGrid = async function(rosterData) {
                 }).join('');
             }
 
+            // 🕘 ประวัติ 3 วันย้อนหลัง: แถวเดียว ตัวเล็ก (เดิมเป็นป้ายสีใหญ่หลายอันจนรก)
+            const histHtml = (() => {
+                const hist = !isMissing ? (historyTeamOf[a.username] || []) : [];
+                if (!hist.length) return '';
+                const agoLabel = n => n === 1 ? 'เมื่อวาน' : n + ' วันก่อน';
+                const parts = hist.filter(h => h.main || h.sec).map(h => {
+                    const mc = TEAM_COLORS[h.main] || TEAM_COLORS['DEFAULT'];
+                    const shDiff = h.shift && h.shift !== shiftFilter ? ` <i>${String(h.shift).replace('กะ', '')}</i>` : '';
+                    const sec = h.sec ? `<em title="งานรอง ${h.sec}">+รอง ${h.sec}</em>` : '';
+                    return `<span class="dc-h" title="${agoLabel(h.ago)} งานหลัก ${h.main || '-'}${h.sec ? ' · งานรอง ' + h.sec : ''}${h.shift && h.shift !== shiftFilter ? ' (' + h.shift + ')' : ''}"><small>${agoLabel(h.ago)}</small>${h.main ? `<span class="dc-dot ${mc.bg}"></span>${h.main}` : ''}${shDiff}${sec}</span>`;
+                });
+                return parts.length ? `<div class="dc-hist"><span class="material-icons">history</span>${parts.join('')}</div>` : '';
+            })();
+            const nameTxt = window.escapeHtml(String(a.username).replace(/<[^>]*>/g, '').replace(/^\s*warning\s*/, '').trim());
+
             return `
-            <div class="duty-user-card flex flex-col p-3 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm shrink-0 group ${cursorClass}" data-name="${window.escapeHtml((a.username || '').toLowerCase())}" ${dragAttrs}>
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2.5 flex-wrap">
-                        <span class="material-icons ${isMissing ? 'text-red-500' : 'text-green-500'} text-[18px] pointer-events-none drop-shadow-sm">${isMissing ? 'warning' : 'check_circle'}</span>
-                        <span class="font-black ${isMissing ? 'text-red-500 bg-red-50 dark:bg-red-900/30 px-1.5 rounded border border-red-200 dark:border-red-800/50' : 'text-slate-800 dark:text-gray-100'} text-sm pointer-events-none truncate tracking-wide">${window.escapeHtml(String(a.username).replace(/<[^>]*>/g, '').replace(/^\s*warning\s*/, '').trim())}</span>
-                        ${(() => {
-                            const hist = !isMissing ? (historyTeamOf[a.username] || []) : [];
-                            if (!hist.length) return '';
-                            const agoLabel = n => n === 1 ? 'เมื่อวาน' : n + ' วันก่อน';
-                            const shTag = h => (h.shift && h.shift !== shiftFilter) ? ' · ' + String(h.shift).replace('กะ', '') : '';
-                            let html = '';
-                            hist.forEach(h => {
-                                if (h.main) {
-                                    const yc = TEAM_COLORS[h.main] || TEAM_COLORS['DEFAULT'];
-                                    html += `<span title="${agoLabel(h.ago)} งานหลักเว็บ ${h.main}${h.shift && h.shift !== shiftFilter ? " (" + h.shift + ")" : ""}" class="flex items-center gap-1 ${yc.bg} ${yc.text} border ${yc.border} text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm pointer-events-none shrink-0"><span class="material-icons text-[11px]">history</span>${agoLabel(h.ago)} ${h.main}${shTag(h)}</span>`;
-                                }
-                                if (h.sec) {
-                                    const sc = TEAM_COLORS[h.sec] || TEAM_COLORS['DEFAULT'];
-                                    html += `<span title="${agoLabel(h.ago)} งานรอง (สแตนด์บายช่วย) เว็บ ${h.sec}" class="flex items-center gap-1 ${sc.lightBg} ${sc.lightText} border ${sc.border} text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm pointer-events-none shrink-0 opacity-90"><span class="material-icons text-[11px]">directions_walk</span>${h.sec}</span>`;
-                                }
-                            });
-                            return html;
-                        })()}
-                    </div>
+            <div class="duty-user-card dc-card ${isMissing ? 'missing' : ''} group ${cursorClass}" data-name="${window.escapeHtml((a.username || '').toLowerCase())}" ${dragAttrs}>
+                <div class="dc-top">
+                    <span class="dc-st ${isMissing ? 'bad' : ''}"></span>
+                    <span class="dc-name">${nameTxt}</span>
+                    ${secHtml}
                 </div>
-                ${stayPinHtml}
+                ${isMissing ? '' : `<div class="dc-mid">${breakTimeHtml}${stayPinHtml}</div>`}
                 ${supportHtml}
-                ${breakTimeHtml}
+                ${histHtml}
                 ${odTaskHtml}
-                ${secHtml}
             </div>`;
         }).join('');
 
@@ -1832,26 +1804,21 @@ window.renderRosterGrid = async function(rosterData) {
         }
 
         finalGridHtml += `
-            <div class="duty-site-card bg-slate-50 dark:bg-slate-900 border-2 ${colorClass.border} rounded-2xl shadow-md flex flex-col h-[500px] overflow-hidden w-full">
-                <div class="flex justify-between items-center ${colorClass.bg} ${colorClass.text} p-3 shadow-sm shrink-0">
-                    <div class="flex items-center flex-wrap gap-2 w-full">
-                        <h4 class="font-black text-base pointer-events-none tracking-wide">${_title}</h4>${_isGrp ? `<span class="text-[9px] font-bold bg-black/25 px-1.5 py-0.5 rounded-md whitespace-nowrap" title="สองเว็บนี้ถูกจับกลุ่มให้ทำงานรวมกัน">🔗 รวม ${_grpTeams.length} เว็บ</span>` : ""}
-                        ${(() => { const _room = odRoomOf[team]; if (!_room) return ''; const _pal = ['#34d399','#38bdf8','#a78bfa','#fbbf24','#fb7185','#22d3ee']; const _c = _pal[(odRoomIdx[_room] || 0) % _pal.length]; return `<span title="เข้าห้อง Discord: ${_room}" class="pointer-events-none shrink-0" style="display:inline-flex;align-items:center;gap:5px;background:${_c};color:#0b1120;font-size:12.5px;font-weight:900;padding:4px 12px;border-radius:99px;letter-spacing:0.02em;box-shadow:0 0 0 2px rgba(0,0,0,0.4), 0 3px 10px rgba(0,0,0,0.45)"><span class="material-icons" style="font-size:14px">headset_mic</span>${_room}</span>`; })()}
-                        <div class="flex items-center gap-2 ml-auto">
-                            <div class="text-[10px] font-bold bg-white/20 px-2 py-0.5 rounded-lg shadow-inner whitespace-nowrap border border-white/30 flex items-center gap-1" style="color:inherit;">
-                                <span class="opacity-80">หลัก</span><span class="text-xs font-black bg-black/20 px-1 rounded-md">${primaryCount}</span>
-                            </div>
-                            <button onclick="viewStandbyList('${team}')" title="คลิกดูรายชื่อสแตนด์บาย" class="cursor-pointer text-[10px] font-extrabold bg-gradient-to-br from-amber-300 to-yellow-500 text-amber-950 px-2 py-0.5 rounded-lg shadow-md whitespace-nowrap transition hover:from-amber-200 hover:to-yellow-400 hover:scale-105 border border-amber-600 flex items-center gap-1 active:scale-95">
-                                <span>รอง</span><span class="text-xs font-black bg-white/40 px-1 rounded-md">${standbyCount}</span><span class="material-icons text-[11px] opacity-70">touch_app</span>
-                            </button>
-                        </div>
+            <div class="duty-site-card dc-site flex flex-col h-[500px] overflow-hidden w-full" style="--tc-border:currentColor">
+                <div class="dc-head ${colorClass.bg} ${colorClass.text}">
+                    <div class="dc-head-l">
+                        <h4 class="dc-team">${_title}</h4>
+                        ${_isGrp ? `<span class="dc-grp" title="สองเว็บนี้ถูกจับกลุ่มให้ทำงานรวมกัน">🔗 รวม ${_grpTeams.length} เว็บ</span>` : ''}
+                        ${(() => { const _room = odRoomOf[team]; if (!_room) return ''; return `<span class="dc-room" title="เข้าห้อง Discord: ${_room}"><span class="material-icons">headset_mic</span>${_room}</span>`; })()}
+                    </div>
+                    <div class="dc-head-r">
+                        <span class="dc-cnt" title="งานหลัก"><b>${primaryCount}</b> คน</span>
+                        <button onclick="viewStandbyList('${team}')" class="dc-cnt btn" title="คลิกดูรายชื่อสแตนด์บาย (งานรอง)">รอง <b>${standbyCount}</b></button>
                     </div>
                 </div>
-                <div class="p-2 border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 shrink-0">
-                    ${rolesTags || ''}
-                </div>
+                ${rolesTags ? `<div class="dc-roles">${rolesTags}</div>` : ''}
                 ${breakWarnHtml}
-                <div class="flex flex-col gap-2.5 flex-1 p-2 overflow-y-auto custom-scrollbar content-start drop-zone" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${team}')">
+                <div class="dc-list flex flex-col flex-1 overflow-y-auto custom-scrollbar content-start drop-zone" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${team}')">
                     ${namesHtml || `
                         <div class="flex flex-col items-center justify-center h-full py-6 pointer-events-none select-none opacity-40">
                             <span class="material-icons text-3xl text-gray-400 mb-1">person_off</span>
