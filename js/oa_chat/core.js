@@ -52,12 +52,18 @@ window.oa_load = async function () {
                 if (!data || data.length < 1000) break; off += 1000; }
             o.shiftMap = sm;
         } catch (e) { o.shiftMap = {}; }
-        // เว็บของแต่ละคน (จาก transaction_daily_summary) — key: upper(name)|date → Set(เว็บ)
+        // เว็บของแต่ละคน (จากจัดหน้าที่: settings.duty_roster_แผนก_วันที่_กะ = JSON {เว็บ:[{username}]})
         try {
-            const wm = {}; let off = 0;
-            for (;;) { const { data } = await window.appDB.from('transaction_daily_summary').select('date, employee_name, website').gte('date', f).lte('date', t).range(off, off + 999);
-                (data || []).forEach(r => { if (!r.website) return; const k = (r.employee_name || '').toUpperCase().trim() + '|' + r.date; (wm[k] = wm[k] || new Set()).add(r.website); });
-                if (!data || data.length < 1000) break; off += 1000; }
+            const wm = {};
+            const { data } = await window.appDB.from('settings').select('key, value').like('key', 'duty_roster_%');
+            (data || []).forEach(row => {
+                const parts = String(row.key).split('_');   // duty_roster_<แผนก>_<วันที่>_<กะ>
+                const date = parts[3]; if (!date || date < f || date > t) return;
+                let v = row.value; if (typeof v === 'string') { try { v = JSON.parse(v); } catch (e) { return; } }
+                if (!v || typeof v !== 'object') return;
+                Object.keys(v).forEach(site => { const arr = v[site]; if (!Array.isArray(arr)) return;
+                    arr.forEach(p => { const nm = (p && (p.username || p.name) || '').toUpperCase().trim(); if (!nm) return; const k = nm + '|' + date; (wm[k] = wm[k] || new Set()).add(site); }); });
+            });
             o.siteMap = wm;
         } catch (e) { o.siteMap = {}; }
         const up = document.getElementById('oaUpdated'); if (up) up.textContent = 'อัปเดต ' + new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
