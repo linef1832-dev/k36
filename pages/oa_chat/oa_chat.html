@@ -44,7 +44,7 @@
             <div class="flex flex-wrap items-center gap-2 mt-3">
                 <div class="relative" style="width:220px;max-width:100%">
                     <span class="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base">search</span>
-                    <input id="oaSearch" oninput="oa_render()" placeholder="ค้นหาพนักงาน" class="oa-input w-full pl-9">
+                    <input id="oaSearch" oninput="oa_render()" placeholder="ค้นหาพนักงาน" class="oa-input w-full" style="padding-left:34px">
                 </div>
                 <div id="oaDeptChips" class="flex flex-wrap gap-1.5"></div>
             </div>
@@ -100,10 +100,13 @@
     #oaApp .oa-detail { padding:2px 16px 14px 70px; display:none; background:#fafbfc; } .dark #oaApp .oa-detail { background:rgba(0,0,0,.15); }
     #oaApp .oa-row.open + .oa-detail { display:block; }
     #oaApp .oa-day { font-size:12px; font-weight:800; color:#64748b; margin:10px 0 5px; }
-    #oaApp .oa-chat { display:flex; justify-content:space-between; gap:10px; font-size:12.5px; padding:7px 12px; border-radius:9px; background:#fff; margin-bottom:4px; color:#334155; border:1px solid #f1f5f9; }
+    #oaApp .oa-chat { display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:12.5px; padding:8px 12px; border-radius:9px; background:#fff; margin-bottom:4px; color:#334155; border:1px solid #f1f5f9; }
+    #oaApp .oa-chat > span:last-child { flex:none; }
     .dark #oaApp .oa-chat { background:#0f172a; color:#cbd5e1; border-color:#1e293b; }
     #oaApp .oa-chat span:last-child { color:#94a3b8; font-family:ui-monospace,Consolas,monospace; flex:none; }
-    #oaApp .oa-cust { display:inline-flex; align-items:center; gap:6px; }
+    #oaApp .oa-cust { display:flex; align-items:center; gap:8px; flex:1; min-width:0; }
+    #oaApp .oa-cust > :first-child, #oaApp .oa-cust { }
+    #oaApp .oa-cname { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     #oaApp .oa-copy { width:24px; height:24px; border-radius:7px; border:1px solid #e2e8f0; background:transparent; color:#94a3b8; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:.15s; }
     .dark #oaApp .oa-copy { border-color:#334155; }
     #oaApp .oa-copy:hover { background:#10b981; border-color:#10b981; color:#fff; }
