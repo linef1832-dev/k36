@@ -2,7 +2,7 @@
 //  💬 ตรวจนับแชท LINE OA — อ่านตาราง oa_replies (เขียนโดยแอป BIZ Checker + ส่วนเสริม Chrome)
 //  1 แถว = พนักงาน 1 คน ตอบลูกค้า 1 คน ใน 1 วันทำงาน (ตัดวันที่ 08:00)
 // =====================================================================
-window._oa = window._oa || { rows: [], users: {}, range: 'today', dept: 'ALL', open: new Set(), tab: 'list' };
+window._oa = window._oa || { rows: [], users: {}, range: 'today', dept: 'ALL', shift: 'ALL', site: 'ALL', open: new Set(), tab: 'list', shiftMap: {}, siteMap: {} };
 const oa_pad = (n) => String(n).padStart(2, '0');
 const oa_iso = (d) => `${d.getFullYear()}-${oa_pad(d.getMonth() + 1)}-${oa_pad(d.getDate())}`;
 function oa_workDate(off = 0) { const t = new Date(); if (t.getHours() < 8) t.setDate(t.getDate() - 1); t.setDate(t.getDate() + off); return oa_iso(t); }
@@ -44,13 +44,31 @@ window.oa_load = async function () {
             all = all.concat(data || []); if (!data || data.length < 1000) break; from += 1000;
         }
         o.rows = all; o._loadedFrom = f; o._loadedTo = t;
+        // กะของแต่ละคน (จาก schedules) — key: lower(name)|date → กะย่อ
+        try {
+            const sm = {}; let off = 0;
+            for (;;) { const { data } = await window.appDB.from('schedules').select('work_date, staff_name, shift_name').gte('work_date', f).lte('work_date', t).range(off, off + 999);
+                (data || []).forEach(r => { const sh = /เช้า/.test(r.shift_name || '') ? 'เช้า' : /กลาง|บ่าย/.test(r.shift_name || '') ? 'กลาง' : /ดึก/.test(r.shift_name || '') ? 'ดึก' : ''; if (sh) sm[(r.staff_name || '').toLowerCase().trim() + '|' + r.work_date] = sh; });
+                if (!data || data.length < 1000) break; off += 1000; }
+            o.shiftMap = sm;
+        } catch (e) { o.shiftMap = {}; }
+        // เว็บของแต่ละคน (จาก transaction_daily_summary) — key: upper(name)|date → Set(เว็บ)
+        try {
+            const wm = {}; let off = 0;
+            for (;;) { const { data } = await window.appDB.from('transaction_daily_summary').select('date, employee_name, website').gte('date', f).lte('date', t).range(off, off + 999);
+                (data || []).forEach(r => { if (!r.website) return; const k = (r.employee_name || '').toUpperCase().trim() + '|' + r.date; (wm[k] = wm[k] || new Set()).add(r.website); });
+                if (!data || data.length < 1000) break; off += 1000; }
+            o.siteMap = wm;
+        } catch (e) { o.siteMap = {}; }
         const up = document.getElementById('oaUpdated'); if (up) up.textContent = 'อัปเดต ' + new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-        oa_renderDept(); window.oa_render();
+        oa_renderDept(); oa_renderChips(); window.oa_render();
     } catch (e) {
         document.getElementById('oaList').innerHTML = `<div class="text-center text-red-400 py-10 text-sm">โหลดข้อมูลไม่ได้ — ตรวจว่าสร้างตาราง oa_replies ใน Supabase แล้ว<br><span class="text-xs text-slate-400">${oa_esc(e.message || e)}</span></div>`;
     }
 };
 
+function oa_shiftOf(r) { return window._oa.shiftMap[(r.username || '').toLowerCase().trim() + '|' + r.work_date] || ''; }
+function oa_sitesOf(r) { const s = window._oa.siteMap[(r.username || '').toUpperCase().trim() + '|' + r.work_date]; return s ? [...s] : []; }
 function oa_deptOf(r) { const u = window._oa.users[String(r.user_id)]; return (u && u.department) || '-'; }
 function oa_nameOf(r) { const u = window._oa.users[String(r.user_id)]; return (u && (u.username || u.name)) || r.username || r.user_id; }
 
@@ -61,15 +79,32 @@ function oa_renderDept() {
     if (window._oa.dept !== 'ALL' && !ds[window._oa.dept]) window._oa.dept = 'ALL';
     el.innerHTML = keys.filter(k => k && k !== '-').map(k => `<button class="oa-chip ${window._oa.dept === k ? 'on' : ''}" onclick="oa_setDept('${oa_esc(k).replace(/'/g, "\\'")}')">${oa_esc(k)}</button>`).join('');
 }
-window.oa_setDept = function (d) { window._oa.dept = (window._oa.dept === d ? 'ALL' : d); oa_renderDept(); window.oa_render(); };
+window.oa_setDept = function (d) { window._oa.dept = (window._oa.dept === d ? 'ALL' : d); oa_renderChips(); window.oa_render(); };
+window.oa_setShift = function (s) { window._oa.shift = (window._oa.shift === s ? 'ALL' : s); oa_renderChips(); window.oa_render(); };
+window.oa_setSite = function (s) { window._oa.site = (window._oa.site === s ? 'ALL' : s); oa_renderChips(); window.oa_render(); };
+function oa_renderChips() {
+    const o = window._oa;
+    // กะ
+    const sh = document.getElementById('oaShiftChips');
+    if (sh) sh.innerHTML = ['เช้า', 'กลาง', 'ดึก'].map(k => `<button class="oa-chip ${o.shift === k ? 'on' : ''}" onclick="oa_setShift('${k}')">กะ${k}</button>`).join('');
+    // เว็บ (จากข้อมูลที่โหลด)
+    const st = document.getElementById('oaSiteChips');
+    if (st) { const sites = new Set(); Object.values(o.siteMap).forEach(set => set.forEach(v => sites.add(v))); const arr = [...sites].sort();
+        st.innerHTML = arr.map(k => `<button class="oa-chip oa-chip-site ${o.site === k ? 'on' : ''}" onclick="oa_setSite('${oa_esc(k).replace(/'/g,"\\'")}')">${oa_esc(k)}</button>`).join(''); }
+}
 
 window.oa_render = function () {
     const o = window._oa, q = (document.getElementById('oaSearch') || {}).value || '';
     const vf = o._viewFrom, vt = o._viewTo;
-    const rows = o.rows.filter(r => (!vf || (r.work_date >= vf && r.work_date <= vt)) && (o.dept === 'ALL' || oa_deptOf(r) === o.dept) && (!q || oa_nameOf(r).toLowerCase().includes(q.toLowerCase())));
+    const rows = o.rows.filter(r => (!vf || (r.work_date >= vf && r.work_date <= vt))
+        && (o.dept === 'ALL' || oa_deptOf(r) === o.dept)
+        && (o.shift === 'ALL' || oa_shiftOf(r) === o.shift)
+        && (o.site === 'ALL' || oa_sitesOf(r).includes(o.site))
+        && (!q || oa_nameOf(r).toLowerCase().includes(q.toLowerCase())));
     const by = {};
     rows.forEach(r => { const k = String(r.user_id); const x = by[k] || (by[k] = { name: oa_nameOf(r), dept: oa_deptOf(r), n: 0, last: null, rows: [] }); x.n++; x.rows.push(r); if (!x.last || r.last_at > x.last) x.last = r.last_at; });
     const list = Object.entries(by).sort((a, b) => b[1].n - a[1].n || a[1].name.localeCompare(b[1].name, 'th'));
+    window._oa._byUser = by;
     const total = rows.length, people = list.length, max = list.length ? list[0][1].n : 1;
     const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
     set('oaTotal', total); set('oaPeople', people); set('oaAvg', people ? (total / people).toFixed(1) : '–');
@@ -86,7 +121,7 @@ window.oa_render = function () {
         const rk = i < 3 ? '<span style="font-size:15px">' + ['🥇','🥈','🥉'][i] + '</span>' : (i + 1);
         return `<div class="oa-row ${o.open.has(id) ? 'open' : ''}" onclick="oa_toggle('${id}')">
             <span class="oa-rank">${rk}</span>
-            <div class="min-w-0"><div class="oa-name truncate">${oa_esc(x.name)}</div><div class="oa-meta">${(x.dept && x.dept !== '-') ? oa_esc(x.dept) + ' · ' : ''}ตอบล่าสุด ${x.last ? oa_time(x.last) : '-'}</div><div class="oa-bar"><i style="width:${Math.max(3, Math.round(x.n / max * 100))}%"></i></div></div>
+            <div class="min-w-0"><div class="oa-name truncate" onclick="event.stopPropagation();oa_openStat('${id}')">${oa_esc(x.name)}</div><div class="oa-meta">${(x.dept && x.dept !== '-') ? oa_esc(x.dept) + ' · ' : ''}ตอบล่าสุด ${x.last ? oa_time(x.last) : '-'}</div><div class="oa-bar"><i style="width:${Math.max(3, Math.round(x.n / max * 100))}%"></i></div></div>
             <div class="oa-n">${x.n}<small>แชท</small></div>
             <span class="material-icons oa-chev">chevron_right</span>
         </div><div class="oa-detail">${detail}</div>`;
@@ -110,7 +145,7 @@ window.oa_renderRank = function (list, max) {
         const rk = i < 3 ? '<span style="font-size:15px">' + ['🥇','🥈','🥉'][i] + '</span>' : (i + 1);
         return `<div class="oa-row" style="grid-template-columns:40px 1fr auto;cursor:default">
             <span class="oa-rank">${rk}</span>
-            <div class="min-w-0"><div class="oa-name truncate">${oa_esc(x.name)}</div><div class="oa-meta">${(x.dept && x.dept !== '-') ? oa_esc(x.dept) : ''}</div><div class="oa-bar"><i style="width:${Math.max(3, Math.round(x.n / max * 100))}%"></i></div></div>
+            <div class="min-w-0"><div class="oa-name truncate" onclick="event.stopPropagation();oa_openStat('${id}')">${oa_esc(x.name)}</div><div class="oa-meta">${(x.dept && x.dept !== '-') ? oa_esc(x.dept) : ''}</div><div class="oa-bar"><i style="width:${Math.max(3, Math.round(x.n / max * 100))}%"></i></div></div>
             <div class="oa-n">${x.n}<small>แชท</small></div>
         </div>`;
     }).join('');
@@ -135,7 +170,7 @@ window.oa_exportCSV = function () {
 };
 
 window.initOaChat = async function () {
-    window._oa.open = new Set();
+    window._oa.open = new Set(); window._oa.shift = 'ALL'; window._oa.site = 'ALL';
     const b = document.getElementById('oaBtnCsv'); if (b) b.style.display = oa_can('oa_chat_export') ? '' : 'none';
     oa_setTab('list');
     window.oa_setRange('today');
@@ -157,3 +192,19 @@ function oa_copyToast(name) {
     requestAnimationFrame(() => { tp.style.opacity = '1'; tp.style.transform = 'translateX(-50%) translateY(0)'; });
     clearTimeout(tp._t); tp._t = setTimeout(() => { tp.style.opacity = '0'; tp.style.transform = 'translateX(-50%) translateY(16px)'; }, 1600);
 }
+
+
+// สถิติส่วนตัว (คลิกชื่อ)
+window.oa_openStat = function (userId) {
+    const by = window._oa._byUser || {}; const x = by[userId]; if (!x) return;
+    const days = {}; x.rows.forEach(r => { days[r.work_date] = (days[r.work_date] || 0) + 1; });
+    const keys = Object.keys(days).sort(); const total = x.n, nd = keys.length, avg = nd ? (total / nd).toFixed(1) : '0';
+    let bestK = '', bestV = 0; keys.forEach(k => { if (days[k] > bestV) { bestV = days[k]; bestK = k; } });
+    const S = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+    S('osName', x.name); S('osDep', (x.dept && x.dept !== '-') ? x.dept : ''); S('osTotal', total); S('osDays', nd); S('osAvg', avg);
+    S('osBest', bestV || '–'); S('osBestD', bestK ? 'มากสุด · ' + new Date(bestK + 'T00:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }) : 'มากสุด/วัน');
+    const max = Math.max(1, ...keys.map(k => days[k]));
+    document.getElementById('osDaily').innerHTML = keys.slice().reverse().map(k => `<div class="oa-sd-row"><span class="oa-sd-d">${new Date(k + 'T00:00:00').toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short' })}</span><div class="oa-sd-bar"><i style="width:${Math.round(days[k] / max * 100)}%"></i></div><span class="oa-sd-n">${days[k]}</span></div>`).join('');
+    document.getElementById('oaStatModal').classList.add('show');
+};
+window.oa_closeStat = function () { document.getElementById('oaStatModal').classList.remove('show'); };
