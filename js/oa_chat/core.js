@@ -81,7 +81,8 @@ function oa_nameOf(r) { const u = window._oa.users[String(r.user_id)]; return (u
 
 function oa_renderDept() {
     const el = document.getElementById('oaDeptChips'); if (!el) return;
-    const ds = {}; window._oa.rows.forEach(r => { const d = oa_deptOf(r); ds[d] = (ds[d] || 0) + 1; });
+    const vf = window._oa._viewFrom, vt = window._oa._viewTo;
+    const ds = {}; window._oa.rows.filter(r => !vf || (r.work_date >= vf && r.work_date <= vt)).forEach(r => { const d = oa_deptOf(r); ds[d] = (ds[d] || 0) + 1; });
     const keys = Object.keys(ds).sort((a, b) => a.localeCompare(b, 'th'));
     if (window._oa.dept !== 'ALL' && !ds[window._oa.dept]) window._oa.dept = 'ALL';
     el.innerHTML = keys.filter(k => k && k !== '-').map(k => `<button class="oa-chip ${window._oa.dept === k ? 'on' : ''}" onclick="oa_setDept('${oa_esc(k).replace(/'/g, "\\'")}')">${oa_esc(k)}</button>`).join('');
@@ -93,6 +94,8 @@ window.oa_setOaLine = function (s) { window._oa.oaline = (window._oa.oaline === 
 window.oa_clearFilters = function () { const o = window._oa; o.dept = 'ALL'; o.shift = 'ALL'; o.site = 'ALL'; o.oaline = 'ALL'; const si = document.getElementById('oaSearch'); if (si) si.value = ''; window.oa_render(); };
 function oa_renderChips() {
     const o = window._oa;
+    const vf = o._viewFrom, vt = o._viewTo;
+    const inView = o.rows.filter(r => !vf || (r.work_date >= vf && r.work_date <= vt));
     // ปุ่มล้างตัวกรอง โผล่เมื่อมีการกรอง
     const cf = document.getElementById('oaClearF'); const q = (document.getElementById('oaSearch') || {}).value || '';
     if (cf) cf.style.display = (o.dept !== 'ALL' || o.shift !== 'ALL' || o.site !== 'ALL' || o.oaline !== 'ALL' || q) ? '' : 'none';
@@ -101,12 +104,12 @@ function oa_renderChips() {
     if (sh) { sh.innerHTML = ['เช้า', 'กลาง', 'ดึก'].map(k => `<button class="oa-chip ${o.shift === k ? 'on' : ''}" onclick="oa_setShift('${k}')">กะ${k}</button>`).join(''); const g = sh.closest('.oa-fgroup'); if (g) g.style.display = ''; }
     // เว็บ (จากข้อมูลที่โหลด)
     const st = document.getElementById('oaSiteChips');
-    if (st) { const sites = new Set(); Object.values(o.siteMap).forEach(set => set.forEach(v => sites.add(v))); const arr = [...sites].sort();
+    if (st) { const sites = new Set(); inView.forEach(r => oa_sitesOf(r).forEach(v => sites.add(v))); const arr = [...sites].sort();
         st.innerHTML = arr.map(k => `<button class="oa-chip oa-chip-site ${o.site === k ? 'on' : ''}" onclick="oa_setSite('${oa_esc(k).replace(/'/g,"\\'")}')">${oa_esc(k)}</button>`).join('');
         const g = st.closest('.oa-fgroup'); if (g) g.style.display = arr.length ? '' : 'none'; }
     // ไลน์ OA
     const ol = document.getElementById('oaLineChips');
-    if (ol) { const lines = new Set(); o.rows.forEach(r => { if (r.oa_name) lines.add(r.oa_name); }); const arr = [...lines].sort();
+    if (ol) { const lines = new Set(); inView.forEach(r => { if (r.oa_name) lines.add(r.oa_name); }); const arr = [...lines].sort();
         ol.innerHTML = arr.map(k => `<button class="oa-chip oa-chip-line ${o.oaline === k ? 'on' : ''}" onclick="oa_setOaLine('${oa_esc(k).replace(/'/g,"\\'")}')">${oa_esc(k)}</button>`).join('');
         const g = ol.closest('.oa-fgroup'); if (g) g.style.display = arr.length ? '' : 'none'; }
 }
