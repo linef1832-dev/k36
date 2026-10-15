@@ -218,7 +218,14 @@ function normalizeAccessMatrix(matrix) {
 
 window.loadDutyAccessAndRoles = async function() {
     try {
-        const { data } = await appDB.from('settings').select('*').in('key', ['duty_access_matrix', 'duty_custom_roles']);
+        const { data } = await appDB.from('settings').select('*').in('key', ['duty_access_matrix', 'duty_custom_roles', 'duty_rotation_gap']);
+        // [FIX] ค่า "เว้นซ้ำเว็บ" — ระบบโหลดค่าตั้งตอนเปิดเว็บไม่รวมคีย์ duty_* เลยได้ 3 เสมอหลังรีเฟรช
+        //       (ค่าที่กดเปลี่ยนถูกบันทึกจริง แต่ไม่เคยถูกอ่านกลับมา) → โหลดเองที่นี่
+        try {
+            const _gapRow = (data || []).find(r => r.key === 'duty_rotation_gap');
+            if (_gapRow && typeof SETTINGS !== 'undefined') SETTINGS.duty_rotation_gap = _gapRow.value;
+            if (typeof window.fillRotationGapInput === 'function') window.fillRotationGapInput();
+        } catch (e) {}
         if(data) {
             const accessData = data.find(d => d.key === 'duty_access_matrix');
             if(accessData && accessData.value) dutyAccessMatrix = JSON.parse(accessData.value);
@@ -1876,15 +1883,10 @@ window.renderRosterGrid = async function(rosterData) {
     const _cut = finalGridHtml.indexOf('<div class="duty-site-card');   // [FIX] ไม่มีเว็บเลย (-1) → เดิมตัดข้อความผิด
     const _previewNote = window.isRosterPreview ? (_cut < 0 ? finalGridHtml : finalGridHtml.slice(0, _cut)) : '';
     const _cards = window.isRosterPreview ? (_cut < 0 ? '' : finalGridHtml.slice(_cut)) : finalGridHtml;
-    const _list = _dmItems.map(it => `
-        <button type="button" class="dm-item" data-team="${it.team}" onclick="dmSelect('${it.team}')" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${it.team}')" title="ดูเว็บ ${it.title} · ลากชื่อมาวางเพื่อย้ายเข้าเว็บนี้">
-            <span class="dm-bar ${it.color.bg}"></span>
-            <span class="dm-name">${it.title}</span>${it.people.some(p => p.me) ? '<span class="dc-me">ฉัน</span>' : ''}
-            ${it.missing ? '<span class="dm-flag bad" title="ขาดคน">ขาดคน</span>' : (it.warn ? '<span class="dm-flag warn" title="พักพร้อมกันเกิน">พักชน</span>' : '')}
-            <span class="dm-cnt">${it.count}</span>
-            ${it.standby ? `<span class="dm-sb" title="สแตนด์บายช่วย ${it.standby} คน">+${it.standby}</span>` : ''}
-        </button>`).join('');
+    // (รายการเว็บด้านซ้ายของแบบเดิม — เอาออกแล้ว)
     // 📋 มุมมองภาพรวม: แถวละเว็บ — เห็นทุกเว็บในจอเดียว
+    // 🔁 ใครเปลี่ยนงานรองรายคนได้: แอดมินของแผนก หรือมีสิทธิ์ "เปลี่ยนงานรองรายคน"
+    const _canSec = (typeof window.isDutyAdmin === 'function' && window.isDutyAdmin()) || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('duty_secondary'));
     const _ovRows = _dmItems.map(it => {
         const st = it.missing ? ['bad', 'ขาดคน'] : (it.warn ? ['warn', 'พักชนกัน'] : ['ok', 'พร้อม']);
         const chips = it.people.map(p => p.miss
@@ -1892,13 +1894,15 @@ window.renderRosterGrid = async function(rosterData) {
             : `<span class="ov-p duty-user-card ${p.drag ? 'can' : ''} ${p.me ? 'me' : ''}" data-name="${window.escapeHtml(p.name.toLowerCase())}" ${p.drag ? `draggable="true" ondragstart="handleDragStart(event, '${p.id}', '${window.escapeJsAttr(p.name)}', '${it.team}')"` : ''} title="${window.escapeHtml(p.name)}${p.sec ? ' · งานรอง ' + p.sec : ''}">
                 <b>${window.escapeHtml(p.name)}</b>${p.me ? '<span class="dc-me">ฉัน</span>' : ''}
                 <small class="${p.slots.length ? '' : 'none'}">${p.slots.length ? p.slots.map(x => x.split('-')[0]).join(' · ') : 'ยังไม่ลงพัก'}</small>
-                ${p.sec ? `<i>รอง ${p.sec}</i>` : ''}
+                ${p.sec
+                    ? (_canSec ? `<button type="button" class="ov-sec" onclick="event.stopPropagation(); changeSecondaryTeam('${it.team}', '${p.id}', '${window.escapeJsAttr(p.name)}')" title="กดเพื่อเปลี่ยนงานรองของ ${window.escapeHtml(p.name)}">รอง ${p.sec}<span class="material-icons">edit</span></button>` : `<i>รอง ${p.sec}</i>`)
+                    : (_canSec && p.id ? `<button type="button" class="ov-sec add" onclick="event.stopPropagation(); changeSecondaryTeam('${it.team}', '${p.id}', '${window.escapeJsAttr(p.name)}')" title="แจกงานรองให้ ${window.escapeHtml(p.name)}">+ รอง</button>` : '')}
             </span>`).join('') || '<span class="ov-empty">ยังไม่มีคน · ลากชื่อมาวางได้</span>';
-        return `<div class="ov-row" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${it.team}')">
-            <button type="button" class="ov-team" onclick="dmSelect('${it.team}'); dutySetView('list')" title="เปิดดูเว็บ ${it.title}">
+        return `<div class="ov-row" data-team="${it.team}" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${it.team}')">
+            <div class="ov-team">
                 <span class="ov-bar ${it.color.bg}"></span>
                 <span><b>${it.title}</b><small>${it.count} คน</small></span>
-            </button>
+            </div>
             <div class="ov-people">${chips}</div>
             <div class="ov-sb">${it.standbyNames.length ? it.standbyNames.map(n => window.escapeHtml(n)).join(', ') : '—'}</div>
             <div class="ov-st"><span class="${st[0]}">${st[1]}</span></div>
@@ -1920,11 +1924,10 @@ window.renderRosterGrid = async function(rosterData) {
         const sb = _dmItems.filter(it => it.standbyNames.some(n => _me.username && String(n).toLowerCase() === String(_me.username).toLowerCase())).map(it => it.title);
         if (mine) {
             const meP = mine.people.find(p => p.me);
-            _meBar = `<button type="button" class="dv-me" onclick="dmSelect('${mine.team}'); dutySetView('list')" title="เปิดดูเว็บของฉัน">
+            _meBar = `<div class="dv-me">
                 <span class="material-icons">person_pin_circle</span>
                 <span>คุณ <b>${window.escapeHtml(_me.username)}</b> อยู่เว็บ <b class="dv-team ${mine.color.bg} ${mine.color.text}">${mine.title}</b>${meP.sec ? ` · งานรอง <b>${meP.sec}</b>` : ''}${meP.slots.length ? ` · พัก <b>${meP.slots.join(', ')}</b>` : ' · <em>ยังไม่ลงเวลาพัก</em>'}</span>
-                <span class="dv-go">ดูเว็บของฉัน →</span>
-            </button>`;
+            </div>`;
         } else if (leave) {
             _meBar = `<div class="dv-me off"><span class="material-icons">event_busy</span><span>คุณ <b>${window.escapeHtml(_me.username)}</b> ลาหยุดในกะนี้</span></div>`;
         } else if (sb.length) {
@@ -1933,66 +1936,15 @@ window.renderRosterGrid = async function(rosterData) {
             _meBar = `<div class="dv-me off"><span class="material-icons">info</span><span>คุณ <b>${window.escapeHtml(_me.username)}</b> ยังไม่อยู่ในตารางกะนี้</span></div>`;
         }
     }
-    const _view = window._dutyView || (() => { try { return localStorage.getItem('duty_view') || 'list'; } catch (e) { return 'list'; } })();
+    // 📋 ใช้มุมมองภาพรวมอย่างเดียว (เอาแบบรายการเว็บ + ปุ่มสลับออกแล้ว)
     cardGrid.innerHTML = `${_previewNote}
-        <div class="dv-top" style="grid-column:1/-1">
-        <div class="dv-switch" role="tablist">
-            <button type="button" data-v="list" class="${_view === 'list' ? 'on' : ''}" onclick="dutySetView('list')"><span class="material-icons">view_sidebar</span> รายการเว็บ</button>
-            <button type="button" data-v="overview" class="${_view === 'overview' ? 'on' : ''}" onclick="dutySetView('overview')"><span class="material-icons">table_rows</span> ภาพรวม</button>
-        </div>
-        ${_meBar}
-        </div>
-        <div class="dv-overview" style="grid-column:1/-1;${_view === 'overview' ? '' : 'display:none'}">${_overview}</div>
-        <div class="dm-wrap" style="grid-column:1/-1;${_view === 'list' ? '' : 'display:none'}">
-            <aside class="dm-list custom-scrollbar">
-                <div class="dm-lh">เว็บทั้งหมด <span>${_dmItems.length}</span></div>
-                ${_list}
-            </aside>
-            <section class="dm-detail">${_cards}</section>
-        </div>`;
-    window.dmApply();
+        ${_meBar ? `<div class="dv-top" style="grid-column:1/-1">${_meBar}</div>` : ''}
+        <div class="dv-overview" style="grid-column:1/-1">${_overview}</div>`;
     // 🔎 [FIX] วาดใหม่ (อัปเดตอัตโนมัติทุก 30 วิ / มีคนแก้จากเครื่องอื่น / หลังย้ายคน) แล้วคำค้นหาหลุด → ใส่กลับให้
     const _si = document.getElementById('dutySearchInput');
     if (_si && _si.value && typeof window.filterDutyResult === 'function') window.filterDutyResult();
 };
 
-// 🗂️ เลือกเว็บที่จะดู (จำไว้ในเครื่อง ไม่หายตอนเปลี่ยนวัน/กะ)
-// 🔀 สลับมุมมอง รายการเว็บ / ภาพรวม (จำไว้ในเครื่อง)
-window.dutySetView = function(v) {
-    window._dutyView = v;
-    try { localStorage.setItem('duty_view', v); } catch (e) {}
-    const g = document.getElementById('dutyResultGrid'); if (!g) return;
-    const ov = g.querySelector('.dv-overview'), dm = g.querySelector('.dm-wrap');
-    if (ov) ov.style.display = v === 'overview' ? '' : 'none';
-    if (dm) dm.style.display = v === 'list' ? '' : 'none';
-    g.querySelectorAll('.dv-switch button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
-};
-window.dmSelect = function(team) {
-    window._dmSel = team;
-    try { localStorage.setItem('duty_dm_sel_' + currentDutyDept, team); } catch (e) {}
-    window.dmApply();
-};
-window.dmApply = function() {
-    const wrap = document.querySelector('#dutyResultGrid .dm-wrap'); if (!wrap) return;
-    const cards = [...wrap.querySelectorAll('.dm-detail > .duty-site-card')];
-    if (!cards.length) return;
-    let sel = window._dmSel;
-    if (!sel) { try { sel = localStorage.getItem('duty_dm_sel_' + currentDutyDept); } catch (e) {} }
-    // ค้นหาอยู่ → เว็บที่เลือกไม่มีคนที่ค้น → เลื่อนไปเว็บแรกที่เจอ
-    const searching = !!(document.getElementById('dutySearchInput') || {}).value;
-    const visible = c => !searching || c.dataset.match === '1';
-    if (!cards.some(c => c.dataset.team === sel && visible(c))) {
-        const first = cards.find(visible) || cards[0];
-        sel = first.dataset.team;
-    }
-    window._dmSel = sel;
-    cards.forEach(c => c.classList.toggle('dm-on', c.dataset.team === sel));
-    wrap.querySelectorAll('.dm-item').forEach(b => {
-        b.classList.toggle('on', b.dataset.team === sel);
-        const card = cards.find(c => c.dataset.team === b.dataset.team);
-        b.classList.toggle('dim', searching && !(card && card.dataset.match === '1'));
-    });
-};
 
 window.selectSecOption = function(el, val) {
     document.querySelectorAll('.secx-opt').forEach(o => o.classList.toggle('on', o === el));
@@ -2172,14 +2124,12 @@ window.filterDutyResult = function() {
         });
 
         // ถ้าในเว็บนั้นไม่มีคนที่เราค้นหาเลย ก็ซ่อนการ์ดเว็บนั้นทิ้งไปเลย
-        if (card.closest('.dm-detail')) { card.dataset.match = cardHasMatch ? '1' : '0'; card.style.display = ''; return; }   // แบบรายการเว็บ: ให้ dmApply จัดการ
         if(term === '') {
             card.style.display = 'flex'; 
         } else { 
             card.style.display = cardHasMatch ? 'flex' : 'none'; 
         }
     });
-    if (typeof window.dmApply === 'function') window.dmApply();
     // 📋 มุมมองภาพรวม: ชิปที่ไม่ตรงคำค้นจาง · แถวเว็บที่ไม่มีคนที่ค้นซ่อน
     document.querySelectorAll('#dutyResultGrid .ov-table .ov-row:not(.ov-h)').forEach(row => {
         let hit = false;

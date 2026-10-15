@@ -558,10 +558,15 @@ window.quickAssignBackups = async function() {
         }
     } catch (e) { console.warn('[backup] โหลดประวัติไม่สำเร็จ ข้ามกฎกันซ้ำ', e); }
 
-    // เมื่อวานคนนี้แตะเว็บนี้ไหม (หลักหรือรองก็นับ) — true = ห้ามให้ซ้ำ
-    const touchedYesterday = (uid, team) =>
-        !!(bkRotation && typeof window.dutyTouchedTeamYesterday === 'function'
-            && window.dutyTouchedTeamYesterday(bkRotation, uid, team));
+    // [FIX] ช่วง "เว้นซ้ำเว็บ" ที่ตั้งไว้ (เช่น 3 วัน) คนนี้แตะเว็บนี้ไหม (หลักหรือรองก็นับ) — true = ห้ามให้ซ้ำ
+    //       (เดิมเช็คแค่เมื่อวาน → งานรองวนกลับมาเว็บเดิมได้ภายในไม่กี่วัน ไม่ตรงค่าที่ตั้ง)
+    const _gapDays = (typeof window.getRotationGapDays === 'function') ? window.getRotationGapDays() : 3;
+    const touchedYesterday = (uid, team) => {
+        if (!bkRotation) return false;
+        const p = window.dutyDaysAgoOnTeam ? window.dutyDaysAgoOnTeam(bkRotation, uid, team) : Infinity;
+        const s = window.dutyDaysAgoOnSecTeam ? window.dutyDaysAgoOnSecTeam(bkRotation, uid, team) : Infinity;
+        return Math.min(p, s) <= Math.max(1, _gapDays);
+    };
 
     // เว็บนี้ห่างจากครั้งล่าสุดที่แตะ (หลัก/รอง) กี่วัน — ยิ่งมากยิ่งควรได้
     const daysAwayFromTeam = (uid, team) => {

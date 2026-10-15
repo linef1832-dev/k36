@@ -108,9 +108,12 @@ window.dutyTouchedTeamYesterday = function(rotation, uid, team) {
 
 // เว็บนี้ "เพิ่งทำไปเมื่อกี่วันก่อน" — ไม่เคยทำเลยคืน Infinity (ดีที่สุด ควรได้ก่อน)
 window.dutyDaysAgoOnTeam = function(rotation, uid, team) {
+    // [FIX] นับทั้ง "งานหลัก" และ "งานรอง" — เคยเป็นรองเว็บไหน ก็ถือว่าแตะเว็บนั้นแล้ว
+    //       (เดิมดูแค่งานหลัก → เมื่อวานเป็นรอง Jun88 วันนี้กลับได้หลัก Jun88 ซ้ำ)
     const m = rotation && rotation.lastSeen ? rotation.lastSeen[String(uid)] : null;
-    if (!m || m[team] === undefined) return Infinity;
-    return m[team];
+    const mainAgo = (!m || m[team] === undefined) ? Infinity : m[team];
+    const secAgo = (typeof window.dutyDaysAgoOnSecTeam === 'function') ? window.dutyDaysAgoOnSecTeam(rotation, uid, team) : Infinity;
+    return Math.min(mainAgo, secAgo);
 };
 
 // 🔁 จำนวนวันที่ต้องเว้นก่อนกลับมาเว็บเดิม — ⚠️ แยกค่าตามแผนก (AM / OD / ผู้สอน) ไม่ปนกัน

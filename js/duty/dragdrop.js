@@ -15,7 +15,7 @@ function cleanupDragEffects() {
     document.querySelectorAll('.duty-site-card').forEach(card => {
         card.classList.remove('ring-4', 'ring-green-500', 'shadow-[0_0_15px_rgba(34,197,94,0.4)]', 'opacity-40', 'grayscale');
     });
-    document.querySelectorAll('.dm-item').forEach(b => b.classList.remove('can', 'cant'));
+    document.querySelectorAll('.ov-row').forEach(r => r.classList.remove('can', 'cant'));
 }
 
 document.addEventListener('dragover', (e) => {
@@ -50,8 +50,8 @@ window.handleDragStart = function(event, userId, username, fromTeam) {
         if (userAccess.includes(teamName)) card.classList.add('ring-4', 'ring-green-500', 'shadow-[0_0_15px_rgba(34,197,94,0.4)]');
         else card.classList.add('opacity-40', 'grayscale');
     });
-    // รายการเว็บด้านซ้าย: เว็บที่มีสิทธิ์ = กรอบเขียว (วางได้) · ไม่มีสิทธิ์ = จาง
-    document.querySelectorAll('.dm-item').forEach(b => b.classList.add(userAccess.includes(b.dataset.team) ? 'can' : 'cant'));
+    // แถวเว็บในภาพรวม: เว็บที่มีสิทธิ์ = กรอบเขียว (วางได้) · ไม่มีสิทธิ์ = จาง
+    document.querySelectorAll('.ov-row[data-team]').forEach(r => r.classList.add(userAccess.includes(r.dataset.team) ? 'can' : 'cant'));
 };
 
 window.handleDragOver = function(event) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; };
