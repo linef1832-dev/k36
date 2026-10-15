@@ -678,8 +678,9 @@ window.quickAssignBackups = async function() {
 
             // 🕘 ตัดคนที่ "เมื่อวานแตะเว็บนี้" (เป็นหลักหรือรองก็ตาม) ออกก่อน
             //     ถ้าตัดแล้วไม่เหลือใครเลย ค่อยยอมใช้คนเดิม (เว็บว่างแย่กว่าซ้ำ)
-            const freshCands = candidates.filter(c => !touchedYesterday(c.id, targetTeam));
-            if (freshCands.length > 0) candidates = freshCands;
+            // [FIX] เคารพ "เว้นซ้ำเว็บ" แบบเคร่ง: ไม่มีใครผ่านกติกา = ไม่ใส่รองให้เว็บนี้ (ดีกว่าวนซ้ำผิดกติกา)
+            candidates = candidates.filter(c => !touchedYesterday(c.id, targetTeam));
+            if (candidates.length === 0) { noBackupReasons[targetTeam] = 'ทุกคนติดกติกาเว้นซ้ำเว็บ'; return; }
 
             // เลือกคนแบบ "ใครเข้าได้น้อยสุด ใส่ก่อน" (กันคนที่เลือกได้แต่เว็บนี้ไม่หลุด)
             candidates.sort((a, b) => {
@@ -734,8 +735,9 @@ window.quickAssignBackups = async function() {
 
             // 🕘 ตัดเว็บที่ "เมื่อวานเขาแตะไปแล้ว" (เป็นหลักหรือรอง) ออกก่อน
             //     ถ้าตัดหมดไม่เหลือ ค่อยยอมใช้ของเดิม (มีรองดีกว่าไม่มี)
-            const freshTeams = validTeams.filter(t => !touchedYesterday(c.id, t));
-            if (freshTeams.length > 0) validTeams = freshTeams;
+            // [FIX] เคารพ "เว้นซ้ำเว็บ" แบบเคร่ง: เหลือแต่เว็บที่เพิ่งแตะ = ไม่ใส่รองให้คนนี้
+            validTeams = validTeams.filter(t => !touchedYesterday(c.id, t));
+            if (validTeams.length === 0) return;
 
             // เลือกเว็บที่มีรองน้อยที่สุด (load balance) + ห่างจากเว็บนั้นนานสุด
             validTeams.sort((a, b) => {

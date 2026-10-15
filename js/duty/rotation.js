@@ -95,16 +95,6 @@ window.dutyDaysAgoOnSecTeam = function(rotation, uid, team) {
     return m[team];
 };
 
-// 🆕 เมื่อวาน (วันล่าสุดที่มีตาราง) คนนี้แตะเว็บนี้ไหม — นับทั้งงานหลักและงานรอง
-window.dutyTouchedTeamYesterday = function(rotation, uid, team) {
-    if (!rotation || !team) return false;
-    const u = String(uid);
-    const lt = rotation.lastTeam && rotation.lastTeam[u];
-    const ls = rotation.lastSecTeam && rotation.lastSecTeam[u];
-    if (lt && lt.ago === 1 && lt.team === team) return true;   // เมื่อวานเป็นงานหลักเว็บนี้
-    if (ls && ls.ago === 1 && ls.team === team) return true;   // เมื่อวานเป็นงานรองเว็บนี้
-    return false;
-};
 
 // เว็บนี้ "เพิ่งทำไปเมื่อกี่วันก่อน" — ไม่เคยทำเลยคืน Infinity (ดีที่สุด ควรได้ก่อน)
 window.dutyDaysAgoOnTeam = function(rotation, uid, team) {

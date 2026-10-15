@@ -107,6 +107,15 @@
     #dutyApp .ov-st .warn{background:rgba(245,158,11,.12);color:var(--k-amber-tx);border:1px solid rgba(245,158,11,.4)}
     #dutyApp .ov-st .bad{background:#dc2626;color:#fff}
     @media (max-width:900px){ #dutyApp .ov-row{grid-template-columns:1fr} #dutyApp .ov-h{display:none} #dutyApp .ov-st{justify-content:flex-start} }
+    /* 📌 อยู่ต่อ / 🛟 ไปช่วย / 📝 ประเมิน ในตารางภาพรวม */
+    #dutyApp .ov-pin{display:inline-flex}
+    #dutyApp .ov-pin > [onclick*="openStayPinModal"]{margin:0 !important;height:22px;padding:0 7px !important;border-radius:999px !important;font-size:10.5px !important;box-shadow:none !important;display:inline-flex !important;align-items:center;gap:3px}
+    #dutyApp .ov-pin > [onclick*="openStayPinModal"] .material-icons{font-size:12px !important}
+    #dutyApp .ov-pin > [onclick*="openStayPinModal"].border-dashed{opacity:0;transition:opacity .15s}
+    #dutyApp .ov-p:hover .ov-pin > [onclick*="openStayPinModal"].border-dashed{opacity:1}
+    @media (hover:none){ #dutyApp .ov-pin > [onclick*="openStayPinModal"].border-dashed{opacity:1} }
+    #dutyApp .ov-sup{font-style:normal;font-size:10.5px;font-weight:800;padding:1px 7px;border-radius:999px;color:light-dark(#0e7490,#67e8f9);background:rgba(6,182,212,.12);border:1px solid rgba(6,182,212,.35)}
+    #dutyApp .ov-trbtn{display:inline-flex;margin-top:4px;height:22px;padding:0 8px;border-radius:7px;border:1px solid rgba(245,158,11,.5);background:rgba(245,158,11,.12);color:var(--k-amber-tx);font:inherit;font-size:10.5px;font-weight:900;cursor:pointer}
     /* 🔁 ปุ่มงานรองในชิป */
     #dutyApp .ov-sec{display:inline-flex;align-items:center;gap:3px;height:22px;padding:0 8px;border-radius:999px;border:1px solid var(--k-line3);background:var(--k-panel2);color:var(--k-tx3);font:inherit;font-size:10.5px;font-weight:900;cursor:pointer;white-space:nowrap}
     #dutyApp .ov-sec .material-icons{font-size:11px;opacity:.6}

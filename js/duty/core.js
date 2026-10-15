@@ -1849,8 +1849,15 @@ window.renderRosterGrid = async function(rosterData) {
             people: assignees.map(a => {
                 const miss = String(a.username).includes('ขาดคน');
                 const slots = miss ? [] : (window.currentDutySchedules || []).filter(sc => sc.staff_name === a.username).map(sc => String(sc.time_slot || '')).join(',').split(',').map(x => x.trim()).filter(Boolean).sort();
-                return { id: a.id, name: String(a.username).replace(/<[^>]*>/g, '').trim(), miss, slots, sec: a.secondary_team || '', drag: !miss && a.id && isAdmin, me: _isMe(a) };
-            }) });
+                // 📌 อยู่ต่อ (เฉพาะฝ่ายจัดเวร) · 🛟 ไปช่วยเว็บอื่น · 🕘 ประวัติ 3 วัน (โชว์ตอนชี้)
+                const pin = (!miss && a.id && typeof window.renderStayPinHtml === 'function') ? window.renderStayPinHtml(a, team, isAdmin) : '';
+                const sup = (!miss && a.id && typeof window.getSupportForUser === 'function') ? window.getSupportForUser(a.id).map(x => `ช่วย ${x.target} ${typeof minToTime === 'function' ? minToTime(x.start) + '–' + minToTime(x.end) : ''}`.trim()) : [];
+                const hist = (!miss ? (historyTeamOf[a.username] || []) : []).filter(h => h.main || h.sec)
+                    .map(h => `${h.ago === 1 ? 'เมื่อวาน' : h.ago + ' วันก่อน'} ${h.main || '-'}${h.sec ? ' (รอง ' + h.sec + ')' : ''}`).join(' · ');
+                return { id: a.id, name: String(a.username).replace(/<[^>]*>/g, '').trim(), miss, slots, sec: a.secondary_team || '', drag: !miss && a.id && isAdmin, me: _isMe(a), pin, sup, hist };
+            }),
+            trainerBtn: (window.isTrainerDept && window.isTrainerDept() && (isAdmin || (currentUser && (currentUser.department === 'AMQL' || currentUser.department === 'ODQL' || String(currentUser.department || '').startsWith('TRAINER')))))
+                ? `<button type="button" class="ov-trbtn" onclick="openTrainerReportModal('${team}')" title="บันทึกประเมินการดูแลเว็บนี้">📝 ประเมิน</button>` : '' });
         finalGridHtml += `
             <div class="duty-site-card dc-site flex flex-col h-[500px] overflow-hidden w-full" data-team="${team}" style="--tc-border:currentColor">
                 <div class="dc-head ${colorClass.bg} ${colorClass.text}">
@@ -1891,17 +1898,19 @@ window.renderRosterGrid = async function(rosterData) {
         const st = it.missing ? ['bad', 'ขาดคน'] : (it.warn ? ['warn', 'พักชนกัน'] : ['ok', 'พร้อม']);
         const chips = it.people.map(p => p.miss
             ? `<span class="ov-p miss"><b>ขาดคน</b></span>`
-            : `<span class="ov-p duty-user-card ${p.drag ? 'can' : ''} ${p.me ? 'me' : ''}" data-name="${window.escapeHtml(p.name.toLowerCase())}" ${p.drag ? `draggable="true" ondragstart="handleDragStart(event, '${p.id}', '${window.escapeJsAttr(p.name)}', '${it.team}')"` : ''} title="${window.escapeHtml(p.name)}${p.sec ? ' · งานรอง ' + p.sec : ''}">
+            : `<span class="ov-p duty-user-card ${p.drag ? 'can' : ''} ${p.me ? 'me' : ''}" data-name="${window.escapeHtml(p.name.toLowerCase())}" ${p.drag ? `draggable="true" ondragstart="handleDragStart(event, '${p.id}', '${window.escapeJsAttr(p.name)}', '${it.team}')"` : ''} title="${window.escapeHtml(p.name)}${p.sec ? ' · งานรอง ' + p.sec : ''}${p.hist ? '\nย้อนหลัง: ' + window.escapeHtml(p.hist) : ''}">
                 <b>${window.escapeHtml(p.name)}</b>${p.me ? '<span class="dc-me">ฉัน</span>' : ''}
                 <small class="${p.slots.length ? '' : 'none'}">${p.slots.length ? p.slots.map(x => x.split('-')[0]).join(' · ') : 'ยังไม่ลงพัก'}</small>
                 ${p.sec
                     ? (_canSec ? `<button type="button" class="ov-sec" onclick="event.stopPropagation(); changeSecondaryTeam('${it.team}', '${p.id}', '${window.escapeJsAttr(p.name)}')" title="กดเพื่อเปลี่ยนงานรองของ ${window.escapeHtml(p.name)}">รอง ${p.sec}<span class="material-icons">edit</span></button>` : `<i>รอง ${p.sec}</i>`)
                     : (_canSec && p.id ? `<button type="button" class="ov-sec add" onclick="event.stopPropagation(); changeSecondaryTeam('${it.team}', '${p.id}', '${window.escapeJsAttr(p.name)}')" title="แจกงานรองให้ ${window.escapeHtml(p.name)}">+ รอง</button>` : '')}
+                ${p.sup.map(t => `<i class="ov-sup">🛟 ${window.escapeHtml(t)}</i>`).join('')}
+                ${p.pin ? `<span class="ov-pin">${p.pin}</span>` : ''}
             </span>`).join('') || '<span class="ov-empty">ยังไม่มีคน · ลากชื่อมาวางได้</span>';
         return `<div class="ov-row" data-team="${it.team}" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${it.team}')">
             <div class="ov-team">
                 <span class="ov-bar ${it.color.bg}"></span>
-                <span><b>${it.title}</b><small>${it.count} คน</small></span>
+                <span><b>${it.title}</b><small>${it.count} คน</small>${it.trainerBtn || ''}</span>
             </div>
             <div class="ov-people">${chips}</div>
             <div class="ov-sb">${it.standbyNames.length ? it.standbyNames.map(n => window.escapeHtml(n)).join(', ') : '—'}</div>
