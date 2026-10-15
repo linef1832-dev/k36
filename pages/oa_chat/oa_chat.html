@@ -60,7 +60,7 @@
             </div>
             <div class="oa-search-wrap mt-3">
                 <span class="material-icons oa-search-ic">search</span>
-                <input id="oaSearch" oninput="oa_render()" placeholder="ค้นหาชื่อพนักงาน" class="oa-search-in">
+                <input id="oaSearch" oninput="oa_render()" placeholder="ค้นหาชื่อพนักงาน หรือ ชื่อลูกค้า" class="oa-search-in">
                 <button id="oaClearF" onclick="oa_clearFilters()" class="oa-clearf" title="ล้างตัวกรอง" style="display:none">ล้างตัวกรอง</button>
             </div>
             <div class="oa-filters">
@@ -220,4 +220,7 @@
     #oaApp .oa-chip-site { }
     #oaApp .oa-chip-site:hover { border-color:#8b5cf6; color:#7c3aed; }
     #oaApp .oa-chip-site.on { background:#8b5cf6; border-color:#8b5cf6; color:#fff; box-shadow:0 2px 8px rgba(139,92,246,.3); }
+    #oaApp .oa-usites { display:flex; flex-wrap:wrap; gap:4px; margin-top:5px; }
+    #oaApp .oa-usite { font-size:10.5px; font-weight:800; padding:2px 8px; border-radius:999px; background:#f3e8ff; color:#7c3aed; border:1px solid #e9d5ff; }
+    .dark #oaApp .oa-usite { background:rgba(139,92,246,.15); color:#c4b5fd; border-color:rgba(139,92,246,.3); }
 </style>

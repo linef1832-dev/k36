@@ -75,6 +75,7 @@ window.oa_load = async function () {
 
 function oa_shiftOf(r) { return window._oa.shiftMap[(r.username || '').toLowerCase().trim() + '|' + r.work_date] || ''; }
 function oa_sitesOf(r) { const s = window._oa.siteMap[(r.username || '').toUpperCase().trim() + '|' + r.work_date]; return s ? [...s] : []; }
+function oa_sitesOfUser(username, rows) { const set = new Set(); (rows || []).forEach(r => oa_sitesOf(r).forEach(v => set.add(v))); return [...set]; }
 function oa_deptOf(r) { const u = window._oa.users[String(r.user_id)]; return (u && u.department) || '-'; }
 function oa_nameOf(r) { const u = window._oa.users[String(r.user_id)]; return (u && (u.username || u.name)) || r.username || r.user_id; }
 
@@ -112,7 +113,7 @@ window.oa_render = function () {
         && (o.dept === 'ALL' || oa_deptOf(r) === o.dept)
         && (o.shift === 'ALL' || oa_shiftOf(r) === o.shift)
         && (o.site === 'ALL' || oa_sitesOf(r).includes(o.site))
-        && (!q || oa_nameOf(r).toLowerCase().includes(q.toLowerCase())));
+        && (!q || oa_nameOf(r).toLowerCase().includes(q.toLowerCase()) || String(r.chat_name || '').toLowerCase().includes(q.toLowerCase())));
     const by = {};
     rows.forEach(r => { const k = String(r.user_id); const x = by[k] || (by[k] = { name: oa_nameOf(r), dept: oa_deptOf(r), n: 0, last: null, rows: [] }); x.n++; x.rows.push(r); if (!x.last || r.last_at > x.last) x.last = r.last_at; });
     const list = Object.entries(by).sort((a, b) => b[1].n - a[1].n || a[1].name.localeCompare(b[1].name, 'th'));
@@ -132,7 +133,7 @@ window.oa_render = function () {
         const rk = i < 3 ? '<span style="font-size:15px">' + ['🥇','🥈','🥉'][i] + '</span>' : (i + 1);
         return `<div class="oa-row ${o.open.has(id) ? 'open' : ''}" onclick="oa_toggle('${id}')">
             <span class="oa-rank">${rk}</span>
-            <div class="min-w-0"><div class="oa-name truncate">${oa_esc(x.name)}</div><div class="oa-meta">${(x.dept && x.dept !== '-') ? oa_esc(x.dept) + ' · ' : ''}ตอบล่าสุด ${x.last ? oa_time(x.last) : '-'}</div><div class="oa-bar"><i style="width:${Math.max(3, Math.round(x.n / max * 100))}%"></i></div></div>
+            <div class="min-w-0"><div class="oa-name truncate">${oa_esc(x.name)}</div><div class="oa-meta">${(x.dept && x.dept !== '-') ? oa_esc(x.dept) + ' · ' : ''}ตอบล่าสุด ${x.last ? oa_time(x.last) : '-'}</div>${(() => { const sv = oa_sitesOfUser(x.name, x.rows); return sv.length ? `<div class="oa-usites">${sv.map(w => `<span class="oa-usite">${oa_esc(w)}</span>`).join('')}</div>` : ''; })()}<div class="oa-bar"><i style="width:${Math.max(3, Math.round(x.n / max * 100))}%"></i></div></div>
             <div class="oa-n">${x.n}<small>แชท</small></div>
             <span class="material-icons oa-chev">chevron_right</span>
         </div><div class="oa-detail">${detail}</div>`;
