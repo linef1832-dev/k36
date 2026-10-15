@@ -2,7 +2,7 @@
 //  💬 ตรวจนับแชท LINE OA — อ่านตาราง oa_replies (เขียนโดยแอป BIZ Checker + ส่วนเสริม Chrome)
 //  1 แถว = พนักงาน 1 คน ตอบลูกค้า 1 คน ใน 1 วันทำงาน (ตัดวันที่ 08:00)
 // =====================================================================
-window._oa = window._oa || { rows: [], users: {}, range: 'today', dept: 'ALL', shift: 'ALL', site: 'ALL', open: new Set(), tab: 'list', shiftMap: {}, siteMap: {} };
+window._oa = window._oa || { rows: [], users: {}, range: 'today', dept: 'ALL', shift: 'ALL', site: 'ALL', oaline: 'ALL', open: new Set(), tab: 'list', shiftMap: {}, siteMap: {} };
 const oa_pad = (n) => String(n).padStart(2, '0');
 const oa_iso = (d) => `${d.getFullYear()}-${oa_pad(d.getMonth() + 1)}-${oa_pad(d.getDate())}`;
 function oa_workDate(off = 0) { const t = new Date(); if (t.getHours() < 8) t.setDate(t.getDate() - 1); t.setDate(t.getDate() + off); return oa_iso(t); }
@@ -39,7 +39,7 @@ window.oa_load = async function () {
         }
         let all = [], from = 0;
         for (;;) {   // ดึงทีละ 1000 แถว
-            const { data, error } = await window.appDB.from('oa_replies').select('work_date, user_id, username, oa_id, chat_id, chat_name, first_at, last_at').gte('work_date', f).lte('work_date', t).order('first_at', { ascending: true }).range(from, from + 999);
+            const { data, error } = await window.appDB.from('oa_replies').select('work_date, user_id, username, oa_id, oa_name, chat_id, chat_name, first_at, last_at').gte('work_date', f).lte('work_date', t).order('first_at', { ascending: true }).range(from, from + 999);
             if (error) throw error;
             all = all.concat(data || []); if (!data || data.length < 1000) break; from += 1000;
         }
@@ -89,12 +89,13 @@ function oa_renderDept() {
 window.oa_setDept = function (d) { window._oa.dept = (window._oa.dept === d ? 'ALL' : d); window.oa_render(); };
 window.oa_setShift = function (s) { window._oa.shift = (window._oa.shift === s ? 'ALL' : s); window.oa_render(); };
 window.oa_setSite = function (s) { window._oa.site = (window._oa.site === s ? 'ALL' : s); window.oa_render(); };
-window.oa_clearFilters = function () { const o = window._oa; o.dept = 'ALL'; o.shift = 'ALL'; o.site = 'ALL'; const si = document.getElementById('oaSearch'); if (si) si.value = ''; window.oa_render(); };
+window.oa_setOaLine = function (s) { window._oa.oaline = (window._oa.oaline === s ? 'ALL' : s); window.oa_render(); };
+window.oa_clearFilters = function () { const o = window._oa; o.dept = 'ALL'; o.shift = 'ALL'; o.site = 'ALL'; o.oaline = 'ALL'; const si = document.getElementById('oaSearch'); if (si) si.value = ''; window.oa_render(); };
 function oa_renderChips() {
     const o = window._oa;
     // ปุ่มล้างตัวกรอง โผล่เมื่อมีการกรอง
     const cf = document.getElementById('oaClearF'); const q = (document.getElementById('oaSearch') || {}).value || '';
-    if (cf) cf.style.display = (o.dept !== 'ALL' || o.shift !== 'ALL' || o.site !== 'ALL' || q) ? '' : 'none';
+    if (cf) cf.style.display = (o.dept !== 'ALL' || o.shift !== 'ALL' || o.site !== 'ALL' || o.oaline !== 'ALL' || q) ? '' : 'none';
     // กะ
     const sh = document.getElementById('oaShiftChips');
     if (sh) { sh.innerHTML = ['เช้า', 'กลาง', 'ดึก'].map(k => `<button class="oa-chip ${o.shift === k ? 'on' : ''}" onclick="oa_setShift('${k}')">กะ${k}</button>`).join(''); const g = sh.closest('.oa-fgroup'); if (g) g.style.display = ''; }
@@ -103,6 +104,11 @@ function oa_renderChips() {
     if (st) { const sites = new Set(); Object.values(o.siteMap).forEach(set => set.forEach(v => sites.add(v))); const arr = [...sites].sort();
         st.innerHTML = arr.map(k => `<button class="oa-chip oa-chip-site ${o.site === k ? 'on' : ''}" onclick="oa_setSite('${oa_esc(k).replace(/'/g,"\\'")}')">${oa_esc(k)}</button>`).join('');
         const g = st.closest('.oa-fgroup'); if (g) g.style.display = arr.length ? '' : 'none'; }
+    // ไลน์ OA
+    const ol = document.getElementById('oaLineChips');
+    if (ol) { const lines = new Set(); o.rows.forEach(r => { if (r.oa_name) lines.add(r.oa_name); }); const arr = [...lines].sort();
+        ol.innerHTML = arr.map(k => `<button class="oa-chip oa-chip-line ${o.oaline === k ? 'on' : ''}" onclick="oa_setOaLine('${oa_esc(k).replace(/'/g,"\\'")}')">${oa_esc(k)}</button>`).join('');
+        const g = ol.closest('.oa-fgroup'); if (g) g.style.display = arr.length ? '' : 'none'; }
 }
 
 window.oa_render = function () {
@@ -113,6 +119,7 @@ window.oa_render = function () {
         && (o.dept === 'ALL' || oa_deptOf(r) === o.dept)
         && (o.shift === 'ALL' || oa_shiftOf(r) === o.shift)
         && (o.site === 'ALL' || oa_sitesOf(r).includes(o.site))
+        && (o.oaline === 'ALL' || (r.oa_name || '') === o.oaline)
         && (!q || oa_nameOf(r).toLowerCase().includes(q.toLowerCase()) || String(r.chat_name || '').toLowerCase().includes(q.toLowerCase())));
     const by = {};
     rows.forEach(r => { const k = String(r.user_id); const x = by[k] || (by[k] = { name: oa_nameOf(r), dept: oa_deptOf(r), n: 0, last: null, rows: [] }); x.n++; x.rows.push(r); if (!x.last || r.last_at > x.last) x.last = r.last_at; });
@@ -180,7 +187,7 @@ window.oa_drawChats = function (id) {
     let p = window._oa._chatPage[id] || 0; if (p >= pages) p = 0; window._oa._chatPage[id] = p;
     const slice = all.slice(p * PER, p * PER + PER);
     const esc = oa_esc;
-    let html = slice.map(r => { const nm = r.chat_name || 'ลูกค้า ' + String(r.chat_id).slice(-6); return `<div class="oa-chat"><span class="oa-cust"><span class="oa-cname">${esc(nm)}</span><button class="oa-copy" onclick="oa_copyName(event,'${esc(nm).replace(/'/g,"\\'")}')" title="คัดลอกชื่อ"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span><span>${oa_time(r.last_at || r.first_at)}</span></div>`; }).join('');
+    let html = slice.map(r => { const nm = r.chat_name || 'ลูกค้า ' + String(r.chat_id).slice(-6); const ln = r.oa_name ? `<span class="oa-chatline">${esc(r.oa_name)}</span>` : ''; return `<div class="oa-chat"><span class="oa-cust"><span class="oa-cname">${esc(nm)}</span>${ln}<button class="oa-copy" onclick="oa_copyName(event,'${esc(nm).replace(/'/g,"\\'")}')" title="คัดลอกชื่อ"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span><span>${oa_time(r.last_at || r.first_at)}</span></div>`; }).join('');
     if (pages > 1) {
         let nums = ''; for (let i = 0; i < pages; i++) nums += `<button class="oa-pg ${i === p ? 'on' : ''}" data-p="${i}">${i + 1}</button>`;
         html += `<div class="oa-pager"><button class="oa-pg nav" data-p="${p - 1}" ${p === 0 ? 'disabled' : ''}>‹</button>${nums}<button class="oa-pg nav" data-p="${p + 1}" ${p === pages - 1 ? 'disabled' : ''}>›</button></div>`;
@@ -200,7 +207,7 @@ window.oa_exportCSV = function () {
 };
 
 window.initOaChat = async function () {
-    window._oa.open = new Set(); window._oa.shift = 'ALL'; window._oa.site = 'ALL';
+    window._oa.open = new Set(); window._oa.shift = 'ALL'; window._oa.site = 'ALL'; window._oa.oaline = 'ALL';
     const b = document.getElementById('oaBtnCsv'); if (b) b.style.display = oa_can('oa_chat_export') ? '' : 'none';
     oa_setTab('list');
     window.oa_setRange('today');
