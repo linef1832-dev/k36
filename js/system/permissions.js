@@ -615,9 +615,11 @@ window.applySidebarPermissions = async function() {
                     });
                 });
 
-                if (onClickAttr.includes("toggleSubMenu('menu-admin'") || onClickAttr.includes("openAdminPanel()")) {
+                if (onClickAttr.includes("openAdminPanel()")) {
                     if (window.hasUserPerm('admin')) shouldShow = true;
                 }
+                // เมนูในหมวดผู้จัดการ: ต้องมีสิทธิ์ของหน้านั้น + สิทธิ์ "เข้าเครื่องมือผู้จัดการ" (เหมือนตอนเป็นเมนูกาง)
+                if (btn.dataset.needAdmin && !window.hasUserPerm('admin')) shouldShow = false;
             }
 
             if (shouldShow) {
@@ -629,9 +631,6 @@ window.applySidebarPermissions = async function() {
             }
         });
 
-        const menuAdmin = document.getElementById('menu-admin');
-        const adminBtn = Array.from(document.querySelectorAll('#menu-list button')).find(b => (b.getAttribute('onclick')||'').includes("toggleSubMenu('menu-admin'"));
-        if (menuAdmin && adminBtn && adminBtn.classList.contains('hidden')) menuAdmin.classList.add('hidden');
 
         if (logsBtn) {
             const canSeeLogs = window.hasUserPerm('admin_logs');
