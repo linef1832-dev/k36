@@ -554,7 +554,7 @@ window.oa_drawChats = function (id) {
 };
 
 // ─────────────────────────── ดาวน์โหลด Excel ───────────────────────────
-// ไฟล์ .xlsx แยกเป็นกลุ่มตามเว็บ (แต่ละเว็บมีเฉพาะคนของเว็บนั้น) + หัวไฟล์บอกวันที่
+// ไฟล์ .xlsx แยกตามกะ → ในแต่ละกะแยกตามเว็บ (แต่ละเว็บมีเฉพาะคนของเว็บนั้น) + หัวไฟล์บอกวันที่
 // นับตามที่เห็นบนจอ (ช่วงวันที่ + ตัวกรอง + ค้นหา) · เว็บมาจากตารางจัดหน้าที่ของวันนั้น ๆ
 const OA_MONTHS = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
 const OA_DAYS = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
@@ -579,6 +579,18 @@ function oa_summaryBySite(rows) {
     return Object.values(g)
         .map(s => ({ site: s.site, total: s.total, people: Object.values(s.people).sort((a, b) => b.n - a.n || a.name.localeCompare(b.name, 'th')) }))
         .sort((a, b) => (a.site === NONE) - (b.site === NONE) || b.total - a.total || a.site.localeCompare(b.site, 'th'));
+}
+// แยกกะก่อน (เช้า → กลาง → ดึก → ไม่ระบุกะ) แล้วในแต่ละกะแยกเว็บ — เทียบผลงานคนที่ทำช่วงเวลาเดียวกันได้ตรง ๆ
+// คนที่ทำหลายกะในช่วงที่เลือก → แชทของวันไหนไปนับที่กะของวันนั้น
+function oa_summaryByShift(rows) {
+    const ORDER = ['เช้า', 'กลาง', 'ดึก', ''], g = {};
+    rows.forEach(r => { const s = oa_shiftOf(r); (g[s] = g[s] || []).push(r); });
+    return ORDER.filter(s => g[s]).map(s => ({
+        label: s ? 'กะ' + s : 'ไม่ระบุกะ (ไม่มีในตารางกะ)', short: s ? 'กะ' + s : 'ไม่ระบุกะ',
+        total: g[s].length,
+        people: new Set(g[s].map(r => String(r.user_id))).size,
+        sites: oa_summaryBySite(g[s]),
+    }));
 }
 function oa_filterNote() {
     const o = window._oa, q = ((document.getElementById('oaSearch') || {}).value || '').trim(), parts = [];
@@ -613,7 +625,7 @@ window.oa_exportCSV = async function () {
     if (!oa_can('oa_chat_export')) { alert('ไม่มีสิทธิ์ดาวน์โหลด'); return; }
     const rows = oa_filtered();
     if (!rows.length) { alert('ไม่มีข้อมูลในช่วง/ตัวกรองที่เลือก'); return; }
-    const o = window._oa, groups = oa_summaryBySite(rows);
+    const o = window._oa, groups = oa_summaryByShift(rows);
     const dateTxt = oa_fmtLong(o._viewFrom, o._viewTo), note = oa_filterNote();
     const btn = document.getElementById('oaBtnCsv'), lbl = btn && btn.querySelector('span:not(.material-icons)');
     const old = lbl ? lbl.textContent : '';
@@ -634,59 +646,75 @@ async function oa_buildXlsx(ExcelJS, groups, rows, dateTxt, note) {
     const FONT = 'Tahoma';
     const fill = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
     const thin = (argb) => ({ style: 'thin', color: { argb } });
+    const num = (n) => Number(n).toLocaleString('en-US');
+    const avg = (t, p) => p ? (t / p).toLocaleString('en-US', { maximumFractionDigits: 1 }) : '0';
     const setRow = (ws, r, vals) => { const row = ws.getRow(r); vals.forEach((v, i) => { row.getCell(i + 1).value = v; }); return row; };
-    const head = (ws, title) => {
-        ws.columns = [{ width: 9 }, { width: 30 }, { width: 18 }];
-        ws.mergeCells('A1:C1'); ws.getCell('A1').value = title;
-        ws.getCell('A1').font = { name: FONT, size: 15, bold: true, color: { argb: 'FF0F172A' } };
-        ws.mergeCells('A2:C2'); ws.getCell('A2').value = dateTxt;
-        ws.getCell('A2').font = { name: FONT, size: 12, bold: true, color: { argb: 'FF047857' } };
-        ws.mergeCells('A3:C3');
-        ws.getCell('A3').value = 'นับตามวันทำงาน (ตัดรอบ 08:00)' + (note ? ' · ตัวกรอง: ' + note : '') + ' · ดึงข้อมูล ' + new Date().toLocaleString('th-TH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const band = (ws, r, last, text, font, bg, h) => {
+        ws.mergeCells(`A${r}:${last}${r}`); const c = ws.getCell(`A${r}`);
+        c.value = text; c.font = Object.assign({ name: FONT }, font); if (bg) c.fill = fill(bg);
+        c.alignment = { vertical: 'middle', indent: 1 }; if (h) ws.getRow(r).height = h; return c;
+    };
+    const head = (ws, title, widths) => {
+        ws.columns = widths.map(w => ({ width: w }));
+        const last = String.fromCharCode(64 + widths.length);
+        ws.mergeCells(`A1:${last}1`); Object.assign(ws.getCell('A1'), { value: title, font: { name: FONT, size: 15, bold: true, color: { argb: 'FF0F172A' } } });
+        ws.mergeCells(`A2:${last}2`); Object.assign(ws.getCell('A2'), { value: dateTxt, font: { name: FONT, size: 12, bold: true, color: { argb: 'FF047857' } } });
+        ws.mergeCells(`A3:${last}3`);
+        ws.getCell('A3').value = 'นับตามวันทำงาน (ตัดรอบ 08:00) · กะจากตารางกะ · เว็บจากตารางจัดหน้าที่' + (note ? ' · ตัวกรอง: ' + note : '') + ' · ดึงข้อมูล ' + new Date().toLocaleString('th-TH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
         ws.getCell('A3').font = { name: FONT, size: 9, color: { argb: 'FF64748B' } };
-        ws.getRow(1).height = 24; ws.getRow(2).height = 19;
-        return 5;   // แถวที่เริ่มเนื้อหา
+        ws.getCell('A3').alignment = { wrapText: true, vertical: 'top' };
+        ws.getRow(1).height = 24; ws.getRow(2).height = 19; ws.getRow(3).height = 26;
+        return 5;
     };
-    const colHead = (ws, r) => {
-        const row = setRow(ws, r, ['อันดับ', 'พนักงาน', 'จำนวนแชทที่ตอบ']);
+    const colHead = (ws, r, labels) => {
+        const row = setRow(ws, r, labels);
         row.eachCell(c => { c.font = { name: FONT, bold: true, size: 10, color: { argb: 'FF475569' } }; c.fill = fill('FFF1F5F9'); c.border = { bottom: thin('FFCBD5E1') }; });
-        row.getCell(1).alignment = { horizontal: 'center' }; row.getCell(3).alignment = { horizontal: 'right' };
+        row.getCell(1).alignment = { horizontal: 'center' }; row.getCell(labels.length).alignment = { horizontal: 'right' };
     };
-    const person = (ws, r, i, p) => {
-        const row = setRow(ws, r, [i + 1, p.name, p.n]);
-        row.getCell(1).alignment = { horizontal: 'center' }; row.getCell(3).numFmt = '#,##0';
+    const person = (ws, r, vals) => {
+        const row = setRow(ws, r, vals);
+        row.getCell(1).alignment = { horizontal: 'center' }; row.getCell(vals.length).numFmt = '#,##0';
         row.eachCell(c => { c.font = { name: FONT, size: 11 }; c.border = { bottom: thin('FFEEF2F6') }; });
     };
-    const total = (ws, r, label, n, strong) => {
-        const row = setRow(ws, r, [null, label, n]); row.getCell(3).numFmt = '#,##0';
-        row.eachCell({ includeEmpty: true }, c => { c.font = { name: FONT, size: 11, bold: true, color: { argb: strong ? 'FFFFFFFF' : 'FF0F172A' } }; c.border = { top: thin('FF94A3B8') }; if (strong) c.fill = fill('FF047857'); });
+    const total = (ws, r, ncol, label, n, style) => {   // style: 'site' | 'shift' | 'grand'
+        const vals = new Array(ncol).fill(null); vals[1] = label; vals[ncol - 1] = n;
+        const row = setRow(ws, r, vals); row.getCell(ncol).numFmt = '#,##0';
+        const white = style !== 'site', bg = style === 'shift' ? 'FF334155' : style === 'grand' ? 'FF047857' : null;
+        for (let i = 1; i <= ncol; i++) { const c = row.getCell(i); c.font = { name: FONT, size: 11, bold: true, color: { argb: white ? 'FFFFFFFF' : 'FF0F172A' } }; c.border = { top: thin('FF94A3B8') }; if (bg) c.fill = fill(bg); }
+        if (style !== 'site') row.height = 20;
     };
 
-    // ชีต 1: แยกตามเว็บ
-    const ws = wb.addWorksheet('แยกตามเว็บ', { views: [{ showGridLines: false }] });
-    let r = head(ws, 'สรุปจำนวนแชท LINE OA · แยกตามเว็บ');
-    groups.forEach(g => {
-        ws.mergeCells(`A${r}:C${r}`);
-        const c = ws.getCell(`A${r}`);
-        c.value = `${g.site === 'ไม่ระบุเว็บ' ? 'ไม่ระบุเว็บ (ไม่มีในตารางจัดหน้าที่)' : 'เว็บ ' + g.site}   ·   ${g.people.length} คน   ·   ${g.total.toLocaleString('en-US')} แชท`;
-        c.font = { name: FONT, size: 12, bold: true, color: { argb: 'FF065F46' } }; c.fill = fill('FFD1FAE5'); c.alignment = { vertical: 'middle', indent: 1 };
-        c.border = { left: { style: 'medium', color: { argb: 'FF10B981' } } };
-        ws.getRow(r).height = 22; r++;
-        colHead(ws, r++);
-        g.people.forEach((p, i) => person(ws, r++, i, p));
-        total(ws, r++, g.site === 'ไม่ระบุเว็บ' ? 'รวมไม่ระบุเว็บ' : 'รวมเว็บ ' + g.site, g.total, false);
-        r++;   // เว้น 1 แถวคั่นเว็บ
+    // ชีต 1: แยกตามกะ → ในกะแยกตามเว็บ
+    const ws = wb.addWorksheet('แยกตามกะและเว็บ', { views: [{ showGridLines: false }] });
+    let r = head(ws, 'สรุปจำนวนแชท LINE OA · แยกตามกะและเว็บ', [8, 36, 22]);
+    groups.forEach(sh => {
+        band(ws, r++, 'C', `${sh.label}  ·  ${sh.people} คน  ·  ${num(sh.total)} แชท  ·  เฉลี่ย ${avg(sh.total, sh.people)} แชท/คน`,
+            { size: 13, bold: true, color: { argb: 'FFFFFFFF' } }, 'FF1E293B', 26);
+        r++;
+        sh.sites.forEach(g => {
+            const c = band(ws, r++, 'C', `${g.site === 'ไม่ระบุเว็บ' ? 'ไม่ระบุเว็บ (ไม่มีในตารางจัดหน้าที่)' : 'เว็บ ' + g.site}  ·  ${g.people.length} คน  ·  ${num(g.total)} แชท  ·  เฉลี่ย ${avg(g.total, g.people.length)}/คน`,
+                { size: 11, bold: true, color: { argb: 'FF065F46' } }, 'FFD1FAE5', 21);
+            c.border = { left: { style: 'medium', color: { argb: 'FF10B981' } } };
+            colHead(ws, r++, ['อันดับ', 'พนักงาน', 'จำนวนแชทที่ตอบ']);
+            g.people.forEach((p, i) => person(ws, r++, [i + 1, p.name, p.n]));
+            total(ws, r++, 3, g.site === 'ไม่ระบุเว็บ' ? 'รวมไม่ระบุเว็บ' : 'รวมเว็บ ' + g.site, g.total, 'site');
+            r++;
+        });
+        total(ws, r++, 3, 'รวม' + sh.short, sh.total, 'shift');
+        r += 2;   // เว้น 2 แถวคั่นกะ
     });
-    total(ws, r, 'รวมทุกเว็บ', rows.length, true); ws.getRow(r).height = 22;
+    total(ws, r, 3, 'รวมทุกกะ', rows.length, 'grand');
 
-    // ชีต 2: รวมทุกคน (ไม่แยกเว็บ)
-    const by = {}; rows.forEach(x => { const k = String(x.user_id); (by[k] = by[k] || { name: oa_nameOf(x), n: 0 }).n++; });
+    // ชีต 2: รวมทุกคน (มีคอลัมน์กะ)
+    const by = {};
+    rows.forEach(x => { const k = String(x.user_id); const p = by[k] || (by[k] = { name: oa_nameOf(x), n: 0, shifts: new Set() }); p.n++; p.shifts.add(oa_shiftOf(x) || '-'); });
+    const order = ['เช้า', 'กลาง', 'ดึก', '-'];
     const all = Object.values(by).sort((a, b) => b.n - a.n || a.name.localeCompare(b.name, 'th'));
     const ws2 = wb.addWorksheet('รวมทุกคน', { views: [{ showGridLines: false }] });
-    let r2 = head(ws2, 'สรุปจำนวนแชท LINE OA · รวมทุกคน');
-    colHead(ws2, r2++);
-    all.forEach((p, i) => person(ws2, r2++, i, p));
-    total(ws2, r2, 'รวม', rows.length, true);
+    let r2 = head(ws2, 'สรุปจำนวนแชท LINE OA · รวมทุกคน', [8, 36, 14, 22]);
+    colHead(ws2, r2++, ['อันดับ', 'พนักงาน', 'กะ', 'จำนวนแชทที่ตอบ']);
+    all.forEach((p, i) => person(ws2, r2++, [i + 1, p.name, [...p.shifts].sort((a, b) => order.indexOf(a) - order.indexOf(b)).join(', '), p.n]));
+    total(ws2, r2, 4, 'รวม', rows.length, 'grand');
 
     [ws, ws2].forEach(s => { s.pageSetup = { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: .5, right: .5, top: .6, bottom: .6, header: .3, footer: .3 } }; });
     return wb.xlsx.writeBuffer();
@@ -694,17 +722,22 @@ async function oa_buildXlsx(ExcelJS, groups, rows, dateTxt, note) {
 
 function oa_buildCsv(groups, rows, dateTxt, note) {
     const esc = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
-    const L = [[esc('สรุปจำนวนแชท LINE OA')], [esc(dateTxt)]];
+    const L = [[esc('สรุปจำนวนแชท LINE OA · แยกตามกะและเว็บ')], [esc(dateTxt)]];
     if (note) L.push([esc('ตัวกรอง: ' + note)]);
     L.push([]);
-    groups.forEach(g => {
-        L.push([esc(`${g.site === 'ไม่ระบุเว็บ' ? 'ไม่ระบุเว็บ' : 'เว็บ ' + g.site} (${g.people.length} คน)`)]);
-        L.push(['อันดับ', 'พนักงาน', 'จำนวนแชทที่ตอบ'].map(esc));
-        g.people.forEach((p, i) => L.push([i + 1, p.name, p.n].map(esc)));
-        L.push(['', 'รวมเว็บ ' + g.site, g.total].map(esc));
-        L.push([]);
+    groups.forEach(sh => {
+        L.push([esc(`${sh.label} (${sh.people} คน · ${sh.total} แชท)`)]);
+        sh.sites.forEach(g => {
+            L.push([esc(`${g.site === 'ไม่ระบุเว็บ' ? 'ไม่ระบุเว็บ' : 'เว็บ ' + g.site} (${g.people.length} คน)`)]);
+            L.push(['อันดับ', 'พนักงาน', 'จำนวนแชทที่ตอบ'].map(esc));
+            g.people.forEach((p, i) => L.push([i + 1, p.name, p.n].map(esc)));
+            L.push(['', g.site === 'ไม่ระบุเว็บ' ? 'รวมไม่ระบุเว็บ' : 'รวมเว็บ ' + g.site, g.total].map(esc));
+            L.push([]);
+        });
+        L.push(['', 'รวม' + sh.short, sh.total].map(esc));
+        L.push([]); L.push([]);
     });
-    L.push(['', 'รวมทุกเว็บ', rows.length].map(esc));
+    L.push(['', 'รวมทุกกะ', rows.length].map(esc));
     return L.map(x => x.join(',')).join('\r\n');
 }
 
