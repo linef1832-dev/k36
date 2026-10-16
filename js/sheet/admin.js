@@ -449,13 +449,18 @@ window.toggleSplitPreview = function() {
     window._splitSyncUI();
     if (typeof Swal !== 'undefined') Swal.fire({ toast: true, position: 'top-end', icon: 'info', title: on ? 'เปิดพรีวิวรูปใหญ่ (ชี้ค้าง หรือกด Space)' : 'ปิดพรีวิวรูปใหญ่', showConfirmButton: false, timer: 1400, background: '#0f172a', color: '#e2e8f0' });
 };
+// 🔧 [แก้บั๊ก] เดิมแปะกล่องพรีวิวไว้ที่ <body> → ออกจากหน้าตารางรวมงานแล้วกล่องยังค้าง
+//    และ CSS ของมัน (อยู่ในหน้านี้) หายไป → รูปใหญ่โผล่ต่อท้ายหน้าอื่น เช่นหน้าหลัก
+//    ตอนนี้ใส่ไว้ "ในแผงคลังรูป" → ออกจากหน้า/ปิดแผง กล่องหายไปด้วยเสมอ
 window._splitPreviewEl = function() {
+    const d = document.getElementById('galleryDrawer');
     let el = document.getElementById('gdPreview');
+    if (el && (!d || !d.contains(el))) { el.remove(); el = null; }   // ของเก่าที่ค้างอยู่นอกแผง → ทิ้ง
     if (!el) {
         el = document.createElement('div');
         el.id = 'gdPreview';
         el.innerHTML = '<div class="gdp-box"><img alt=""><div class="gdp-cap"><span class="gdp-name"></span><span class="gdp-hint">กด Space เพื่อปิด/ค้างไว้ · คลิกรูปเพื่อเปิดเต็มจอ</span></div></div>';
-        document.body.appendChild(el);
+        (d || document.body).appendChild(el);
     }
     return el;
 };
@@ -549,7 +554,7 @@ window._splitEnhance = function() {
             if (el && !el.classList.contains('pinned')) window._splitPreviewHide();
         });
         document.addEventListener('keydown', e => {
-            if (e.code !== 'Space' || d.style.display !== 'flex') return;
+            if (e.code !== 'Space' || !d.isConnected || d.style.display !== 'flex') return;   // ออกจากหน้านี้แล้ว → ไม่ยุ่งกับปุ่ม Space ของหน้าอื่น
             const t = e.target;
             if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
             const el = document.getElementById('gdPreview');
