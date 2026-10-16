@@ -1857,7 +1857,7 @@ window.renderRosterGrid = async function(rosterData) {
                 // 🕘 ประวัติ 3 วันแบบโชว์ในชิป: เมื่อวาน ■VV72 · 2 วันก่อน ■K188 · 3 วันก่อน ■NM9
                 const histHtml = histArr.map(h => {
                     const mc = TEAM_COLORS[h.main] || TEAM_COLORS['DEFAULT'];
-                    return `<span class="ov-hi"><small>${h.ago === 1 ? 'เมื่อวาน' : h.ago + ' วันก่อน'}</small>${h.main ? `<i class="ov-dot ${mc.bg}"></i>${h.main}` : '-'}${h.sec ? `<em>+รอง ${h.sec}</em>` : ''}</span>`;
+                    return `<span class="ov-hi"><small>${h.ago === 1 ? 'เมื่อวาน' : h.ago + ' วัน'}</small>${h.main ? `<i class="ov-dot ${mc.bg}"></i>${h.main}` : '-'}${h.sec ? `<em>+รอง ${h.sec}</em>` : ''}</span>`;
                 }).join('');
                 return { id: a.id, name: String(a.username).replace(/<[^>]*>/g, '').trim(), miss, slots, sec: a.secondary_team || '', drag: !miss && a.id && isAdmin, me: _isMe(a), pin, sup, hist, histHtml };
             }),
@@ -1916,18 +1916,21 @@ window.renderRosterGrid = async function(rosterData) {
         return `<div class="ov-row" data-team="${it.team}" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${it.team}')">
             <div class="ov-team">
                 <span class="ov-bar ${it.color.bg}"></span>
-                <span><b>${it.title}</b><small>${it.count} คน</small>${it.trainerBtn || ''}</span>
+                <div class="ov-tinfo">
+                    <b>${it.title}</b>
+                    <div class="ov-tmeta"><small>${it.count} คน</small><span class="ov-stp ${st[0]}">${st[1]}</span></div>
+                    ${it.standbyNames.length ? `<div class="ov-sbl" title="สแตนด์บายช่วยเว็บนี้"><span class="material-icons">transfer_within_a_station</span>${it.standbyNames.map(n => window.escapeHtml(n)).join(', ')}</div>` : ''}
+                    ${it.trainerBtn || ''}
+                </div>
             </div>
             <div class="ov-people">${chips}</div>
-            <div class="ov-sb">${it.standbyNames.length ? it.standbyNames.map(n => window.escapeHtml(n)).join(', ') : '—'}</div>
-            <div class="ov-st"><span class="${st[0]}">${st[1]}</span></div>
         </div>`;
     }).join('');
     const _okN = _dmItems.filter(x => !x.missing).length, _missN = _dmItems.filter(x => x.missing).length;
     const _overview = `<section class="ov-wrap">
             <div class="ov-sum"><span>เว็บพร้อม <b>${_okN}/${_dmItems.length}</b></span>${_missN ? `<span class="bad">ขาดคน <b>${_missN}</b> เว็บ</span>` : ''}<span>คนทำงาน <b>${_dmItems.reduce((a, x) => a + x.count, 0)}</b></span></div>
             <div class="ov-table">
-                <div class="ov-row ov-h"><div>เว็บ</div><div>คนประจำ · เวลาพัก</div><div>สแตนด์บายช่วย</div><div style="text-align:right">สถานะ</div></div>
+                <div class="ov-row ov-h"><div>เว็บ · สถานะ · สแตนด์บาย</div><div>คนประจำ · เวลาพัก · งานรอง · ย้อนหลัง 3 วัน</div></div>
                 ${_ovRows}
             </div>
         </section>`;
