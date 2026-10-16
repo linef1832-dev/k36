@@ -1852,9 +1852,14 @@ window.renderRosterGrid = async function(rosterData) {
                 // 📌 อยู่ต่อ (เฉพาะฝ่ายจัดเวร) · 🛟 ไปช่วยเว็บอื่น · 🕘 ประวัติ 3 วัน (โชว์ตอนชี้)
                 const pin = (!miss && a.id && typeof window.renderStayPinHtml === 'function') ? window.renderStayPinHtml(a, team, isAdmin) : '';
                 const sup = (!miss && a.id && typeof window.getSupportForUser === 'function') ? window.getSupportForUser(a.id).map(x => `ช่วย ${x.target} ${typeof minToTime === 'function' ? minToTime(x.start) + '–' + minToTime(x.end) : ''}`.trim()) : [];
-                const hist = (!miss ? (historyTeamOf[a.username] || []) : []).filter(h => h.main || h.sec)
-                    .map(h => `${h.ago === 1 ? 'เมื่อวาน' : h.ago + ' วันก่อน'} ${h.main || '-'}${h.sec ? ' (รอง ' + h.sec + ')' : ''}`).join(' · ');
-                return { id: a.id, name: String(a.username).replace(/<[^>]*>/g, '').trim(), miss, slots, sec: a.secondary_team || '', drag: !miss && a.id && isAdmin, me: _isMe(a), pin, sup, hist };
+                const histArr = (!miss ? (historyTeamOf[a.username] || []) : []).filter(h => h.main || h.sec);
+                const hist = histArr.map(h => `${h.ago === 1 ? 'เมื่อวาน' : h.ago + ' วันก่อน'} ${h.main || '-'}${h.sec ? ' (รอง ' + h.sec + ')' : ''}`).join(' · ');
+                // 🕘 ประวัติ 3 วันแบบโชว์ในชิป: เมื่อวาน ■VV72 · 2 วันก่อน ■K188 · 3 วันก่อน ■NM9
+                const histHtml = histArr.map(h => {
+                    const mc = TEAM_COLORS[h.main] || TEAM_COLORS['DEFAULT'];
+                    return `<span class="ov-hi"><small>${h.ago === 1 ? 'เมื่อวาน' : h.ago + ' วันก่อน'}</small>${h.main ? `<i class="ov-dot ${mc.bg}"></i>${h.main}` : '-'}${h.sec ? `<em>+รอง ${h.sec}</em>` : ''}</span>`;
+                }).join('');
+                return { id: a.id, name: String(a.username).replace(/<[^>]*>/g, '').trim(), miss, slots, sec: a.secondary_team || '', drag: !miss && a.id && isAdmin, me: _isMe(a), pin, sup, hist, histHtml };
             }),
             trainerBtn: (window.isTrainerDept && window.isTrainerDept() && (isAdmin || (currentUser && (currentUser.department === 'AMQL' || currentUser.department === 'ODQL' || String(currentUser.department || '').startsWith('TRAINER')))))
                 ? `<button type="button" class="ov-trbtn" onclick="openTrainerReportModal('${team}')" title="บันทึกประเมินการดูแลเว็บนี้">📝 ประเมิน</button>` : '' });
@@ -1906,6 +1911,7 @@ window.renderRosterGrid = async function(rosterData) {
                     : (_canSec && p.id ? `<button type="button" class="ov-sec add" onclick="event.stopPropagation(); changeSecondaryTeam('${it.team}', '${p.id}', '${window.escapeJsAttr(p.name)}')" title="แจกงานรองให้ ${window.escapeHtml(p.name)}">+ รอง</button>` : '')}
                 ${p.sup.map(t => `<i class="ov-sup">🛟 ${window.escapeHtml(t)}</i>`).join('')}
                 ${p.pin ? `<span class="ov-pin">${p.pin}</span>` : ''}
+                ${p.histHtml ? `<span class="ov-hist"><span class="material-icons">history</span>${p.histHtml}</span>` : ''}
             </span>`).join('') || '<span class="ov-empty">ยังไม่มีคน · ลากชื่อมาวางได้</span>';
         return `<div class="ov-row" data-team="${it.team}" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${it.team}')">
             <div class="ov-team">
