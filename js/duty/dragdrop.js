@@ -29,9 +29,16 @@ window.handleDragStart = function(event, userId, username, fromTeam) {
     const canDrag = window.isDutyAdmin();
     if (!canDrag) { event.preventDefault(); return; }
     if(!userId || userId === 'undefined') { event.preventDefault(); return; }
+    // [FIX] ลากโดน "ตัวหนังสือที่ถูกคลุมไว้" → ตัวที่ถูกลากเป็น text node (ไม่มี classList) → พัง
+    //       และเบราว์เซอร์ลากข้อความทั้งแถวไปแทนการ์ดคนเดียว → ใช้การ์ดคนจริงๆ เสมอ
+    const t = event.target && event.target.nodeType === 1 ? event.target : (event.target && event.target.parentElement);
+    const card = (event.currentTarget && event.currentTarget.classList ? event.currentTarget : null) || (t && t.closest ? t.closest('.duty-user-card') : null);
+    if (!card) { event.preventDefault(); return; }
+    try { const sel = window.getSelection && window.getSelection(); if (sel && sel.removeAllRanges) sel.removeAllRanges(); } catch (e) {}
     draggedUser = { id: userId, username: username, fromTeam: fromTeam };
     event.dataTransfer.effectAllowed = "move";
-    setTimeout(() => event.target.classList.add('opacity-50', 'scale-95'), 0);
+    try { event.dataTransfer.setData('text/plain', String(username || '')); event.dataTransfer.setDragImage(card, 20, 16); } catch (e) {}
+    setTimeout(() => { if (card.classList) card.classList.add('opacity-50', 'scale-95'); }, 0);
 
     const userAccess = dutyAccessMatrix[userId] || [];
     let accessText = userAccess.length > 0 ? userAccess.join(', ') : 'ไม่มีสิทธิ์เลย';
@@ -46,7 +53,8 @@ window.handleDragStart = function(event, userId, username, fromTeam) {
     tooltip.style.display = 'block';
 
     document.querySelectorAll('.duty-site-card').forEach(card => {
-        const teamName = card.querySelector('h4').innerText.trim();
+        const _h4 = card.querySelector('h4'); if (!_h4) return;
+        const teamName = _h4.innerText.trim();
         if (userAccess.includes(teamName)) card.classList.add('ring-4', 'ring-green-500', 'shadow-[0_0_15px_rgba(34,197,94,0.4)]');
         else card.classList.add('opacity-40', 'grayscale');
     });

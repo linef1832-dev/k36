@@ -80,7 +80,8 @@
     #dutyApp .ov-sum span b{color:var(--k-tx-strong);font-size:14px}
     #dutyApp .ov-sum span.bad{background:var(--k-red-bg);border-color:var(--k-red-line);color:var(--k-red-tx)}
     #dutyApp .ov-sum span.bad b{color:var(--k-red-tx)}
-    #dutyApp .ov-table{border-radius:16px;background:var(--k-panel);border:1px solid var(--k-line);overflow:hidden}
+    /* ห้ามคลุมข้อความในตาราง — กันลากผิดเป็นข้อความทั้งแถว */
+    #dutyApp .ov-table{-webkit-user-select:none;user-select:none;border-radius:16px;background:var(--k-panel);border:1px solid var(--k-line);overflow:hidden}
     /* 2 คอลัมน์: ซ้าย = เว็บ+สถานะ+สแตนด์บาย · ขวา = การ์ดคนเรียงเป็นตาราง ขนาดเท่ากัน */
     #dutyApp .ov-row{display:grid;grid-template-columns:190px minmax(0,1fr);gap:16px;align-items:start;padding:14px 16px;border-bottom:1px solid var(--k-line)}
     #dutyApp .ov-row:last-child{border-bottom:0}
