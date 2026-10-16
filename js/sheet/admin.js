@@ -305,9 +305,14 @@ window.applySplitLayout = function() {
 };
 
 // ปรับขนาดหน้าต่าง → คำนวณตำแหน่งใหม่ (เฉพาะตอนแผงเปิดอยู่)
+window._splitResizeRaf = 0;   // ย่อ/ขยายหน้าต่างเบราว์เซอร์: จัดใหม่อย่างมากเฟรมละครั้ง (เดิมจัดทุกเหตุการณ์ → หน่วง)
 window.addEventListener('resize', () => {
-    const d = document.getElementById('galleryDrawer');
-    if (d && d.style.display === 'flex') window.applySplitLayout();
+    if (window._splitResizeRaf) return;
+    window._splitResizeRaf = requestAnimationFrame(() => {
+        window._splitResizeRaf = 0;
+        const d = document.getElementById('galleryDrawer');
+        if (d && d.isConnected && d.style.display === 'flex') window.applySplitLayout();
+    });
 });
 
 // ⇄ สลับฝั่ง ชีต↔คลังรูป
@@ -347,17 +352,37 @@ window._ensureSplitControls = function() {
         h.onmouseleave = () => h.style.background = 'transparent';
         h.onmousedown = (e) => {
             e.preventDefault();
-            // ผ้าคลุมโปร่งกันเมาส์หลุดเข้า iframe (Google Sheet) ระหว่างลาก
+            // ⚡ [แก้แลค] เดิมขยับเมาส์ทุกพิกเซล = จัดหน้าชีต + คลังรูป (รูปหลายสิบใบ) ใหม่ทั้งหมด → หน่วงมาก
+            //    ตอนนี้ระหว่างลากขยับแค่ "เส้นนำทองบาง ๆ + ป้าย %" (เบามาก ลื่น) ปล่อยเมาส์แล้วค่อยจัดหน้าจริงครั้งเดียว
+            const p = window._splitPrefs;
+            const pctAt = (x) => Math.min(75, Math.max(25, Math.round(p.side === 'left' ? (x / window.innerWidth * 100) : ((window.innerWidth - x) / window.innerWidth * 100))));
+            const xOf = (pct) => p.side === 'left' ? window.innerWidth * pct / 100 : window.innerWidth * (100 - pct) / 100;
+            // ผ้าคลุมโปร่ง (กันเมาส์หลุดเข้า iframe ของ Google Sheet ระหว่างลาก) + เส้นนำ + ป้าย
             const cover = document.createElement('div');
-            cover.style.cssText = 'position:fixed;inset:0;z-index:9998;cursor:col-resize';
+            cover.style.cssText = 'position:fixed;inset:0;z-index:9998;cursor:col-resize;background:rgba(2,6,23,.18)';
+            const guide = document.createElement('div');
+            guide.style.cssText = 'position:absolute;top:0;bottom:0;width:3px;margin-left:-1px;background:#E8C15A;box-shadow:0 0 0 1px rgba(0,0,0,.25),0 0 18px rgba(232,193,90,.7);will-change:transform;left:0';
+            const tag = document.createElement('div');
+            tag.style.cssText = 'position:absolute;top:50%;left:0;transform:translate(-50%,-50%);padding:6px 11px;border-radius:999px;background:#E8C15A;color:#1b1406;font:900 13px Sarabun,sans-serif;box-shadow:0 6px 18px rgba(0,0,0,.4);white-space:nowrap;will-change:transform';
+            cover.appendChild(guide); cover.appendChild(tag);
             document.body.appendChild(cover);
-            const move = (ev) => {
-                const p = window._splitPrefs;
-                const raw = p.side === 'left' ? (ev.clientX / window.innerWidth * 100) : ((window.innerWidth - ev.clientX) / window.innerWidth * 100);
-                p.pct = Math.min(75, Math.max(25, Math.round(raw)));
-                window.applySplitLayout();
+            let pct = Math.min(75, Math.max(25, p.pct || 50)), raf = 0;
+            const draw = () => {
+                raf = 0;
+                const x = Math.round(xOf(pct));
+                guide.style.transform = `translateX(${x}px)`;
+                tag.style.transform = `translate(calc(${x}px - 50%), -50%)`;
+                tag.textContent = `คลังรูป ${pct}%`;
             };
-            const up = () => { document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up); cover.remove(); window._saveSplitPrefs(); };
+            draw();
+            const move = (ev) => { pct = pctAt(ev.clientX); if (!raf) raf = requestAnimationFrame(draw); };
+            const up = () => {
+                document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up);
+                if (raf) cancelAnimationFrame(raf);
+                cover.remove();
+                if (pct !== p.pct) { p.pct = pct; window.applySplitLayout(); }   // จัดหน้าจริงครั้งเดียวตอนปล่อย
+                window._saveSplitPrefs();
+            };
             document.addEventListener('mousemove', move);
             document.addEventListener('mouseup', up);
         };
