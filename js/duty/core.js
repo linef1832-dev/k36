@@ -877,6 +877,8 @@ window.saveRotationGap = async function(v) {
         const val = JSON.stringify(cfg);
         await appDB.from('settings').upsert([{ key: 'duty_rotation_gap', value: val }]);
         if (typeof SETTINGS !== 'undefined') SETTINGS.duty_rotation_gap = val;
+        // วาดตารางใหม่ ให้ประวัติย้อนหลังโชว์ตามจำนวนวันที่เพิ่งตั้ง
+        try { window._ydRosterCache = null; if (typeof window.renderRosterGrid === 'function' && typeof currentRosterData !== 'undefined' && currentRosterData) window.renderRosterGrid(currentRosterData); } catch (e) {}
 
         const depLabel = dept === 'AMQL' ? 'ผู้สอน AM' : dept === 'ODQL' ? 'ผู้สอน OD' : dept;
         Swal.fire({ icon: 'success',
@@ -1609,7 +1611,8 @@ window.renderRosterGrid = async function(rosterData) {
     // 🕘 [ป้ายย้อนหลัง] ดึงตารางเวร 3 วันก่อนหน้า (แผนก+กะเดียวกัน) มายิงครั้งเดียว
     //    เพื่อโชว์ป้าย "เมื่อวานทำ X · 2 วันก่อน Y · 3 วันก่อน Z" ต่อท้ายชื่อพนักงาน
     //    historyTeamOf[ชื่อ] = [{ ago, main, sec }, ...] เรียงจากวันล่าสุดไปเก่าสุด
-    const DUTY_HISTORY_DAYS = 3;
+    // ย้อนหลังกี่วัน = ตามค่า "เว้นซ้ำเว็บ" ของแผนกนี้ (ตั้ง 1 = เมื่อวานอย่างเดียว · 2 = 2 วัน · ...) อย่างน้อย 1 สูงสุด 7
+    const DUTY_HISTORY_DAYS = Math.max(1, Math.min(7, (typeof window.getRotationGapDays === 'function') ? (window.getRotationGapDays(currentDutyDept) || 1) : 3));
     const HIST_SHIFTS = ['กะเช้า', 'กะกลาง', 'กะดึก'];   // ดูข้ามกะ เพราะคนสลับกะกันบ่อย
     let historyTeamOf = {};
     if (targetDate) {
