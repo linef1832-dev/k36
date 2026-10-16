@@ -176,6 +176,8 @@ window.oa_render = function () {
             <span class="material-icons oa-chev">chevron_right</span>
         </div><div class="oa-detail">${detail}</div>`;
     }).join('');
+    // 🔧 วาดรายชื่อลูกค้าของคนที่กางอยู่ทันที (เดิมพอตารางวาดใหม่ เช่น รีเฟรชอัตโนมัติ/ค้นหา/เปลี่ยนตัวกรอง กล่องที่กางจะว่างเปล่า)
+    o.open.forEach(id => { if (by[id]) oa_drawChats(id); else o.open.delete(id); });
 };
 
 window.oa_renderRank = function (list, max) {
@@ -208,7 +210,7 @@ window.oa_setTab = function (tb) {
     if (vr) vr.style.display = tb === 'rank' ? '' : 'none';
 };
 window._oa._chatPage = window._oa._chatPage || {};
-window.oa_toggle = function (id) { const st = window._oa.open; if (st.has(id)) st.delete(id); else { st.add(id); window._oa._chatPage[id] = 0; } window.oa_render(); setTimeout(() => oa_drawChats(id), 0); };
+window.oa_toggle = function (id) { const st = window._oa.open; if (st.has(id)) st.delete(id); else { st.add(id); window._oa._chatPage[id] = 0; } window.oa_render(); };
 window.oa_drawChats = function (id) {
     const box = document.querySelector(`.oa-paged[data-uid="${id}"]`); if (!box) return;
     const x = (window._oa._byUser || {})[id]; if (!x) return;
