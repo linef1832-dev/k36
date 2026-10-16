@@ -20,52 +20,80 @@ window.oa_setRange = function (r) {
     else { if (f.value > t.value) t.value = f.value; }
     document.querySelectorAll('#oaRangeSeg button').forEach(b => b.classList.toggle('on', b.dataset.r === r));
     const live = document.getElementById('oaRangeLive'); if (live) { const lbl = { today: 'วันนี้', yesterday: 'เมื่อวาน', '7d': '7 วันล่าสุด', month: 'เดือนนี้', custom: f.value + ' — ' + t.value }[r] || ''; live.textContent = lbl; }
-    // ถ้าช่วงใหม่อยู่ในข้อมูลที่โหลดไว้ครอบคลุมแล้ว → กรองในเครื่องทันที (ไม่หน่วง) แล้วซิงก์เบื้องหลัง
-    if (o._loadedFrom && o._loadedTo && f.value >= o._loadedFrom && t.value <= o._loadedTo && o.rows.length >= 0) {
-        o._viewFrom = f.value; o._viewTo = t.value; window.oa_render();
-        clearTimeout(o._syncT); o._syncT = setTimeout(() => window.oa_load(), 400);
+    // ⚡ ข้อมูลที่โหลดไว้ครอบคลุมช่วงนี้แล้ว → โชว์ทันที (กรองในเครื่อง) ไม่ต้องรอเน็ต
+    o._viewFrom = f.value; o._viewTo = t.value;
+    if (o._loadedFrom && o._loadedTo && f.value >= o._loadedFrom && t.value <= o._loadedTo) {
+        window.oa_render();
     } else {
+        // ช่วงที่ยังไม่มีในเครื่อง (เช่น เลือกวันเองย้อนไปเดือนก่อน) → แสดงกำลังโหลด แล้วดึงใหม่
+        const list = document.getElementById('oaList'); if (list) list.style.opacity = '.45';
         window.oa_load();
     }
 };
 
+// ช่วงที่โหลดเก็บไว้ในเครื่อง: ครอบ "วันนี้ / เมื่อวาน / 7 วัน / เดือนนี้" ทั้งหมด → กดสลับแล้วขึ้นทันที
+function oa_wideRange(f, t) {
+    const today = oa_workDate(0), d7 = oa_workDate(-6), m1 = today.slice(0, 8) + '01';
+    const wf = [f, d7, m1].sort()[0];
+    const wt = [t, today].sort().reverse()[0];
+    return [wf, wt];
+}
+// วันที่ทุกวันในช่วง (ใช้ดึงตารางจัดหน้าที่เฉพาะวันที่ต้องใช้)
+function oa_daysBetween(f, t) {
+    const out = []; const d = new Date(f + 'T00:00:00'), end = new Date(t + 'T00:00:00');
+    while (d <= end && out.length < 62) { out.push(oa_iso(d)); d.setDate(d.getDate() + 1); }
+    return out;
+}
+
 window.oa_load = async function () {
-    const o = window._oa, f = document.getElementById('oaFrom').value, t = document.getElementById('oaTo').value;
-    o._viewFrom = f; o._viewTo = t;
+    const o = window._oa, vf = document.getElementById('oaFrom').value, vt = document.getElementById('oaTo').value;
+    o._viewFrom = vf; o._viewTo = vt;
+    const [f, t] = oa_wideRange(vf, vt);   // ⚡ โหลดกว้างทีเดียว แล้วกรองช่วงที่ดูในเครื่อง
+    const myReq = (o._reqId = (o._reqId || 0) + 1);   // กันผลเก่าที่มาช้ากว่ามาทับผลใหม่
     try {
-        if (!Object.keys(o.users).length) {
-            const { data: us } = await window.appDB.from('users').select('id, username, name, department');
-            (us || []).forEach(u => { o.users[String(u.id)] = u; });
-        }
-        let all = [], from = 0;
-        for (;;) {   // ดึงทีละ 1000 แถว
-            const { data, error } = await window.appDB.from('oa_replies').select('work_date, user_id, username, oa_id, oa_name, chat_id, chat_name, first_at, last_at').gte('work_date', f).lte('work_date', t).order('first_at', { ascending: true }).range(from, from + 999);
-            if (error) throw error;
-            all = all.concat(data || []); if (!data || data.length < 1000) break; from += 1000;
-        }
-        o.rows = all; o._loadedFrom = f; o._loadedTo = t;
+        const usersP = Object.keys(o.users).length ? Promise.resolve(null) : window.appDB.from('users').select('id, username, name, department');
+        const repliesP = (async () => {
+            let all = [], from = 0;
+            for (;;) {   // ดึงทีละ 1000 แถว
+                const { data, error } = await window.appDB.from('oa_replies').select('work_date, user_id, username, oa_id, oa_name, chat_id, chat_name, first_at, last_at').gte('work_date', f).lte('work_date', t).order('first_at', { ascending: true }).range(from, from + 999);
+                if (error) throw error;
+                all = all.concat(data || []); if (!data || data.length < 1000) break; from += 1000;
+            }
+            return all;
+        })();
         // กะของแต่ละคน (จาก schedules) — key: lower(name)|date → กะย่อ
-        try {
-            const sm = {}; let off = 0;
-            for (;;) { const { data } = await window.appDB.from('schedules').select('work_date, staff_name, shift_name').gte('work_date', f).lte('work_date', t).range(off, off + 999);
-                (data || []).forEach(r => { const sh = /เช้า/.test(r.shift_name || '') ? 'เช้า' : /กลาง|บ่าย/.test(r.shift_name || '') ? 'กลาง' : /ดึก/.test(r.shift_name || '') ? 'ดึก' : ''; if (sh) sm[(r.staff_name || '').toLowerCase().trim() + '|' + r.work_date] = sh; });
-                if (!data || data.length < 1000) break; off += 1000; }
-            o.shiftMap = sm;
-        } catch (e) { o.shiftMap = {}; }
-        // เว็บของแต่ละคน (จากจัดหน้าที่: settings.duty_roster_แผนก_วันที่_กะ = JSON {เว็บ:[{username}]})
-        try {
-            const wm = {};
-            const { data } = await window.appDB.from('settings').select('key, value').like('key', 'duty_roster_%');
-            (data || []).forEach(row => {
-                const parts = String(row.key).split('_');   // duty_roster_<แผนก>_<วันที่>_<กะ>
-                const date = parts[3]; if (!date || date < f || date > t) return;
-                let v = row.value; if (typeof v === 'string') { try { v = JSON.parse(v); } catch (e) { return; } }
-                if (!v || typeof v !== 'object') return;
-                Object.keys(v).forEach(site => { const arr = v[site]; if (!Array.isArray(arr)) return;
-                    arr.forEach(p => { const nm = (p && (p.username || p.name) || '').toUpperCase().trim(); if (!nm) return; const k = nm + '|' + date; (wm[k] = wm[k] || new Set()).add(site); }); });
-            });
-            o.siteMap = wm;
-        } catch (e) { o.siteMap = {}; }
+        const shiftP = (async () => {
+            try {
+                const sm = {}; let off = 0;
+                for (;;) { const { data } = await window.appDB.from('schedules').select('work_date, staff_name, shift_name').gte('work_date', f).lte('work_date', t).range(off, off + 999);
+                    (data || []).forEach(r => { const sh = /เช้า/.test(r.shift_name || '') ? 'เช้า' : /กลาง|บ่าย/.test(r.shift_name || '') ? 'กลาง' : /ดึก/.test(r.shift_name || '') ? 'ดึก' : ''; if (sh) sm[(r.staff_name || '').toLowerCase().trim() + '|' + r.work_date] = sh; });
+                    if (!data || data.length < 1000) break; off += 1000; }
+                return sm;
+            } catch (e) { return {}; }
+        })();
+        // เว็บของแต่ละคน (จากจัดหน้าที่) — ⚡ เดิมดึงตารางเวร "ทุกวันที่เคยมี" ทั้งหมด (ยิ่งนานยิ่งหนัก) → ตอนนี้ดึงเฉพาะวันในช่วง
+        const siteP = (async () => {
+            try {
+                const wm = {};
+                const pats = oa_daysBetween(f, t).map(d => `key.like.duty_roster_*_${d}_*`).join(',');
+                const { data } = await window.appDB.from('settings').select('key, value').or(pats);
+                (data || []).forEach(row => {
+                    const parts = String(row.key).split('_');   // duty_roster_<แผนก>_<วันที่>_<กะ>
+                    const date = parts[3]; if (!date || date < f || date > t) return;
+                    let v = row.value; if (typeof v === 'string') { try { v = JSON.parse(v); } catch (e) { return; } }
+                    if (!v || typeof v !== 'object') return;
+                    Object.keys(v).forEach(site => { const arr = v[site]; if (!Array.isArray(arr)) return;
+                        arr.forEach(p => { const nm = (p && (p.username || p.name) || '').toUpperCase().trim(); if (!nm) return; const k = nm + '|' + date; (wm[k] = wm[k] || new Set()).add(site); }); });
+                });
+                return wm;
+            } catch (e) { return {}; }
+        })();
+        const [usRes, rows, sm, wm] = await Promise.all([usersP, repliesP, shiftP, siteP]);   // ⚡ ยิงพร้อมกัน (เดิมทีละอย่าง)
+        if (myReq !== o._reqId) return;   // มีคำขอใหม่กว่าแล้ว ทิ้งผลนี้
+        if (usRes && usRes.data) usRes.data.forEach(u => { o.users[String(u.id)] = u; });
+        o.rows = rows; o._loadedFrom = f; o._loadedTo = t; o.shiftMap = sm; o.siteMap = wm;
+        o._viewFrom = document.getElementById('oaFrom').value; o._viewTo = document.getElementById('oaTo').value;   // ใช้ช่วงล่าสุดที่ผู้ใช้เลือก
+        const lst = document.getElementById('oaList'); if (lst) lst.style.opacity = '';
         const up = document.getElementById('oaUpdated'); if (up) up.textContent = 'อัปเดต ' + new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
         oa_renderDept(); oa_renderChips(); window.oa_render();
     } catch (e) {
