@@ -615,15 +615,11 @@ window.applySidebarPermissions = async function() {
                     });
                 });
 
-                const discordGroup = PERM_GROUPS.find(g => g.id === 'page_discord');
-                if (discordGroup && onClickAttr.includes("toggleSubMenu('menu-discord'")) {
-                    const hasAnyDiscordPerm = discordGroup.items.some(i => window.hasUserPerm(i.id));
-                    if (hasAnyDiscordPerm) shouldShow = true;
-                }
-
-                if (onClickAttr.includes("toggleSubMenu('menu-admin'") || onClickAttr.includes("openAdminPanel()")) {
+                if (onClickAttr.includes("openAdminPanel()")) {
                     if (window.hasUserPerm('admin')) shouldShow = true;
                 }
+                // เมนูในหมวดผู้จัดการ: ต้องมีสิทธิ์ของหน้านั้น + สิทธิ์ "เข้าเครื่องมือผู้จัดการ" (เหมือนตอนเป็นเมนูกาง)
+                if (btn.dataset.needAdmin && !window.hasUserPerm('admin')) shouldShow = false;
             }
 
             if (shouldShow) {
@@ -635,13 +631,6 @@ window.applySidebarPermissions = async function() {
             }
         });
 
-        const menuDiscord = document.getElementById('menu-discord');
-        const discordBtn = Array.from(document.querySelectorAll('#menu-list button')).find(b => (b.getAttribute('onclick')||'').includes("toggleSubMenu('menu-discord'"));
-        if (menuDiscord && discordBtn && discordBtn.classList.contains('hidden')) menuDiscord.classList.add('hidden');
-        
-        const menuAdmin = document.getElementById('menu-admin');
-        const adminBtn = Array.from(document.querySelectorAll('#menu-list button')).find(b => (b.getAttribute('onclick')||'').includes("toggleSubMenu('menu-admin'"));
-        if (menuAdmin && adminBtn && adminBtn.classList.contains('hidden')) menuAdmin.classList.add('hidden');
 
         if (logsBtn) {
             const canSeeLogs = window.hasUserPerm('admin_logs');

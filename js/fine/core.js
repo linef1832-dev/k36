@@ -133,13 +133,9 @@ window.initFineApp = async function() {
     }
 
     if (canViewAll) {
-        const sub = document.getElementById('fineSubtitle');
-        if(sub) sub.innerText = isAdmin ? "ออกใบปรับและดูประวัติทั้งหมด" : "ดูประวัติและสถิติใบปรับทั้งหมดในระบบ";
         const title = document.getElementById('tableFineTitle');
         if(title) title.innerHTML = '<span class="material-icons text-blue-500">list_alt</span> รายการใบปรับทั้งหมดในระบบ';
     } else {
-        const sub = document.getElementById('fineSubtitle');
-        if(sub) sub.innerText = "ตรวจสอบรายการใบปรับของคุณ";
         const title = document.getElementById('tableFineTitle');
         if(title) title.innerHTML = '<span class="material-icons text-blue-500">list_alt</span> ใบปรับของฉัน';
     }
