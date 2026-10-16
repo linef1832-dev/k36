@@ -16,7 +16,7 @@
                     </div>
                 </div>
                 <div class="oa-head-actions">
-                    <button id="oaBtnCsv" onclick="oa_exportCSV()" class="oa-hbtn" title="ดาวน์โหลดสรุปจำนวนแชทของแต่ละคน (เปิดใน Excel ได้)"><span class="material-icons">download</span><span>CSV</span></button>
+                    <button id="oaBtnCsv" onclick="oa_exportCSV()" class="oa-hbtn" title="ดาวน์โหลดสรุปจำนวนแชท แยกตามเว็บ (Excel)"><span class="material-icons">download</span><span>Excel</span></button>
                     <button onclick="showPage('dashboard')" class="oa-hbtn"><span class="material-icons">arrow_back</span><span>กลับ</span></button>
                 </div>
             </div>
@@ -109,6 +109,7 @@
     #oaApp .oa-hbtn { display:inline-flex; align-items:center; gap:6px; height:38px; padding:0 14px; border-radius:11px; border:1px solid var(--k-line3); background:var(--k-btn); color:var(--k-tx2); font-weight:700; font-size:13px; cursor:pointer; transition:background .15s, border-color .15s; }
     #oaApp .oa-hbtn .material-icons { font-size:17px; }
     #oaApp .oa-hbtn:hover { background:var(--k-btn-h); border-color:var(--k-line4); color:var(--k-tx-strong); }
+    #oaApp .oa-hbtn:disabled { opacity:.6; cursor:progress; }
     #oaApp .oa-hbtn:focus-visible { outline:2px solid #06C755; outline-offset:2px; }
     #oaApp .oa-stats { display:grid; grid-template-columns:1.35fr 1fr 1fr; border-top:1px solid var(--k-line); background:color-mix(in srgb, var(--k-sunk) 70%, transparent); }
     #oaApp .oa-stat { padding:16px 20px 17px; min-width:0; }

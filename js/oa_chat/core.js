@@ -553,25 +553,160 @@ window.oa_drawChats = function (id) {
     };
 };
 
-// ─────────────────────────── ดาวน์โหลด CSV ───────────────────────────
-// สรุปรายคน: แต่ละคนตอบไปกี่แชท (เรียงมาก → น้อย) ตามช่วงวันที่ + ตัวกรอง + ค้นหา ที่เห็นบนจอ
-window.oa_exportCSV = function () {
+// ─────────────────────────── ดาวน์โหลด Excel ───────────────────────────
+// ไฟล์ .xlsx แยกเป็นกลุ่มตามเว็บ (แต่ละเว็บมีเฉพาะคนของเว็บนั้น) + หัวไฟล์บอกวันที่
+// นับตามที่เห็นบนจอ (ช่วงวันที่ + ตัวกรอง + ค้นหา) · เว็บมาจากตารางจัดหน้าที่ของวันนั้น ๆ
+const OA_MONTHS = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+const OA_DAYS = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
+// "วันศุกร์ที่ 16 ตุลาคม 2569" / "1 – 16 ตุลาคม 2569" / "28 กันยายน – 3 ตุลาคม 2569"
+function oa_fmtLong(f, t) {
+    const p = (v) => { const [y, m, d] = v.split('-').map(Number); return { y: y + 543, m: OA_MONTHS[m - 1], d, wd: OA_DAYS[new Date(v + 'T00:00:00').getDay()] }; };
+    const a = p(f), b = p(t);
+    if (f === t) return `วัน${a.wd}ที่ ${a.d} ${a.m} ${a.y}`;
+    if (a.y === b.y && a.m === b.m) return `${a.d} – ${b.d} ${b.m} ${b.y}`;
+    if (a.y === b.y) return `${a.d} ${a.m} – ${b.d} ${b.m} ${b.y}`;
+    return `${a.d} ${a.m} ${a.y} – ${b.d} ${b.m} ${b.y}`;
+}
+// สรุปเป็นกลุ่มเว็บ: [{ site, people:[{name,n}], total }] เรียงเว็บที่แชทเยอะก่อน
+// วันไหนคนเดียวอยู่ 2 เว็บ → กลุ่ม "เว็บA + เว็บB" (ไม่นับซ้ำ) · ไม่มีในตารางจัดหน้าที่ → "ไม่ระบุเว็บ" (อยู่ท้ายสุด)
+function oa_summaryBySite(rows) {
+    const NONE = 'ไม่ระบุเว็บ', g = {};
+    rows.forEach(r => {
+        const sv = oa_sitesOf(r).sort(); const site = sv.length ? sv.join(' + ') : NONE;
+        const s = g[site] || (g[site] = { site, people: {}, total: 0 });
+        const k = String(r.user_id); (s.people[k] = s.people[k] || { name: oa_nameOf(r), n: 0 }).n++; s.total++;
+    });
+    return Object.values(g)
+        .map(s => ({ site: s.site, total: s.total, people: Object.values(s.people).sort((a, b) => b.n - a.n || a.name.localeCompare(b.name, 'th')) }))
+        .sort((a, b) => (a.site === NONE) - (b.site === NONE) || b.total - a.total || a.site.localeCompare(b.site, 'th'));
+}
+function oa_filterNote() {
+    const o = window._oa, q = ((document.getElementById('oaSearch') || {}).value || '').trim(), parts = [];
+    if (o.dept !== 'ALL') parts.push('แผนก ' + o.dept);
+    if (o.shift !== 'ALL') parts.push('กะ' + o.shift);
+    if (o.site !== 'ALL') parts.push('เว็บ ' + o.site);
+    if (o.oaline !== 'ALL') parts.push('ไลน์ ' + o.oaline);
+    if (q) parts.push('ค้นหา "' + q + '"');
+    return parts.join(' · ');
+}
+let oa_xlP = null;
+function oa_loadExcelJS() {
+    if (window.ExcelJS) return Promise.resolve(window.ExcelJS);
+    if (oa_xlP) return oa_xlP;
+    const add = (src) => new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = rej; setTimeout(() => rej(new Error('timeout')), 15000); document.head.appendChild(s); });
+    oa_xlP = (window.JSZip ? Promise.resolve() : add('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'))
+        .then(() => add('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js'))
+        .then(() => window.ExcelJS)
+        .catch(e => { oa_xlP = null; throw e; });
+    return oa_xlP;
+}
+function oa_fileName(ext) {
+    const o = window._oa;
+    return (o._viewFrom === o._viewTo ? `สรุปแชท-OA_${o._viewFrom}` : `สรุปแชท-OA_${o._viewFrom}_ถึง_${o._viewTo}`) + '.' + ext;
+}
+function oa_download(blob, name) {
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+}
+
+window.oa_exportCSV = async function () {
     if (!oa_can('oa_chat_export')) { alert('ไม่มีสิทธิ์ดาวน์โหลด'); return; }
     const rows = oa_filtered();
     if (!rows.length) { alert('ไม่มีข้อมูลในช่วง/ตัวกรองที่เลือก'); return; }
-    const by = {};
-    rows.forEach(r => { const k = String(r.user_id); (by[k] = by[k] || { name: oa_nameOf(r), n: 0 }).n++; });
-    const list = Object.values(by).sort((a, b) => b.n - a.n || a.name.localeCompare(b.name, 'th'));
-    const esc = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
-    const lines = [['อันดับ', 'พนักงาน', 'จำนวนแชทที่ตอบ'].map(esc).join(',')]
-        .concat(list.map((x, i) => [i + 1, x.name, x.n].map(esc).join(',')))
-        .concat([['', 'รวม', rows.length].map(esc).join(',')]);
-    const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
-    const o = window._oa, a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = o._viewFrom === o._viewTo ? `สรุปแชท-OA_${o._viewFrom}.csv` : `สรุปแชท-OA_${o._viewFrom}_ถึง_${o._viewTo}.csv`;
-    a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    const o = window._oa, groups = oa_summaryBySite(rows);
+    const dateTxt = oa_fmtLong(o._viewFrom, o._viewTo), note = oa_filterNote();
+    const btn = document.getElementById('oaBtnCsv'), lbl = btn && btn.querySelector('span:not(.material-icons)');
+    const old = lbl ? lbl.textContent : '';
+    if (btn) { btn.disabled = true; if (lbl) lbl.textContent = 'กำลังสร้าง…'; }
+    try {
+        const ExcelJS = await oa_loadExcelJS();
+        oa_download(new Blob([await oa_buildXlsx(ExcelJS, groups, rows, dateTxt, note)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), oa_fileName('xlsx'));
+    } catch (e) {
+        // โหลดเครื่องมือ Excel ไม่ได้ (เน็ต/บล็อก) → ส่งเป็น CSV หน้าตาเดียวกันแทน ยังเปิดใน Excel ได้
+        oa_download(new Blob(['\ufeff' + oa_buildCsv(groups, rows, dateTxt, note)], { type: 'text/csv;charset=utf-8' }), oa_fileName('csv'));
+    } finally {
+        if (btn) { btn.disabled = false; if (lbl) lbl.textContent = old; }
+    }
 };
+
+async function oa_buildXlsx(ExcelJS, groups, rows, dateTxt, note) {
+    const wb = new ExcelJS.Workbook(); wb.creator = 'K36';
+    const FONT = 'Tahoma';
+    const fill = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
+    const thin = (argb) => ({ style: 'thin', color: { argb } });
+    const setRow = (ws, r, vals) => { const row = ws.getRow(r); vals.forEach((v, i) => { row.getCell(i + 1).value = v; }); return row; };
+    const head = (ws, title) => {
+        ws.columns = [{ width: 9 }, { width: 30 }, { width: 18 }];
+        ws.mergeCells('A1:C1'); ws.getCell('A1').value = title;
+        ws.getCell('A1').font = { name: FONT, size: 15, bold: true, color: { argb: 'FF0F172A' } };
+        ws.mergeCells('A2:C2'); ws.getCell('A2').value = dateTxt;
+        ws.getCell('A2').font = { name: FONT, size: 12, bold: true, color: { argb: 'FF047857' } };
+        ws.mergeCells('A3:C3');
+        ws.getCell('A3').value = 'นับตามวันทำงาน (ตัดรอบ 08:00)' + (note ? ' · ตัวกรอง: ' + note : '') + ' · ดึงข้อมูล ' + new Date().toLocaleString('th-TH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        ws.getCell('A3').font = { name: FONT, size: 9, color: { argb: 'FF64748B' } };
+        ws.getRow(1).height = 24; ws.getRow(2).height = 19;
+        return 5;   // แถวที่เริ่มเนื้อหา
+    };
+    const colHead = (ws, r) => {
+        const row = setRow(ws, r, ['อันดับ', 'พนักงาน', 'จำนวนแชทที่ตอบ']);
+        row.eachCell(c => { c.font = { name: FONT, bold: true, size: 10, color: { argb: 'FF475569' } }; c.fill = fill('FFF1F5F9'); c.border = { bottom: thin('FFCBD5E1') }; });
+        row.getCell(1).alignment = { horizontal: 'center' }; row.getCell(3).alignment = { horizontal: 'right' };
+    };
+    const person = (ws, r, i, p) => {
+        const row = setRow(ws, r, [i + 1, p.name, p.n]);
+        row.getCell(1).alignment = { horizontal: 'center' }; row.getCell(3).numFmt = '#,##0';
+        row.eachCell(c => { c.font = { name: FONT, size: 11 }; c.border = { bottom: thin('FFEEF2F6') }; });
+    };
+    const total = (ws, r, label, n, strong) => {
+        const row = setRow(ws, r, [null, label, n]); row.getCell(3).numFmt = '#,##0';
+        row.eachCell({ includeEmpty: true }, c => { c.font = { name: FONT, size: 11, bold: true, color: { argb: strong ? 'FFFFFFFF' : 'FF0F172A' } }; c.border = { top: thin('FF94A3B8') }; if (strong) c.fill = fill('FF047857'); });
+    };
+
+    // ชีต 1: แยกตามเว็บ
+    const ws = wb.addWorksheet('แยกตามเว็บ', { views: [{ showGridLines: false }] });
+    let r = head(ws, 'สรุปจำนวนแชท LINE OA · แยกตามเว็บ');
+    groups.forEach(g => {
+        ws.mergeCells(`A${r}:C${r}`);
+        const c = ws.getCell(`A${r}`);
+        c.value = `${g.site === 'ไม่ระบุเว็บ' ? 'ไม่ระบุเว็บ (ไม่มีในตารางจัดหน้าที่)' : 'เว็บ ' + g.site}   ·   ${g.people.length} คน   ·   ${g.total.toLocaleString('en-US')} แชท`;
+        c.font = { name: FONT, size: 12, bold: true, color: { argb: 'FF065F46' } }; c.fill = fill('FFD1FAE5'); c.alignment = { vertical: 'middle', indent: 1 };
+        c.border = { left: { style: 'medium', color: { argb: 'FF10B981' } } };
+        ws.getRow(r).height = 22; r++;
+        colHead(ws, r++);
+        g.people.forEach((p, i) => person(ws, r++, i, p));
+        total(ws, r++, g.site === 'ไม่ระบุเว็บ' ? 'รวมไม่ระบุเว็บ' : 'รวมเว็บ ' + g.site, g.total, false);
+        r++;   // เว้น 1 แถวคั่นเว็บ
+    });
+    total(ws, r, 'รวมทุกเว็บ', rows.length, true); ws.getRow(r).height = 22;
+
+    // ชีต 2: รวมทุกคน (ไม่แยกเว็บ)
+    const by = {}; rows.forEach(x => { const k = String(x.user_id); (by[k] = by[k] || { name: oa_nameOf(x), n: 0 }).n++; });
+    const all = Object.values(by).sort((a, b) => b.n - a.n || a.name.localeCompare(b.name, 'th'));
+    const ws2 = wb.addWorksheet('รวมทุกคน', { views: [{ showGridLines: false }] });
+    let r2 = head(ws2, 'สรุปจำนวนแชท LINE OA · รวมทุกคน');
+    colHead(ws2, r2++);
+    all.forEach((p, i) => person(ws2, r2++, i, p));
+    total(ws2, r2, 'รวม', rows.length, true);
+
+    [ws, ws2].forEach(s => { s.pageSetup = { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: .5, right: .5, top: .6, bottom: .6, header: .3, footer: .3 } }; });
+    return wb.xlsx.writeBuffer();
+}
+
+function oa_buildCsv(groups, rows, dateTxt, note) {
+    const esc = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+    const L = [[esc('สรุปจำนวนแชท LINE OA')], [esc(dateTxt)]];
+    if (note) L.push([esc('ตัวกรอง: ' + note)]);
+    L.push([]);
+    groups.forEach(g => {
+        L.push([esc(`${g.site === 'ไม่ระบุเว็บ' ? 'ไม่ระบุเว็บ' : 'เว็บ ' + g.site} (${g.people.length} คน)`)]);
+        L.push(['อันดับ', 'พนักงาน', 'จำนวนแชทที่ตอบ'].map(esc));
+        g.people.forEach((p, i) => L.push([i + 1, p.name, p.n].map(esc)));
+        L.push(['', 'รวมเว็บ ' + g.site, g.total].map(esc));
+        L.push([]);
+    });
+    L.push(['', 'รวมทุกเว็บ', rows.length].map(esc));
+    return L.map(x => x.join(',')).join('\r\n');
+}
 
 // ─────────────────────────── เริ่มหน้า ───────────────────────────
 window.initOaChat = async function () {
