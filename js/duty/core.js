@@ -1916,6 +1916,7 @@ window.renderRosterGrid = async function(rosterData) {
                 ${p.histHtml ? `<span class="ov-hist"><span class="material-icons">history</span>${p.histHtml}</span>` : ''}
             </span>`).join('') || '<span class="ov-empty">ยังไม่มีคน · ลากชื่อมาวางได้</span>';
         return `<div class="ov-row" data-team="${it.team}" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${it.team}')">
+            <span class="ov-tint ${it.color.bg}" aria-hidden="true"></span>
             <div class="ov-team">
                 <span class="ov-bar ${it.color.bg}"></span>
                 <span><b>${it.title}</b><small>${it.count} คน</small>
@@ -1930,10 +1931,10 @@ window.renderRosterGrid = async function(rosterData) {
     const _okN = _dmItems.filter(x => !x.missing).length, _missN = _dmItems.filter(x => x.missing).length;
     const _overview = `<section class="ov-wrap">
             <div class="ov-sum"><span>เว็บพร้อม <b>${_okN}/${_dmItems.length}</b></span>${_missN ? `<span class="bad">ขาดคน <b>${_missN}</b> เว็บ</span>` : ''}<span>คนทำงาน <b>${_dmItems.reduce((a, x) => a + x.count, 0)}</b></span></div>
-            <div class="ov-table">
+            <div class="ov-scroll custom-scrollbar"><div class="ov-table">
                 <div class="ov-row ov-h"><div>เว็บ</div><div>คนประจำ · เวลาพัก</div><div>สแตนด์บายช่วย</div><div style="text-align:right">สถานะ</div></div>
                 ${_ovRows}
-            </div>
+            </div></div>
         </section>`;
     // 🙋 แถบบอกตำแหน่งของเรา
     let _meBar = '';
