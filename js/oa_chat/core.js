@@ -554,19 +554,23 @@ window.oa_drawChats = function (id) {
 };
 
 // ─────────────────────────── ดาวน์โหลด CSV ───────────────────────────
-// ใช้ข้อมูลชุดเดียวกับที่เห็นบนจอ (ช่วงวันที่ + ตัวกรอง + ค้นหา)
-// เดิมดาวน์โหลดทั้งช่วงที่โหลดไว้ในเครื่อง (เช่นกด "วันนี้" แต่ได้ไฟล์ทั้งเดือน) และไม่สนตัวกรองกะ/เว็บ/ไลน์/ค้นหา
+// สรุปรายคน: แต่ละคนตอบไปกี่แชท (เรียงมาก → น้อย) ตามช่วงวันที่ + ตัวกรอง + ค้นหา ที่เห็นบนจอ
 window.oa_exportCSV = function () {
     if (!oa_can('oa_chat_export')) { alert('ไม่มีสิทธิ์ดาวน์โหลด'); return; }
-    const rows = oa_filtered().slice().sort((a, b) => String(a.work_date + a.first_at).localeCompare(String(b.work_date + b.first_at)));
+    const rows = oa_filtered();
     if (!rows.length) { alert('ไม่มีข้อมูลในช่วง/ตัวกรองที่เลือก'); return; }
-    const dt = (v) => v ? new Date(v).toLocaleString('th-TH') : '';
-    const head = ['วันทำงาน', 'พนักงาน', 'แผนก', 'กะ', 'เว็บ', 'ไลน์ OA', 'รหัสแชท', 'ชื่อลูกค้า', 'ตอบครั้งแรก', 'ตอบล่าสุด'];
+    const by = {};
+    rows.forEach(r => { const k = String(r.user_id); (by[k] = by[k] || { name: oa_nameOf(r), n: 0 }).n++; });
+    const list = Object.values(by).sort((a, b) => b.n - a.n || a.name.localeCompare(b.name, 'th'));
     const esc = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
-    const lines = [head.map(esc).join(',')].concat(rows.map(r => [r.work_date, oa_nameOf(r), oa_deptOf(r), oa_shiftOf(r), oa_sitesOf(r).join(' / '), r.oa_name || r.oa_id, r.chat_id, r.chat_name, dt(r.first_at), dt(r.last_at)].map(esc).join(',')));
-    const blob = new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const lines = [['อันดับ', 'พนักงาน', 'จำนวนแชทที่ตอบ'].map(esc).join(',')]
+        .concat(list.map((x, i) => [i + 1, x.name, x.n].map(esc).join(',')))
+        .concat([['', 'รวม', rows.length].map(esc).join(',')]);
+    const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
     const o = window._oa, a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); a.download = `oa-chat_${o._viewFrom}_${o._viewTo}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    a.href = URL.createObjectURL(blob);
+    a.download = o._viewFrom === o._viewTo ? `สรุปแชท-OA_${o._viewFrom}.csv` : `สรุปแชท-OA_${o._viewFrom}_ถึง_${o._viewTo}.csv`;
+    a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 };
 
 // ─────────────────────────── เริ่มหน้า ───────────────────────────
