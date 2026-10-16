@@ -1857,7 +1857,7 @@ window.renderRosterGrid = async function(rosterData) {
                 // 🕘 ประวัติ 3 วันแบบโชว์ในชิป: เมื่อวาน ■VV72 · 2 วันก่อน ■K188 · 3 วันก่อน ■NM9
                 const histHtml = histArr.map(h => {
                     const mc = TEAM_COLORS[h.main] || TEAM_COLORS['DEFAULT'];
-                    return `<span class="ov-hi" title="${h.ago === 1 ? 'เมื่อวาน' : h.ago + ' วันก่อน'} ${h.main || '-'}${h.sec ? ' + รอง ' + h.sec : ''}"><i class="ov-dot ${mc.bg}"></i>${h.main || '-'}</span>`;
+                    return `<span class="ov-hi" title="${h.ago === 1 ? 'เมื่อวาน' : h.ago + ' วันก่อน'} ${h.main || '-'}${h.sec ? ' + รอง ' + h.sec : ''}"><small>${h.ago === 1 ? 'เมื่อวาน' : h.ago + ' วันก่อน'}</small><i class="ov-dot ${mc.bg}"></i>${h.main || '-'}${h.sec ? `<em>+รอง ${h.sec}</em>` : ''}</span>`;
                 }).join('');
                 return { id: a.id, name: String(a.username).replace(/<[^>]*>/g, '').trim(), miss, slots, sec: a.secondary_team || '', drag: !miss && a.id && isAdmin, me: _isMe(a), pin, sup, hist, histHtml };
             }),
@@ -1904,6 +1904,7 @@ window.renderRosterGrid = async function(rosterData) {
         const chips = it.people.map(p => p.miss
             ? `<span class="ov-p miss"><b>ขาดคน</b></span>`
             : `<span class="ov-p duty-user-card ${p.drag ? 'can' : ''} ${p.me ? 'me' : ''}" data-name="${window.escapeHtml(p.name.toLowerCase())}" ${p.drag ? `draggable="true" ondragstart="handleDragStart(event, '${p.id}', '${window.escapeJsAttr(p.name)}', '${it.team}')"` : ''} title="${window.escapeHtml(p.name)}${p.sec ? ' · งานรอง ' + p.sec : ''}${p.hist ? '\nย้อนหลัง: ' + window.escapeHtml(p.hist) : ''}">
+                <span class="ov-top">
                 <b>${window.escapeHtml(p.name)}</b>${p.me ? '<span class="dc-me">ฉัน</span>' : ''}
                 <small class="${p.slots.length ? '' : 'none'}">${p.slots.length ? p.slots.map(x => x.split('-')[0]).join(' · ') : 'ยังไม่ลงพัก'}</small>
                 ${p.sec
@@ -1911,7 +1912,8 @@ window.renderRosterGrid = async function(rosterData) {
                     : (_canSec && p.id ? `<button type="button" class="ov-sec add" onclick="event.stopPropagation(); changeSecondaryTeam('${it.team}', '${p.id}', '${window.escapeJsAttr(p.name)}')" title="แจกงานรองให้ ${window.escapeHtml(p.name)}">+ รอง</button>` : '')}
                 ${p.sup.map(t => `<i class="ov-sup">🛟 ${window.escapeHtml(t)}</i>`).join('')}
                 ${p.pin ? `<span class="ov-pin">${p.pin}</span>` : ''}
-                ${p.histHtml ? `<span class="ov-hist" title="ย้อนหลัง: ${window.escapeHtml(p.hist)}">${p.histHtml}</span>` : ''}
+                </span>
+                ${p.histHtml ? `<span class="ov-hist"><span class="material-icons">history</span>${p.histHtml}</span>` : ''}
             </span>`).join('') || '<span class="ov-empty">ยังไม่มีคน · ลากชื่อมาวางได้</span>';
         return `<div class="ov-row" data-team="${it.team}" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${it.team}')">
             <div class="ov-team">
