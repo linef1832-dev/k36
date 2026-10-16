@@ -57,7 +57,7 @@ window.oa_setRange = function (r) {
     o.range = r; o._rangeDay = oa_workDate(0);
     document.querySelectorAll('#oaRangeSeg button').forEach(b => b.classList.toggle('on', b.dataset.r === r));
     const live = document.getElementById('oaRangeLive');
-    if (live) live.textContent = { today: 'วันนี้', yesterday: 'เมื่อวาน', '7d': '7 วันล่าสุด', month: 'เดือนนี้' }[r] || (f.value === t.value ? f.value : f.value + ' — ' + t.value);
+    if (live) { const nm = { today: 'วันนี้', yesterday: 'เมื่อวาน', '7d': '7 วันล่าสุด', month: 'เดือนนี้' }[r]; const dt = oa_fmtRange(f.value, t.value); live.textContent = nm ? nm + ' · ' + dt : dt; }
     o._viewFrom = f.value; o._viewTo = t.value;
     o.open.clear();   // เปลี่ยนช่วง → ปิดแถวที่กางไว้ (ข้อมูลข้างในเปลี่ยนแล้ว)
     if (o._loadedFrom && f.value >= o._loadedFrom && t.value <= o._loadedTo) {
@@ -125,7 +125,21 @@ async function oa_ensureUsers(rows) {
     } catch (e) {}
     return false;
 }
-function oa_setUpdated(txt) { const up = document.getElementById('oaUpdated'); if (up) up.textContent = txt; }
+function oa_setUpdated(txt, bad) {
+    const up = document.getElementById('oaUpdated'); if (up) up.textContent = txt;
+    const lv = document.getElementById('oaLive'); if (lv) lv.classList.toggle('bad', !!bad);
+}
+// "ศ. 16 ต.ค." / "10 – 16 ต.ค." / "28 ก.ย. – 3 ต.ค."
+function oa_fmtRange(f, t) {
+    const d = (v) => new Date(v + 'T00:00:00');
+    const mon = (v) => d(v).toLocaleDateString('th-TH', { month: 'short' });
+    const day = (v) => d(v).getDate();
+    if (!f || !t) return '';
+    if (f === t) return d(f).toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short' });
+    const yr = (v) => v.slice(0, 4) !== oa_workDate(0).slice(0, 4) ? ' ' + (+v.slice(0, 4) + 543) : '';
+    if (f.slice(0, 7) === t.slice(0, 7)) return `${day(f)} – ${day(t)} ${mon(t)}${yr(t)}`;
+    return `${day(f)} ${mon(f)}${yr(f)} – ${day(t)} ${mon(t)}${yr(t)}`;
+}
 const oa_nowHM = () => new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
 
 // โหลดเต็มช่วง
@@ -150,6 +164,7 @@ window.oa_load = async function () {
     } catch (e) {
         if (myReq !== o._reqId) return;
         const lst = document.getElementById('oaList');
+        oa_setUpdated('โหลดข้อมูลไม่สำเร็จ', true);
         if (lst) { lst.style.opacity = ''; lst.innerHTML = `<div class="text-center text-red-400 py-10 text-sm">โหลดข้อมูลไม่ได้ — ตรวจว่าสร้างตาราง oa_replies ใน Supabase แล้ว<br><span class="text-xs text-slate-400">${oa_esc(e.message || e)}</span></div>`; }
     } finally { if (myReq === o._reqId) o._loading = false; }
 };
@@ -186,7 +201,7 @@ window.oa_refresh = async function () {
         o.rows = o.rows.filter(r => r.work_date < rf || r.work_date > rt).concat(rows);
         window.oa_render();
     } catch (e) {
-        oa_setUpdated('อัปเดตไม่สำเร็จ · จะลองใหม่อัตโนมัติ');   // เน็ตสะดุด → ข้อมูลเดิมยังอยู่ ไม่ล้างหน้า
+        oa_setUpdated('อัปเดตไม่สำเร็จ · จะลองใหม่อัตโนมัติ', true);   // เน็ตสะดุด → ข้อมูลเดิมยังอยู่ ไม่ล้างหน้า
     } finally { o._refreshing = false; }
 };
 
@@ -293,7 +308,8 @@ window.oa_render = function () {
     const recent = list.slice().sort((a, b) => oa_ts(b[1].last) - oa_ts(a[1].last) || b[1].n - a[1].n);
     o._byUser = by; o._list = list; o._max = max;
     const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
-    set('oaTotal', total); set('oaPeople', people); set('oaAvg', people ? (total / people).toFixed(1) : '–');
+    const fmt = (n) => Number(n).toLocaleString('en-US');
+    set('oaTotal', fmt(total)); set('oaPeople', fmt(people)); set('oaAvg', people ? (total / people).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '–');
 
     if (o.tab === 'rank') oa_renderRank(list, max);   // ⚡ วาดเฉพาะแท็บที่เปิดอยู่
 

@@ -1,36 +1,31 @@
 <div id="oaApp" class="fade-in min-h-full bg-slate-50 dark:bg-slate-900 pb-10">
 
-    <div class="oa-hero-head">
-        <div class="oa-hero-inner">
-            <div class="flex items-start justify-between gap-3 flex-wrap">
-                <div>
-                    <h1 class="font-extrabold text-2xl tracking-tight">ตรวจนับแชท LINE OA</h1>
-                    <div class="oa-range-live" id="oaRangeLive">วันนี้</div>
-                </div>
-                <div class="flex gap-2">
-                    <button id="oaBtnCsv" onclick="oa_exportCSV()" class="oa-hbtn"><span class="material-icons text-sm">download</span>CSV</button>
-                    <button onclick="showPage('dashboard')" class="oa-hbtn"><span class="material-icons text-sm">arrow_back</span>กลับ</button>
-                </div>
-            </div>
-            <!-- KPI ลอยบน hero -->
-            <div class="oa-kpis">
-                <div class="oa-kpi oa-kpi-hl">
-                    <div class="oa-kpi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
-                    <div><div class="oa-kpi-n" id="oaTotal">–</div><div class="oa-kpi-l">แชทที่ตอบ</div></div>
-                </div>
-                <div class="oa-kpi">
-                    <div class="oa-kpi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
-                    <div><div class="oa-kpi-n" id="oaPeople">–</div><div class="oa-kpi-l">คนที่ตอบ</div></div>
-                </div>
-                <div class="oa-kpi">
-                    <div class="oa-kpi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></div>
-                    <div><div class="oa-kpi-n" id="oaAvg">–</div><div class="oa-kpi-l">เฉลี่ย/คน</div></div>
-                </div>
-            </div>
-        </div>
-    </div>
+    <div class="px-4 md:px-5 max-w-5xl mx-auto w-full pt-5 space-y-4">
 
-    <div class="px-4 md:px-5 max-w-5xl mx-auto w-full -mt-7 relative z-10 space-y-4">
+        <!-- หัวหน้า: ชื่อ + ช่วงวันที่ + สถานะอัปเดต + ตัวเลขสรุป -->
+        <header class="oa-head">
+            <div class="oa-head-top">
+                <div class="oa-head-id">
+                    <div class="oa-head-logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9.6 9.6 0 0 1-3.3-.6L3 21l1.6-4.4A7.9 7.9 0 0 1 3 11.5C3 7 7 3.1 12 3.1s9 3.9 9 8.4z"/><path d="M8.5 10.5v3M11 10.5v3M13.5 10.5v3h2"/></svg></div>
+                    <div class="min-w-0">
+                        <h1 class="oa-head-title">ตรวจนับแชท LINE OA</h1>
+                        <div class="oa-head-sub">
+                            <span id="oaRangeLive" class="oa-head-range">วันนี้</span>
+                            <span class="oa-live" id="oaLive"><i></i><span id="oaUpdated">กำลังโหลด…</span></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="oa-head-actions">
+                    <button id="oaBtnCsv" onclick="oa_exportCSV()" class="oa-hbtn" title="ดาวน์โหลดข้อมูลที่เห็นบนจอเป็นไฟล์ CSV"><span class="material-icons">download</span><span>CSV</span></button>
+                    <button onclick="showPage('dashboard')" class="oa-hbtn"><span class="material-icons">arrow_back</span><span>กลับ</span></button>
+                </div>
+            </div>
+            <div class="oa-stats">
+                <div class="oa-stat oa-stat-main"><div class="oa-stat-n" id="oaTotal">–</div><div class="oa-stat-l">แชทที่ตอบ</div></div>
+                <div class="oa-stat"><div class="oa-stat-n" id="oaPeople">–</div><div class="oa-stat-l">พนักงานที่ตอบ</div></div>
+                <div class="oa-stat"><div class="oa-stat-n" id="oaAvg">–</div><div class="oa-stat-l">เฉลี่ยต่อคน</div></div>
+            </div>
+        </header>
 
         <!-- แท็บ -->
         <div class="oa-tabs">
@@ -75,8 +70,8 @@
         <!-- มุมมอง: รายการแชท -->
         <div id="oaViewList" class="oa-panel p-0 overflow-hidden">
             <div class="px-4 py-3 border-b border-gray-100 dark:border-slate-700 flex items-center justify-between">
-                <div class="font-bold text-slate-700 dark:text-slate-200">รายการพนักงานที่ตอบ <span class="text-xs font-semibold text-slate-400 ml-1">· เรียงจากตอบล่าสุด</span></div>
-                <div class="text-xs text-slate-400" id="oaUpdated"></div>
+                <div class="font-bold text-slate-700 dark:text-slate-200">รายการพนักงานที่ตอบ</div>
+                <div class="text-xs font-semibold text-slate-400">เรียงจากตอบล่าสุด</div>
             </div>
             <div id="oaList" class="divide-y divide-gray-50 dark:divide-slate-700/50"><div class="text-center text-slate-400 py-12 text-sm">กำลังโหลด...</div></div>
         </div>
@@ -93,6 +88,48 @@
 </div>
 
 <style>
+    /* ── หัวหน้า (ใช้ตัวแปรธีม --k-* : สลับมืด/สว่างเปลี่ยนตามเอง) ── */
+    #oaApp { --oa-line:6,199,85; }
+    #oaApp .oa-head { position:relative; overflow:hidden; border-radius:20px; border:1px solid var(--k-line); background:radial-gradient(120% 140% at 0% 0%, rgba(var(--oa-line),.13), transparent 55%), var(--k-panel); box-shadow:var(--k-shadow); }
+    #oaApp .oa-head-top { display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; padding:18px 20px 16px; }
+    #oaApp .oa-head-id { display:flex; align-items:center; gap:14px; min-width:0; }
+    #oaApp .oa-head-logo { width:46px; height:46px; flex:none; border-radius:14px; display:flex; align-items:center; justify-content:center; background:#06C755; color:#fff; box-shadow:0 6px 16px rgba(var(--oa-line),.32); }
+    #oaApp .oa-head-logo svg { width:26px; height:26px; }
+    #oaApp .oa-head-title { margin:0; font-size:21px; font-weight:800; line-height:1.25; color:var(--k-tx-strong); letter-spacing:-.01em; }
+    #oaApp .oa-head-sub { display:flex; align-items:center; flex-wrap:wrap; gap:6px 12px; margin-top:3px; font-size:13px; }
+    #oaApp .oa-head-range { font-weight:700; color:var(--k-tx3); }
+    #oaApp .oa-live { display:inline-flex; align-items:center; gap:6px; color:var(--k-mute); font-weight:600; font-size:12.5px; }
+    #oaApp .oa-live i { width:7px; height:7px; border-radius:50%; background:#06C755; animation:oaPulse 2.4s ease-out infinite; }
+    #oaApp .oa-live.bad, #oaApp .oa-live.bad i { color:var(--k-amber-tx); }
+    #oaApp .oa-live.bad i { background:var(--k-amber-tx); animation:none; }
+    @keyframes oaPulse { 0% { box-shadow:0 0 0 0 rgba(var(--oa-line),.55); } 70%,100% { box-shadow:0 0 0 7px rgba(var(--oa-line),0); } }
+    @media (prefers-reduced-motion:reduce){ #oaApp .oa-live i { animation:none; } }
+    #oaApp .oa-head-actions { display:flex; gap:8px; }
+    #oaApp .oa-hbtn { display:inline-flex; align-items:center; gap:6px; height:38px; padding:0 14px; border-radius:11px; border:1px solid var(--k-line3); background:var(--k-btn); color:var(--k-tx2); font-weight:700; font-size:13px; cursor:pointer; transition:background .15s, border-color .15s; }
+    #oaApp .oa-hbtn .material-icons { font-size:17px; }
+    #oaApp .oa-hbtn:hover { background:var(--k-btn-h); border-color:var(--k-line4); color:var(--k-tx-strong); }
+    #oaApp .oa-hbtn:focus-visible { outline:2px solid #06C755; outline-offset:2px; }
+    #oaApp .oa-stats { display:grid; grid-template-columns:1.35fr 1fr 1fr; border-top:1px solid var(--k-line); background:color-mix(in srgb, var(--k-sunk) 70%, transparent); }
+    #oaApp .oa-stat { padding:16px 20px 17px; min-width:0; }
+    #oaApp .oa-stat + .oa-stat { border-left:1px solid var(--k-line); }
+    #oaApp .oa-stat-n { font-size:28px; font-weight:800; line-height:1.05; color:var(--k-tx-strong); font-variant-numeric:tabular-nums; letter-spacing:-.02em; }
+    #oaApp .oa-stat-main .oa-stat-n { font-size:38px; color:var(--k-green-tx); }
+    #oaApp .oa-stat-l { margin-top:6px; font-size:12.5px; font-weight:700; color:var(--k-mute); }
+    @media (max-width:640px){
+        #oaApp .oa-head-top { padding:16px 14px 14px; flex-wrap:nowrap; align-items:flex-start; gap:10px; }
+        #oaApp .oa-head-id { gap:11px; }
+        #oaApp .oa-head-logo { width:40px; height:40px; border-radius:12px; }
+        #oaApp .oa-head-logo svg { width:22px; height:22px; }
+        #oaApp .oa-head-title { font-size:17px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        #oaApp .oa-head-actions { gap:6px; flex:none; }
+        #oaApp .oa-hbtn { height:36px; width:36px; padding:0; justify-content:center; }
+        #oaApp .oa-hbtn > span:not(.material-icons) { display:none; }
+        #oaApp .oa-stats { grid-template-columns:1.2fr 1fr 1fr; }
+        #oaApp .oa-stat { padding:13px 12px 14px; }
+        #oaApp .oa-stat-n { font-size:21px; }
+        #oaApp .oa-stat-main .oa-stat-n { font-size:27px; }
+        #oaApp .oa-stat-l { font-size:11.5px; }
+    }
     #oaApp .oa-tabs { display:flex; gap:5px; background:#eef2f6; padding:5px; border-radius:16px; }
     .dark #oaApp .oa-tabs { background:#0f172a; }
     #oaApp .oa-tabs button { flex:1; display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:12px; border:0; border-radius:12px; background:transparent; color:#64748b; font-weight:800; font-size:14.5px; cursor:pointer; transition:transform .12s, box-shadow .15s, background .15s, color .15s; }
@@ -102,23 +139,6 @@
     #oaApp .oa-tabs button.on { background:#fff; color:#059669; box-shadow:0 3px 10px rgba(15,23,42,.1); transform:translateY(-1px); }
     .dark #oaApp .oa-tabs button.on { background:#1e293b; color:#34d399; }
     #oaApp .oa-tabs button.on svg { opacity:1; }
-    #oaApp .oa-hero-head { background:linear-gradient(135deg,#059669 0%,#10b981 55%,#34d399 100%); color:#fff; padding:22px 0 42px; position:relative; overflow:hidden; }
-    #oaApp .oa-hero-head:after { content:""; position:absolute; right:-80px; top:-80px; width:300px; height:300px; border-radius:50%; background:rgba(255,255,255,.1); }
-    #oaApp .oa-hero-inner { max-width:64rem; margin:0 auto; padding:0 20px; position:relative; z-index:1; }
-    #oaApp .oa-range-live { font-size:12.5px; color:rgba(255,255,255,.9); font-weight:700; margin-top:5px; }
-    #oaApp .oa-hbtn { display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.28); color:#fff; padding:8px 14px; border-radius:11px; font-weight:800; font-size:13px; cursor:pointer; transition:.15s; }
-    #oaApp .oa-hbtn:hover { background:rgba(255,255,255,.3); }
-    #oaApp .oa-kpis { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:18px; }
-    #oaApp .oa-kpi { display:flex; align-items:center; gap:12px; background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.22); border-radius:16px; padding:14px; backdrop-filter:blur(4px); }
-    #oaApp .oa-kpi-hl { background:#fff; border-color:#fff; }
-    #oaApp .oa-kpi-ic { width:42px; height:42px; border-radius:12px; flex:none; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,.2); color:#fff; }
-    #oaApp .oa-kpi-ic svg { width:22px; height:22px; }
-    #oaApp .oa-kpi-hl .oa-kpi-ic { background:#ecfdf5; color:#059669; }
-    #oaApp .oa-kpi-n { font:900 30px ui-monospace,Consolas,monospace; line-height:1; color:#fff; }
-    #oaApp .oa-kpi-hl .oa-kpi-n { color:#047857; }
-    #oaApp .oa-kpi-l { font-size:11.5px; font-weight:700; color:rgba(255,255,255,.92); margin-top:4px; }
-    #oaApp .oa-kpi-hl .oa-kpi-l { color:#64748b; }
-    @media (max-width:640px){ #oaApp .oa-kpi { flex-direction:column; align-items:flex-start; gap:8px; } #oaApp .oa-kpi-n { font-size:24px; } }
     #oaApp .oa-panel { background:#fff; border:1px solid #eef0f4; border-radius:18px; padding:14px; box-shadow:0 2px 10px rgba(0,0,0,.05); }
     .dark #oaApp .oa-panel { background:#1e293b; border-color:#334155; }
     #oaApp .oa-input { padding:9px 13px; border-radius:11px; border:1px solid #e2e8f0; background:#f8fafc; color:#334155; font-size:13px; font-weight:600; outline:none; }
