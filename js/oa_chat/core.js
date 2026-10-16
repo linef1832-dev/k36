@@ -45,7 +45,7 @@ function oa_daysBetween(f, t) {
     return out;
 }
 
-window.oa_setRange = function (r) {
+window.oa_setRange = function (r, noLoad) {
     const o = window._oa;
     const f = document.getElementById('oaFrom'), t = document.getElementById('oaTo'); if (!f || !t) return;
     const pr = oa_presetRange(r);
@@ -60,28 +60,56 @@ window.oa_setRange = function (r) {
     if (live) { const nm = { today: 'วันนี้', yesterday: 'เมื่อวาน', '7d': '7 วันล่าสุด', month: 'เดือนนี้' }[r]; const dt = oa_fmtRange(f.value, t.value); live.textContent = nm ? nm + ' · ' + dt : dt; }
     o._viewFrom = f.value; o._viewTo = t.value;
     o.open.clear();   // เปลี่ยนช่วง → ปิดแถวที่กางไว้ (ข้อมูลข้างในเปลี่ยนแล้ว)
-    if (o._loadedFrom && f.value >= o._loadedFrom && t.value <= o._loadedTo) {
-        window.oa_render();   // ⚡ มีในเครื่องแล้ว แสดงทันที
-    } else {
-        const list = document.getElementById('oaList'); if (list) list.style.opacity = '.45';
-        window.oa_load();
+    const covered = (a, b) => o._loadedFrom && a >= o._loadedFrom && b <= o._loadedTo;
+    if (covered(f.value, t.value)) { window.oa_render(); return; }   // ⚡ มีในเครื่องแล้ว แสดงทันที
+    if (noLoad) return;
+    const list = document.getElementById('oaList'); if (list) list.style.opacity = '.45';
+    const bs = o._bgSpan;
+    if (o._bg && bs && f.value >= bs[0] && t.value <= bs[1]) {
+        // ส่วนที่เหลือของเดือนกำลังโหลดอยู่เบื้องหลัง → รอตัวนั้น ไม่ยิงซ้ำ (มันจะวาดให้เองเมื่อเสร็จ)
+        const vf = f.value, vt = t.value;
+        o._bg.then(() => { if (o._viewFrom === vf && o._viewTo === vt && !covered(vf, vt)) window.oa_load(); });
+        return;
     }
+    window.oa_load();
 };
 
 // ─────────────────────────── ดึงข้อมูล ───────────────────────────
 // since = ดึงเฉพาะแถวที่ "ตอบหลังเวลานี้" (ใช้ตอนอัปเดตเบา)
+// ⚡ หน้าแรกถามจำนวนทั้งหมดมาด้วย → หน้าที่เหลือยิงพร้อมกันทีละ 4 (เดิมรอทีละหน้า 1000 แถว)
+const OA_COLS = 'work_date, user_id, username, oa_id, oa_name, chat_id, chat_name, first_at, last_at';
 async function oa_fetchReplies(f, t, since) {
-    let all = [], from = 0;
-    for (;;) {   // ดึงทีละ 1000 แถว
-        let qy = window.appDB.from('oa_replies')
-            .select('work_date, user_id, username, oa_id, oa_name, chat_id, chat_name, first_at, last_at')
-            .gte('work_date', f).lte('work_date', t);
+    const PAGE = 1000;
+    const q = (withCount) => {
+        let qy = window.appDB.from('oa_replies').select(OA_COLS, withCount ? { count: 'exact' } : undefined).gte('work_date', f).lte('work_date', t);
         if (since) qy = qy.gte('last_at', since);
-        const { data, error } = await qy.order('first_at', { ascending: true }).range(from, from + 999);
-        if (error) throw error;
-        all = all.concat(data || []); if (!data || data.length < 1000) break; from += 1000;
+        return qy.order('first_at', { ascending: true });
+    };
+    const first = await q(true).range(0, PAGE - 1);
+    if (first.error) throw first.error;
+    let all = first.data || [];
+    if (all.length < PAGE) return all;
+    let next = PAGE;
+    const total = typeof first.count === 'number' ? first.count : 0;
+    if (total > PAGE) {
+        const starts = []; for (let st = PAGE; st < total; st += PAGE) starts.push(st);
+        for (let i = 0; i < starts.length; i += 4) {
+            const res = await Promise.all(starts.slice(i, i + 4).map(st => q(false).range(st, st + PAGE - 1)));
+            res.forEach(rz => { if (rz.error) throw rz.error; all = all.concat(rz.data || []); });
+        }
+        next = starts.length ? starts[starts.length - 1] + PAGE : PAGE;
+        if (all.length < next) return oa_dedupe(all);   // หน้าสุดท้ายไม่เต็ม = ได้ครบแล้ว
     }
-    return all;
+    for (;;) {   // มีแถวเพิ่มระหว่างดึง (หรือไม่รู้จำนวน) → ดึงต่อทีละหน้าจนหมด
+        const { data, error } = await q(false).range(next, next + PAGE - 1);
+        if (error) throw error;
+        all = all.concat(data || []); if (!data || data.length < PAGE) break; next += PAGE;
+    }
+    return oa_dedupe(all);
+}
+function oa_dedupe(all) {   // กันแถวซ้ำตรงรอยต่อหน้า
+    const seen = new Set();
+    return all.filter(r => { const k = oa_rowKey(r); if (seen.has(k)) return false; seen.add(k); return true; });
 }
 // กะของแต่ละคน (จาก schedules) — key: lower(name)|date → กะย่อ
 async function oa_fetchShifts(f, t) {
@@ -116,17 +144,29 @@ async function oa_fetchSites(f, t) {
     }));
     return wm;
 }
+async function oa_fetchUsers() {
+    const o = window._oa;
+    try {
+        const { data } = await window.appDB.from('users').select('id, username, name, department');
+        if (data) { data.forEach(u => { o.users[String(u.id)] = u; }); o._usersAt = Date.now(); return true; }
+    } catch (e) {}
+    return false;
+}
+// ดึงข้อมูลช่วง f..t ครบชุด (แชท + กะ + เว็บ + รายชื่อพนักงาน) ยิงพร้อมกันทั้งหมด
+async function oa_fetchSpan(f, t) {
+    const o = window._oa;
+    const usersP = Object.keys(o.users).length ? Promise.resolve(false) : oa_fetchUsers();
+    const [rows, sm, wm, u1] = await Promise.all([oa_fetchReplies(f, t), oa_fetchShifts(f, t), oa_fetchSites(f, t), usersP]);
+    const u2 = await oa_ensureUsers(rows);
+    return { rows, sm, wm, usersChanged: u1 || u2 };
+}
 // โหลดรายชื่อพนักงาน — ครั้งแรก หรือเจอคนใหม่ที่ยังไม่รู้จัก
 async function oa_ensureUsers(rows) {
     const o = window._oa;
     const missing = !Object.keys(o.users).length || rows.some(r => r.user_id != null && !o.users[String(r.user_id)]);
     if (!missing) return false;
     if (o._usersAt && Date.now() - o._usersAt < 5 * 60000 && Object.keys(o.users).length) return false;   // ไม่ถามซ้ำถี่ ๆ
-    try {
-        const { data } = await window.appDB.from('users').select('id, username, name, department');
-        if (data) { data.forEach(u => { o.users[String(u.id)] = u; }); o._usersAt = Date.now(); return true; }
-    } catch (e) {}
-    return false;
+    return oa_fetchUsers();
 }
 function oa_setUpdated(txt, bad) {
     const up = document.getElementById('oaUpdated'); if (up) up.textContent = txt;
@@ -147,32 +187,108 @@ function oa_fmtRange(f, t) {
 const oa_nowHM = () => new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
 
 // โหลดเต็มช่วง
-window.oa_load = async function () {
+//  opts.span = [จาก, ถึง] กำหนดช่วงเอง (ไม่ใส่ = ตามช่วงที่ดูอยู่)
+//  opts.bg   = โหลดเงียบเบื้องหลัง: ไม่ล้างหน้า ไม่ขึ้นกำลังโหลด และวาดใหม่เฉพาะเมื่อสิ่งที่เห็นบนจอเปลี่ยน
+window.oa_load = async function (opts = {}) {
     const o = window._oa;
     const vf = document.getElementById('oaFrom').value, vt = document.getElementById('oaTo').value;
     if (!vf || !vt) return;
     o._viewFrom = vf; o._viewTo = vt;
-    const [f, t] = oa_loadRange(vf, vt);
+    const [f, t] = opts.span || oa_loadRange(vf, vt);
     const myReq = (o._reqId = (o._reqId || 0) + 1);   // กันผลเก่าที่มาช้ากว่ามาทับผลใหม่
     o._loading = true;
+    let finish = () => {};
+    if (opts.bg) { o._bgSpan = [f, t]; o._bg = new Promise(r => { finish = r; }); }
+    const myBg = o._bg;
     try {
-        const [rows, sm, wm] = await Promise.all([oa_fetchReplies(f, t), oa_fetchShifts(f, t), oa_fetchSites(f, t)]);   // ⚡ ยิงพร้อมกัน
-        await oa_ensureUsers(rows);
+        const { rows, sm, wm, usersChanged } = await oa_fetchSpan(f, t);
         if (myReq !== o._reqId) return;   // มีคำขอใหม่กว่าแล้ว ทิ้งผลนี้
+        const old = { rows: o.rows, sm: o.shiftMap, wm: o.siteMap };
         o.rows = rows; o._loadedFrom = f; o._loadedTo = t; o.shiftMap = sm; o.siteMap = wm;
         o._fullAt = Date.now(); o._cursor = oa_maxLast(rows);
         o._viewFrom = document.getElementById('oaFrom').value; o._viewTo = document.getElementById('oaTo').value;   // ใช้ช่วงล่าสุดที่ผู้ใช้เลือก
-        o._sig = null;
         const lst = document.getElementById('oaList'); if (lst) lst.style.opacity = '';
         oa_setUpdated('อัปเดต ' + oa_nowHM());
-        window.oa_render();
+        let draw = true;
+        if (opts.bg && !usersChanged) {   // โหลดเบื้องหลัง: บนจอเหมือนเดิม → ไม่ต้องวาดใหม่
+            const a = o._viewFrom, z = o._viewTo, inV = (r) => r.work_date >= a && r.work_date <= z;
+            draw = oa_sigOf(old.rows.filter(inV), old.sm, old.wm, a, z) !== oa_sigOf(rows.filter(inV), sm, wm, a, z);
+        }
+        if (draw) window.oa_render();
+        oa_saveCache();
     } catch (e) {
         if (myReq !== o._reqId) return;
         const lst = document.getElementById('oaList');
+        if (opts.bg) { oa_setUpdated('อัปเดตไม่สำเร็จ · จะลองใหม่อัตโนมัติ', true); if (lst) lst.style.opacity = ''; return; }   // เบื้องหลังพัง → ข้อมูลบนจอยังอยู่
         oa_setUpdated('โหลดข้อมูลไม่สำเร็จ', true);
         if (lst) { lst.style.opacity = ''; lst.innerHTML = `<div class="text-center text-red-400 py-10 text-sm">โหลดข้อมูลไม่ได้ — ตรวจว่าสร้างตาราง oa_replies ใน Supabase แล้ว<br><span class="text-xs text-slate-400">${oa_esc(e.message || e)}</span></div>`; }
-    } finally { if (myReq === o._reqId) o._loading = false; }
+    } finally {
+        if (myReq === o._reqId) o._loading = false;
+        if (opts.bg) { if (o._bg === myBg) { o._bg = null; o._bgSpan = null; } finish(); }
+    }
 };
+
+// ⚡ เปิดหน้าครั้งแรก (ไม่มีข้อมูลในเครื่อง): โหลด "วันนี้" ก่อน → ขึ้นจอทันที แล้วค่อยโหลดส่วนที่เหลือของเดือนเงียบ ๆ
+async function oa_loadFast() {
+    const today = oa_workDate(0);
+    await window.oa_load({ span: [today, today] });
+    if (window._oa._loadedTo === today) oa_loadBackground();
+}
+// โหลดช่วงปกติ (7 วัน / เดือนนี้) เบื้องหลัง — มีครบแล้วไม่โหลดซ้ำ
+function oa_loadBackground() {
+    const o = window._oa, [wf, wt] = oa_defaultWindow();
+    if (o._bg || (o._loadedFrom && o._loadedFrom <= wf && o._loadedTo >= wt)) return;
+    window.oa_load({ span: [wf, wt], bg: true });
+}
+
+// ─────────────────────────── แคชในเครื่อง (IndexedDB) ───────────────────────────
+// เก็บ "เมื่อวาน + วันนี้" ไว้ในเบราว์เซอร์ → เปิดหน้าครั้งต่อไป (แม้ปิดเว็บไปแล้ว) เห็นข้อมูลทันที แล้วค่อยดึงเฉพาะของใหม่
+const OA_CACHE_KEY = 'oa_chat_v1';
+const oa_uid = () => { const u = window.currentUser || {}; return String(u.id || u.username || ''); };
+function oa_idb() {
+    return new Promise((res, rej) => {
+        try { const r = indexedDB.open('k36_cache', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }
+        catch (e) { rej(e); }
+    });
+}
+async function oa_cacheGet() {
+    try {
+        const db = await oa_idb();
+        return await new Promise(res => { const q = db.transaction('kv').objectStore('kv').get(OA_CACHE_KEY); q.onsuccess = () => res(q.result || null); q.onerror = () => res(null); });
+    } catch (e) { return null; }
+}
+// เขียนแคชไม่ถี่: ครั้งแรกหลังโหลด 2 วิ จากนั้นอย่างมาก 5 นาทีครั้ง (และตอนสลับไปแท็บอื่น)
+function oa_saveCache(now) {
+    const o = window._oa; o._cDirty = true;
+    if (o._cT && !now) return;   // นัดเขียนไว้แล้ว
+    clearTimeout(o._cT);
+    const wait = now ? 0 : Math.max(2000, 5 * 60000 - (Date.now() - (o._cSavedAt || 0)));
+    o._cT = setTimeout(async () => {
+        o._cT = null; if (!o._cDirty) return; o._cDirty = false; o._cSavedAt = Date.now();
+        try {
+            const today = oa_workDate(0), uid = oa_uid();
+            if (!uid || !o._loadedTo || o._loadedTo < today || o._loadedFrom > today) return;
+            const from = [oa_workDate(-1), o._loadedFrom].sort()[1];
+            const inR = (k) => { const d = k.slice(k.lastIndexOf('|') + 1); return d >= from && d <= today; };
+            const sm = {}, wm = {};
+            Object.keys(o.shiftMap).forEach(k => { if (inR(k)) sm[k] = o.shiftMap[k]; });
+            Object.keys(o.siteMap).forEach(k => { if (inR(k)) wm[k] = [...o.siteMap[k]]; });
+            const val = { v: 1, uid, from, to: today, savedAt: Date.now(), fullAt: o._fullAt || 0, cursor: o._cursor || null,
+                rows: o.rows.filter(r => r.work_date >= from && r.work_date <= today), users: o.users, shiftMap: sm, siteMap: wm };
+            const db = await oa_idb(); db.transaction('kv', 'readwrite').objectStore('kv').put(val, OA_CACHE_KEY);
+        } catch (e) { /* เก็บไม่ได้ (เช่นโหมดไม่ระบุตัวตน) ก็ไม่เป็นไร */ }
+    }, wait);
+}
+function oa_applyCache(c) {
+    const o = window._oa, today = oa_workDate(0);
+    if (!c || c.v !== 1 || !c.uid || c.uid !== oa_uid() || c.to !== today || !Array.isArray(c.rows)) return false;
+    o.rows = c.rows; o._loadedFrom = c.from; o._loadedTo = c.to;
+    o.users = Object.assign({}, c.users || {}, o.users);
+    o.shiftMap = c.shiftMap || {};
+    o.siteMap = {}; Object.keys(c.siteMap || {}).forEach(k => { o.siteMap[k] = new Set(c.siteMap[k]); });
+    o._cursor = c.cursor; o._fullAt = c.fullAt || 0;
+    return true;
+}
 
 // ลายเซ็นข้อมูลของช่วงวัน (ไว้เทียบว่าเปลี่ยนไหม)
 function oa_sigOf(rows, sm, wm, f, t) {
@@ -193,13 +309,13 @@ function oa_maxLast(rows) { let m = 0; rows.forEach(r => { const t = oa_ts(r.las
 //  • เบา (ปกติ)        : ดึงเฉพาะแชทที่ "เพิ่งตอบ" ตั้งแต่ครั้งก่อน (ย้อนเผื่อ 5 นาที) → ปกติได้แค่หลักสิบแถว
 //  • ละเอียด (ทุก 10 นาที): ดึงเมื่อวาน+วันนี้ทั้งหมด + กะ + เว็บ แทนที่ของเดิม (กันตกหล่น / ข้อมูลถูกแก้)
 // ข้อมูลไม่เปลี่ยน → ไม่วาดหน้าใหม่ · แท็บถูกซ่อน → ไม่ดึงเลย
-window.oa_refresh = async function (forceFull) {
+window.oa_refresh = async function (mode) {   // mode: 'full' | 'light' | ไม่ใส่ = เลือกเอง
     const o = window._oa;
     if (o._loading || o._refreshing || !o._loadedFrom) return;
     const today = oa_workDate(0);
     if (o._loadedTo < today) return;   // กำลังดูช่วงในอดีต → ข้อมูลไม่เปลี่ยนแล้ว ไม่ต้องดึง
     const rf = [oa_workDate(-1), o._loadedFrom].sort()[1], rt = today;
-    const full = forceFull || !o._cursor || !o._fullAt || Date.now() - o._fullAt > OA_FULL_EVERY;
+    const full = mode === 'full' || mode === true || !o._cursor || (mode !== 'light' && (!o._fullAt || Date.now() - o._fullAt > OA_FULL_EVERY));
     const myReq = o._reqId;
     o._refreshing = true;
     try {
@@ -234,7 +350,7 @@ window.oa_refresh = async function (forceFull) {
             changed = changed || newUsers;
         }
         oa_setUpdated('อัปเดต ' + oa_nowHM());
-        if (changed) window.oa_render();   // ⚡ ข้อมูลเหมือนเดิม → ไม่วาดใหม่
+        if (changed) { window.oa_render(); oa_saveCache(); }   // ⚡ ข้อมูลเหมือนเดิม → ไม่วาดใหม่
     } catch (e) {
         oa_setUpdated('อัปเดตไม่สำเร็จ · จะลองใหม่อัตโนมัติ', true);   // เน็ตสะดุด → ข้อมูลเดิมยังอยู่ ไม่ล้างหน้า
     } finally { o._refreshing = false; }
@@ -250,7 +366,10 @@ function oa_tick() {
 }
 if (!window._oaVisHook) {
     window._oaVisHook = true;
-    document.addEventListener('visibilitychange', () => { if (!document.hidden && window._currentPageName === 'oa_chat') oa_tick(); });
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) { if (window._oa._cDirty) oa_saveCache(true); return; }   // สลับแท็บ → เก็บแคชที่ค้างไว้เลย
+        if (window._currentPageName === 'oa_chat') oa_tick();
+    });
 }
 
 function oa_shiftOf(r) { return window._oa.shiftMap[(r.username || '').toLowerCase().trim() + '|' + r.work_date] || ''; }
@@ -457,10 +576,18 @@ window.initOaChat = async function () {
     const si = document.getElementById('oaSearch'); if (si) si.value = '';
     const b = document.getElementById('oaBtnCsv'); if (b) b.style.display = oa_can('oa_chat_export') ? '' : 'none';
     oa_setTab('list');
-    const hadCache = !!o._loadedFrom;
-    window.oa_setRange('today');            // มีข้อมูลเก่าในเครื่อง → โชว์ทันที
-    if (hadCache && !o._loading) window.oa_refresh(true);   // แล้วดึงของใหม่ตามมาเลย (เดิมต้องรอ 1 นาทีถึงจะอัปเดต)
     if (typeof window.registerPageInterval === 'function') window.registerPageInterval(setInterval(oa_tick, 60000));
+    const today = oa_workDate(0);
+    const hasToday = () => !!o._loadedFrom && o._loadedFrom <= today && o._loadedTo >= today;
+    // 1) ข้อมูลในหน่วยความจำ (เพิ่งออกจากหน้านี้ไป) หรือ 2) แคชในเครื่อง (เปิดเว็บใหม่) → โชว์ทันที
+    if (!hasToday() && oa_applyCache(await oa_cacheGet())) oa_setUpdated('กำลังอัปเดต…');
+    window.oa_setRange('today', true);
+    if (hasToday()) {
+        await window.oa_refresh('light');   // ดึงเฉพาะแชทที่ตอบหลังข้อมูลที่มี (ปกติไม่กี่แถว)
+        oa_loadBackground();                // แล้วเติมส่วนที่เหลือของเดือนเงียบ ๆ
+    } else {
+        oa_loadFast();                      // 3) ไม่มีอะไรเลย → โหลดวันนี้ก่อน
+    }
 };
 
 // ─────────────────────────── คัดลอกชื่อลูกค้า ───────────────────────────
