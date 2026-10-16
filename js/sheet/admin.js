@@ -385,7 +385,6 @@ window.toggleGalleryDrawer = async function(show) {
     const willShow = (show === undefined) ? !isOpen : !!show;
 
     if (!willShow) {
-        if (window._splitPreviewHide) window._splitPreviewHide();
         drawer.style.display = 'none';
         if (sheetApp) { sheetApp.style.marginRight = ''; sheetApp.style.marginLeft = ''; sheetApp.classList.remove('sheet-split'); }
         return;
@@ -410,7 +409,7 @@ window.toggleGalleryDrawer = async function(show) {
             });
             for (const _g of ['gallery/core', 'gallery/ui']) await window.loadScript(_g);   // gallery ถูกผ่าเป็น 2 ไฟล์ ต้องโหลดครบตามลำดับ
             if (typeof initGalleryApp === 'function') initGalleryApp();
-            if (window._splitEnhance) window._splitEnhance();   // ผูกเอฟเฟกต์คัดลอก/พรีวิว หลังสคริปต์คลังรูปโหลดเสร็จ
+            if (window._splitEnhance) window._splitEnhance();   // ผูกเอฟเฟกต์คัดลอก หลังสคริปต์คลังรูปโหลดเสร็จ
         } catch (e) {
             document.getElementById('galleryDrawerBody').innerHTML = `<div style="text-align:center;color:var(--k-red-tx);padding:40px 0;font-weight:700">โหลดคลังรูปไม่สำเร็จ<br><span style="font-size:11px;color:var(--k-mute)">${e.message}</span></div>`;
         }
@@ -419,7 +418,7 @@ window.toggleGalleryDrawer = async function(show) {
 
 
 // =====================================================================
-// ✨ ของเพิ่มโหมดแบ่งจอ: ③ ปุ่มขนาดสำเร็จรูป · ⑦ คัดลอกแล้วเห็นชัด · ⑧ พรีวิวรูปใหญ่
+// ✨ ของเพิ่มโหมดแบ่งจอ: ③ ปุ่มขนาดสำเร็จรูป · ⑦ คัดลอกแล้วเห็นชัด
 // =====================================================================
 
 // ③ ปุ่มขนาด 30 / 50 / 70% + ดับเบิลคลิกขอบ = กลับ 50/50
@@ -435,64 +434,9 @@ window._splitSyncUI = function() {
     });
     const tag = document.getElementById('gdSizeNow');
     if (tag) tag.textContent = pct + '%';
-    const pv = document.getElementById('gdPrevToggle');
-    if (pv) pv.classList.toggle('on', window._splitPreviewOn());
-    window._splitPreviewPlace && window._splitPreviewPlace();
 };
 
-// ⑧ พรีวิวรูปใหญ่: ชี้รูปค้าง ~0.6 วิ หรือกด Space ตอนชี้ → รูปใหญ่ลอยทับฝั่งชีต
-window._splitPreviewOn = function() { try { return localStorage.getItem('split_preview') !== '0'; } catch (e) { return true; } };
-window.toggleSplitPreview = function() {
-    const on = !window._splitPreviewOn();
-    window.safeSetItem('split_preview', on ? '1' : '0');
-    if (!on) window._splitPreviewHide();
-    window._splitSyncUI();
-    if (typeof Swal !== 'undefined') Swal.fire({ toast: true, position: 'top-end', icon: 'info', title: on ? 'เปิดพรีวิวรูปใหญ่ (ชี้ค้าง หรือกด Space)' : 'ปิดพรีวิวรูปใหญ่', showConfirmButton: false, timer: 1400, background: '#0f172a', color: '#e2e8f0' });
-};
-// 🔧 [แก้บั๊ก] เดิมแปะกล่องพรีวิวไว้ที่ <body> → ออกจากหน้าตารางรวมงานแล้วกล่องยังค้าง
-//    และ CSS ของมัน (อยู่ในหน้านี้) หายไป → รูปใหญ่โผล่ต่อท้ายหน้าอื่น เช่นหน้าหลัก
-//    ตอนนี้ใส่ไว้ "ในแผงคลังรูป" → ออกจากหน้า/ปิดแผง กล่องหายไปด้วยเสมอ
-window._splitPreviewEl = function() {
-    const d = document.getElementById('galleryDrawer');
-    let el = document.getElementById('gdPreview');
-    if (el && (!d || !d.contains(el))) { el.remove(); el = null; }   // ของเก่าที่ค้างอยู่นอกแผง → ทิ้ง
-    if (!el) {
-        el = document.createElement('div');
-        el.id = 'gdPreview';
-        el.innerHTML = '<div class="gdp-box"><img alt=""><div class="gdp-cap"><span class="gdp-name"></span><span class="gdp-hint">กด Space เพื่อปิด/ค้างไว้ · คลิกรูปเพื่อเปิดเต็มจอ</span></div></div>';
-        (d || document.body).appendChild(el);
-    }
-    return el;
-};
-window._splitPreviewPlace = function() {
-    const el = document.getElementById('gdPreview'), d = document.getElementById('galleryDrawer');
-    if (!el || !d) return;
-    const w = d.getBoundingClientRect().width;
-    // วางทับฝั่ง "ชีต" เสมอ (ฝั่งตรงข้ามกับแผงคลังรูป)
-    if (window._splitPrefs.side === 'left') { el.style.left = (w + 14) + 'px'; el.style.right = '14px'; }
-    else { el.style.left = '14px'; el.style.right = (w + 14) + 'px'; }
-};
-window._splitPreviewShow = function(card) {
-    if (!card) return;
-    const copyBtn = card.querySelector('button[onclick*="copyImageToClipboard"]');
-    const m = copyBtn && (copyBtn.getAttribute('onclick') || '').match(/copyImageToClipboard\('([^']+)'\)/);
-    const thumb = card.querySelector('img');
-    const url = m ? m[1] : (thumb ? thumb.src : '');
-    if (!url) return;
-    const el = window._splitPreviewEl();
-    const img = el.querySelector('img');
-    if (thumb && img.dataset.full !== url) img.src = thumb.src;   // โชว์รูปย่อก่อนทันที แล้วค่อยสลับเป็นรูปเต็ม
-    img.dataset.full = url;
-    const full = new Image(); full.onload = () => { if (img.dataset.full === url) img.src = url; }; full.src = url;
-    const nm = card.querySelector('.gx-card-name');
-    el.querySelector('.gdp-name').textContent = nm ? nm.textContent.trim() : '';
-    window._splitPreviewPlace();
-    el.classList.add('on');
-};
-window._splitPreviewHide = function() {
-    const el = document.getElementById('gdPreview');
-    if (el) { el.classList.remove('on', 'pinned'); }
-};
+// (⑧ พรีวิวรูปใหญ่ — เอาออกแล้ว: ทำให้รูปค้างไปโผล่หน้าอื่น)
 
 // ⑦ คัดลอกแล้วเห็นชัด: การ์ดเรืองทอง + ป้าย "คัดลอกแล้ว ✓" + แถบล่าง "รูปล่าสุดในคลิปบอร์ด"
 window._splitMarkCopied = function(imageUrl) {
@@ -531,35 +475,5 @@ window._splitEnhance = function() {
         const wrapped = function(url) { try { orig(url); } catch (e) {} try { window._splitMarkCopied(url); } catch (e) {} };
         wrapped._gd = true;
         window._galleryRipple = wrapped;
-    }
-
-    // พรีวิว: ผูกครั้งเดียวที่ตัวแผง (ใช้ได้แม้การ์ดถูกวาดใหม่)
-    if (!d._gdPrev) {
-        d._gdPrev = true;
-        let hoverCard = null, timer = null;
-        d.addEventListener('mouseover', e => {
-            const img = e.target.closest && e.target.closest('.gx-card-img');
-            const card = img ? img.closest('.gx-card') : null;
-            if (card === hoverCard) return;
-            hoverCard = card; clearTimeout(timer);
-            const el = document.getElementById('gdPreview');
-            if (!card) { if (el && !el.classList.contains('pinned')) window._splitPreviewHide(); return; }
-            if (!window._splitPreviewOn()) return;
-            if (el && el.classList.contains('on')) { window._splitPreviewShow(card); return; }   // เปิดอยู่แล้ว → เลื่อนเมาส์ไปรูปอื่นเปลี่ยนตามทันที
-            timer = setTimeout(() => { if (hoverCard === card) window._splitPreviewShow(card); }, 600);
-        });
-        d.addEventListener('mouseleave', () => {
-            hoverCard = null; clearTimeout(timer);
-            const el = document.getElementById('gdPreview');
-            if (el && !el.classList.contains('pinned')) window._splitPreviewHide();
-        });
-        document.addEventListener('keydown', e => {
-            if (e.code !== 'Space' || !d.isConnected || d.style.display !== 'flex') return;   // ออกจากหน้านี้แล้ว → ไม่ยุ่งกับปุ่ม Space ของหน้าอื่น
-            const t = e.target;
-            if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
-            const el = document.getElementById('gdPreview');
-            if (el && el.classList.contains('on')) { e.preventDefault(); window._splitPreviewHide(); return; }
-            if (hoverCard) { e.preventDefault(); window._splitPreviewShow(hoverCard); window._splitPreviewEl().classList.add('pinned'); }
-        });
     }
 };

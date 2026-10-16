@@ -38,11 +38,6 @@ window.sheetCanTouch = function(sheet) {
 // 🟢 1. โหลดข้อมูล & สร้าง UI
 // ==========================================
 window.initSheetApp = async function() {
-    // กล่องพรีวิวรูปที่อาจค้างมาจากรอบก่อน (หรือจากเวอร์ชันเก่าที่แปะไว้ที่ <body>) → ซ่อน/ทิ้ง
-    document.querySelectorAll('#gdPreview').forEach(el => {
-        const d = document.getElementById('galleryDrawer');
-        if (!d || !d.contains(el)) el.remove(); else el.classList.remove('on', 'pinned');
-    });
     // ปุ่ม "จัดการชีท" (ชีตส่วนกลาง) — เฉพาะ manager/admin
     const adminControls = document.getElementById('sheetAdminControls');
     if (adminControls) adminControls.classList.toggle('hidden', !window.sheetIsMgr());

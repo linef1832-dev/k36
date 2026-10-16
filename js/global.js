@@ -1026,6 +1026,8 @@ async function showPage(pageName) {
     // 🧹 ก่อนเปลี่ยนหน้า: เคลียร์ subscription + intervals ของหน้าเดิมเพื่อกัน leak
     window.cleanupPageSubscriptions();
     window.cleanupPageIntervals();
+    // 🧹 กล่องพรีวิวรูปของหน้าตารางรวมงาน (ฟีเจอร์ที่เอาออกแล้ว) ถ้ายังค้างจากเวอร์ชันเก่า → ทิ้ง
+    document.querySelectorAll('#gdPreview').forEach(el => el.remove());
 
     // ⚡ [SPEED] เก็บภาพหน้าปัจจุบัน (ที่มีข้อมูลวาดเสร็จแล้ว) ไว้ก่อนสลับ
     const _prevApp = document.getElementById('app-content');
