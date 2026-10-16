@@ -264,6 +264,17 @@ function oa_renderChips(inView) {
 }
 
 // ─────────────────────────── วาดหน้าจอ ───────────────────────────
+const oa_ts = (v) => { const t = v ? Date.parse(v) : NaN; return isNaN(t) ? 0 : t; };
+// "ตอบล่าสุด": ภายใน 1 ชม. บอกกี่นาทีที่แล้ว · ไม่ใช่วันนี้ ใส่วันที่นำหน้า (ดูหลายวันจะได้ไม่งง)
+function oa_lastLabel(v) {
+    const t = oa_ts(v); if (!t) return '-';
+    const mins = Math.floor((Date.now() - t) / 60000), hm = oa_time(v);
+    if (mins >= 0 && mins < 1) return hm + ' · เมื่อสักครู่';
+    if (mins >= 1 && mins < 60) return hm + ` · ${mins} นาทีที่แล้ว`;
+    const d = new Date(t), now = new Date();
+    if (d.toDateString() === now.toDateString()) return hm;
+    return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }) + ' ' + hm;
+}
 const oa_rankBadge = (i) => i < 3 ? '<span style="font-size:15px">' + ['🥇', '🥈', '🥉'][i] + '</span>' : (i + 1);
 const oa_barW = (n, max) => Math.max(3, Math.round(n / max * 100));
 
@@ -274,8 +285,12 @@ window.oa_render = function () {
     const rows = oa_filtered(inView);
     const by = {};
     rows.forEach(r => { const k = String(r.user_id); const x = by[k] || (by[k] = { name: oa_nameOf(r), dept: oa_deptOf(r), n: 0, last: null, rows: [] }); x.n++; x.rows.push(r); if (!x.last || r.last_at > x.last) x.last = r.last_at; });
+    // อันดับตามจำนวนแชท (ใช้กับแท็บจัดอันดับ + เหรียญ/เลขอันดับ)
     const list = Object.entries(by).sort((a, b) => b[1].n - a[1].n || a[1].name.localeCompare(b[1].name, 'th'));
     const total = rows.length, people = list.length, max = list.length ? list[0][1].n : 1;
+    const rankOf = {}; list.forEach(([id], i) => { rankOf[id] = i; });
+    // รายการแชท: เรียงคนที่ตอบล่าสุดไว้บนสุด (เท่ากัน → ตอบเยอะกว่าขึ้นก่อน)
+    const recent = list.slice().sort((a, b) => oa_ts(b[1].last) - oa_ts(a[1].last) || b[1].n - a[1].n);
     o._byUser = by; o._list = list; o._max = max;
     const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
     set('oaTotal', total); set('oaPeople', people); set('oaAvg', people ? (total / people).toFixed(1) : '–');
@@ -284,11 +299,11 @@ window.oa_render = function () {
 
     const L = document.getElementById('oaList'); if (!L) return;
     if (!list.length) { o.open.clear(); L.innerHTML = '<div class="text-center text-slate-400 py-12 text-sm">ยังไม่มีการตอบแชทในช่วงนี้</div>'; return; }
-    L.innerHTML = list.map(([id, x], i) => {
+    L.innerHTML = recent.map(([id, x]) => { const i = rankOf[id];
         const sv = oa_sitesOfRows(x.rows);
         return `<div class="oa-row ${o.open.has(id) ? 'open' : ''}" onclick="oa_toggle('${oa_jsq(id)}')">
             <span class="oa-rank">${oa_rankBadge(i)}</span>
-            <div class="min-w-0"><div class="oa-name truncate">${oa_esc(x.name)}</div><div class="oa-meta">${(x.dept && x.dept !== '-') ? oa_esc(x.dept) + ' · ' : ''}ตอบล่าสุด ${oa_time(x.last)}</div>${sv.length ? `<div class="oa-usites">${sv.map(w => `<span class="oa-usite">${oa_esc(w)}</span>`).join('')}</div>` : ''}<div class="oa-bar"><i style="width:${oa_barW(x.n, max)}%"></i></div></div>
+            <div class="min-w-0"><div class="oa-name truncate">${oa_esc(x.name)}</div><div class="oa-meta">${(x.dept && x.dept !== '-') ? oa_esc(x.dept) + ' · ' : ''}ตอบล่าสุด ${oa_lastLabel(x.last)}</div>${sv.length ? `<div class="oa-usites">${sv.map(w => `<span class="oa-usite">${oa_esc(w)}</span>`).join('')}</div>` : ''}<div class="oa-bar"><i style="width:${oa_barW(x.n, max)}%"></i></div></div>
             <div class="oa-n">${x.n}<small>แชท</small></div>
             <span class="material-icons oa-chev">chevron_right</span>
         </div><div class="oa-detail"><div class="oa-paged" data-uid="${oa_esc(id)}"></div></div>`;
