@@ -99,7 +99,8 @@
     #oaApp .oa-head-sub { display:flex; align-items:center; flex-wrap:wrap; gap:6px 12px; margin-top:3px; font-size:13px; }
     #oaApp .oa-head-range { font-weight:700; color:var(--k-tx3); }
     #oaApp .oa-live { display:inline-flex; align-items:center; gap:6px; color:var(--k-mute); font-weight:600; font-size:12.5px; }
-    #oaApp .oa-live i { width:7px; height:7px; border-radius:50%; background:#06C755; animation:oaPulse 2.4s ease-out infinite; }
+    #oaApp .oa-live i { width:7px; height:7px; border-radius:50%; background:#06C755; }
+    #oaApp .oa-live.tick i { animation:oaPulse 1.2s ease-out 2; }
     #oaApp .oa-live.bad, #oaApp .oa-live.bad i { color:var(--k-amber-tx); }
     #oaApp .oa-live.bad i { background:var(--k-amber-tx); animation:none; }
     @keyframes oaPulse { 0% { box-shadow:0 0 0 0 rgba(var(--oa-line),.55); } 70%,100% { box-shadow:0 0 0 7px rgba(var(--oa-line),0); } }

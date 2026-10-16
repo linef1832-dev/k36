@@ -69,12 +69,15 @@ window.oa_setRange = function (r) {
 };
 
 // ─────────────────────────── ดึงข้อมูล ───────────────────────────
-async function oa_fetchReplies(f, t) {
+// since = ดึงเฉพาะแถวที่ "ตอบหลังเวลานี้" (ใช้ตอนอัปเดตเบา)
+async function oa_fetchReplies(f, t, since) {
     let all = [], from = 0;
     for (;;) {   // ดึงทีละ 1000 แถว
-        const { data, error } = await window.appDB.from('oa_replies')
+        let qy = window.appDB.from('oa_replies')
             .select('work_date, user_id, username, oa_id, oa_name, chat_id, chat_name, first_at, last_at')
-            .gte('work_date', f).lte('work_date', t).order('first_at', { ascending: true }).range(from, from + 999);
+            .gte('work_date', f).lte('work_date', t);
+        if (since) qy = qy.gte('last_at', since);
+        const { data, error } = await qy.order('first_at', { ascending: true }).range(from, from + 999);
         if (error) throw error;
         all = all.concat(data || []); if (!data || data.length < 1000) break; from += 1000;
     }
@@ -127,7 +130,8 @@ async function oa_ensureUsers(rows) {
 }
 function oa_setUpdated(txt, bad) {
     const up = document.getElementById('oaUpdated'); if (up) up.textContent = txt;
-    const lv = document.getElementById('oaLive'); if (lv) lv.classList.toggle('bad', !!bad);
+    const lv = document.getElementById('oaLive');
+    if (lv) { lv.classList.toggle('bad', !!bad); lv.classList.remove('tick'); if (!bad) { void lv.offsetWidth; lv.classList.add('tick'); } }   // กระพริบ 2 ทีตอนอัปเดตเสร็จ
 }
 // "ศ. 16 ต.ค." / "10 – 16 ต.ค." / "28 ก.ย. – 3 ต.ค."
 function oa_fmtRange(f, t) {
@@ -156,6 +160,7 @@ window.oa_load = async function () {
         await oa_ensureUsers(rows);
         if (myReq !== o._reqId) return;   // มีคำขอใหม่กว่าแล้ว ทิ้งผลนี้
         o.rows = rows; o._loadedFrom = f; o._loadedTo = t; o.shiftMap = sm; o.siteMap = wm;
+        o._fullAt = Date.now(); o._cursor = oa_maxLast(rows);
         o._viewFrom = document.getElementById('oaFrom').value; o._viewTo = document.getElementById('oaTo').value;   // ใช้ช่วงล่าสุดที่ผู้ใช้เลือก
         o._sig = null;
         const lst = document.getElementById('oaList'); if (lst) lst.style.opacity = '';
@@ -178,28 +183,58 @@ function oa_sigOf(rows, sm, wm, f, t) {
     return a.length + ':' + a + '#' + b + '#' + c;
 }
 
-// อัปเดตเบา: ดึงแค่ "เมื่อวาน + วันนี้" แล้วแทนที่เฉพาะ 2 วันนั้นในเครื่อง
-window.oa_refresh = async function () {
+const OA_FULL_EVERY = 10 * 60000;   // ทุก 10 นาที ตรวจละเอียด 1 ครั้ง (กันพลาด)
+const OA_OVERLAP = 5 * 60000;       // อัปเดตเบา ดึงย้อนเผื่อ 5 นาที (กันนาฬิกาเครื่องพนักงานเพี้ยนนิดหน่อย)
+const oa_rowKey = (r) => `${r.work_date}|${r.user_id}|${r.oa_id}|${r.chat_id}`;
+// เวลาตอบล่าสุดที่เห็น (ไม่เกินเวลาตอนนี้ — กันเครื่องที่นาฬิกาเดินเร็วทำให้ข้ามข้อมูล)
+function oa_maxLast(rows) { let m = 0; rows.forEach(r => { const t = oa_ts(r.last_at); if (t > m) m = t; }); return m ? Math.min(m, Date.now()) : null; }
+
+// อัปเดตอัตโนมัติ (ทุก 1 นาที) มี 2 แบบ
+//  • เบา (ปกติ)        : ดึงเฉพาะแชทที่ "เพิ่งตอบ" ตั้งแต่ครั้งก่อน (ย้อนเผื่อ 5 นาที) → ปกติได้แค่หลักสิบแถว
+//  • ละเอียด (ทุก 10 นาที): ดึงเมื่อวาน+วันนี้ทั้งหมด + กะ + เว็บ แทนที่ของเดิม (กันตกหล่น / ข้อมูลถูกแก้)
+// ข้อมูลไม่เปลี่ยน → ไม่วาดหน้าใหม่ · แท็บถูกซ่อน → ไม่ดึงเลย
+window.oa_refresh = async function (forceFull) {
     const o = window._oa;
     if (o._loading || o._refreshing || !o._loadedFrom) return;
     const today = oa_workDate(0);
     if (o._loadedTo < today) return;   // กำลังดูช่วงในอดีต → ข้อมูลไม่เปลี่ยนแล้ว ไม่ต้องดึง
     const rf = [oa_workDate(-1), o._loadedFrom].sort()[1], rt = today;
+    const full = forceFull || !o._cursor || !o._fullAt || Date.now() - o._fullAt > OA_FULL_EVERY;
     const myReq = o._reqId;
     o._refreshing = true;
     try {
-        const [rows, sm, wm] = await Promise.all([oa_fetchReplies(rf, rt), oa_fetchShifts(rf, rt), oa_fetchSites(rf, rt)]);
-        const newUsers = await oa_ensureUsers(rows);
-        if (myReq !== o._reqId) return;   // ระหว่างนี้มีการโหลดเต็มใหม่ → ทิ้ง
-        const oldRows = o.rows.filter(r => r.work_date >= rf && r.work_date <= rt);
-        const changed = oa_sigOf(oldRows, o.shiftMap, o.siteMap, rf, rt) !== oa_sigOf(rows, sm, wm, rf, rt) || newUsers;
+        let changed = false;
+        if (full) {
+            const [rows, sm, wm] = await Promise.all([oa_fetchReplies(rf, rt), oa_fetchShifts(rf, rt), oa_fetchSites(rf, rt)]);
+            const newUsers = await oa_ensureUsers(rows);
+            if (myReq !== o._reqId) return;   // ระหว่างนี้มีการโหลดเต็มใหม่ → ทิ้ง
+            const oldRows = o.rows.filter(r => r.work_date >= rf && r.work_date <= rt);
+            changed = oa_sigOf(oldRows, o.shiftMap, o.siteMap, rf, rt) !== oa_sigOf(rows, sm, wm, rf, rt) || newUsers;
+            if (changed) {
+                const inR = (k) => { const d = k.slice(k.lastIndexOf('|') + 1); return d >= rf && d <= rt; };
+                Object.keys(o.shiftMap).forEach(k => { if (inR(k)) delete o.shiftMap[k]; }); Object.assign(o.shiftMap, sm);
+                Object.keys(o.siteMap).forEach(k => { if (inR(k)) delete o.siteMap[k]; }); Object.assign(o.siteMap, wm);
+                o.rows = o.rows.filter(r => r.work_date < rf || r.work_date > rt).concat(rows);
+            }
+            o._fullAt = Date.now(); o._cursor = oa_maxLast(o.rows) || o._cursor;
+        } else {
+            const since = new Date(o._cursor - OA_OVERLAP).toISOString();
+            const rows = await oa_fetchReplies(rf, rt, since);
+            const newUsers = rows.length ? await oa_ensureUsers(rows) : false;
+            if (myReq !== o._reqId) return;
+            if (rows.length) {
+                const idx = new Map(); o.rows.forEach((r, i) => idx.set(oa_rowKey(r), i));
+                rows.forEach(r => {
+                    const i = idx.get(oa_rowKey(r));
+                    if (i == null) { idx.set(oa_rowKey(r), o.rows.length); o.rows.push(r); changed = true; }
+                    else { const old = o.rows[i]; if (old.last_at !== r.last_at || old.chat_name !== r.chat_name || old.oa_name !== r.oa_name) { o.rows[i] = r; changed = true; } }
+                });
+                const m = oa_maxLast(rows); if (m && m > o._cursor) o._cursor = m;
+            }
+            changed = changed || newUsers;
+        }
         oa_setUpdated('อัปเดต ' + oa_nowHM());
-        if (!changed) return;   // ⚡ ข้อมูลเหมือนเดิม → ไม่วาดใหม่ (ไม่กระตุก ไม่เสียแรงเครื่อง)
-        const inR = (k) => { const d = k.slice(k.lastIndexOf('|') + 1); return d >= rf && d <= rt; };
-        Object.keys(o.shiftMap).forEach(k => { if (inR(k)) delete o.shiftMap[k]; }); Object.assign(o.shiftMap, sm);
-        Object.keys(o.siteMap).forEach(k => { if (inR(k)) delete o.siteMap[k]; }); Object.assign(o.siteMap, wm);
-        o.rows = o.rows.filter(r => r.work_date < rf || r.work_date > rt).concat(rows);
-        window.oa_render();
+        if (changed) window.oa_render();   // ⚡ ข้อมูลเหมือนเดิม → ไม่วาดใหม่
     } catch (e) {
         oa_setUpdated('อัปเดตไม่สำเร็จ · จะลองใหม่อัตโนมัติ', true);   // เน็ตสะดุด → ข้อมูลเดิมยังอยู่ ไม่ล้างหน้า
     } finally { o._refreshing = false; }
@@ -424,7 +459,7 @@ window.initOaChat = async function () {
     oa_setTab('list');
     const hadCache = !!o._loadedFrom;
     window.oa_setRange('today');            // มีข้อมูลเก่าในเครื่อง → โชว์ทันที
-    if (hadCache && !o._loading) window.oa_refresh();   // แล้วดึงของใหม่ตามมาเลย (เดิมต้องรอ 1 นาทีถึงจะอัปเดต)
+    if (hadCache && !o._loading) window.oa_refresh(true);   // แล้วดึงของใหม่ตามมาเลย (เดิมต้องรอ 1 นาทีถึงจะอัปเดต)
     if (typeof window.registerPageInterval === 'function') window.registerPageInterval(setInterval(oa_tick, 60000));
 };
 
