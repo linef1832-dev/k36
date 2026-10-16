@@ -102,7 +102,20 @@
     #dutyApp .ov-team b{display:block;font-size:15px;font-weight:900;color:var(--k-tx-strong)}
     #dutyApp .ov-team small{display:block;font-size:11.5px;font-weight:700;color:var(--k-mute)}
     #dutyApp .ov-people{display:flex;flex-wrap:wrap;gap:6px;min-width:0}
-    @media (max-width:1300px){ #dutyApp .ov-row{grid-template-columns:120px minmax(0,1fr) 120px 80px;gap:10px;padding:10px 12px} }
+    /* ชิปไม่หักบรรทัดข้างใน (เดิมเวลาพักถูกบีบเป็นแนวตั้ง) — ทั้งชิปค่อยขึ้นบรรทัดใหม่แทน */
+    #dutyApp .ov-p{white-space:nowrap;flex-shrink:0}
+    #dutyApp .ov-narrow{display:none}
+    #dutyApp .ov-stp{padding:1px 8px;border-radius:999px;font-size:10px;font-weight:900}
+    #dutyApp .ov-stp.ok{background:var(--k-green-bg);color:var(--k-green-tx);border:1px solid var(--k-green-line)}
+    #dutyApp .ov-stp.warn{background:rgba(245,158,11,.12);color:var(--k-amber-tx);border:1px solid rgba(245,158,11,.4)}
+    #dutyApp .ov-stp.bad{background:#dc2626;color:#fff}
+    #dutyApp .ov-sbn{display:block;font-size:10.5px;font-weight:800;color:var(--k-tx3);white-space:normal;margin-top:3px}
+    /* จอแคบ/ย่อหน้าต่าง: เว็บ | คนประจำ (สถานะ+สแตนด์บายย้ายไปใต้ชื่อเว็บ) */
+    @media (max-width:1400px){
+        #dutyApp .ov-row{grid-template-columns:130px minmax(0,1fr);gap:12px;padding:10px 12px}
+        #dutyApp .ov-sb,#dutyApp .ov-st,#dutyApp .ov-h > div:nth-child(3),#dutyApp .ov-h > div:nth-child(4){display:none !important}
+        #dutyApp .ov-narrow{display:flex;flex-direction:column;align-items:flex-start;gap:2px;margin-top:4px}
+    }
     #dutyApp .ov-p{display:inline-flex !important;align-items:center;gap:7px;padding:6px 10px;border-radius:9px;background:var(--k-card);border:1px solid var(--k-line2);max-width:100%}
     /* 🕘 ประวัติ 3 วันในชิป (บรรทัดล่าง) */
     #dutyApp .ov-hist{display:inline-flex;align-items:center;gap:6px;padding-left:7px;margin-left:1px;border-left:1px solid var(--k-line2);font-size:10px;font-weight:800;color:var(--k-mute)}
@@ -130,19 +143,19 @@
     #dutyApp .ov-pin{display:inline-flex}
     #dutyApp .ov-pin > [onclick*="openStayPinModal"]{margin:0 !important;height:22px;padding:0 7px !important;border-radius:999px !important;font-size:10.5px !important;box-shadow:none !important;display:inline-flex !important;align-items:center;gap:3px}
     #dutyApp .ov-pin > [onclick*="openStayPinModal"] .material-icons{font-size:12px !important}
-    /* ปุ่ม "อยู่ต่อ…" (ยังไม่ล็อก) ไม่กินที่จนกว่าจะชี้ — กันการ์ดมีบรรทัดว่าง */
-    #dutyApp .ov-pin:has(> .border-dashed){display:none}
-    #dutyApp .ov-p:hover .ov-pin:has(> .border-dashed){display:inline-flex}
-    @media (hover:none){ #dutyApp .ov-pin:has(> .border-dashed){display:inline-flex} }
+    /* [FIX] เดิมปุ่ม "อยู่ต่อ…" / "+ รอง" โผล่ตอนชี้ → ชิปกว้างขึ้น → ชิปเลื่อนหนีเมาส์ → กระพริบไปมา
+       ตอนนี้แสดงตลอดเป็นไอคอนเล็กขนาดคงที่ ชี้แล้วแค่เปลี่ยนสี ไม่ขยับ */
+    #dutyApp .ov-pin > .border-dashed{font-size:0 !important;width:22px;justify-content:center;padding:0 !important;opacity:.45}
+    #dutyApp .ov-pin > .border-dashed .material-icons{font-size:13px !important}
+    #dutyApp .ov-pin > .border-dashed:hover{opacity:1}
     #dutyApp .ov-sup{font-style:normal;font-size:10.5px;font-weight:800;padding:1px 7px;border-radius:999px;color:light-dark(#0e7490,#67e8f9);background:rgba(6,182,212,.12);border:1px solid rgba(6,182,212,.35)}
     #dutyApp .ov-trbtn{display:inline-flex;margin-top:4px;height:22px;padding:0 8px;border-radius:7px;border:1px solid rgba(245,158,11,.5);background:rgba(245,158,11,.12);color:var(--k-amber-tx);font:inherit;font-size:10.5px;font-weight:900;cursor:pointer}
     /* 🔁 ปุ่มงานรองในชิป */
     #dutyApp .ov-sec{display:inline-flex;align-items:center;gap:3px;height:22px;padding:0 8px;border-radius:999px;border:1px solid var(--k-line3);background:var(--k-panel2);color:var(--k-tx3);font:inherit;font-size:10.5px;font-weight:900;cursor:pointer;white-space:nowrap}
     #dutyApp .ov-sec .material-icons{font-size:11px;opacity:.6}
     #dutyApp .ov-sec:hover{border-color:#E8C15A;color:var(--k-gold-tx)}
-    #dutyApp .ov-sec.add{border-style:dashed;color:var(--k-mute);background:transparent;display:none}
-    #dutyApp .ov-p:hover .ov-sec.add{display:inline-flex}
-    @media (hover:none){ #dutyApp .ov-sec.add{display:inline-flex} }
+    #dutyApp .ov-sec.add{border-style:dashed;color:var(--k-mute);background:transparent;opacity:.55}
+    #dutyApp .ov-sec.add:hover{opacity:1}
     #dutyApp .ov-row.can{background:rgba(34,197,94,.08);box-shadow:inset 3px 0 0 #22c55e}
     #dutyApp .ov-row.cant{opacity:.4}
 </style>

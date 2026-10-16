@@ -1916,7 +1916,9 @@ window.renderRosterGrid = async function(rosterData) {
         return `<div class="ov-row" data-team="${it.team}" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${it.team}')">
             <div class="ov-team">
                 <span class="ov-bar ${it.color.bg}"></span>
-                <span><b>${it.title}</b><small>${it.count} คน</small>${it.trainerBtn || ''}</span>
+                <span><b>${it.title}</b><small>${it.count} คน</small>
+                    <span class="ov-narrow"><span class="ov-stp ${st[0]}">${st[1]}</span>${it.standbyNames.length ? `<span class="ov-sbn" title="สแตนด์บายช่วยเว็บนี้">รอง: ${it.standbyNames.map(n => window.escapeHtml(n)).join(', ')}</span>` : ''}</span>
+                    ${it.trainerBtn || ''}</span>
             </div>
             <div class="ov-people">${chips}</div>
             <div class="ov-sb">${it.standbyNames.length ? it.standbyNames.map(n => window.escapeHtml(n)).join(', ') : '—'}</div>
