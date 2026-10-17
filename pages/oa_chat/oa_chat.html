@@ -56,7 +56,7 @@
             </div>
             <div class="oa-search-wrap mt-3">
                 <span class="material-icons oa-search-ic">search</span>
-                <input id="oaSearch" oninput="oa_onSearch()" placeholder="ค้นหาชื่อพนักงาน หรือ ชื่อลูกค้า" class="oa-search-in">
+                <input id="oaSearch" oninput="(window.oa_onSearch || window.oa_render)()" placeholder="ค้นหาชื่อพนักงาน หรือ ชื่อลูกค้า" class="oa-search-in">
                 <button id="oaClearF" onclick="oa_clearFilters()" class="oa-clearf" title="ล้างตัวกรอง" style="display:none">ล้างตัวกรอง</button>
             </div>
             <div class="oa-filters">
