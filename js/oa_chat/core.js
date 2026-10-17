@@ -542,7 +542,18 @@ window.oa_drawChats = function (id) {
         return `<div class="oa-chat"><span class="oa-cust"><span class="oa-cname">${oa_esc(nm)}</span>${ln}<button class="oa-copy" onclick="oa_copyName(event,'${oa_jsq(nm)}')" title="คัดลอกชื่อ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span><span>${oa_time(r.last_at || r.first_at)}</span></div>`;
     }).join('');
     if (pages > 1) {
-        let nums = ''; for (let i = 0; i < pages; i++) nums += `<button class="oa-pg ${i === p ? 'on' : ''}" data-p="${i}">${i + 1}</button>`;
+        // แสดงแบบย่อ: หน้าแรก … รอบ ๆ หน้าปัจจุบัน … หน้าสุดท้าย (เดิมโชว์ครบทุกเลข 30 หน้าล้น 2 บรรทัด)
+        const W = 2, show = new Set([0, pages - 1]);
+        for (let i = Math.max(0, p - W); i <= Math.min(pages - 1, p + W); i++) show.add(i);
+        if (p <= W + 1) for (let i = 0; i <= Math.min(pages - 1, W * 2 + 1); i++) show.add(i);                  // ต้นรายการ: ไม่ให้มี … ติดหน้า 1
+        if (p >= pages - W - 2) for (let i = Math.max(0, pages - W * 2 - 2); i < pages; i++) show.add(i);      // ท้ายรายการ
+        let nums = '', prev = -1;
+        [...show].sort((x, y) => x - y).forEach(i => {
+            if (i - prev === 2) nums += `<button class="oa-pg" data-p="${i - 1}">${i}</button>`;   // ช่องว่างแค่ 1 หน้า → โชว์เลขเลย ไม่ต้องใส่ …
+            else if (i - prev > 2) nums += '<span class="oa-pg-gap">…</span>';
+            nums += `<button class="oa-pg ${i === p ? 'on' : ''}" data-p="${i}">${i + 1}</button>`;
+            prev = i;
+        });
         html += `<div class="oa-pager"><button class="oa-pg nav" data-p="${p - 1}" ${p === 0 ? 'disabled' : ''}>‹</button>${nums}<button class="oa-pg nav" data-p="${p + 1}" ${p === pages - 1 ? 'disabled' : ''}>›</button></div>`;
     }
     box.innerHTML = html;
