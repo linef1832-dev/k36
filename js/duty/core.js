@@ -658,17 +658,10 @@ window.refreshDutyData = async function() {
             
             // ถ้าย้อนไปดูอดีต จะไม่เอาระบบล็อคปัจจุบันไปทับเด็ดขาด (ทำงานเฉพาะเป้าหมาย >= วันนี้)
             if (targetDate >= todayStr) {
-                for (const [lTask, lTeam] of Object.entries(window.lockedImportantTasks)) {
-                    if (window.globalImportantTasks.includes(lTask)) {
-                        // ⭐ ล็อกทั้งทีม (หลัก+ซัพ) — เทียบแบบไม่สนลำดับชื่อ
-                        if (!window.impSameTeam(window.currentImportantAssigns[lTask], lTeam)) {
-                            window.currentImportantAssigns[lTask] = { main: [...lTeam.main], support: [...lTeam.support] };
-                            needSave = true;
-                        }
-                    }
-                }
+                // 🔒 ล็อกรายคน: ใส่คนที่ล็อกไว้ลงงาน/บทบาทของตัวเอง โดยไม่ลบคนอื่นที่จัดไว้แล้ว
+                if (typeof window.impApplyLocks === 'function' && window.impApplyLocks()) needSave = true;
             }
-            
+
             // ถ้ายัดชื่อเข้าตารางใหม่ ให้บันทึกเพื่อจองตัวในวันนั้นๆ ไปเลย
             if (needSave && targetDate) {
                 appDB.from('settings').upsert([{ key: impAssignKey, value: JSON.stringify(window.currentImportantAssigns) }]);
