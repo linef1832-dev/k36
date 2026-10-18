@@ -476,6 +476,7 @@ window.refreshDutyData = async function() {
         const impListKey = `duty_important_tasks_list_${currentDutyDept}_${shiftFilter}`;
         const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
         const impLockKey = `duty_important_permanent_lock_${currentDutyDept}_${shiftFilter}`;
+        const impCfgKey = `duty_important_task_cfg_${currentDutyDept}_${shiftFilter}`;   // ⭐ จำนวนคน หลัก/ซัพพอร์ต ต่อหน้าที่
         const stayPinKey = `duty_stay_pins_${currentDutyDept}`;   // 📌 คนที่ถูกล็อกให้อยู่เว็บเดิมข้ามวัน
         const supportKey = `duty_support_${currentDutyDept}_${targetDate}_${shiftFilter}`;  // 🤝 ตารางซัพพอร์ตข้ามเว็บ
         const mergeKey = window.dutyMergeKey(targetDate, shiftFilter, currentDutyDept);   // 🏠 ผลรวมห้อง Discord (แยกตามฝั่ง)
@@ -496,7 +497,7 @@ window.refreshDutyData = async function() {
         const [leavesRes, schedulesRes, settingsRes, swapRes] = await Promise.all([
             appDB.from('leave_requests').select('user_id, reason, user_name').eq('leave_date', targetDate),
             appDB.from('schedules').select('staff_name, time_slot').eq('work_date', targetDate).eq('shift_name', shiftFilter),
-            appDB.from('settings').select('value, key').in('key', [saveKey, impListKey, impAssignKey, impLockKey, stayPinKey, supportKey, mergeKey, mergeKeyOld, webGroupKey, backupKey]),
+            appDB.from('settings').select('value, key').in('key', [saveKey, impListKey, impAssignKey, impLockKey, impCfgKey, stayPinKey, supportKey, mergeKey, mergeKeyOld, webGroupKey, backupKey]),
             appDB.from('scheduled_tasks').select('payload, scheduled_for, status')
                 .eq('task_type', 'individual_shift_update')
                 .gte('scheduled_for', taskDayStart).lte('scheduled_for', taskDayEnd)
@@ -565,6 +566,7 @@ window.refreshDutyData = async function() {
         window.globalImportantTasks = [];
         window.currentImportantAssigns = {};
         window.lockedImportantTasks = {};
+        window.importantTaskCfg = {};
         window.dutyStayPins = {};
         window.currentSupportData = {};
         window.savedMergeRooms = [];
@@ -605,6 +607,14 @@ window.refreshDutyData = async function() {
                 const assignRow = data.find(d => d.key === impAssignKey);
                 if (assignRow && assignRow.value) window.currentImportantAssigns = JSON.parse(assignRow.value);
 
+                // ⭐ แปลงข้อมูลรูปแบบเก่า { งาน: "ชื่อ" } → { งาน: { main:[ชื่อ], support:[] } } ให้อัตโนมัติ
+                if (typeof window.impNormMap === 'function') window.currentImportantAssigns = window.impNormMap(window.currentImportantAssigns);
+
+                const cfgRow = data.find(d => d.key === impCfgKey);
+                if (cfgRow && cfgRow.value) {
+                    try { const c = JSON.parse(cfgRow.value); window.importantTaskCfg = (c && !Array.isArray(c)) ? c : {}; } catch (e) {}
+                }
+
                 const lockRow = data.find(d => d.key === impLockKey);
                 if (lockRow && lockRow.value) {
                     let parsedLock = JSON.parse(lockRow.value);
@@ -614,6 +624,7 @@ window.refreshDutyData = async function() {
                     } else {
                         window.lockedImportantTasks = parsedLock || {};
                     }
+                    if (typeof window.impNormMap === 'function') window.lockedImportantTasks = window.impNormMap(window.lockedImportantTasks);
                 }
 
                 // 📌 คนที่ถูกล็อกให้อยู่เว็บเดิมข้ามวัน — ตัดตัวที่หมดอายุทิ้งตั้งแต่ตอนโหลด
@@ -647,11 +658,12 @@ window.refreshDutyData = async function() {
             
             // ถ้าย้อนไปดูอดีต จะไม่เอาระบบล็อคปัจจุบันไปทับเด็ดขาด (ทำงานเฉพาะเป้าหมาย >= วันนี้)
             if (targetDate >= todayStr) {
-                for (const [lTask, lUser] of Object.entries(window.lockedImportantTasks)) {
+                for (const [lTask, lTeam] of Object.entries(window.lockedImportantTasks)) {
                     if (window.globalImportantTasks.includes(lTask)) {
-                        if (window.currentImportantAssigns[lTask] !== lUser) {
-                            window.currentImportantAssigns[lTask] = lUser;
-                            needSave = true; 
+                        // ⭐ ล็อกทั้งทีม (หลัก+ซัพ) — เทียบแบบไม่สนลำดับชื่อ
+                        if (!window.impSameTeam(window.currentImportantAssigns[lTask], lTeam)) {
+                            window.currentImportantAssigns[lTask] = { main: [...lTeam.main], support: [...lTeam.support] };
+                            needSave = true;
                         }
                     }
                 }
