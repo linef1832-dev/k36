@@ -1921,6 +1921,7 @@ window.renderRosterGrid = async function(rosterData) {
                 ${p.sup.map(t => `<i class="ov-sup">🛟 ${window.escapeHtml(t)}</i>`).join('')}
                 ${p.pin ? `<span class="ov-pin">${p.pin}</span>` : ''}
                 </span>
+                <span class="ov-imp" data-imp-name="${window.escapeHtml(p.name)}"></span>
                 ${p.histHtml ? `<span class="ov-hist"><span class="material-icons">history</span>${p.histHtml}</span>` : ''}
             </span>`).join('') || '<span class="ov-empty">ยังไม่มีคน · ลากชื่อมาวางได้</span>';
         return `<div class="ov-row" data-team="${it.team}" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${it.team}')">
@@ -1954,7 +1955,7 @@ window.renderRosterGrid = async function(rosterData) {
             const meP = mine.people.find(p => p.me);
             _meBar = `<div class="dv-me">
                 <span class="material-icons">person_pin_circle</span>
-                <span>คุณ <b>${window.escapeHtml(_me.username)}</b> อยู่เว็บ <b class="dv-team ${mine.color.bg} ${mine.color.text}">${mine.title}</b>${meP.sec ? ` · งานรอง <b>${meP.sec}</b>` : ''}${meP.slots.length ? ` · พัก <b>${meP.slots.join(', ')}</b>` : ' · <em>ยังไม่ลงเวลาพัก</em>'}</span>
+                <span>คุณ <b>${window.escapeHtml(_me.username)}</b> อยู่เว็บ <b class="dv-team ${mine.color.bg} ${mine.color.text}">${mine.title}</b>${meP.sec ? ` · งานรอง <b>${meP.sec}</b>` : ''}${meP.slots.length ? ` · พัก <b>${meP.slots.join(', ')}</b>` : ' · <em>ยังไม่ลงเวลาพัก</em>'}<span class="dv-imp" data-imp-name="${window.escapeHtml(_me.username)}" data-imp-bar="1"></span></span>
             </div>`;
         } else if (leave) {
             _meBar = `<div class="dv-me off"><span class="material-icons">event_busy</span><span>คุณ <b>${window.escapeHtml(_me.username)}</b> ลาหยุดในกะนี้</span></div>`;
@@ -1968,6 +1969,8 @@ window.renderRosterGrid = async function(rosterData) {
     cardGrid.innerHTML = `${_previewNote}
         ${_meBar ? `<div class="dv-top" style="grid-column:1/-1">${_meBar}</div>` : ''}
         <div class="dv-overview" style="grid-column:1/-1">${_overview}</div>`;
+    // ⭐ เติมป้าย "หน้าที่พิเศษ" ใต้ชื่อแต่ละคน (เฉพาะแท็บผู้สอน)
+    if (typeof window.impRefreshRosterTags === 'function') window.impRefreshRosterTags();
     // 🔎 [FIX] วาดใหม่ (อัปเดตอัตโนมัติทุก 30 วิ / มีคนแก้จากเครื่องอื่น / หลังย้ายคน) แล้วคำค้นหาหลุด → ใส่กลับให้
     const _si = document.getElementById('dutySearchInput');
     if (_si && _si.value && typeof window.filterDutyResult === 'function') window.filterDutyResult();
