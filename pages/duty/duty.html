@@ -1,4 +1,3 @@
-
 <!-- 🗂️ การ์ดเว็บ + การ์ดพนักงาน (ออกแบบใหม่: อ่านง่าย ไม่รก) -->
 <style id="dc-style">
     #dutyApp .dc-site{background:var(--k-panel);border:1px solid var(--k-line);border-radius:16px;box-shadow:var(--k-shadow)}
@@ -153,6 +152,20 @@
     #dutyApp .ov-pin > .border-dashed .material-icons{font-size:13px !important}
     #dutyApp .ov-pin > .border-dashed:hover{opacity:1}
     #dutyApp .ov-sup{font-style:normal;font-size:10.5px;font-weight:800;padding:1px 7px;border-radius:999px;color:light-dark(#0e7490,#67e8f9);background:rgba(6,182,212,.12);border:1px solid rgba(6,182,212,.35)}
+    /* ⭐ ป้ายหน้าที่พิเศษใต้ชื่อ (แท็บผู้สอน) — หลัก = เขียว · ซัพ = ฟ้า · ล็อกประจำ = กรอบทอง */
+    #dutyApp .ov-imp{display:flex;flex-direction:column;align-items:flex-start;gap:3px}
+    #dutyApp .ov-imp:empty{display:none}
+    #dutyApp .ov-it{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:800;padding:1px 8px 1px 6px;border-radius:999px;line-height:1.6;white-space:nowrap}
+    #dutyApp .ov-itx{overflow:hidden;text-overflow:ellipsis;max-width:200px}
+    #dutyApp .ov-it .material-icons{font-size:12px}
+    #dutyApp .ov-it em{font-style:normal;font-size:9.5px;font-weight:900;opacity:.75}
+    #dutyApp .ov-it.main{color:light-dark(#047857,#6ee7b7);background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.35)}
+    #dutyApp .ov-it.sup{color:light-dark(#0369a1,#7dd3fc);background:rgba(14,165,233,.12);border:1px solid rgba(14,165,233,.35)}
+    #dutyApp .ov-it.lk{border-color:rgba(232,193,90,.7)}
+    #dutyApp .dv-imp:empty{display:none}
+    #dutyApp .dv-it{font-weight:900;padding:0 7px;border-radius:999px;white-space:nowrap}
+    #dutyApp .dv-it.main{color:light-dark(#047857,#6ee7b7);background:rgba(16,185,129,.12)}
+    #dutyApp .dv-it.sup{color:light-dark(#0369a1,#7dd3fc);background:rgba(14,165,233,.12)}
     #dutyApp .ov-trbtn{display:inline-flex;margin-top:4px;height:22px;padding:0 8px;border-radius:7px;border:1px solid rgba(245,158,11,.5);background:rgba(245,158,11,.12);color:var(--k-amber-tx);font:inherit;font-size:10.5px;font-weight:900;cursor:pointer}
     /* 🔁 ปุ่มงานรองในชิป */
     #dutyApp .ov-sec{display:inline-flex;align-items:center;gap:3px;height:22px;padding:0 8px;border-radius:999px;border:1px solid var(--k-line3);background:var(--k-panel2);color:var(--k-tx3);font:inherit;font-size:10.5px;font-weight:900;cursor:pointer;white-space:nowrap}
