@@ -246,6 +246,8 @@ window.renderImportantTasksPanel = function() {
     html += `</div></div>`;
     // แท็บ AM แสดงแค่ส่วนรวมห้อง ไม่มีงานพิเศษ
     panel.innerHTML = isStaffViewDept ? mergeHtml : (html + mergeHtml);
+    // ⭐ สุ่ม / เลือก / ปลด / ล็อก / ลบหน้าที่ → อัปเดตป้ายใต้ชื่อในตารางทันที ไม่ต้องรีเฟรช
+    window.impRefreshRosterTags();
 
     // แท็บ AM เพิ่มส่วนคำนวณช่วยเว็บต่อท้าย
     if (isAMDept) window.renderHelpCalcPanel();
@@ -258,6 +260,50 @@ window.renderImportantTasksPanel = function() {
 //   จำนวนคนต่องาน   : settings 'duty_important_task_cfg_{แผนก}_{กะ}' = { "ชื่องาน": { main: 1, support: 0 } }
 //                      ไม่ได้ตั้ง = หลัก 1 · ซัพ 0 (เหมือนพฤติกรรมเดิมทุกอย่าง)
 // ════════════════════════════════════════════════════════════════════
+// ⭐ ป้ายหน้าที่พิเศษใต้ชื่อในตารางเวร — "หลัก · เช็คชื่อพนักงาน" / "ซัพ · ตรวจบอท"
+//   หาช่อง [data-imp-name] ที่ตารางเวรวาดไว้ แล้วเติมป้ายให้ (เรียกหลังวาดตาราง + หลังแก้หน้าที่ทุกครั้ง)
+//   แสดงเฉพาะแท็บผู้สอน (หน้าที่พิเศษมีแค่ฝั่งนี้) · แท็บอื่นล้างทิ้ง
+window.impRefreshRosterTags = function() {
+    const slots = document.querySelectorAll('#dutyApp [data-imp-name]');
+    if (!slots.length) return;
+    const on = typeof window.isTrainerDept === 'function' && window.isTrainerDept();
+    const byName = new Map();   // ชื่อ (ตัวเล็ก) → [{ task, role, locked }]
+    if (on) {
+        const assigns = window.impNormMap(window.currentImportantAssigns);
+        const locks = window.impNormMap(window.lockedImportantTasks);
+        const order = [...new Set([...(window.globalImportantTasks || []), ...Object.keys(assigns)])];
+        order.forEach(task => {
+            const t = assigns[task];
+            if (!t) return;
+            const lk = locks[task] || { main: [], support: [] };
+            const add = (n, role) => {
+                const key = String(n).trim().toLowerCase();
+                if (!byName.has(key)) byName.set(key, []);
+                byName.get(key).push({ task, role, locked: lk[role].includes(n) });
+            };
+            t.main.forEach(n => add(n, 'main'));
+            t.support.forEach(n => add(n, 'support'));
+        });
+        // หลักขึ้นก่อนซัพ
+        byName.forEach(list => list.sort((a, b) => (a.role === 'main' ? 0 : 1) - (b.role === 'main' ? 0 : 1)));
+    }
+    const esc = window.escapeHtml;
+    slots.forEach(el => {
+        const list = byName.get(String(el.getAttribute('data-imp-name') || '').trim().toLowerCase()) || [];
+        if (el.getAttribute('data-imp-bar')) {
+            el.innerHTML = list.length
+                ? ' · หน้าที่พิเศษ ' + list.map(x => `<b class="dv-it ${x.role === 'main' ? 'main' : 'sup'}">${x.role === 'main' ? 'หลัก' : 'ซัพ'} · ${esc(x.task)}${x.locked ? ' 🔒' : ''}</b>`).join(' ')
+                : '';
+            return;
+        }
+        el.innerHTML = list.map(x =>
+            `<span class="ov-it ${x.role === 'main' ? 'main' : 'sup'}${x.locked ? ' lk' : ''}" title="${x.role === 'main' ? 'หลัก' : 'ซัพพอร์ต'}: ${esc(x.task)}${x.locked ? ' (หน้าที่ประจำ)' : ''}">`
+            + `<span class="material-icons">${x.role === 'main' ? 'star' : 'support_agent'}</span>`
+            + `<em>${x.role === 'main' ? 'หลัก' : 'ซัพ'}</em><span class="ov-itx">${esc(x.task)}</span>${x.locked ? ' 🔒' : ''}</span>`
+        ).join('');
+    });
+};
+
 window.impNormTeam = function(v) {
     const arr = x => (Array.isArray(x) ? x : (x ? [x] : [])).map(s => String(s).trim()).filter(Boolean);
     if (!v) return null;
