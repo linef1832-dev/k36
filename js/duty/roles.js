@@ -132,6 +132,13 @@ window.renderImportantTasksPanel = function() {
             <div class="p-2.5 flex flex-col">${mergeBodyHtml}</div>
         </div>`;
     
+    // ===== ⭐ หน้าที่ประจำ / พิเศษ — แต่ละหน้าที่มี "หลัก" กับ "ซัพพอร์ต" ได้หลายคน (ตั้งจำนวนเองต่อหน้าที่) =====
+    const esc = window.escapeHtml, escJ = window.escapeJsAttr;
+    window.currentImportantAssigns = window.impNormMap(window.currentImportantAssigns);
+    window.lockedImportantTasks = window.impNormMap(window.lockedImportantTasks);
+    const assigns = window.currentImportantAssigns;
+    const locks = window.lockedImportantTasks;
+
     let html = `
         <div class="bg-[#151f32] border border-slate-700/80 rounded-2xl shadow-lg flex flex-col max-h-[750px] overflow-hidden">
             <div class="bg-gradient-to-r from-amber-600 to-yellow-500 text-white p-3 flex justify-between items-center shadow-md shrink-0">
@@ -141,68 +148,88 @@ window.renderImportantTasksPanel = function() {
                 </div>
                 <div class="flex gap-1">
                     ${isAdmin ? `<button onclick="window.randomizeImportantTasks()" class="bg-indigo-600 hover:bg-indigo-500 px-2 py-1 rounded text-[10px] font-bold shadow-inner transition flex items-center gap-1 border border-indigo-400 active:scale-95"><span class="material-icons text-[12px]">casino</span> สุ่มลงงาน</button>` : ''}
-                    ${isAdmin ? `<button onclick="window.addImportantTask()" class="bg-black/20 hover:bg-black/30 px-2 py-1 rounded text-[10px] font-bold shadow-inner transition flex items-center gap-1 border border-white/20 active:scale-95"><span class="material-icons text-[12px]">add</span> เพิ่ม</button>` : ''}
+                    ${isAdmin ? `<button onclick="window.addImportantTask()" class="bg-black/20 hover:bg-black/30 px-2 py-1 rounded text-[10px] font-bold shadow-inner transition flex items-center gap-1 border border-white/20"><span class="material-icons text-[12px]">add</span> เพิ่ม</button>` : ''}
                 </div>
             </div>
             <div class="p-3 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-3">
     `;
-    
+
     // 🌟 ดึงงานทั้งหมดมาโชว์ (ทั้งงานในปัจจุบัน และงานเก่าในอดีตที่เคยมีคนทำ)
-    const allTasksToShow = [...new Set([...window.globalImportantTasks, ...Object.keys(window.currentImportantAssigns)])];
-    
+    const allTasksToShow = [...new Set([...window.globalImportantTasks, ...Object.keys(assigns)])];
+
     if (allTasksToShow.length === 0) {
         html += `<div class="text-center py-10 text-gray-500 text-xs font-bold border border-dashed border-slate-700 rounded-xl bg-slate-900/50">แอดมินยังไม่ได้ตั้งค่างานพิเศษ</div>`;
     } else {
         allTasksToShow.forEach(task => {
-            const assignedUser = window.currentImportantAssigns[task];
-            const isLegacy = !window.globalImportantTasks.includes(task); // เช็คว่าเป็นงานที่ถูกลบไปแล้วรึเปล่า
-            
-            let statusHtml = '';
-            let boxClass = '';
-            
-            if (assignedUser) {
-                // 🌟 แก้ไข: ใช้การเช็ค Key ของ Object แทน .includes() เพื่อแก้บั๊ก
-                const isLocked = !!(window.lockedImportantTasks && window.lockedImportantTasks[task]); 
-                boxClass = isLocked ? 'border-amber-500/50 bg-amber-900/10 hover:border-amber-400' : 'border-emerald-500/30 bg-emerald-900/10 hover:border-emerald-400';
-                const lockIcon = isLocked ? 'lock' : 'lock_open';
-                const lockColor = isLocked ? 'text-amber-500' : 'text-gray-400 hover:text-slate-700 dark:hover:text-white';
-                
-                statusHtml = `
-                    <div class="mt-2.5 flex items-center justify-between ${isLocked ? 'bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800/50' : 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800/50'} px-2.5 py-1.5 rounded-lg border shadow-inner transition-colors">
-                        <div class="flex items-center gap-1.5 ${isLocked ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'} font-extrabold text-[12px]">
-                            <span class="material-icons text-[16px]">${isLocked ? 'badge' : 'person_check'}</span> ${assignedUser}
-                            ${isLocked ? '<span class="text-[9px] bg-amber-200 dark:bg-amber-800/50 text-amber-800 dark:text-amber-300 px-1 rounded ml-1">หน้าที่ประจำ</span>' : ''}
+            const team = window.impTeamOf(task);
+            const cfg = window.impCfgOf(task);
+            const isLegacy = !window.globalImportantTasks.includes(task);   // งานที่ถูกลบไปแล้ว แต่วันนี้เคยมีคนทำ
+            const isLocked = !!locks[task];
+            const canEdit = isAdmin && !isLegacy;
+            const missMain = Math.max(0, cfg.main - team.main.length);
+            const missSup = Math.max(0, cfg.support - team.support.length);
+
+            let boxClass;
+            if (isLocked) boxClass = 'border-amber-500/50 bg-amber-900/10 hover:border-amber-400';
+            else if (team.main.length === 0) boxClass = 'border-red-500/50 bg-red-900/10 hover:border-red-400';
+            else if (missMain || missSup) boxClass = 'border-amber-500/50 bg-amber-900/10 hover:border-amber-400';
+            else boxClass = 'border-emerald-500/30 bg-emerald-900/10 hover:border-emerald-400';
+
+            // ชิปชื่อคน (หลัก = เขียว · ซัพพอร์ต = ฟ้า)
+            const chip = (name, role) => {
+                const c = role === 'main'
+                    ? 'bg-emerald-900/30 border-emerald-500/30 text-emerald-400'
+                    : 'bg-sky-900/30 border-sky-500/30 text-sky-400';
+                return `
+                    <div class="flex items-center justify-between gap-1 px-2 py-1 rounded-lg border ${c}">
+                        <span class="flex items-center gap-1.5 font-extrabold text-[12px] min-w-0">
+                            <span class="material-icons text-[14px]">${role === 'main' ? 'person' : 'support_agent'}</span>
+                            <span class="truncate">${esc(name)}</span>
+                        </span>
+                        ${canEdit ? `<button onclick="window.impRemovePerson('${escJ(task)}','${role}','${escJ(name)}')" class="text-red-400 hover:text-red-500 bg-slate-800 rounded px-1 py-0.5 border border-slate-700 transition" title="ปลดคนนี้ออก"><span class="material-icons text-[13px] block">close</span></button>` : ''}
+                    </div>`;
+            };
+
+            // ส่วน "หลัก" / "ซัพพอร์ต" ของการ์ด
+            const section = (role, label, list, need, miss) => {
+                if (need === 0 && list.length === 0) return '';
+                const over = list.length > need;
+                const cntCls = miss > 0 ? 'text-red-400' : (over ? 'text-amber-400' : 'text-slate-400');
+                const addBtn = canEdit
+                    ? `<button onclick="window.assignImportantTask('${escJ(task)}','${role}')" class="w-full flex items-center justify-center gap-1 px-2 py-1 rounded-lg border border-dashed ${role === 'main' ? 'border-emerald-500/50 text-emerald-400' : 'border-sky-500/40 text-sky-400'} text-[11px] font-bold hover:bg-white/10 transition"><span class="material-icons text-[13px]">person_add</span> เลือกคน (ขาด ${miss})</button>`
+                    : `<div class="text-[11px] font-bold text-red-400 flex items-center gap-1"><span class="material-icons text-[13px]">warning</span> ยังขาด ${miss} คน</div>`;
+                return `
+                    <div class="mt-2">
+                        <div class="flex items-center justify-between text-[10px] font-black tracking-wide mb-1">
+                            <span class="${role === 'main' ? 'text-emerald-400' : 'text-sky-400'}">${label}</span>
+                            <span class="${cntCls}">${list.length}/${need}</span>
                         </div>
-                        ${(isAdmin && !isLegacy) ? `
-                        <div class="flex gap-1">
-                            <button onclick="window.toggleLockImportantTask('${task}')" class="${lockColor} bg-white dark:bg-slate-800 rounded px-1.5 py-0.5 shadow-sm border border-gray-200 dark:border-slate-700 transition hover:bg-slate-50 dark:hover:bg-slate-700" title="ตั้ง/ยกเลิก เป็นหน้าที่ประจำ"><span class="material-icons text-[14px] block">${lockIcon}</span></button>
-                            <button onclick="window.unassignImportantTask('${task}')" class="text-red-400 hover:text-red-500 bg-white dark:bg-slate-800 rounded px-1.5 py-0.5 shadow-sm border border-red-200 dark:border-red-900/50 transition hover:bg-red-50" title="ปลดคนนี้ออก"><span class="material-icons text-[14px] block">close</span></button>
+                        <div class="flex flex-col gap-1">
+                            ${list.map(n => chip(n, role)).join('')}
+                            ${miss > 0 ? addBtn : ''}
                         </div>
-                        ` : ''}
-                    </div>
-                `;
-            } else {
-                boxClass = 'border-red-500/50 bg-red-900/10 hover:border-red-400';
-                statusHtml = `
-                    <div class="mt-2.5 flex items-center justify-between bg-red-50 dark:bg-red-900/30 px-2.5 py-1.5 rounded-lg border border-red-200 dark:border-red-800/50 animate-pulse shadow-inner">
-                        <div class="flex items-center gap-1.5 text-red-600 dark:text-red-400 font-extrabold text-[12px]">
-                            <span class="material-icons text-[16px]">warning</span> ยังไม่มีคนดูแล
-                        </div>
-                        ${(isAdmin && !isLegacy) ? `<button onclick="window.assignImportantTask('${task}')" class="bg-red-600 hover:bg-red-500 text-white px-2.5 py-1 rounded text-[10px] font-bold shadow-md transition border border-red-500 active:scale-95">เลือกคน</button>` : ''}
-                    </div>
-                `;
-            }
-            
+                    </div>`;
+            };
+
+            const lockBtn = canEdit ? `<button onclick="window.toggleLockImportantTask('${escJ(task)}')" class="${isLocked ? 'text-amber-500' : 'text-gray-400 hover:text-white'} bg-slate-800 rounded px-1.5 py-0.5 border border-slate-700 transition" title="ตั้ง/ยกเลิก เป็นหน้าที่ประจำ (ล็อกทีมนี้ไว้ทุกวัน)"><span class="material-icons text-[14px] block">${isLocked ? 'lock' : 'lock_open'}</span></button>` : '';
+            const cfgBtn = canEdit ? `<button onclick="window.configImportantTask('${escJ(task)}')" class="text-gray-400 hover:text-white bg-slate-800 rounded px-1.5 py-0.5 border border-slate-700 transition" title="ตั้งจำนวนคน หลัก / ซัพพอร์ต"><span class="material-icons text-[14px] block">tune</span></button>` : '';
+            const delBtn = canEdit ? `<button onclick="window.deleteImportantTask('${escJ(task)}')" class="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition bg-slate-800 rounded px-1.5 py-0.5 border border-slate-700" title="ลบหน้าที่นี้"><span class="material-icons text-[14px] block">delete</span></button>` : '';
+
             html += `
                 <div class="p-3 rounded-xl border transition shadow-sm group bg-slate-800 ${boxClass}">
                     <div class="flex justify-between items-start gap-2">
-                        <div class="font-bold text-sm text-slate-200 leading-tight flex-1">
-                            ${task}
+                        <div class="font-bold text-sm text-slate-200 leading-tight flex-1 min-w-0">
+                            ${esc(task)}
                             ${isLegacy ? '<span class="text-[9px] text-gray-500 ml-1 font-normal">(งานนี้ถูกลบแล้ว)</span>' : ''}
+                            <div class="flex flex-wrap items-center gap-1 mt-1">
+                                <span class="text-[9px] font-bold text-slate-400 bg-slate-900/50 border border-slate-700 px-1.5 rounded">หลัก ${cfg.main} · ซัพ ${cfg.support}</span>
+                                ${isLocked ? '<span class="text-[9px] bg-amber-900/50 text-amber-300 px-1 rounded">หน้าที่ประจำ</span>' : ''}
+                            </div>
                         </div>
-                        ${(isAdmin && !isLegacy) ? `<button onclick="window.deleteImportantTask('${task}')" class="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition bg-slate-900 rounded p-1.5 shadow-inner border border-slate-700" title="ลบงานนี้ทิ้งถาวร"><span class="material-icons text-[14px] block">delete</span></button>` : ''}
+                        <div class="flex gap-1 shrink-0">${delBtn}${cfgBtn}${lockBtn}</div>
                     </div>
-                    ${statusHtml}
+                    ${section('main', 'หลัก', team.main, cfg.main, missMain)}
+                    ${section('support', 'ซัพพอร์ต', team.support, cfg.support, missSup)}
                 </div>
             `;
         });
@@ -215,99 +242,305 @@ window.renderImportantTasksPanel = function() {
     if (isAMDept) window.renderHelpCalcPanel();
 };
 
-window.toggleLockImportantTask = async function(taskName) {
-    const shiftFilter = document.getElementById('dutyShiftSelect').value;
-    const impLockKey = `duty_important_permanent_lock_${currentDutyDept}_${shiftFilter}`;
-
-    if (Array.isArray(window.lockedImportantTasks)) window.lockedImportantTasks = {};
-
-    if (window.lockedImportantTasks && window.lockedImportantTasks[taskName]) {
-        delete window.lockedImportantTasks[taskName];
-        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'ปลดจากหน้าที่ประจำแล้ว', showConfirmButton: false, timer: 1500 });
-    } else {
-        const assignedName = window.currentImportantAssigns[taskName];   // [FIX] เดิมชื่อ currentUser ทับตัวแปร global
-        if (!assignedName) return Swal.fire('เตือน', 'กรุณาเลือกคนก่อน ถึงจะตั้งเป็นหน้าที่ประจำได้ครับ', 'warning');
-        window.lockedImportantTasks[taskName] = assignedName;
-        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'ตั้งเป็นหน้าที่ประจำสำเร็จ!', showConfirmButton: false, timer: 1500 });
+// ════════════════════════════════════════════════════════════════════
+// ⭐ ตัวช่วยของหน้าที่พิเศษ (หลัก + ซัพพอร์ต)
+//   รูปแบบข้อมูลใหม่ : { "ชื่องาน": { main: ["A","B"], support: ["C"] } }
+//   รูปแบบเก่า      : { "ชื่องาน": "A" }  → อ่านแล้วแปลงเป็น { main:["A"], support:[] } ให้อัตโนมัติ
+//   จำนวนคนต่องาน   : settings 'duty_important_task_cfg_{แผนก}_{กะ}' = { "ชื่องาน": { main: 1, support: 0 } }
+//                      ไม่ได้ตั้ง = หลัก 1 · ซัพ 0 (เหมือนพฤติกรรมเดิมทุกอย่าง)
+// ════════════════════════════════════════════════════════════════════
+window.impNormTeam = function(v) {
+    const arr = x => (Array.isArray(x) ? x : (x ? [x] : [])).map(s => String(s).trim()).filter(Boolean);
+    if (!v) return null;
+    let t;
+    if (typeof v === 'string' || Array.isArray(v)) t = { main: arr(v), support: [] };
+    else if (typeof v === 'object') t = { main: arr(v.main), support: arr(v.support) };
+    else return null;
+    t.main = [...new Set(t.main)];
+    t.support = [...new Set(t.support)].filter(n => !t.main.includes(n));   // คนเดียวกันอยู่ได้ฝั่งเดียว
+    return (t.main.length || t.support.length) ? t : null;
+};
+window.impNormMap = function(m) {
+    const out = {};
+    if (m && typeof m === 'object' && !Array.isArray(m)) {
+        for (const k in m) { const t = window.impNormTeam(m[k]); if (t) out[k] = t; }
     }
-    
-    window.clearSettingCache(); await appDB.from('settings').upsert([{ key: impLockKey, value: JSON.stringify(window.lockedImportantTasks) }]);
+    return out;
+};
+window.impTeamOf = function(task) {
+    const t = window.impNormTeam((window.currentImportantAssigns || {})[task]);
+    return t ? { main: [...t.main], support: [...t.support] } : { main: [], support: [] };
+};
+window.impCfgOf = function(task) {
+    const c = (window.importantTaskCfg || {})[task] || {};
+    const m = parseInt(c.main, 10), s = parseInt(c.support, 10);
+    return {
+        main: (isNaN(m) || m < 1) ? 1 : Math.min(m, 20),
+        support: (isNaN(s) || s < 0) ? 0 : Math.min(s, 20)
+    };
+};
+window.impKeys = function() {
+    const date = document.getElementById('dutyDate').value;
+    const shift = document.getElementById('dutyShiftSelect').value;
+    return {
+        date, shift,
+        list:   `duty_important_tasks_list_${currentDutyDept}_${shift}`,
+        assign: `duty_important_assign_${currentDutyDept}_${date}_${shift}`,
+        lock:   `duty_important_permanent_lock_${currentDutyDept}_${shift}`,
+        cfg:    `duty_important_task_cfg_${currentDutyDept}_${shift}`
+    };
+};
+// ชื่อทุกคนที่มีหน้าที่พิเศษอยู่แล้ว (ทั้งหลักและซัพ) → Map ชื่อ → ชื่องาน
+window.impBusyMap = function(exceptTask) {
+    const out = new Map();
+    const a = window.currentImportantAssigns || {};
+    for (const task in a) {
+        if (task === exceptTask) continue;
+        const t = window.impNormTeam(a[task]);
+        if (!t) continue;
+        [...t.main, ...t.support].forEach(n => { if (!out.has(n)) out.set(n, task); });
+    }
+    return out;
+};
+window.impSameTeam = function(a, b) {
+    const na = window.impNormTeam(a), nb = window.impNormTeam(b);
+    if (!na || !nb) return !na && !nb;
+    const key = t => JSON.stringify([[...t.main].sort(), [...t.support].sort()]);
+    return key(na) === key(nb);
+};
+window._impLog = function(detail) {
+    const k = window.impKeys();
+    try {
+        appDB.from('system_logs').insert([{
+            action_type: 'ย้ายหน้าที่',
+            performed_by: currentUser.username,
+            target_details: `${detail} (กะ: ${k.shift}, วันที่: ${k.date})`
+        }]).then(() => {}, () => {});
+    } catch (e) {}
+};
+// บันทึกทีมของงาน 1 งาน (ถ้างานนี้ล็อกเป็นหน้าที่ประจำ → อัปเดตทีมที่ล็อกไว้ให้ตรงกันด้วย)
+window.impSaveTeam = async function(task, team, logDetail) {
+    const k = window.impKeys();
+    const t = window.impNormTeam(team);
+    if (t) window.currentImportantAssigns[task] = t; else delete window.currentImportantAssigns[task];
+    const rows = [{ key: k.assign, value: JSON.stringify(window.currentImportantAssigns) }];
+    if (window.lockedImportantTasks[task]) {
+        if (t) window.lockedImportantTasks[task] = { main: [...t.main], support: [...t.support] };
+        else delete window.lockedImportantTasks[task];
+        rows.push({ key: k.lock, value: JSON.stringify(window.lockedImportantTasks) });
+    }
+    window.clearSettingCache();
+    const { error } = await appDB.from('settings').upsert(rows);
+    if (error) throw error;
+    if (logDetail) window._impLog(logDetail);
+    window.renderImportantTasksPanel();
+    window.debouncedBroadcast('duty-updates', 'force_reload');
+};
+window._impDenied = function() {
+    if (window.isDutyAdmin()) return false;
+    Swal.fire('ไม่มีสิทธิ์', 'เฉพาะผู้จัดเวรเท่านั้นครับ', 'error');
+    return true;
+};
+
+window.toggleLockImportantTask = async function(taskName) {
+    if (window._impDenied()) return;
+    const k = window.impKeys();
+    const locks = window.lockedImportantTasks = window.impNormMap(window.lockedImportantTasks);
+    let msg;
+    if (locks[taskName]) {
+        delete locks[taskName];
+        msg = 'ปลดจากหน้าที่ประจำแล้ว';
+    } else {
+        const team = window.impNormTeam(window.currentImportantAssigns[taskName]);
+        if (!team) return Swal.fire('เตือน', 'กรุณาเลือกคนก่อน ถึงจะตั้งเป็นหน้าที่ประจำได้ครับ', 'warning');
+        locks[taskName] = { main: [...team.main], support: [...team.support] };
+        msg = 'ตั้งเป็นหน้าที่ประจำสำเร็จ! (ล็อกทั้งทีม หลัก+ซัพ)';
+    }
+    window.clearSettingCache();
+    const { error } = await appDB.from('settings').upsert([{ key: k.lock, value: JSON.stringify(locks) }]);
+    if (error) return;
+    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: msg, showConfirmButton: false, timer: 1500 });
     window.renderImportantTasksPanel();
 };
 
+// 🎲 สุ่มเติมเฉพาะตำแหน่งที่ยังว่าง — เติม "หลัก" ให้ครบทุกงานก่อน แล้วค่อยเติม "ซัพพอร์ต"
+//    เติมแบบวนทีละงาน (งานละ 1 คนต่อรอบ) → คนไม่พอ จะได้กระจายให้ทุกงานมีหลักอย่างน้อย 1 ก่อน
+//    คนที่มีหน้าที่พิเศษอยู่แล้วจะไม่ถูกสุ่มซ้ำ · งานที่ล็อกเป็นหน้าที่ประจำไม่ถูกแตะ
 window.randomizeImportantTasks = async function() {
+    if (window._impDenied()) return;
     if (window.globalImportantTasks.length === 0) return Swal.fire('ไม่มีงาน', 'กรุณาเพิ่มหน้าที่สำคัญก่อนทำการสุ่มครับ', 'warning');
-    
-    const targetDate = document.getElementById('dutyDate').value;
-    const shiftFilter = document.getElementById('dutyShiftSelect').value;
-    
-    let availableStaff = window.getDutyActiveStaff(shiftFilter, { anyRole: true }).map(u => u.username);
-    
-    if (availableStaff.length === 0) return Swal.fire('ไม่มีพนักงาน', 'ไม่พบรายชื่อผู้สอนในกะนี้ครับ', 'error');
+    const k = window.impKeys();
 
-    const assignedStaff = Object.values(window.currentImportantAssigns);
-    availableStaff = availableStaff.filter(name => !assignedStaff.includes(name));
-    
-    availableStaff = availableStaff.sort(() => Math.random() - 0.5);
-    
-    let staffIndex = 0;
-    let assignedCount = 0;
-    
-    window.globalImportantTasks.forEach(task => {
-        if (!window.currentImportantAssigns[task]) { 
-            if (staffIndex < availableStaff.length) {
-                window.currentImportantAssigns[task] = availableStaff[staffIndex];
-                staffIndex++;
-                assignedCount++;
+    const available = window.getDutyActiveStaff(k.shift, { anyRole: true }).map(u => u.username);
+    if (available.length === 0) return Swal.fire('ไม่มีพนักงาน', 'ไม่พบรายชื่อผู้สอนในกะนี้ครับ', 'error');
+
+    const busy = window.impBusyMap();
+    const pool = available.filter(n => !busy.has(n)).sort(() => Math.random() - 0.5);
+
+    const tasks = window.globalImportantTasks.filter(t => !window.lockedImportantTasks[t]);
+    const teams = {};
+    tasks.forEach(t => { teams[t] = window.impTeamOf(t); });
+
+    let mainAdded = 0, supAdded = 0;
+    const fill = (role) => {
+        let progress = true;
+        while (progress && pool.length) {
+            progress = false;
+            for (const t of tasks) {
+                if (!pool.length) break;
+                const need = window.impCfgOf(t)[role];
+                if (teams[t][role].length < need) {
+                    teams[t][role].push(pool.shift());
+                    if (role === 'main') mainAdded++; else supAdded++;
+                    progress = true;
+                }
             }
         }
+    };
+    fill('main');
+    fill('support');
+
+    // ตำแหน่งที่ยังว่างหลังสุ่ม (คนไม่พอ)
+    let shortMain = 0, shortSup = 0;
+    tasks.forEach(t => {
+        const c = window.impCfgOf(t);
+        shortMain += Math.max(0, c.main - teams[t].main.length);
+        shortSup += Math.max(0, c.support - teams[t].support.length);
     });
-    
-    Swal.fire({title: 'กำลังสุ่มและจัดเรียงงาน...', didOpen: () => Swal.showLoading()});
-    
-    const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
-    window.clearSettingCache(); await appDB.from('settings').upsert([{ key: impAssignKey, value: JSON.stringify(window.currentImportantAssigns) }]);
-    
-    window.renderImportantTasksPanel();
-    Swal.close();
-    window.debouncedBroadcast('duty-updates', 'force_reload');
-    
-    if (assignedCount > 0) {
-        Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 }).fire({ icon: 'success', title: `สุ่มสำเร็จ ${assignedCount} หน้าที่` });
-    } else {
-        Swal.fire('เตือน', 'ไม่มีหน้าที่ว่าง หรือไม่มีพนักงานเหลือให้สุ่มแล้วครับ', 'info');
+
+    if (mainAdded + supAdded === 0) {
+        if (shortMain + shortSup > 0) return Swal.fire('คนไม่พอ', `ยังขาด หลัก ${shortMain} · ซัพ ${shortSup} ตำแหน่ง แต่ไม่มีผู้สอนว่างเหลือให้สุ่มแล้วครับ`, 'info');
+        return Swal.fire('เตือน', 'ทุกหน้าที่มีคนครบตามจำนวนที่ตั้งไว้แล้วครับ', 'info');
     }
+
+    Swal.fire({ title: 'กำลังสุ่มและจัดเรียงงาน...', didOpen: () => Swal.showLoading() });
+    tasks.forEach(t => {
+        const n = window.impNormTeam(teams[t]);
+        if (n) window.currentImportantAssigns[t] = n;
+    });
+    window.clearSettingCache();
+    const { error } = await appDB.from('settings').upsert([{ key: k.assign, value: JSON.stringify(window.currentImportantAssigns) }]);
+    Swal.close();
+    if (error) return;
+    window._impLog(`สุ่มหน้าที่พิเศษ: เพิ่มหลัก ${mainAdded} คน · ซัพ ${supAdded} คน`);
+    window.renderImportantTasksPanel();
+    window.debouncedBroadcast('duty-updates', 'force_reload');
+
+    if (shortMain + shortSup > 0) {
+        Swal.fire('สุ่มแล้ว แต่คนไม่พอ', `เพิ่มหลัก ${mainAdded} · ซัพ ${supAdded} คน<br>ยังขาด หลัก <b>${shortMain}</b> · ซัพ <b>${shortSup}</b> ตำแหน่ง`, 'warning');
+    } else {
+        Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 })
+            .fire({ icon: 'success', title: `สุ่มสำเร็จ: หลัก ${mainAdded} · ซัพ ${supAdded} คน` });
+    }
+};
+
+// ช่องกรอกจำนวน หลัก / ซัพพอร์ต (ใช้ทั้งตอนเพิ่มงานใหม่และตอนแก้)
+window._impCountFieldsHtml = function(main, support) {
+    const box = 'width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;border:1px solid rgba(148,163,184,.35);background:transparent;color:inherit;font-size:15px;font-weight:700;text-align:center';
+    const lab = 'display:block;font-size:12px;font-weight:700;margin-bottom:6px;text-align:left';
+    return `
+        <div style="display:flex;gap:10px;margin-top:12px">
+            <div style="flex:1"><label style="${lab};color:#34d399">👤 หลัก (คน)</label>
+                <input id="impCntMain" type="number" min="1" max="20" value="${main}" style="${box}"></div>
+            <div style="flex:1"><label style="${lab};color:#38bdf8">🎧 ซัพพอร์ต (คน)</label>
+                <input id="impCntSup" type="number" min="0" max="20" value="${support}" style="${box}"></div>
+        </div>
+        <div style="font-size:11px;opacity:.6;margin-top:8px;text-align:left">ซัพพอร์ตใส่ 0 ได้ ถ้างานนี้ไม่ต้องมีคนช่วย</div>`;
+};
+window._impReadCounts = function() {
+    const m = parseInt(document.getElementById('impCntMain').value, 10);
+    const s = parseInt(document.getElementById('impCntSup').value, 10);
+    if (isNaN(m) || m < 1 || m > 20) { Swal.showValidationMessage('จำนวนหลักต้องเป็น 1–20 คน'); return null; }
+    if (isNaN(s) || s < 0 || s > 20) { Swal.showValidationMessage('จำนวนซัพพอร์ตต้องเป็น 0–20 คน'); return null; }
+    return { main: m, support: s };
 };
 
 window.addImportantTask = async function() {
-    const { value: taskName } = await Swal.fire({
+    if (window._impDenied()) return;
+    const { value: form } = await Swal.fire({
         title: 'เพิ่มหน้าที่สำคัญ / พิเศษ',
-        input: 'text',
-        inputPlaceholder: 'เช่น ดูแลระบบฝากถอน, เช็คแชท VIP...',
+        html: `<input id="impNewName" class="swal2-input" style="margin:6px 0 0;width:100%;box-sizing:border-box" placeholder="เช่น ดูแลระบบฝากถอน, เช็คแชท VIP...">`
+            + window._impCountFieldsHtml(1, 0),
         showCancelButton: true,
         confirmButtonText: 'บันทึก',
         cancelButtonText: 'ยกเลิก',
         confirmButtonColor: '#f59e0b',
-        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' },
+        didOpen: () => { const el = document.getElementById('impNewName'); if (el) el.focus(); },
+        preConfirm: () => {
+            const name = (document.getElementById('impNewName').value || '').trim();
+            if (!name) { Swal.showValidationMessage('กรุณาใส่ชื่อหน้าที่'); return false; }
+            const counts = window._impReadCounts();
+            if (!counts) return false;
+            return { name, counts };
+        }
     });
-    
-    if (taskName) {
-        const name = taskName.trim();
-        if (window.globalImportantTasks.includes(name)) return Swal.fire('เตือน', 'มีหน้าที่นี้อยู่ในระบบแล้วครับ', 'warning');
-        
-        const shiftFilter = document.getElementById('dutyShiftSelect').value;
-        window.globalImportantTasks.push(name);
-        Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
-        
-        const impListKey = `duty_important_tasks_list_${currentDutyDept}_${shiftFilter}`;
-        window.clearSettingCache(); await appDB.from('settings').upsert([{ key: impListKey, value: JSON.stringify(window.globalImportantTasks) }]);
-        
-        window.renderImportantTasksPanel();
-        Swal.close();
+    if (!form) return;
+    if (window.globalImportantTasks.includes(form.name)) return Swal.fire('เตือน', 'มีหน้าที่นี้อยู่ในระบบแล้วครับ', 'warning');
+
+    const k = window.impKeys();
+    window.globalImportantTasks.push(form.name);
+    window.importantTaskCfg = window.importantTaskCfg || {};
+    window.importantTaskCfg[form.name] = form.counts;
+    Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading() });
+    window.clearSettingCache();
+    await appDB.from('settings').upsert([
+        { key: k.list, value: JSON.stringify(window.globalImportantTasks) },
+        { key: k.cfg, value: JSON.stringify(window.importantTaskCfg) }
+    ]);
+    window.renderImportantTasksPanel();
+    Swal.close();
+};
+
+// ⚙️ ตั้งจำนวนคนของงาน — ลดจำนวนลงต่ำกว่าคนที่มีอยู่ → ตัดคนที่ลงทีหลังออกเฉพาะวัน+กะที่เปิดอยู่
+window.configImportantTask = async function(taskName) {
+    if (window._impDenied()) return;
+    const cur = window.impCfgOf(taskName);
+    const { value: counts } = await Swal.fire({
+        title: `<div class="text-sm text-gray-400 mb-1">ตั้งจำนวนคน:</div><div class="text-amber-500 font-black">${window.escapeHtml(taskName)}</div>`,
+        html: window._impCountFieldsHtml(cur.main, cur.support),
+        showCancelButton: true,
+        confirmButtonText: 'บันทึก',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#f59e0b',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' },
+        preConfirm: () => window._impReadCounts() || false
+    });
+    if (!counts) return;
+
+    const k = window.impKeys();
+    window.importantTaskCfg = window.importantTaskCfg || {};
+    window.importantTaskCfg[taskName] = counts;
+    const rows = [{ key: k.cfg, value: JSON.stringify(window.importantTaskCfg) }];
+
+    const team = window.impTeamOf(taskName);
+    const cutMain = team.main.slice(counts.main), cutSup = team.support.slice(counts.support);
+    if (cutMain.length || cutSup.length) {
+        const trimmed = window.impNormTeam({ main: team.main.slice(0, counts.main), support: team.support.slice(0, counts.support) });
+        if (trimmed) window.currentImportantAssigns[taskName] = trimmed; else delete window.currentImportantAssigns[taskName];
+        rows.push({ key: k.assign, value: JSON.stringify(window.currentImportantAssigns) });
+        if (window.lockedImportantTasks[taskName]) {
+            if (trimmed) window.lockedImportantTasks[taskName] = { main: [...trimmed.main], support: [...trimmed.support] };
+            else delete window.lockedImportantTasks[taskName];
+            rows.push({ key: k.lock, value: JSON.stringify(window.lockedImportantTasks) });
+        }
     }
+
+    window.clearSettingCache();
+    const { error } = await appDB.from('settings').upsert(rows);
+    if (error) return;
+    const cut = [...cutMain, ...cutSup];
+    if (cut.length) window._impLog(`ลดจำนวนคนงาน "${taskName}" → ปลด ${cut.join(', ')}`);
+    window.renderImportantTasksPanel();
+    window.debouncedBroadcast('duty-updates', 'force_reload');
+    Swal.fire({
+        toast: true, position: 'top-end', icon: 'success', showConfirmButton: false, timer: cut.length ? 3000 : 1500,
+        title: `ตั้งเป็น หลัก ${counts.main} · ซัพ ${counts.support} แล้ว` + (cut.length ? ` (ปลดออก: ${cut.join(', ')})` : '')
+    });
 };
 
 window.deleteImportantTask = async function(taskName) {
+    if (window._impDenied()) return;
     const res = await Swal.fire({
         title: 'ลบหน้าที่นี้?',
         text: `ต้องการลบ "${taskName}" ออกจากรายการงานพิเศษใช่หรือไม่? (ลบทิ้งถาวร)`,
@@ -317,106 +550,115 @@ window.deleteImportantTask = async function(taskName) {
         confirmButtonText: 'ลบทิ้งเลย',
         customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
     });
-    
-    if (res.isConfirmed) {
-        window.globalImportantTasks = window.globalImportantTasks.filter(t => t !== taskName);
-        delete window.currentImportantAssigns[taskName]; 
-        if (window.lockedImportantTasks) delete window.lockedImportantTasks[taskName]; 
-        
-        Swal.fire({title: 'กำลังลบ...', didOpen: () => Swal.showLoading()});
-        const targetDate = document.getElementById('dutyDate').value;
-        const shiftFilter = document.getElementById('dutyShiftSelect').value;
-        
-        const listKey = `duty_important_tasks_list_${currentDutyDept}_${shiftFilter}`;
-        const assignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
-        const lockKey = `duty_important_permanent_lock_${currentDutyDept}_${shiftFilter}`;
-        
-        window.clearSettingCache(); await appDB.from('settings').upsert([
-            { key: listKey, value: JSON.stringify(window.globalImportantTasks) },
-            { key: assignKey, value: JSON.stringify(window.currentImportantAssigns) },
-            { key: lockKey, value: JSON.stringify(window.lockedImportantTasks) }
-        ]);
-        window.renderImportantTasksPanel();
-        Swal.close();
-    }
-};
+    if (!res.isConfirmed) return;
 
-window.assignImportantTask = async function(taskName) {
-    const shiftFilter = document.getElementById('dutyShiftSelect').value;
-    const activeStaff = window.getDutyActiveStaff(shiftFilter, { anyRole: true });
-    
-    if (activeStaff.length === 0) return Swal.fire('ไม่มีรายชื่อ', 'ไม่มีผู้สอนที่พร้อมทำงานในกะนี้เลยครับ', 'error');
-    
-    let options = {};
-    activeStaff.sort((a,b) => a.username.localeCompare(b.username)).forEach(u => options[u.username] = u.username);
-    
-    const { value: selectedUser } = await Swal.fire({
-        title: `<div class="text-sm text-gray-400 mb-1">มอบหมายงาน:</div><div class="text-amber-500 font-black">${taskName}</div>`,
-        input: 'select',
-        inputOptions: options,
-        inputPlaceholder: '-- เลือกผู้รับผิดชอบงานนี้ --',
-        showCancelButton: true,
-        confirmButtonText: 'มอบหมาย',
-        confirmButtonColor: '#10b981',
-        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
-    });
-    
-    if (selectedUser) {
-        const prevAssignee = window.currentImportantAssigns[taskName] || null;
-        window.currentImportantAssigns[taskName] = selectedUser;
-        Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
-
-        const targetDate = document.getElementById('dutyDate').value;
-        const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
-
-        window.clearSettingCache(); await appDB.from('settings').upsert([{ key: impAssignKey, value: JSON.stringify(window.currentImportantAssigns) }]);
-
-        // 🟢 บันทึก log การมอบหมายงานสำคัญ
-        const logDetail = prevAssignee && prevAssignee !== selectedUser
-            ? `เปลี่ยนผู้รับผิดชอบงาน "${taskName}": ${prevAssignee} → ${selectedUser}`
-            : `มอบหมายงาน "${taskName}" ให้ ${selectedUser}`;
-        await appDB.from('system_logs').insert([{
-            action_type: 'ย้ายหน้าที่',
-            performed_by: currentUser.username,
-            target_details: `${logDetail} (กะ: ${shiftFilter}, วันที่: ${targetDate})`
-        }]);
-
-        window.renderImportantTasksPanel();
-        Swal.close();
-        window.debouncedBroadcast('duty-updates', 'force_reload');
-    }
-};
-
-window.unassignImportantTask = async function(taskName) {
-    const prevAssignee = window.currentImportantAssigns[taskName] || null;
+    const k = window.impKeys();
+    window.globalImportantTasks = window.globalImportantTasks.filter(t => t !== taskName);
     delete window.currentImportantAssigns[taskName];
+    if (window.lockedImportantTasks) delete window.lockedImportantTasks[taskName];
+    window.importantTaskCfg = window.importantTaskCfg || {};
+    delete window.importantTaskCfg[taskName];
 
-    const targetDate = document.getElementById('dutyDate').value;
-    const shiftFilter = document.getElementById('dutyShiftSelect').value;
-    const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
-    const impLockKey = `duty_important_permanent_lock_${currentDutyDept}_${shiftFilter}`;
-
-    let keysToUpdate = [ { key: impAssignKey, value: JSON.stringify(window.currentImportantAssigns) } ];
-
-    if (window.lockedImportantTasks && window.lockedImportantTasks[taskName]) {
-        delete window.lockedImportantTasks[taskName];
-        keysToUpdate.push({ key: impLockKey, value: JSON.stringify(window.lockedImportantTasks) });
-    }
-
-    Swal.fire({title: 'กำลังปลดคน...', didOpen: () => Swal.showLoading()});
-    window.clearSettingCache(); await appDB.from('settings').upsert(keysToUpdate);
-
-    // 🟢 บันทึก log การปลดคนออกจากงานสำคัญ
-    if (prevAssignee) {
-        await appDB.from('system_logs').insert([{
-            action_type: 'ย้ายหน้าที่',
-            performed_by: currentUser.username,
-            target_details: `ปลด ${prevAssignee} ออกจากงาน "${taskName}" (กะ: ${shiftFilter}, วันที่: ${targetDate})`
-        }]);
-    }
-
+    Swal.fire({ title: 'กำลังลบ...', didOpen: () => Swal.showLoading() });
+    window.clearSettingCache();
+    await appDB.from('settings').upsert([
+        { key: k.list, value: JSON.stringify(window.globalImportantTasks) },
+        { key: k.assign, value: JSON.stringify(window.currentImportantAssigns) },
+        { key: k.lock, value: JSON.stringify(window.lockedImportantTasks) },
+        { key: k.cfg, value: JSON.stringify(window.importantTaskCfg) }
+    ]);
     window.renderImportantTasksPanel();
     Swal.close();
+};
+
+// 👤 เลือกคนลงงาน — เลือกได้หลายคนพร้อมกัน (ไม่เกินจำนวนที่ยังว่าง)
+//    คนที่มีหน้าที่พิเศษอื่นอยู่แล้วยังเลือกได้ แต่มีป้ายบอกไว้ให้เห็น
+window.assignImportantTask = async function(taskName, role) {
+    if (window._impDenied()) return;
+    role = role === 'support' ? 'support' : 'main';
+    const roleLabel = role === 'main' ? 'หลัก' : 'ซัพพอร์ต';
+    const k = window.impKeys();
+    const cfg = window.impCfgOf(taskName);
+    const team = window.impTeamOf(taskName);
+    const free = cfg[role] - team[role].length;
+    if (free <= 0) return Swal.fire('ครบแล้ว', `${roleLabel}ของงานนี้ครบ ${cfg[role]} คนแล้ว — อยากเพิ่มให้กดปุ่ม ⚙️ ตั้งจำนวนคนก่อนครับ`, 'info');
+
+    const inTask = new Set([...team.main, ...team.support]);
+    const busy = window.impBusyMap(taskName);
+    const staff = window.getDutyActiveStaff(k.shift, { anyRole: true })
+        .map(u => u.username)
+        .filter(n => !inTask.has(n))
+        .sort((a, b) => (busy.has(a) - busy.has(b)) || a.localeCompare(b));   // คนว่างขึ้นก่อน
+    if (staff.length === 0) return Swal.fire('ไม่มีรายชื่อ', 'ไม่มีผู้สอนที่พร้อมทำงานในกะนี้เหลือให้เลือกครับ', 'error');
+
+    const esc = window.escapeHtml;
+    const listHtml = staff.map((n, i) => `
+        <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;cursor:pointer;border:1px solid rgba(148,163,184,.2);margin-bottom:6px;text-align:left">
+            <input type="checkbox" class="imp-pick" value="${i}" style="width:16px;height:16px;flex-shrink:0">
+            <span style="font-weight:700;font-size:13px;flex:1">${esc(n)}</span>
+            ${busy.has(n) ? `<span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;background:rgba(245,158,11,.15);color:#f59e0b">มีงาน: ${esc(busy.get(n))}</span>` : ''}
+        </label>`).join('');
+
+    const { value: picked } = await Swal.fire({
+        title: `<div class="text-sm text-gray-400 mb-1">เลือก${roleLabel}ให้งาน:</div><div class="text-amber-500 font-black">${esc(taskName)}</div>`,
+        html: `<div style="font-size:12px;opacity:.7;margin-bottom:8px">เลือกได้สูงสุด <b>${free}</b> คน</div>
+               <div style="max-height:320px;overflow-y:auto;padding-right:4px">${listHtml}</div>`,
+        showCancelButton: true,
+        confirmButtonText: 'มอบหมาย',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#10b981',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' },
+        didOpen: () => {
+            // เลือกครบโควตาแล้ว → ล็อกช่องที่เหลือ กันติ๊กเกิน
+            const boxes = Array.from(document.querySelectorAll('.imp-pick'));
+            const sync = () => {
+                const n = boxes.filter(b => b.checked).length;
+                boxes.forEach(b => { if (!b.checked) b.disabled = n >= free; b.parentElement.style.opacity = b.disabled ? '.4' : '1'; });
+            };
+            boxes.forEach(b => b.addEventListener('change', sync));
+        },
+        preConfirm: () => {
+            const sel = Array.from(document.querySelectorAll('.imp-pick:checked')).map(b => staff[+b.value]);
+            if (!sel.length) { Swal.showValidationMessage('กรุณาเลือกอย่างน้อย 1 คน'); return false; }
+            return sel.slice(0, free);
+        }
+    });
+    if (!picked || !picked.length) return;
+
+    team[role].push(...picked);
+    Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading() });
+    try {
+        await window.impSaveTeam(taskName, team, `มอบหมายงาน "${taskName}" [${roleLabel}] ให้ ${picked.join(', ')}`);
+        Swal.close();
+    } catch (e) { Swal.close(); }
+};
+
+// ✕ ปลดคนออก 1 คน
+window.impRemovePerson = async function(taskName, role, name) {
+    if (window._impDenied()) return;
+    const team = window.impTeamOf(taskName);
+    team.main = team.main.filter(n => !(role === 'main' && n === name));
+    team.support = team.support.filter(n => !(role === 'support' && n === name));
+    try {
+        await window.impSaveTeam(taskName, team, `ปลด ${name} ออกจากงาน "${taskName}" [${role === 'main' ? 'หลัก' : 'ซัพพอร์ต'}]`);
+    } catch (e) {}
+};
+
+// ล้างคนทั้งหมดของงาน (คงชื่อฟังก์ชันเดิมไว้ เผื่อมีที่อื่นเรียก) — ปลดล็อกหน้าที่ประจำด้วย
+window.unassignImportantTask = async function(taskName) {
+    if (window._impDenied()) return;
+    const prev = window.impTeamOf(taskName);
+    if (window.lockedImportantTasks) delete window.lockedImportantTasks[taskName];
+    const k = window.impKeys();
+    delete window.currentImportantAssigns[taskName];
+    window.clearSettingCache();
+    await appDB.from('settings').upsert([
+        { key: k.assign, value: JSON.stringify(window.currentImportantAssigns) },
+        { key: k.lock, value: JSON.stringify(window.lockedImportantTasks || {}) }
+    ]);
+    const names = [...prev.main, ...prev.support];
+    if (names.length) window._impLog(`ปลด ${names.join(', ')} ออกจากงาน "${taskName}"`);
+    window.renderImportantTasksPanel();
     window.debouncedBroadcast('duty-updates', 'force_reload');
 };
 
