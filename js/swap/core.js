@@ -186,6 +186,33 @@ function swapTaskDateTH(ts) {
     return new Date(d.getTime() + 7 * 3600000).toISOString().slice(0, 10);   // UTC+7 (ไทย ไม่มีเวลาออมแสง)
 }
 
+// ⚡ [เร็วขึ้น] ลบวันลาเป็นชุด — จับกลุ่มตามวันที่ → 1 คำขอต่อ "วัน" (เดิม 1 คำขอต่อ "คน" ทีละคำขอต่อกัน)
+//    เช่นแผน 6 วัน 70 คน: เดิมรอ 70 รอบ → ตอนนี้ 6 คำขอ ยิงพร้อมกัน
+async function swapDeleteLeavesBatch(rows, onlyXX) {
+    const byDate = {};
+    (rows || []).forEach(r => { if (r && r.user_id != null && r.leave_date) (byDate[r.leave_date] = byDate[r.leave_date] || new Set()).add(r.user_id); });
+    const jobs = [];
+    Object.entries(byDate).forEach(([d, set]) => {
+        const ids = [...set];
+        for (let i = 0; i < ids.length; i += 150) {
+            let q = appDB.from('leave_requests').delete().eq('leave_date', d).in('user_id', ids.slice(i, i + 150));
+            if (onlyXX) q = q.eq('reason', 'XX');
+            jobs.push(q);
+        }
+    });
+    for (let i = 0; i < jobs.length; i += 6) {   // ยิงพร้อมกันทีละ 6
+        const res = await Promise.all(jobs.slice(i, i + 6));
+        const bad = res.find(r => r && r.error); if (bad) throw bad.error;
+    }
+}
+// ⚡ ลบงานสลับกะเป็นชุด (ทีละ 200 รายการ ยิงพร้อมกัน)
+async function swapDeleteTasksBatch(ids) {
+    const jobs = [];
+    for (let i = 0; i < (ids || []).length; i += 200) jobs.push(appDB.from('scheduled_tasks').delete().in('id', ids.slice(i, i + 200)));
+    const res = await Promise.all(jobs);
+    const bad = res.find(r => r && r.error); if (bad) throw bad.error;
+}
+
 function getSafeDateStr(baseDateStr, offsetDays) {
     const d = new Date(baseDateStr + 'T12:00:00'); d.setDate(d.getDate() + offsetDays); return d.toISOString().split('T')[0];
 }
@@ -486,9 +513,7 @@ window.confirmAndSaveSwapPlan = async function() {
                 }
                 
                 if (leaveRequestsToInsert.length > 0) { 
-                    for (let req of leaveRequestsToInsert) {
-                        await appDB.from('leave_requests').delete().eq('user_id', req.user_id).eq('leave_date', req.leave_date);
-                    }
+                    await swapDeleteLeavesBatch(leaveRequestsToInsert, false);   // ⚡ เดิมลบทีละคน
                     const { error: leaveError } = await appDB.from('leave_requests').insert(leaveRequestsToInsert); 
                     if (leaveError) throw leaveError;
                 }

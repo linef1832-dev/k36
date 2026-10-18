@@ -325,7 +325,8 @@ window.deleteAllSwapSchedules = async function() {
         if (result.isConfirmed) {
             Swal.fire({ title: 'กำลังลบข้อมูล...', didOpen: () => Swal.showLoading() });
             try {
-                const { data } = await appDB.from('scheduled_tasks').select('id, task_type, payload, scheduled_for, status').eq('task_type', 'individual_shift_update');
+                // [แก้] ดึงครบทุกแถว (เดิมได้แค่ 1,000 แถวแรก → ข้อมูลเยอะแล้วลบไม่หมด)
+                const { data } = await window.selectAllRows(() => appDB.from('scheduled_tasks').select('id, task_type, payload, scheduled_for, status').eq('task_type', 'individual_shift_update').order('id', { ascending: true }));
                 if (data && data.length > 0) {
                     const idsToDelete = []; const tasksToBackup = [];
                     const safeUserList = (typeof GLOBAL_USER_LIST !== 'undefined') ? GLOBAL_USER_LIST : [];
@@ -344,13 +345,10 @@ window.deleteAllSwapSchedules = async function() {
 
                     if (idsToDelete.length > 0) {
                         window.safeSetItem(`backup_swap_${activeSwapDeptFilter}`, JSON.stringify(tasksToBackup));
-                        await appDB.from('scheduled_tasks').delete().in('id', idsToDelete);
-
-                        // 🟨 [FIX] ลบวันหยุด XX ที่ตารางสลับกะชุดนี้ลงไว้ด้วย — เดิมลบแต่งาน ทำให้ XX เหลืองค้างในตารางวันหยุด
+                        // 🟨 ลบวันหยุด XX ที่ตารางสลับกะชุดนี้ลงไว้ด้วย
+                        // ⚡ [เร็วขึ้น] ลบงาน + ลบ XX พร้อมกัน และเป็นชุด (เดิมลบ XX ทีละคนต่อกัน → รอนานมาก)
                         const xxRows = tasksToBackup.map(_swapTaskXXDate).filter(Boolean);
-                        for (const x of xxRows) {
-                            await appDB.from('leave_requests').delete().eq('user_id', x.user_id).eq('leave_date', x.leave_date).eq('reason', 'XX');
-                        }
+                        await Promise.all([swapDeleteTasksBatch(idsToDelete), swapDeleteLeavesBatch(xxRows, true)]);
                     }
                 }
                 
@@ -385,7 +383,7 @@ window.restoreDeletedSwapSchedules = async function() {
                 // 🟨 [FIX] กู้ XX กลับมาด้วย (ลบไปตอนล้างตาราง) — เฉพาะงานที่ยังไม่ผ่านไปแล้ว
                 const xxRows = tasksToRestore.filter(t => t.status === 'pending').map(_swapTaskXXDate).filter(Boolean);
                 if (xxRows.length) {
-                    for (const x of xxRows) await appDB.from('leave_requests').delete().eq('user_id', x.user_id).eq('leave_date', x.leave_date).eq('reason', 'XX');
+                    await swapDeleteLeavesBatch(xxRows, true);   // ⚡ เป็นชุด (เดิมทีละคน)
                     await appDB.from('leave_requests').insert(xxRows.map(x => ({ ...x, reason: 'XX', status: 'approved' })));
                 }
 
