@@ -1,3 +1,13 @@
+// 🔧 วันที่ (เวลาไทย) ของงานสลับกะ — scheduled_for เก็บเป็น UTC (สลับ 1 พ.ย. 05:00 ไทย = "2026-10-31T22:00Z")
+//    เดิมตัด 10 ตัวแรกตรง ๆ → การ์ดสลับกะบนหน้าหลักขึ้นช้าไป 1 วัน
+function _mtTaskDateTH(ts) {
+    if (!ts) return '';
+    let s = String(ts).trim().replace(' ', 'T');
+    if (!/([zZ]|[+-]\d\d(:?\d\d)?)$/.test(s)) s += 'Z';
+    const d = new Date(s);
+    if (isNaN(d)) return String(ts).slice(0, 10);
+    return new Date(d.getTime() + 7 * 3600000).toISOString().slice(0, 10);
+}
 window.initDashboard = async function() {
     // ลองดึงจาก sessionStorage ก่อนเลย ไม่ต้องรอ
     if (!window.currentUser || !window.currentUser.id) {
@@ -1215,7 +1225,7 @@ window._renderMyTodayNow = async function() {
             appDB.from('schedules').select('id, shift_name, time_slot, team').eq('work_date', dateVal).eq('staff_name', me.username),
             appDB.from('leave_requests').select('leave_date, reason').eq('user_id', me.id).gte('leave_date', dateVal.slice(0, 8) + '01').lt('leave_date', (() => { const d = new Date(+dateVal.slice(0,4), +dateVal.slice(5,7) + 1, 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-01'; })()).order('leave_date', { ascending: true }).limit(80),   // เดือนนี้ + เดือนหน้า เท่านั้น
             // 🔄 สลับกะของฉัน: ตั้งแต่วันที่ดู ไปอีก 60 วัน (จากหน้าสลับกะ)
-            appDB.from('scheduled_tasks').select('payload, scheduled_for, status').eq('task_type', 'individual_shift_update').gte('scheduled_for', dateVal + 'T00:00:00').lte('scheduled_for', _swEnd.toISOString().slice(0,10) + 'T23:59:59').order('scheduled_for', { ascending: true })
+            appDB.from('scheduled_tasks').select('payload, scheduled_for, status').eq('task_type', 'individual_shift_update').gte('scheduled_for', dateVal + 'T00:00:00+07:00').lte('scheduled_for', _swEnd.toISOString().slice(0,10) + 'T23:59:59+07:00').order('scheduled_for', { ascending: true })
         ]);
         rosterRows = r1.data || []; myBreaks = r2.data || []; myLeaves = r3.data || [];
         mySwaps = (r4.data || []).map(t => { let pl = t.payload; if (typeof pl === 'string') { try { pl = JSON.parse(pl); } catch (e) { pl = {}; } } return { ...t, pl: pl || {} }; })
@@ -1258,7 +1268,7 @@ window._renderMyTodayNow = async function() {
 
     // 1) กะของฉัน
     // 🔄 วันที่ดูมีสลับกะไหม (target_shift ไม่ใช่ 'คงเดิม') → กะจริงของวันนั้น
-    const swapToday = mySwaps.find(t => String(t.scheduled_for || '').slice(0, 10) === dateVal && t.pl.target_shift && t.pl.target_shift !== 'คงเดิม');
+    const swapToday = mySwaps.find(t => _mtTaskDateTH(t.scheduled_for) === dateVal && t.pl.target_shift && t.pl.target_shift !== 'คงเดิม');
     const effShift = swapToday ? swapToday.pl.target_shift : myShift;
     const sbE = _mtShiftBadge(effShift), shE = _mtShiftHours(effShift), stE = effShift ? _mtShiftStatus(effShift) : null;
     const shiftVal = effShift ? `${sbE[2]} ${_mtEsc(effShift)} <span style="font-size:11px;font-weight:700;color:${sbE[1]};background:${sbE[1]}22;padding:2px 7px;border-radius:6px;margin-left:4px">${shE.open}–${shE.close}</span>${swapToday ? ` <span style="font-size:11px;font-weight:800;color:light-dark(#aa4e03,#fb923c);background:rgba(251,146,60,.15);border:1px solid rgba(251,146,60,.45);padding:2px 8px;border-radius:999px;margin-left:4px">🔄 สลับกะ</span>` : ''}` : 'ไม่มีกะ';
@@ -1341,7 +1351,7 @@ window._renderMyTodayNow = async function() {
 
     // ── การ์ดสลับกะ (จากหน้าสลับกะ) ──
     const swapChip = (t) => {
-        const d = String(t.scheduled_for || '').slice(0, 10);
+        const d = _mtTaskDateTH(t.scheduled_for);
         const isD = d === dateVal;
         const to = t.pl.target_shift || '-', from = t.pl.from_shift || t.pl.original_shift || '';
         const stay = to === 'คงเดิม';

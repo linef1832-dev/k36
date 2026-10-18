@@ -174,6 +174,18 @@ document.addEventListener('click', function(event) {
     if (nInput && !nInput.contains(event.target) && !nDrop.contains(event.target)) nDrop.classList.add('hidden');
 });
 
+// 🔧 [แก้บั๊ก] วันที่ (เวลาไทย) ของงานสลับกะ
+// scheduled_for เก็บเป็นเวลา UTC เช่นสลับวันที่ 1 พ.ย. 05:00 ไทย → "2026-10-31T22:00:00+00:00"
+// เดิมตัด 10 ตัวแรกตรง ๆ ได้ "31 ต.ค." (ผิดไป 1 วัน) → ลบตารางสลับแล้วไปลบ XX ผิดวัน XX เลยค้างในตารางวันหยุด
+function swapTaskDateTH(ts) {
+    if (!ts) return '';
+    let s = String(ts).trim().replace(' ', 'T');
+    if (!/([zZ]|[+-]\d\d(:?\d\d)?)$/.test(s)) s += 'Z';   // ไม่มีโซนเวลา = UTC
+    const d = new Date(s);
+    if (isNaN(d)) return String(ts).slice(0, 10);
+    return new Date(d.getTime() + 7 * 3600000).toISOString().slice(0, 10);   // UTC+7 (ไทย ไม่มีเวลาออมแสง)
+}
+
 function getSafeDateStr(baseDateStr, offsetDays) {
     const d = new Date(baseDateStr + 'T12:00:00'); d.setDate(d.getDate() + offsetDays); return d.toISOString().split('T')[0];
 }

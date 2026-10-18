@@ -189,7 +189,7 @@ window.fetchPublicSwapSchedule = async function() {
 
                 // กลุ่ม: คนที่สลับ → ตามวันที่สลับ / คนที่อยู่กะเดิม → กลุ่มเดียวท้ายสุด
                 const same = swapTypeForFilter === 'same' && task.status !== 'completed';
-                const dKey = task.scheduled_for ? String(task.scheduled_for).slice(0, 10) : 'none';
+                const dKey = task.scheduled_for ? swapTaskDateTH(task.scheduled_for) : 'none';   // วันที่ไทย
                 const key = same ? '~same' : dKey;
                 if (!groups.has(key)) {
                     let title = 'ไม่ระบุวันที่';
@@ -306,7 +306,7 @@ window.checkSwapBackup = function() {
 function _swapTaskXXDate(task) {
     let p = {}; try { p = typeof task.payload === 'string' ? JSON.parse(task.payload) : task.payload; } catch (e) {}
     if (!p || !p.user_id || !task.scheduled_for || p.target_shift === 'คงเดิม') return null;
-    const swapDate = String(task.scheduled_for).split('T')[0];
+    const swapDate = swapTaskDateTH(task.scheduled_for);   // [แก้] เดิมได้วันที่ UTC (ช้าไป 1 วัน) → ลบ XX ผิดวัน
     const offset = p.target_shift === 'กะเช้า' ? -1 : 0;
     return { user_id: p.user_id, user_name: p.user_name, leave_date: getSafeDateStr(swapDate, offset) };
 }

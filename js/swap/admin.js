@@ -311,7 +311,7 @@ window.changeSavedSwapDate = async function(taskId) {
     if (!task) return;
     let p = {}; try { p = typeof task.payload === 'string' ? JSON.parse(task.payload) : (task.payload || {}); } catch(e) {}
 
-    const currentDate = task.scheduled_for ? task.scheduled_for.split('T')[0] : '';
+    const currentDate = swapTaskDateTH(task.scheduled_for);   // [แก้] วันที่ไทย ไม่ใช่วันที่ UTC
 
     const result = await Swal.fire({
         title: 'เลือกวันที่ใหม่',
@@ -407,7 +407,7 @@ window.changeSavedSwapToStay = async function(taskId) {
         if (updErr) throw updErr;
 
         const offset = targetShift === 'กะเช้า' ? -1 : 0;
-        const swapDate = task.scheduled_for ? task.scheduled_for.split('T')[0] : null;
+        const swapDate = task.scheduled_for ? swapTaskDateTH(task.scheduled_for) : null;   // [แก้] วันที่ไทย
         if (p.user_id && swapDate) {
             const xxDate = getSafeDateStr(swapDate, offset);
             await appDB.from('leave_requests').delete().eq('user_id', p.user_id).eq('leave_date', xxDate).eq('reason', 'XX');
