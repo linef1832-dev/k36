@@ -164,29 +164,39 @@ window.renderImportantTasksPanel = function() {
             const team = window.impTeamOf(task);
             const cfg = window.impCfgOf(task);
             const isLegacy = !window.globalImportantTasks.includes(task);   // งานที่ถูกลบไปแล้ว แต่วันนี้เคยมีคนทำ
-            const isLocked = !!locks[task];
+            const lockOf = locks[task] || { main: [], support: [] };   // 🔒 ล็อกรายคน แยกหลัก/ซัพ
+            const lockedCount = lockOf.main.length + lockOf.support.length;
             const canEdit = isAdmin && !isLegacy;
             const missMain = Math.max(0, cfg.main - team.main.length);
             const missSup = Math.max(0, cfg.support - team.support.length);
 
             let boxClass;
-            if (isLocked) boxClass = 'border-amber-500/50 bg-amber-900/10 hover:border-amber-400';
-            else if (team.main.length === 0) boxClass = 'border-red-500/50 bg-red-900/10 hover:border-red-400';
+            if (team.main.length === 0) boxClass = 'border-red-500/50 bg-red-900/10 hover:border-red-400';
             else if (missMain || missSup) boxClass = 'border-amber-500/50 bg-amber-900/10 hover:border-amber-400';
             else boxClass = 'border-emerald-500/30 bg-emerald-900/10 hover:border-emerald-400';
 
-            // ชิปชื่อคน (หลัก = เขียว · ซัพพอร์ต = ฟ้า)
+            // ชิปชื่อคน (หลัก = เขียว · ซัพพอร์ต = ฟ้า · ล็อกเป็นหน้าที่ประจำ = ทอง)
+            //   ด้านขวา: [🔒 ล็อกรายคน] [✕ ปลดออก]
             const chip = (name, role) => {
-                const c = role === 'main'
-                    ? 'bg-emerald-900/30 border-emerald-500/30 text-emerald-400'
-                    : 'bg-sky-900/30 border-sky-500/30 text-sky-400';
+                const isLk = (lockOf[role] || []).includes(name);
+                const c = isLk
+                    ? 'bg-amber-900/30 border-amber-500/50 text-amber-400'
+                    : (role === 'main'
+                        ? 'bg-emerald-900/30 border-emerald-500/30 text-emerald-400'
+                        : 'bg-sky-900/30 border-sky-500/30 text-sky-400');
+                const lkTitle = isLk ? 'ปลดล็อก (เลิกเป็นหน้าที่ประจำ)' : 'ล็อกคนนี้เป็นหน้าที่ประจำ (ใส่ให้อัตโนมัติทุกวัน)';
+                const lkBtn = canEdit
+                    ? `<button onclick="window.toggleLockImportantPerson('${escJ(task)}','${role}','${escJ(name)}')" class="${isLk ? 'text-amber-500' : 'text-gray-400 hover:text-white'} bg-slate-800 rounded px-1 py-0.5 border border-slate-700 transition" title="${lkTitle}"><span class="material-icons text-[13px] block">${isLk ? 'lock' : 'lock_open'}</span></button>`
+                    : (isLk ? '<span class="material-icons text-[13px] text-amber-500" title="หน้าที่ประจำ">lock</span>' : '');
+                const xBtn = canEdit ? `<button onclick="window.impRemovePerson('${escJ(task)}','${role}','${escJ(name)}')" class="text-red-400 hover:text-red-500 bg-slate-800 rounded px-1 py-0.5 border border-slate-700 transition" title="ปลดคนนี้ออก"><span class="material-icons text-[13px] block">close</span></button>` : '';
                 return `
                     <div class="flex items-center justify-between gap-1 px-2 py-1 rounded-lg border ${c}">
                         <span class="flex items-center gap-1.5 font-extrabold text-[12px] min-w-0">
                             <span class="material-icons text-[14px]">${role === 'main' ? 'person' : 'support_agent'}</span>
                             <span class="truncate">${esc(name)}</span>
+                            ${isLk ? '<span class="text-[9px] bg-amber-900/50 text-amber-300 px-1 rounded shrink-0">ประจำ</span>' : ''}
                         </span>
-                        ${canEdit ? `<button onclick="window.impRemovePerson('${escJ(task)}','${role}','${escJ(name)}')" class="text-red-400 hover:text-red-500 bg-slate-800 rounded px-1 py-0.5 border border-slate-700 transition" title="ปลดคนนี้ออก"><span class="material-icons text-[13px] block">close</span></button>` : ''}
+                        <div class="flex gap-1 shrink-0">${lkBtn}${xBtn}</div>
                     </div>`;
             };
 
@@ -201,7 +211,7 @@ window.renderImportantTasksPanel = function() {
                 return `
                     <div class="mt-2">
                         <div class="flex items-center justify-between text-[10px] font-black tracking-wide mb-1">
-                            <span class="${role === 'main' ? 'text-emerald-400' : 'text-sky-400'}">${label}</span>
+                            <span class="${role === 'main' ? 'text-emerald-400' : 'text-sky-400'}">${label}${(role === 'support' && team.main.length === 0 && list.length) ? ' · ดูแลแทนหลัก' : ''}</span>
                             <span class="${cntCls}">${list.length}/${need}</span>
                         </div>
                         <div class="flex flex-col gap-1">
@@ -211,7 +221,6 @@ window.renderImportantTasksPanel = function() {
                     </div>`;
             };
 
-            const lockBtn = canEdit ? `<button onclick="window.toggleLockImportantTask('${escJ(task)}')" class="${isLocked ? 'text-amber-500' : 'text-gray-400 hover:text-white'} bg-slate-800 rounded px-1.5 py-0.5 border border-slate-700 transition" title="ตั้ง/ยกเลิก เป็นหน้าที่ประจำ (ล็อกทีมนี้ไว้ทุกวัน)"><span class="material-icons text-[14px] block">${isLocked ? 'lock' : 'lock_open'}</span></button>` : '';
             const cfgBtn = canEdit ? `<button onclick="window.configImportantTask('${escJ(task)}')" class="text-gray-400 hover:text-white bg-slate-800 rounded px-1.5 py-0.5 border border-slate-700 transition" title="ตั้งจำนวนคน หลัก / ซัพพอร์ต"><span class="material-icons text-[14px] block">tune</span></button>` : '';
             const delBtn = canEdit ? `<button onclick="window.deleteImportantTask('${escJ(task)}')" class="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition bg-slate-800 rounded px-1.5 py-0.5 border border-slate-700" title="ลบหน้าที่นี้"><span class="material-icons text-[14px] block">delete</span></button>` : '';
 
@@ -223,10 +232,10 @@ window.renderImportantTasksPanel = function() {
                             ${isLegacy ? '<span class="text-[9px] text-gray-500 ml-1 font-normal">(งานนี้ถูกลบแล้ว)</span>' : ''}
                             <div class="flex flex-wrap items-center gap-1 mt-1">
                                 <span class="text-[9px] font-bold text-slate-400 bg-slate-900/50 border border-slate-700 px-1.5 rounded">หลัก ${cfg.main} · ซัพ ${cfg.support}</span>
-                                ${isLocked ? '<span class="text-[9px] bg-amber-900/50 text-amber-300 px-1 rounded">หน้าที่ประจำ</span>' : ''}
+                                ${lockedCount ? `<span class="text-[9px] bg-amber-900/50 text-amber-300 px-1 rounded">🔒 ประจำ ${lockedCount} คน</span>` : ''}
                             </div>
                         </div>
-                        <div class="flex gap-1 shrink-0">${delBtn}${cfgBtn}${lockBtn}</div>
+                        <div class="flex gap-1 shrink-0">${delBtn}${cfgBtn}</div>
                     </div>
                     ${section('main', 'หลัก', team.main, cfg.main, missMain)}
                     ${section('support', 'ซัพพอร์ต', team.support, cfg.support, missSup)}
@@ -318,17 +327,52 @@ window._impLog = function(detail) {
         }]).then(() => {}, () => {});
     } catch (e) {}
 };
-// บันทึกทีมของงาน 1 งาน (ถ้างานนี้ล็อกเป็นหน้าที่ประจำ → อัปเดตทีมที่ล็อกไว้ให้ตรงกันด้วย)
+// ════════════════════════════════════════════════════════════════════
+// 🔒 ล็อกรายคน — แยกหลัก / ซัพพอร์ต
+//   settings 'duty_important_permanent_lock_{แผนก}_{กะ}' = { "งาน": { main:["A"], support:["C"] } }
+//   = คนที่ถูกล็อกเป็นหน้าที่ประจำในบทบาทนั้น → ระบบใส่ชื่อให้อัตโนมัติทุกวัน (วันนี้เป็นต้นไป)
+//   คนอื่นในงานเดียวกันที่ไม่ได้ล็อก = จัดใหม่ได้ทุกวันตามปกติ
+//   (ข้อมูลล็อกรูปแบบเก่า: "ชื่อ" หรือทั้งทีม → อ่านเป็นล็อกรายคนให้อัตโนมัติ ไม่มีอะไรหาย)
+// ════════════════════════════════════════════════════════════════════
+// ใส่คนที่ล็อกไว้ลงตารางของวันนั้น (ไม่ลบคนอื่นที่จัดไว้) — คืน true ถ้ามีอะไรเปลี่ยน
+window.impApplyLocks = function() {
+    const assigns = window.currentImportantAssigns = window.impNormMap(window.currentImportantAssigns);
+    const locks = window.lockedImportantTasks = window.impNormMap(window.lockedImportantTasks);
+    let changed = false;
+    for (const task in locks) {
+        if (!window.globalImportantTasks.includes(task)) continue;
+        const team = window.impTeamOf(task);
+        ['main', 'support'].forEach(role => {
+            const other = role === 'main' ? 'support' : 'main';
+            locks[task][role].forEach(n => {
+                if (team[role].includes(n)) return;
+                team[other] = team[other].filter(x => x !== n);   // ย้ายมาบทบาทที่ล็อกไว้
+                team[role].push(n);
+                changed = true;
+            });
+        });
+        if (changed) assigns[task] = window.impNormTeam(team);
+    }
+    return changed;
+};
+// ตัดล็อกของคนที่ไม่ได้อยู่ในบทบาทนั้นแล้ว (โดนปลด / ถูกตัดตอนลดจำนวน) — คืน true ถ้ามีอะไรเปลี่ยน
+window.impPruneLocks = function(task) {
+    const locks = window.lockedImportantTasks || {};
+    const lk = window.impNormTeam(locks[task]);
+    if (!lk) { if (locks[task]) { delete locks[task]; return true; } return false; }
+    const team = window.impTeamOf(task);
+    const next = window.impNormTeam({ main: lk.main.filter(n => team.main.includes(n)), support: lk.support.filter(n => team.support.includes(n)) });
+    if (window.impSameTeam(next, lk)) return false;
+    if (next) locks[task] = next; else delete locks[task];
+    return true;
+};
+// บันทึกทีมของงาน 1 งาน (+ ตัดล็อกของคนที่หลุดออกไปแล้ว)
 window.impSaveTeam = async function(task, team, logDetail) {
     const k = window.impKeys();
     const t = window.impNormTeam(team);
     if (t) window.currentImportantAssigns[task] = t; else delete window.currentImportantAssigns[task];
     const rows = [{ key: k.assign, value: JSON.stringify(window.currentImportantAssigns) }];
-    if (window.lockedImportantTasks[task]) {
-        if (t) window.lockedImportantTasks[task] = { main: [...t.main], support: [...t.support] };
-        else delete window.lockedImportantTasks[task];
-        rows.push({ key: k.lock, value: JSON.stringify(window.lockedImportantTasks) });
-    }
+    if (window.impPruneLocks(task)) rows.push({ key: k.lock, value: JSON.stringify(window.lockedImportantTasks) });
     window.clearSettingCache();
     const { error } = await appDB.from('settings').upsert(rows);
     if (error) throw error;
@@ -342,30 +386,54 @@ window._impDenied = function() {
     return true;
 };
 
+// 🔒 ล็อก / ปลดล็อก "คนเดียว" ในบทบาทเดียว (ปุ่มกุญแจหลังชื่อ)
+window.toggleLockImportantPerson = async function(taskName, role, name) {
+    if (window._impDenied()) return;
+    role = role === 'support' ? 'support' : 'main';
+    const k = window.impKeys();
+    const locks = window.lockedImportantTasks = window.impNormMap(window.lockedImportantTasks);
+    const lk = locks[taskName] ? { main: [...locks[taskName].main], support: [...locks[taskName].support] } : { main: [], support: [] };
+    const roleLabel = role === 'main' ? 'หลัก' : 'ซัพพอร์ต';
+    let msg;
+    if (lk[role].includes(name)) {
+        lk[role] = lk[role].filter(n => n !== name);
+        msg = `ปลดล็อก ${name} แล้ว`;
+    } else {
+        if (!window.impTeamOf(taskName)[role].includes(name)) return;
+        lk[role].push(name);
+        msg = `ล็อก ${name} เป็น${roleLabel}ประจำแล้ว`;
+    }
+    const next = window.impNormTeam(lk);
+    if (next) locks[taskName] = next; else delete locks[taskName];
+    window.clearSettingCache();
+    const { error } = await appDB.from('settings').upsert([{ key: k.lock, value: JSON.stringify(locks) }]);
+    if (error) return;
+    window._impLog(`${msg} — งาน "${taskName}" [${roleLabel}]`);
+    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: msg, showConfirmButton: false, timer: 1500 });
+    window.renderImportantTasksPanel();
+};
+// (ชื่อเดิม เผื่อมีที่อื่นเรียก) ล็อก/ปลดล็อก "ทุกคน" ในงานนั้นทีเดียว
 window.toggleLockImportantTask = async function(taskName) {
     if (window._impDenied()) return;
     const k = window.impKeys();
     const locks = window.lockedImportantTasks = window.impNormMap(window.lockedImportantTasks);
-    let msg;
-    if (locks[taskName]) {
-        delete locks[taskName];
-        msg = 'ปลดจากหน้าที่ประจำแล้ว';
-    } else {
+    if (locks[taskName]) delete locks[taskName];
+    else {
         const team = window.impNormTeam(window.currentImportantAssigns[taskName]);
         if (!team) return Swal.fire('เตือน', 'กรุณาเลือกคนก่อน ถึงจะตั้งเป็นหน้าที่ประจำได้ครับ', 'warning');
         locks[taskName] = { main: [...team.main], support: [...team.support] };
-        msg = 'ตั้งเป็นหน้าที่ประจำสำเร็จ! (ล็อกทั้งทีม หลัก+ซัพ)';
     }
     window.clearSettingCache();
-    const { error } = await appDB.from('settings').upsert([{ key: k.lock, value: JSON.stringify(locks) }]);
-    if (error) return;
-    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: msg, showConfirmButton: false, timer: 1500 });
+    await appDB.from('settings').upsert([{ key: k.lock, value: JSON.stringify(locks) }]);
     window.renderImportantTasksPanel();
 };
 
-// 🎲 สุ่มเติมเฉพาะตำแหน่งที่ยังว่าง — เติม "หลัก" ให้ครบทุกงานก่อน แล้วค่อยเติม "ซัพพอร์ต"
-//    เติมแบบวนทีละงาน (งานละ 1 คนต่อรอบ) → คนไม่พอ จะได้กระจายให้ทุกงานมีหลักอย่างน้อย 1 ก่อน
-//    คนที่มีหน้าที่พิเศษอยู่แล้วจะไม่ถูกสุ่มซ้ำ · งานที่ล็อกเป็นหน้าที่ประจำไม่ถูกแตะ
+// 🎲 สุ่มเติมเฉพาะตำแหน่งที่ยังว่าง (คนที่จัดไว้แล้ว / คนที่ล็อกไว้ ไม่ถูกเปลี่ยน)
+//   1) หลัก   : 1 คนเป็นหลักได้แค่ 1 งาน · เติมวนทีละงาน → คนไม่พอ ทุกงานได้หลักอย่างน้อย 1 ก่อน
+//   2) งานที่ "ไม่มีหลัก" (คนไม่พอ) → จับคนที่มีงานอยู่แล้วมาเป็นซัพพอร์ตดูแลแทน อย่างน้อย 1 คน
+//   3) ซัพพอร์ต: ใช้ใครก็ได้ในกะ รวมคนที่เป็นหลัก/หน้าที่ประจำของงานอื่นอยู่แล้ว
+//      เลือกคนที่ "งานน้อยสุด" ก่อนเสมอ → คนว่างได้ก่อน แล้วค่อยกระจายให้คนมีงานเท่า ๆ กัน
+//      (ไม่จับคนที่อยู่ในงานเดียวกันอยู่แล้วซ้ำ)
 window.randomizeImportantTasks = async function() {
     if (window._impDenied()) return;
     if (window.globalImportantTasks.length === 0) return Swal.fire('ไม่มีงาน', 'กรุณาเพิ่มหน้าที่สำคัญก่อนทำการสุ่มครับ', 'warning');
@@ -374,42 +442,57 @@ window.randomizeImportantTasks = async function() {
     const available = window.getDutyActiveStaff(k.shift, { anyRole: true }).map(u => u.username);
     if (available.length === 0) return Swal.fire('ไม่มีพนักงาน', 'ไม่พบรายชื่อผู้สอนในกะนี้ครับ', 'error');
 
-    const busy = window.impBusyMap();
-    const pool = available.filter(n => !busy.has(n)).sort(() => Math.random() - 0.5);
-
-    const tasks = window.globalImportantTasks.filter(t => !window.lockedImportantTasks[t]);
+    window.impApplyLocks();
+    const tasks = window.globalImportantTasks.slice();
     const teams = {};
     tasks.forEach(t => { teams[t] = window.impTeamOf(t); });
 
-    let mainAdded = 0, supAdded = 0;
-    const fill = (role) => {
-        let progress = true;
-        while (progress && pool.length) {
+    // นับภาระงานของแต่ละคน (ทุกงาน ทั้งหลัก+ซัพ) และใครเป็นหลักอยู่แล้วบ้าง
+    const load = new Map(), mainOf = new Set();
+    const bump = n => load.set(n, (load.get(n) || 0) + 1);
+    for (const t in window.currentImportantAssigns) {
+        const tm = teams[t] || window.impNormTeam(window.currentImportantAssigns[t]);
+        if (!tm) continue;
+        tm.main.forEach(n => { mainOf.add(n); bump(n); });
+        tm.support.forEach(bump);
+    }
+    const rank = new Map(available.slice().sort(() => Math.random() - 0.5).map((n, i) => [n, i]));   // เสมอกัน = สุ่ม
+    const inTask = (t, n) => teams[t].main.includes(n) || teams[t].support.includes(n);
+    const pickLeast = cands => cands.sort((a, b) => ((load.get(a) || 0) - (load.get(b) || 0)) || (rank.get(a) - rank.get(b)))[0];
+
+    // วนเติมทีละงาน รอบละ 1 คน จนเต็มหรือหาคนไม่ได้
+    const fill = (role, order, target, candOk) => {
+        let added = 0, progress = true;
+        while (progress) {
             progress = false;
-            for (const t of tasks) {
-                if (!pool.length) break;
-                const need = window.impCfgOf(t)[role];
-                if (teams[t][role].length < need) {
-                    teams[t][role].push(pool.shift());
-                    if (role === 'main') mainAdded++; else supAdded++;
-                    progress = true;
-                }
+            for (const t of order) {
+                if (teams[t][role].length >= target(t)) continue;
+                const n = pickLeast(available.filter(x => !inTask(t, x) && candOk(x)));
+                if (!n) continue;
+                teams[t][role].push(n); bump(n);
+                if (role === 'main') mainOf.add(n);
+                added++; progress = true;
             }
         }
+        return added;
     };
-    fill('main');
-    fill('support');
 
-    // ตำแหน่งที่ยังว่างหลังสุ่ม (คนไม่พอ)
+    const cfgOf = t => window.impCfgOf(t);
+    const mainAdded = fill('main', tasks, t => cfgOf(t).main, n => !mainOf.has(n));
+    const noMain = tasks.filter(t => teams[t].main.length === 0);
+    const withMain = tasks.filter(t => teams[t].main.length > 0);
+    const coverAdded = fill('support', noMain, t => Math.max(1, cfgOf(t).support), () => true);
+    const supAdded = fill('support', withMain, t => cfgOf(t).support, () => true);
+
     let shortMain = 0, shortSup = 0;
     tasks.forEach(t => {
-        const c = window.impCfgOf(t);
+        const c = cfgOf(t);
         shortMain += Math.max(0, c.main - teams[t].main.length);
-        shortSup += Math.max(0, c.support - teams[t].support.length);
+        shortSup += Math.max(0, (teams[t].main.length ? c.support : Math.max(1, c.support)) - teams[t].support.length);
     });
 
-    if (mainAdded + supAdded === 0) {
-        if (shortMain + shortSup > 0) return Swal.fire('คนไม่พอ', `ยังขาด หลัก ${shortMain} · ซัพ ${shortSup} ตำแหน่ง แต่ไม่มีผู้สอนว่างเหลือให้สุ่มแล้วครับ`, 'info');
+    if (mainAdded + coverAdded + supAdded === 0) {
+        if (shortMain + shortSup > 0) return Swal.fire('คนไม่พอ', `ยังขาด หลัก ${shortMain} · ซัพ ${shortSup} ตำแหน่ง แต่ไม่มีผู้สอนเหลือให้สุ่มแล้วครับ`, 'info');
         return Swal.fire('เตือน', 'ทุกหน้าที่มีคนครบตามจำนวนที่ตั้งไว้แล้วครับ', 'info');
     }
 
@@ -422,15 +505,19 @@ window.randomizeImportantTasks = async function() {
     const { error } = await appDB.from('settings').upsert([{ key: k.assign, value: JSON.stringify(window.currentImportantAssigns) }]);
     Swal.close();
     if (error) return;
-    window._impLog(`สุ่มหน้าที่พิเศษ: เพิ่มหลัก ${mainAdded} คน · ซัพ ${supAdded} คน`);
+    window._impLog(`สุ่มหน้าที่พิเศษ: เพิ่มหลัก ${mainAdded} · ซัพ ${supAdded} · ซัพดูแลแทนหลัก ${coverAdded}`);
     window.renderImportantTasksPanel();
     window.debouncedBroadcast('duty-updates', 'force_reload');
 
-    if (shortMain + shortSup > 0) {
-        Swal.fire('สุ่มแล้ว แต่คนไม่พอ', `เพิ่มหลัก ${mainAdded} · ซัพ ${supAdded} คน<br>ยังขาด หลัก <b>${shortMain}</b> · ซัพ <b>${shortSup}</b> ตำแหน่ง`, 'warning');
+    const sum = `เพิ่มหลัก ${mainAdded} · ซัพ ${supAdded + coverAdded} คน`;
+    if (shortMain > 0) {
+        Swal.fire('สุ่มแล้ว — คนไม่พอเป็นหลัก', `${sum}<br>มี <b>${noMain.length}</b> หน้าที่ที่ไม่มีหลัก → ใส่ซัพพอร์ตดูแลแทนให้แล้ว`
+            + (shortSup ? `<br>ยังขาดซัพพอร์ต <b>${shortSup}</b> ตำแหน่ง` : ''), 'warning');
+    } else if (shortSup > 0) {
+        Swal.fire('สุ่มแล้ว แต่คนไม่พอ', `${sum}<br>ยังขาดซัพพอร์ต <b>${shortSup}</b> ตำแหน่ง`, 'warning');
     } else {
         Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 })
-            .fire({ icon: 'success', title: `สุ่มสำเร็จ: หลัก ${mainAdded} · ซัพ ${supAdded} คน` });
+            .fire({ icon: 'success', title: `สุ่มสำเร็จ: ${sum}` });
     }
 };
 
@@ -513,17 +600,24 @@ window.configImportantTask = async function(taskName) {
     window.importantTaskCfg[taskName] = counts;
     const rows = [{ key: k.cfg, value: JSON.stringify(window.importantTaskCfg) }];
 
+    // ลดจำนวนลงต่ำกว่าคนที่มีอยู่ → ตัด "คนที่ไม่ได้ล็อก" ที่ลงทีหลังออกก่อน คนที่ล็อกเป็นหน้าที่ประจำเก็บไว้ท้ายสุด
     const team = window.impTeamOf(taskName);
-    const cutMain = team.main.slice(counts.main), cutSup = team.support.slice(counts.support);
+    const lk = (window.lockedImportantTasks || {})[taskName] || { main: [], support: [] };
+    const keepOf = (role, need) => {
+        const list = team[role];
+        if (list.length <= need) return list.slice();
+        const locked = list.filter(n => lk[role].includes(n)).slice(0, need);
+        const rest = list.filter(n => !lk[role].includes(n)).slice(0, Math.max(0, need - locked.length));
+        const keep = new Set([...locked, ...rest]);
+        return list.filter(n => keep.has(n));   // คงลำดับเดิม
+    };
+    const keptMain = keepOf('main', counts.main), keptSup = keepOf('support', counts.support);
+    const cutMain = team.main.filter(n => !keptMain.includes(n)), cutSup = team.support.filter(n => !keptSup.includes(n));
     if (cutMain.length || cutSup.length) {
-        const trimmed = window.impNormTeam({ main: team.main.slice(0, counts.main), support: team.support.slice(0, counts.support) });
+        const trimmed = window.impNormTeam({ main: keptMain, support: keptSup });
         if (trimmed) window.currentImportantAssigns[taskName] = trimmed; else delete window.currentImportantAssigns[taskName];
         rows.push({ key: k.assign, value: JSON.stringify(window.currentImportantAssigns) });
-        if (window.lockedImportantTasks[taskName]) {
-            if (trimmed) window.lockedImportantTasks[taskName] = { main: [...trimmed.main], support: [...trimmed.support] };
-            else delete window.lockedImportantTasks[taskName];
-            rows.push({ key: k.lock, value: JSON.stringify(window.lockedImportantTasks) });
-        }
+        if (window.impPruneLocks(taskName)) rows.push({ key: k.lock, value: JSON.stringify(window.lockedImportantTasks) });
     }
 
     window.clearSettingCache();
