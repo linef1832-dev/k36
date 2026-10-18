@@ -122,10 +122,15 @@ window.fetchPublicSwapSchedule = async function() {
                 if (task.scheduled_for) dateStr = new Date(task.scheduled_for).toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' });
 
                 // ขั้นตอน (จาก display_desc "A → B → C") → แสดงเป็นลำดับขั้นอ่านง่าย
-                const steps = (txt) => {
+                // สีตามความหมายของแต่ละขั้น (แบบเดิม): ไปดึก = ส้ม(เช้าวันสุดท้าย) → ม่วง(เริ่มดึก)
+                //                                      ไปเช้า = ม่วง(ดึกคืนสุดท้าย) → เหลือง(หยุดพัก) → เขียว(เริ่มเช้า)
+                const steps = (txt, colors) => {
                     const sep = txt.includes(' → ') ? ' → ' : ' | ';
                     const parts = txt.split(sep).map(x => x.trim()).filter(Boolean);
-                    return parts.map((part, i) => `<span class="sw-st${i === parts.length - 1 ? ' last' : ''}">${_swEsc(part)}</span>`).join('<span class="material-icons sw-arrow">arrow_forward</span>');
+                    return parts.map((part, i) => {
+                        const c = (i === parts.length - 1) ? colors[colors.length - 1] : (colors[i] || colors[colors.length - 2] || colors[0]);
+                        return `<span class="sw-st sw-c-${c}${i === parts.length - 1 ? ' last' : ''}">${_swEsc(part)}</span>`;
+                    }).join('<span class="material-icons sw-arrow">arrow_forward</span>');
                 };
 
                 let icon = '', kind = '', actionTitle = '', detailHtml = '';
@@ -140,12 +145,12 @@ window.fetchPublicSwapSchedule = async function() {
                 } 
                 else if (targetShift === 'กะดึก') {
                     icon = 'dark_mode'; kind = 'night'; actionTitle = 'สลับไปดึก';
-                    detailHtml = p.display_desc ? steps(p.display_desc) : `<span class="sw-st last">เริ่มเข้าดึก ${_swEsc(dateStr)}</span>`;
+                    detailHtml = p.display_desc ? steps(p.display_desc, ['o', 'p']) : `<span class="sw-st sw-c-p last">เริ่มเข้าดึก ${_swEsc(dateStr)}</span>`;
                     swapTypeForFilter = 'night'; countNight++;
                 }
                 else if (targetShift === 'กะเช้า') {
                     icon = 'wb_sunny'; kind = 'morning'; actionTitle = 'สลับไปเช้า';
-                    detailHtml = p.display_desc ? steps(p.display_desc) : `<span class="sw-st last">เริ่มเข้าเช้า ${_swEsc(dateStr)}</span>`;
+                    detailHtml = p.display_desc ? steps(p.display_desc, ['p', 'y', 'g']) : `<span class="sw-st sw-c-g last">เริ่มเข้าเช้า ${_swEsc(dateStr)}</span>`;
                     swapTypeForFilter = 'morning'; countMorning++;
                 }
 

@@ -209,9 +209,9 @@
 
 <style>
 /* ═════ หน้าสลับกะ — ใช้ตัวแปรธีม --k-* (สลับมืด/สว่างได้เอง) ═════ */
-#swapPage { --sw-m:234,88,12; --sw-n:124,58,237; --sw-a:217,119,6; --sw-ok:5,150,105; --sw-mt:#c2410c; --sw-nt:#6d28d9; --sw-okt:#047857;
+#swapPage { --sw-m:234,88,12; --sw-n:124,58,237; --sw-a:217,119,6; --sw-ok:5,150,105; --sw-mt:#c2410c; --sw-nt:#6d28d9; --sw-okt:#047857; --sw-y:202,138,4; --sw-yt:#a16207;
     background:var(--k-bg); border:1px solid var(--k-line); }
-html.dark #swapPage { --sw-mt:#fb923c; --sw-nt:#a78bfa; --sw-okt:#34d399; }
+html.dark #swapPage { --sw-mt:#fb923c; --sw-nt:#a78bfa; --sw-okt:#34d399; --sw-yt:#facc15; }
 #swapPage .sw-wrap { max-width:1500px; margin:0 auto; padding:18px 18px 40px; display:flex; flex-direction:column; gap:14px; }
 #swapPage #staffSwapView { display:flex; flex-direction:column; gap:12px; }
 #swapPage #adminSwapControls > * + * { margin-top:14px; }
@@ -285,7 +285,12 @@ html.dark #swapPage { --sw-mt:#fb923c; --sw-nt:#a78bfa; --sw-okt:#34d399; }
 #swapPage .sw-done .material-icons { font-size:13px; }
 #swapPage .sw-item-steps { display:flex; flex-wrap:wrap; align-items:center; gap:5px; margin-top:9px; }
 #swapPage .sw-st { font-size:12px; font-weight:700; padding:4px 9px; border-radius:8px; background:var(--k-sunk); border:1px solid var(--k-line); color:var(--k-tx2); }
-#swapPage .sw-st.last { color:var(--k-tx-strong); border-color:var(--sw-acc, var(--k-line3)); }
+#swapPage .sw-st.last { box-shadow:inset 0 0 0 1px currentColor; }
+/* สีวันที่ตามความหมาย: ส้ม = เช้า · ม่วง = ดึก · เหลือง = หยุดพัก · เขียว = เริ่มกะใหม่ (เช้า) */
+#swapPage .sw-c-o { color:var(--sw-mt); background:rgba(var(--sw-m),.12); border-color:rgba(var(--sw-m),.35); }
+#swapPage .sw-c-p { color:var(--sw-nt); background:rgba(var(--sw-n),.13); border-color:rgba(var(--sw-n),.38); }
+#swapPage .sw-c-y { color:var(--sw-yt); background:rgba(var(--sw-y),.13); border-color:rgba(var(--sw-y),.38); }
+#swapPage .sw-c-g { color:var(--sw-okt); background:rgba(var(--sw-ok),.13); border-color:rgba(var(--sw-ok),.38); }
 #swapPage .sw-arrow { font-size:15px !important; color:var(--k-mute); }
 #swapPage .sw-st-plain { font-size:12px; font-weight:600; color:var(--k-mute); }
 #swapPage .sw-del { position:absolute; top:10px; right:10px; width:30px; height:30px; border-radius:9px; display:flex; align-items:center; justify-content:center; color:var(--k-mute); opacity:.55; transition:opacity .15s, background .15s, color .15s; }
