@@ -1,157 +1,134 @@
-<div id="swapPage" id="autoSwapModal" class="fade-in flex flex-col h-full bg-slate-100 dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden pb-10">
-
+<!-- 🔄 หน้าตารางสลับกะประจำเดือน (ออกแบบใหม่) — id / onclick / template เดิมครบ ใช้กับ js/swap/* ได้เหมือนเดิม -->
+<div id="swapPage" class="fade-in flex flex-col h-full sw-root rounded-2xl overflow-hidden">
 
     <div class="k-pagehead text-white p-4 shrink-0 flex justify-between items-center z-10" style="--acc:249,115,22;background:linear-gradient(120deg,rgba(var(--acc),0.22),color-mix(in srgb,var(--k-panel2) 55.0%,transparent) 45%,color-mix(in srgb,var(--k-panel2) 20.0%,transparent)),var(--k-panel2);border-bottom:1px solid rgba(var(--acc),0.4);box-shadow:0 6px 24px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.06)">
         <div class="flex items-center gap-3">
             <div class="bg-white/20 p-2 rounded-xl shadow-inner"><span class="material-icons text-3xl">published_with_changes</span></div>
-            <div>
-                <h1 class="font-black text-xl tracking-wide">ตารางสลับกะประจำเดือน</h1>
-            </div>
+            <h1 class="font-black text-xl tracking-wide">ตารางสลับกะประจำเดือน</h1>
         </div>
         <button onclick="showPage('dashboard')" class="bg-black/30 hover:bg-black/50 text-white px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 shadow-sm border border-white/20 backdrop-blur-sm">
             <span class="material-icons text-sm">arrow_back</span> กลับ
         </button>
     </div>
 
-    <div class="p-4 sm:p-6 flex-1 overflow-y-auto custom-scrollbar" id="autoSwapModalBody">
-        <div class="max-w-[1600px] mx-auto space-y-6">
-            
-            <div id="staffSwapView" class="mb-4">
-                <div class="flex flex-col gap-3 mb-4 border-b border-gray-200 dark:border-slate-700 pb-4">
-                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-                        <div class="flex items-center gap-4">
-                            <h4 class="font-bold text-slate-700 dark:text-gray-300 flex items-center gap-2">
-                                <span class="material-icons text-blue-500">event_note</span> กำหนดการสลับกะ
-                            </h4>
-                            <div class="dept-segment-container flex scale-90 origin-left">
-                                <button onclick="setSwapDeptFilter('AM')" id="btnSwapDeptAM" class="dept-segment-btn active"><span class="material-icons text-sm">business</span> AM</button>
-                                <button onclick="setSwapDeptFilter('OD')" id="btnSwapDeptOD" class="dept-segment-btn"><span class="material-icons text-sm">groups</span> OD</button>
-                                <button onclick="setSwapDeptFilter('AMQL')" id="btnSwapDeptAMQL" class="dept-segment-btn"><span class="material-icons text-sm">school</span> ผู้สอน AM</button>
-                                <button onclick="setSwapDeptFilter('ODQL')" id="btnSwapDeptODQL" class="dept-segment-btn"><span class="material-icons text-sm">school</span> ผู้สอน OD</button>
-                            </div>
-                        </div>
-                        
-                        <div class="flex items-center gap-2 w-full md:w-auto">
-                            <select id="swapStatusFilter" onchange="fetchPublicSwapSchedule()" class="bg-white dark:bg-slate-700 text-xs p-2 rounded-lg border border-slate-300 dark:border-slate-600 outline-none cursor-pointer font-bold shadow-sm text-slate-700 dark:text-white">
-                                <option value="pending">⏳ รอสลับกะ</option>
-                                <option value="completed">✅ สลับกะสำเร็จแล้ว</option>
-                            </select>
+    <div class="flex-1 overflow-y-auto custom-scrollbar" id="autoSwapModalBody">
+        <div class="sw-wrap">
 
-                            <button onclick="filterSwapToMyself()" class="bg-blue-100 hover:bg-blue-200 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-800 px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-sm shrink-0">
-                                <span class="material-icons text-[14px]">person</span> ของฉัน
-                            </button>
-                            <div class="relative flex-1 md:w-48">
-                                <span class="material-icons absolute left-2 top-2 text-gray-400 text-sm">search</span>
-                                <input type="text" id="searchSwapSchedule" onkeyup="filterSwapSchedule()" placeholder="ค้นหาชื่อพนักงาน..." class="w-full pl-8 pr-2 py-1.5 border rounded-lg text-xs bg-white dark:bg-slate-700 dark:text-white dark:border-slate-600 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="managerSwapToolbar" style="display: none;" class="flex flex-wrap items-center justify-between bg-slate-700 dark:bg-slate-800 p-3 rounded-lg border border-slate-600 gap-2 shadow-inner mt-2">
-                        <div class="flex flex-wrap gap-2 text-xs font-bold text-white items-center">
-                            <span class="text-gray-400 mr-1 hidden sm:block">ตัวกรอง:</span>
-                            <button onclick="setSwapTypeFilter('all')" id="btnFilterSwapall" class="swap-filter-btn px-3 py-1.5 rounded-lg bg-blue-600 text-white transition shadow-sm ring-2 ring-blue-400 scale-[1.02]">
-                                แสดงทั้งหมด
-                            </button>
-                            <button onclick="setSwapTypeFilter('morning')" id="btnFilterSwapmorning" class="swap-filter-btn flex items-center gap-1 px-3 py-1 rounded-lg bg-[#422006] border border-orange-900/50 hover:bg-[#5a2b08] transition shadow-sm opacity-60 hover:opacity-100">
-                                <span class="material-icons text-[14px] text-orange-400">wb_sunny</span> ไปเช้า: <span id="statSwapMorning" class="bg-orange-500 text-white px-2 py-0.5 rounded ml-1">0</span>
-                            </button>
-                            <button onclick="setSwapTypeFilter('night')" id="btnFilterSwapnight" class="swap-filter-btn flex items-center gap-1 px-3 py-1 rounded-lg bg-[#1e1b4b] border border-purple-900/50 hover:bg-[#2e2972] transition shadow-sm opacity-60 hover:opacity-100">
-                                <span class="material-icons text-[14px] text-purple-400">dark_mode</span> ไปดึก: <span id="statSwapNight" class="bg-purple-500 text-white px-2 py-0.5 rounded ml-1">0</span>
-                            </button>
-                            <button onclick="setSwapTypeFilter('same')" id="btnFilterSwapsame" class="swap-filter-btn flex items-center gap-1 px-3 py-1 rounded-lg bg-slate-800 border border-gray-600 hover:bg-slate-700 transition shadow-sm opacity-60 hover:opacity-100">
-                                <span class="material-icons text-[14px] text-gray-300">person_off</span> อยู่กะเดิม: <span id="statSwapSame" class="bg-gray-500 text-white px-2 py-0.5 rounded ml-1">0</span>
-                            </button>
-                        </div>
-                        <div class="flex items-center gap-2 ml-auto mt-2 xl:mt-0">
-                            <button onclick="openAddMissingSwap()" class="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-md text-xs font-bold flex items-center gap-1 shadow-sm transition active:scale-95" title="เพิ่มพนักงานที่ตกหล่น">
-                                <span class="material-icons text-[14px]">person_add</span> เพิ่มพนักงาน
-                            </button>
-                            <button id="btnRestoreSwap" onclick="restoreDeletedSwapSchedules()" class="hidden bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-md text-xs font-bold flex items-center gap-1 shadow-sm transition active:scale-95">
-                                <span class="material-icons text-[14px]">restore</span> กู้คืน
-                            </button>
-                            <button onclick="deleteAllSwapSchedules()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-md text-xs font-bold flex items-center gap-1 shadow-sm transition active:scale-95">
-                                <span class="material-icons text-[14px]">delete_sweep</span> ลบทั้งหมด
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="publicSwapList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    <div class="col-span-full text-center py-6 text-gray-400">กำลังโหลดข้อมูล...</div>
-                </div>
+            <!-- แท็บหลัก: ดูตาราง / สร้างตารางใหม่ (แท็บสร้างโผล่เฉพาะคนมีสิทธิ์ swap_manage) -->
+            <div class="sw-maintabs" id="swMainTabs">
+                <button data-tab="list" class="on" onclick="swapSetMainTab('list')"><span class="material-icons">event_note</span>ตารางสลับกะ</button>
+                <button data-tab="create" id="swTabCreate" style="display:none" onclick="swapSetMainTab('create')"><span class="material-icons">auto_fix_high</span>สร้างตารางใหม่</button>
             </div>
 
-            <div id="adminSwapControls" style="display: none;" class="border-t-2 border-slate-200 dark:border-slate-700 pt-6 mt-6">
-                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
-                    <div class="lg:col-span-5 bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between">
-                        <div class="space-y-4">
-                            <div>
-                                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wide">1. เลือกแผนก</label>
-                                <select id="swapDeptSelect" onchange="clearExcludeStaff()" class="w-full p-3 rounded-xl border border-gray-300 dark:border-slate-600 dark:bg-slate-900 dark:text-white font-bold text-sm outline-none focus:ring-2 focus:ring-blue-500 transition cursor-pointer">
-                                        <option value="AM">เฉพาะแผนก AM</option>
-                                        <option value="OD">เฉพาะแผนก OD</option>
-                                        <option value="AMQL">เฉพาะผู้สอน AM (AMQL)</option>
-                                        <option value="ODQL">เฉพาะผู้สอน OD (ODQL)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wide">2. คู่กะที่จะสลับ</label>
-                                <select id="swapShiftPair" onchange="clearExcludeStaff()" class="w-full p-3 rounded-xl border border-gray-300 dark:border-slate-600 dark:bg-slate-900 dark:text-white font-bold text-sm outline-none focus:ring-2 focus:ring-blue-500 transition cursor-pointer">
-                                    <option value="M_N">🌅 เช้า ↔ 🌙 ดึก (แบบเดิม)</option>
-                                    <option value="M_A">🌅 เช้า ↔ 🌤️ กลาง</option>
-                                    <option value="A_N">🌤️ กลาง ↔ 🌙 ดึก</option>
-                                    <option value="N_M">🌙 ดึก → 🌅 เช้า (ทิศทางเดียว)</option>
-                                    <option value="M_only">🌅 เช้า → 🌙 ดึก (ทิศทางเดียว)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wide flex items-center gap-2">
-                                    3. ช่วงวันที่ทยอยสลับ 
-                                    <span id="swapTargetMonthLabel" class="text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 px-2 py-0.5 rounded normal-case shadow-sm border border-blue-200 dark:border-blue-800"></span>
-                                </label>
-                                <div class="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 rounded-xl border border-gray-300 dark:border-slate-600 p-1.5 focus-within:ring-2 focus-within:ring-blue-500 transition">
-                                    <div class="flex flex-col w-full px-2">
-                                        <span class="text-[10px] text-gray-400 font-bold">เริ่ม</span>
-                                        <input type="date" id="swapStartDate" class="w-full bg-transparent border-none text-sm font-bold text-slate-800 dark:text-white outline-none cursor-pointer" onchange="updateSwapMonthLabel()">
-                                    </div>
-                                    <div class="w-px h-8 bg-gray-200 dark:bg-slate-600 shrink-0"></div>
-                                    <div class="flex flex-col w-full px-2">
-                                        <span class="text-[10px] text-gray-400 font-bold">ถึง</span>
-                                        <input type="date" id="swapEndDate" class="w-full bg-transparent border-none text-sm font-bold text-slate-800 dark:text-white outline-none cursor-pointer">
-                                    </div>
-                                </div>
-                            </div>
+            <!-- ════════ แท็บ 1: ตารางสลับกะ ════════ -->
+            <section id="staffSwapView">
+                <div class="sw-card sw-toolbar">
+                    <div class="sw-tb-row">
+                        <div class="sw-seg" role="tablist" aria-label="แผนก">
+                            <button onclick="setSwapDeptFilter('AM')" id="btnSwapDeptAM" class="sw-seg-btn active">AM</button>
+                            <button onclick="setSwapDeptFilter('OD')" id="btnSwapDeptOD" class="sw-seg-btn">OD</button>
+                            <button onclick="setSwapDeptFilter('AMQL')" id="btnSwapDeptAMQL" class="sw-seg-btn">ผู้สอน AM</button>
+                            <button onclick="setSwapDeptFilter('ODQL')" id="btnSwapDeptODQL" class="sw-seg-btn">ผู้สอน OD</button>
                         </div>
-                        <button onclick="generateSwapPlan()" class="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold shadow-md shadow-blue-500/30 transition transform active:scale-95 flex justify-center items-center gap-2 text-base">
-                            <span class="material-icons">auto_fix_high</span> ✨ คำนวณตารางสลับกะ
-                        </button>
+                        <div class="sw-seg sw-seg-status" role="tablist" aria-label="สถานะ">
+                            <button onclick="swapSetStatus('pending')" data-status="pending" class="sw-seg-btn active"><span class="material-icons">schedule</span>รอสลับ</button>
+                            <button onclick="swapSetStatus('completed')" data-status="completed" class="sw-seg-btn"><span class="material-icons">task_alt</span>สำเร็จแล้ว</button>
+                        </div>
+                        <select id="swapStatusFilter" onchange="fetchPublicSwapSchedule()" class="hidden" aria-hidden="true" tabindex="-1">
+                            <option value="pending">รอสลับกะ</option>
+                            <option value="completed">สลับกะสำเร็จแล้ว</option>
+                        </select>
                     </div>
-
-                    <div class="lg:col-span-7 bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col">
-                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-4 uppercase tracking-wide flex items-center gap-1.5">
-                            <span class="material-icons text-red-500 text-sm">person_off</span> 3. ล็อกพนักงาน (ไม่ต้องสลับกะ)
+                    <div class="sw-tb-row">
+                        <label class="sw-search">
+                            <span class="material-icons">search</span>
+                            <input type="text" id="searchSwapSchedule" oninput="filterSwapSchedule()" placeholder="ค้นหาชื่อพนักงาน" autocomplete="off">
                         </label>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
-                            <div class="flex flex-col bg-orange-50/50 dark:bg-orange-900/10 rounded-xl border border-orange-100 dark:border-orange-900/30 p-3">
-                                <h5 id="excludeMLabel" class="text-xs font-extrabold text-orange-600 dark:text-orange-400 mb-2 flex items-center gap-1"><span class="material-icons text-sm">wb_sunny</span> อยู่เช้าต่อ (ไม่ไปดึก)</h5>
-                                <div class="relative mb-2">
-                                    <span class="material-icons absolute left-3 top-2.5 text-gray-400 text-sm">search</span>
-                                    <input type="text" id="searchExcludeM" onkeyup="searchExcludeStaff('กะเช้า')" onclick="searchExcludeStaff('กะเช้า')" placeholder="พิมพ์ชื่อเพื่อค้นหา..." autocomplete="off" class="w-full pl-9 pr-3 py-2 rounded-lg border border-orange-200 dark:border-slate-600 bg-white dark:bg-slate-900 dark:text-white text-xs outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition shadow-sm">
-                                    <div id="dropdownExcludeM" class="hidden absolute top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg shadow-xl z-20 custom-scrollbar"></div>
+                        <button onclick="filterSwapToMyself()" class="sw-btn sw-btn-soft"><span class="material-icons">person</span>ของฉัน</button>
+                    </div>
+                </div>
+
+                <!-- แถบผู้จัดการ: ตัวกรองตามประเภท + จัดการ -->
+                <div id="managerSwapToolbar" style="display:none" class="sw-statbar">
+                    <div class="sw-stats">
+                        <button onclick="setSwapTypeFilter('all')" id="btnFilterSwapall" class="swap-filter-btn sw-stat on"><span class="sw-stat-l">ทั้งหมด</span><b id="statSwapAll">0</b></button>
+                        <button onclick="setSwapTypeFilter('night')" id="btnFilterSwapnight" class="swap-filter-btn sw-stat sw-stat-n"><span class="material-icons">dark_mode</span><span class="sw-stat-l">ไปดึก</span><b id="statSwapNight">0</b></button>
+                        <button onclick="setSwapTypeFilter('morning')" id="btnFilterSwapmorning" class="swap-filter-btn sw-stat sw-stat-m"><span class="material-icons">wb_sunny</span><span class="sw-stat-l">ไปเช้า</span><b id="statSwapMorning">0</b></button>
+                        <button onclick="setSwapTypeFilter('same')" id="btnFilterSwapsame" class="swap-filter-btn sw-stat sw-stat-s"><span class="material-icons">person_off</span><span class="sw-stat-l">อยู่กะเดิม</span><b id="statSwapSame">0</b></button>
+                    </div>
+                    <div class="sw-actions">
+                        <button onclick="openAddMissingSwap()" class="sw-btn sw-btn-green" title="เพิ่มพนักงานที่ตกหล่น"><span class="material-icons">person_add</span>เพิ่มพนักงาน</button>
+                        <button id="btnRestoreSwap" onclick="restoreDeletedSwapSchedules()" class="hidden sw-btn sw-btn-soft"><span class="material-icons">restore</span>กู้คืน</button>
+                        <button onclick="deleteAllSwapSchedules()" class="sw-btn sw-btn-danger"><span class="material-icons">delete_sweep</span>ลบทั้งหมด</button>
+                    </div>
+                </div>
+
+                <div id="publicSwapList" class="sw-list">
+                    <div class="sw-empty"><span class="material-icons sw-spin">sync</span>กำลังโหลดข้อมูล…</div>
+                </div>
+            </section>
+
+            <!-- ════════ แท็บ 2: สร้างตารางใหม่ (ผู้จัดการ) ════════ -->
+            <section id="adminSwapControls" style="display:none">
+                <div class="sw-create">
+                    <div class="sw-card sw-pane">
+                        <div class="sw-step"><span class="sw-n">1</span>แผนก</div>
+                        <div class="sw-field">
+                            <select id="swapDeptSelect" onchange="clearExcludeStaff()">
+                                <option value="AM">แผนก AM</option>
+                                <option value="OD">แผนก OD</option>
+                                <option value="AMQL">ผู้สอน AM (AMQL)</option>
+                                <option value="ODQL">ผู้สอน OD (ODQL)</option>
+                            </select>
+                            <span class="material-icons">expand_more</span>
+                        </div>
+
+                        <div class="sw-step"><span class="sw-n">2</span>รูปแบบการสลับ</div>
+                        <select id="swapShiftPair" onchange="clearExcludeStaff(); swapSyncPairUI()" class="hidden" aria-hidden="true" tabindex="-1">
+                            <option value="M_N">เช้า ↔ ดึก</option>
+                            <option value="M_A">เช้า ↔ กลาง</option>
+                            <option value="A_N">กลาง ↔ ดึก</option>
+                            <option value="N_M">ดึก → เช้า</option>
+                            <option value="M_only">เช้า → ดึก</option>
+                        </select>
+                        <div class="sw-pairs" id="swPairs">
+                            <button data-pair="M_N" onclick="swapPickPair('M_N')" class="sw-pair on"><span class="sw-pair-ic">🌅 ⇄ 🌙</span><b>เช้า ↔ ดึก</b><small>สลับกัน (แบบเดิม)</small></button>
+                            <button data-pair="M_A" onclick="swapPickPair('M_A')" class="sw-pair"><span class="sw-pair-ic">🌅 ⇄ 🌤️</span><b>เช้า ↔ กลาง</b><small>สลับกัน</small></button>
+                            <button data-pair="A_N" onclick="swapPickPair('A_N')" class="sw-pair"><span class="sw-pair-ic">🌤️ ⇄ 🌙</span><b>กลาง ↔ ดึก</b><small>สลับกัน</small></button>
+                            <button data-pair="N_M" onclick="swapPickPair('N_M')" class="sw-pair"><span class="sw-pair-ic">🌙 → 🌅</span><b>ดึก → เช้า</b><small>ทางเดียว</small></button>
+                            <button data-pair="M_only" onclick="swapPickPair('M_only')" class="sw-pair"><span class="sw-pair-ic">🌅 → 🌙</span><b>เช้า → ดึก</b><small>ทางเดียว</small></button>
+                        </div>
+
+                        <div class="sw-step"><span class="sw-n">3</span>ช่วงวันที่ทยอยสลับ <span id="swapTargetMonthLabel" class="sw-month"></span></div>
+                        <div class="sw-range">
+                            <label><span>เริ่ม</span><input type="date" id="swapStartDate" onchange="updateSwapMonthLabel()"></label>
+                            <span class="material-icons sw-range-arrow">arrow_forward</span>
+                            <label><span>ถึง</span><input type="date" id="swapEndDate"></label>
+                        </div>
+                    </div>
+
+                    <div class="sw-card sw-pane">
+                        <div class="sw-step"><span class="sw-n">4</span>ล็อกพนักงาน (ไม่ต้องสลับกะ)</div>
+                        <div class="sw-locks">
+                            <div class="sw-lock sw-lock-m">
+                                <h5 id="excludeMLabel" class="sw-lock-h"><span class="material-icons text-sm">wb_sunny</span> อยู่เช้าต่อ (ไม่ไปดึก)</h5>
+                                <div class="sw-lock-search">
+                                    <span class="material-icons">search</span>
+                                    <input type="text" id="searchExcludeM" onkeyup="searchExcludeStaff('กะเช้า')" onclick="searchExcludeStaff('กะเช้า')" placeholder="พิมพ์ชื่อเพื่อเพิ่ม" autocomplete="off">
+                                    <div id="dropdownExcludeM" class="hidden sw-drop custom-scrollbar"></div>
                                 </div>
-                                <div id="tagsExcludeM" class="flex-1 content-start flex flex-wrap gap-1.5 p-2 bg-white/50 dark:bg-slate-900/30 rounded-lg border border-dashed border-orange-200 dark:border-slate-600 overflow-y-auto max-h-[120px] custom-scrollbar">
+                                <div id="tagsExcludeM" class="sw-tags custom-scrollbar">
                                     <span class="text-gray-400 text-[10px] italic w-full text-center py-2">ยังไม่มีรายชื่อ</span>
                                 </div>
                             </div>
-                            <div id="excludeNBlock" class="flex flex-col bg-purple-50/50 dark:bg-purple-900/10 rounded-xl border border-purple-100 dark:border-purple-900/30 p-3">
-                                <h5 class="text-xs font-extrabold text-purple-600 dark:text-purple-400 mb-2 flex items-center gap-1"><span class="material-icons text-sm">dark_mode</span> อยู่ดึกต่อ (ไม่ไปเช้า)</h5>
-                                <div class="relative mb-2">
-                                    <span class="material-icons absolute left-3 top-2.5 text-gray-400 text-sm">search</span>
-                                    <input type="text" id="searchExcludeN" onkeyup="searchExcludeStaff('กะดึก')" onclick="searchExcludeStaff('กะดึก')" placeholder="พิมพ์ชื่อเพื่อค้นหา..." autocomplete="off" class="w-full pl-9 pr-3 py-2 rounded-lg border border-purple-200 dark:border-slate-600 bg-white dark:bg-slate-900 dark:text-white text-xs outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition shadow-sm">
-                                    <div id="dropdownExcludeN" class="hidden absolute top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg shadow-xl z-20 custom-scrollbar"></div>
+                            <div id="excludeNBlock" class="sw-lock sw-lock-n">
+                                <h5 class="sw-lock-h"><span class="material-icons text-sm">dark_mode</span> อยู่ดึกต่อ (ไม่ไปเช้า)</h5>
+                                <div class="sw-lock-search">
+                                    <span class="material-icons">search</span>
+                                    <input type="text" id="searchExcludeN" onkeyup="searchExcludeStaff('กะดึก')" onclick="searchExcludeStaff('กะดึก')" placeholder="พิมพ์ชื่อเพื่อเพิ่ม" autocomplete="off">
+                                    <div id="dropdownExcludeN" class="hidden sw-drop custom-scrollbar"></div>
                                 </div>
-                                <div id="tagsExcludeN" class="flex-1 content-start flex flex-wrap gap-1.5 p-2 bg-white/50 dark:bg-slate-900/30 rounded-lg border border-dashed border-purple-200 dark:border-slate-600 overflow-y-auto max-h-[120px] custom-scrollbar">
+                                <div id="tagsExcludeN" class="sw-tags custom-scrollbar">
                                     <span class="text-gray-400 text-[10px] italic w-full text-center py-2">ยังไม่มีรายชื่อ</span>
                                 </div>
                             </div>
@@ -159,27 +136,23 @@
                     </div>
                 </div>
 
-                <div id="swapPlanPreview" style="display: none;" class="animate-fade-in-up mt-8">
-                    <div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 gap-3">
-                        <div class="flex items-center gap-4 w-full md:w-auto">
-                            <h4 class="font-extrabold text-slate-800 dark:text-white text-lg whitespace-nowrap">👀 ตัวอย่างแผนการสลับกะ</h4>
-                            <div class="relative flex-1 md:w-48">
-                                <span class="material-icons absolute left-2 top-1.5 text-gray-400 text-sm">search</span>
-                                <input type="text" id="searchSwapPreview" onkeyup="highlightSwapPreview()" placeholder="ค้นหาชื่อ..." class="w-full pl-7 pr-2 py-1.5 border rounded-lg text-xs bg-slate-50 dark:bg-slate-900 dark:text-white border-gray-300 dark:border-slate-600 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition">
-                            </div>
-                        </div>
-                        <div class="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 px-3 py-1.5 rounded-lg text-xs font-bold border border-yellow-200 dark:border-yellow-800/50 flex items-center gap-1 shrink-0">
-                            <span class="material-icons text-sm">info</span> กลุ่มดึกไปเช้า ระบบจะบวกวันหยุดพักให้ 1 วันอัตโนมัติ
-                        </div>
+                <button onclick="generateSwapPlan()" class="sw-cta"><span class="material-icons">auto_fix_high</span>คำนวณตารางสลับกะ</button>
+
+                <div id="swapPlanPreview" style="display:none" class="animate-fade-in-up">
+                    <div class="sw-prev-head">
+                        <h4><span class="material-icons">visibility</span>ตัวอย่างแผนการสลับกะ</h4>
+                        <label class="sw-search sw-search-sm">
+                            <span class="material-icons">search</span>
+                            <input type="text" id="searchSwapPreview" oninput="highlightSwapPreview()" placeholder="ค้นหาชื่อในแผน" autocomplete="off">
+                        </label>
+                        <span class="sw-note"><span class="material-icons">info</span>ดึก → เช้า ระบบบวกวันพักให้ 1 วันอัตโนมัติ · คลิกชื่อเพื่อจัดการ หรือลากย้ายวัน</span>
                     </div>
-                    <div id="planDaysContainer" class="space-y-4 mb-6"></div>
-                    <div class="sticky bottom-0 bg-white dark:bg-slate-800 p-4 border-t border-slate-200 dark:border-slate-700 -mx-6 -mb-6 pb-6 mt-6 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.1)] dark:shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.5)] z-10">
-                        <button onclick="confirmAndSaveSwapPlan()" class="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white py-4 rounded-xl font-extrabold shadow-lg shadow-green-500/30 transition transform active:scale-95 flex justify-center items-center gap-2 text-lg">
-                            <span class="material-icons">task_alt</span> ยืนยันและบันทึกตารางเข้าระบบ
-                        </button>
+                    <div id="planDaysContainer" class="sw-days"></div>
+                    <div class="sw-savebar">
+                        <button onclick="confirmAndSaveSwapPlan()" class="sw-save"><span class="material-icons">task_alt</span>ยืนยันและบันทึกตารางเข้าระบบ</button>
                     </div>
                 </div>
-            </div>
+            </section>
 
         </div>
     </div>
@@ -187,55 +160,237 @@
 
 <div id="swapTemplates" class="hidden">
     <template id="tpl-swap-exclude-dropdown-item">
-        <div onclick="addExcludeStaff({{id}}, '{{shiftType}}')" class="px-3 py-2 hover:bg-gray-100 dark:hover:bg-slate-600 cursor-pointer text-xs font-bold text-slate-700 dark:text-gray-200 border-b last:border-0 flex justify-between">
-            <span>{{username}}</span>
-            <span class="text-[9px] bg-white/50 px-1 rounded opacity-70">{{dept}}</span>
+        <div onclick="addExcludeStaff({{id}}, '{{shiftType}}')" class="sw-drop-item">
+            <span>{{username}}</span><span class="sw-drop-dept">{{dept}}</span>
         </div>
     </template>
 
     <template id="tpl-swap-exclude-tag">
-        <span class="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md border {{colorClass}} shadow-sm">
+        <span class="sw-tag" data-shift="{{shiftType}}">
             {{username}}
-            <button onclick="removeExcludeStaff({{id}}, '{{shiftType}}')" class="hover:text-red-500 bg-white/50 rounded-full w-3.5 h-3.5 flex items-center justify-center transition"><span class="material-icons text-[10px]">close</span></button>
+            <button onclick="removeExcludeStaff({{id}}, '{{shiftType}}')" title="เอาออก"><span class="material-icons">close</span></button>
         </span>
     </template>
 
     <template id="tpl-swap-plan-user">
-        <span draggable="true" ondragstart="swapDragStart(event, '{{id}}', {{dayIndex}}, '{{direction}}')" onclick="openSwapUserMenu('{{id}}', {{dayIndex}}, '{{direction}}')" title="คลิกเพื่อจัดการ หรือลากวาง" class="{{colorClass}} px-1.5 py-0.5 rounded text-[10px] m-0.5 inline-flex items-center gap-1 cursor-pointer hover:shadow-md hover:ring-2 hover:ring-blue-400 transition active:cursor-grabbing border"><span class="material-icons text-[10px] opacity-50">drag_indicator</span>{{username}}</span>
+        <span draggable="true" ondragstart="swapDragStart(event, '{{id}}', {{dayIndex}}, '{{direction}}')" onclick="openSwapUserMenu('{{id}}', {{dayIndex}}, '{{direction}}')" title="คลิกเพื่อจัดการ หรือลากไปวันอื่น" class="sw-chip sw-chip-{{direction}}"><span class="material-icons">drag_indicator</span>{{username}}</span>
     </template>
 
     <template id="tpl-swap-plan-day">
-        <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-300 dark:border-slate-600 shadow-sm overflow-hidden">
-            <div class="bg-slate-100 dark:bg-slate-700/50 p-2 border-b dark:border-slate-600 font-bold text-sm text-slate-800 dark:text-gray-200">
-                <span class="text-blue-600 dark:text-blue-400 mr-2">🗓️ คิวที่ {{dayNumber}}</span> ({{displayDate}})
-            </div>
-            <div class="grid grid-cols-2 divide-x dark:divide-slate-600">
-                <div class="p-3 transition-colors duration-200" ondragover="swapDragOver(event, 'MtoN')" ondragleave="swapDragLeave(event)" ondrop="swapDrop(event, {{index}}, 'MtoN')">
-                    <div class="text-xs font-bold text-orange-600 mb-1 pointer-events-none">☀️ เช้าไปดึก ({{mCount}} คน)</div>
-                    <div class="text-[9px] text-gray-500 mb-2 leading-tight pointer-events-none">ทำเช้าวันสุดท้าย: <b class="text-slate-700 dark:text-gray-300">{{prevDateDisplay}}</b><br>เริ่มเข้าดึกคืนแรก: <b class="text-orange-500">{{displayDate}}</b></div>
-                    <div class="flex flex-wrap min-h-[30px] p-1 -m-1 border border-transparent">{{mNamesHtml}}</div>
+        <div class="sw-day">
+            <div class="sw-day-h"><span class="sw-q">คิวที่ {{dayNumber}}</span><span class="sw-day-date">{{displayDate}}</span></div>
+            <div class="sw-lanes">
+                <div class="sw-lane sw-lane-m" ondragover="swapDragOver(event, 'MtoN')" ondragleave="swapDragLeave(event)" ondrop="swapDrop(event, {{index}}, 'MtoN')">
+                    <div class="sw-lane-h"><span class="material-icons">wb_sunny</span>เช้า → ดึก<b>{{mCount}} คน</b></div>
+                    <div class="sw-lane-note">ทำเช้าวันสุดท้าย <b>{{prevDateDisplay}}</b> · เริ่มดึกคืนแรก <b class="sw-hl-n">{{displayDate}}</b></div>
+                    <div class="sw-chips">{{mNamesHtml}}</div>
                 </div>
-                <div class="p-3 transition-colors duration-200" ondragover="swapDragOver(event, 'NtoM')" ondragleave="swapDragLeave(event)" ondrop="swapDrop(event, {{index}}, 'NtoM')">
-                    <div class="text-xs font-bold text-purple-600 mb-1 pointer-events-none">🌙 ดึกไปเช้า ({{nCount}} คน)</div>
-                    <div class="text-[9px] text-gray-500 mb-2 leading-tight pointer-events-none">ออกกะเช้าวันที่: <b class="text-slate-700 dark:text-gray-300">{{displayDate}} (พัก 1 วัน)</b><br>เริ่มเข้าเช้าวันที่: <b class="text-green-500">{{nextDateDisplay}}</b></div>
-                    <div class="flex flex-wrap min-h-[30px] p-1 -m-1 border border-transparent">{{nNamesHtml}}</div>
+                <div class="sw-lane sw-lane-n" ondragover="swapDragOver(event, 'NtoM')" ondragleave="swapDragLeave(event)" ondrop="swapDrop(event, {{index}}, 'NtoM')">
+                    <div class="sw-lane-h"><span class="material-icons">dark_mode</span>ดึก → เช้า<b>{{nCount}} คน</b></div>
+                    <div class="sw-lane-note">ออกดึก <b>{{displayDate}}</b> (พัก 1 วัน) · เริ่มเช้า <b class="sw-hl-m">{{nextDateDisplay}}</b></div>
+                    <div class="sw-chips">{{nNamesHtml}}</div>
                 </div>
             </div>
         </div>
     </template>
 
     <template id="tpl-swap-schedule-item">
-        <div class="swap-item relative p-4 rounded-xl border-2 {{bgClass}} {{myHighlight}} flex items-center gap-4 transition hover:shadow-lg mt-2" data-name="{{safeSearchName}}" data-swaptype="{{swapTypeForFilter}}" data-dept="{{userDept}}">
-            {{completedBadge}} {{adminDelete}}
-            <div class="w-12 h-12 rounded-full bg-black/30 flex items-center justify-center shrink-0 shadow-inner {{txtClass}}"><span class="material-icons text-2xl">{{icon}}</span></div>
-            <div class="flex-1 min-w-0 pr-6">
-                <div class="font-extrabold text-base text-white truncate flex items-center gap-2">
-                    {{userNameHtml}} <span class="text-[9px] bg-slate-700 text-gray-300 px-1.5 py-0.5 rounded border border-slate-600">{{displayDeptBadge}}</span>
-                    {{isMeBadge}}
-                </div>
-                <div class="text-sm font-bold {{txtClass}} mt-0.5 mb-1">{{actionTitle}}</div>
-                <div class="text-[11px] bg-black/20 p-2 rounded-lg border border-white/5 inline-block w-full">{{detailHtml}}</div>
+        <div class="swap-item sw-item sw-k-{{kind}} {{myHighlight}}" data-name="{{safeSearchName}}" data-swaptype="{{swapTypeForFilter}}" data-dept="{{userDept}}">
+            <div class="sw-item-ic"><span class="material-icons">{{icon}}</span></div>
+            <div class="sw-item-body">
+                <div class="sw-item-name">{{userNameHtml}}<span class="sw-dept">{{displayDeptBadge}}</span>{{isMeBadge}}</div>
+                <div class="sw-item-act">{{actionTitle}}{{completedBadge}}</div>
+                <div class="sw-item-steps">{{detailHtml}}</div>
             </div>
+            {{adminDelete}}
         </div>
     </template>
 </div>
+
+<style>
+/* ═════ หน้าสลับกะ — ใช้ตัวแปรธีม --k-* (สลับมืด/สว่างได้เอง) ═════ */
+#swapPage { --sw-m:234,88,12; --sw-n:124,58,237; --sw-a:217,119,6; --sw-ok:5,150,105; --sw-mt:#c2410c; --sw-nt:#6d28d9; --sw-okt:#047857;
+    background:var(--k-bg); border:1px solid var(--k-line); }
+html.dark #swapPage { --sw-mt:#fb923c; --sw-nt:#a78bfa; --sw-okt:#34d399; }
+#swapPage .sw-wrap { max-width:1500px; margin:0 auto; padding:18px 18px 40px; display:flex; flex-direction:column; gap:14px; }
+#swapPage #staffSwapView { display:flex; flex-direction:column; gap:12px; }
+#swapPage #adminSwapControls > * + * { margin-top:14px; }
+#swapPage .sw-card { background:var(--k-panel); border:1px solid var(--k-line); border-radius:18px; box-shadow:var(--k-shadow); }
+#swapPage .sw-wrap .material-icons { font-size:18px; }
+
+/* แท็บหลัก */
+#swapPage .sw-maintabs { display:flex; gap:6px; padding:5px; background:var(--k-sunk); border:1px solid var(--k-line); border-radius:16px; width:fit-content; max-width:100%; }
+#swapPage .sw-maintabs button { display:inline-flex; align-items:center; gap:7px; padding:9px 18px; border-radius:12px; font-weight:800; font-size:14px; color:var(--k-mute); transition:background .15s,color .15s; }
+#swapPage .sw-maintabs button:hover { color:var(--k-tx-strong); }
+#swapPage .sw-maintabs button.on { background:var(--k-panel); color:var(--k-tx-strong); box-shadow:0 2px 10px rgba(0,0,0,.18); }
+#swapPage .sw-maintabs button.on .material-icons { color:rgb(var(--sw-m)); }
+
+/* แถบเครื่องมือ */
+#swapPage .sw-toolbar { padding:12px; display:flex; flex-direction:column; gap:10px; }
+#swapPage .sw-tb-row { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; }
+#swapPage .sw-seg { display:inline-flex; flex-wrap:wrap; gap:3px; padding:4px; background:var(--k-sunk); border:1px solid var(--k-line); border-radius:13px; }
+#swapPage .sw-seg-btn { display:inline-flex; align-items:center; gap:6px; padding:7px 14px; border-radius:10px; font-weight:800; font-size:13px; color:var(--k-mute); transition:background .15s,color .15s; white-space:nowrap; }
+#swapPage .sw-seg-btn .material-icons { font-size:16px; }
+#swapPage .sw-seg-btn:hover { color:var(--k-tx-strong); }
+#swapPage .sw-seg-btn.active { background:rgb(var(--sw-m)); color:#fff; box-shadow:0 4px 12px rgba(var(--sw-m),.35); }
+#swapPage .sw-seg-status .sw-seg-btn.active { background:var(--k-panel2); color:var(--k-tx-strong); box-shadow:inset 0 0 0 1px var(--k-line3); }
+#swapPage .sw-seg-status .sw-seg-btn.active[data-status="completed"] .material-icons { color:var(--sw-okt); }
+#swapPage .sw-seg-status .sw-seg-btn.active[data-status="pending"] .material-icons { color:var(--sw-mt); }
+#swapPage .sw-search { flex:1; min-width:200px; display:flex; align-items:center; gap:8px; height:42px; padding:0 14px; border-radius:12px; background:var(--k-field); border:1px solid var(--k-line3); transition:border-color .15s, box-shadow .15s; }
+#swapPage .sw-search:focus-within { border-color:rgba(var(--sw-m),.7); box-shadow:0 0 0 3px rgba(var(--sw-m),.15); }
+#swapPage .sw-search .material-icons { color:var(--k-mute); }
+#swapPage .sw-search input { flex:1; min-width:0; background:transparent; border:0; outline:none; font-size:14px; font-weight:600; color:var(--k-tx-strong); }
+#swapPage .sw-search-sm { height:36px; min-width:180px; flex:0 1 240px; }
+#swapPage .sw-btn { display:inline-flex; align-items:center; gap:6px; height:40px; padding:0 14px; border-radius:12px; font-weight:800; font-size:13px; border:1px solid var(--k-line3); background:var(--k-btn); color:var(--k-tx2); transition:background .15s, border-color .15s, transform .1s; white-space:nowrap; }
+#swapPage .sw-btn:hover { background:var(--k-btn-h); color:var(--k-tx-strong); }
+#swapPage .sw-btn:active { transform:scale(.97); }
+#swapPage .sw-btn.hidden { display:none; }
+#swapPage .sw-btn-green { background:rgba(var(--sw-ok),.14); border-color:rgba(var(--sw-ok),.4); color:var(--sw-okt); }
+#swapPage .sw-btn-green:hover { background:rgba(var(--sw-ok),.22); color:var(--sw-okt); }
+#swapPage .sw-btn-danger { background:transparent; border-color:var(--k-red-line); color:var(--k-red-tx); }
+#swapPage .sw-btn-danger:hover { background:var(--k-red-bg); border-color:var(--k-red-line-h); color:var(--k-red-tx); }
+
+/* แถบสถิติ/ตัวกรองของผู้จัดการ */
+#swapPage .sw-statbar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; }
+#swapPage .sw-stats { display:flex; flex-wrap:wrap; gap:8px; }
+#swapPage .sw-stat { display:inline-flex; align-items:center; gap:7px; height:40px; padding:0 8px 0 14px; border-radius:12px; border:1px solid var(--k-line); background:var(--k-panel); color:var(--k-tx2); font-weight:800; font-size:13px; transition:border-color .15s, background .15s; }
+#swapPage .sw-stat b { min-width:28px; height:26px; padding:0 8px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; background:var(--k-sunk); color:var(--k-tx-strong); font-size:13px; font-variant-numeric:tabular-nums; }
+#swapPage .sw-stat:hover { border-color:var(--k-line4); }
+#swapPage .sw-stat-n .material-icons { color:var(--sw-nt); } #swapPage .sw-stat-m .material-icons { color:var(--sw-mt); } #swapPage .sw-stat-s .material-icons { color:var(--k-mute); }
+#swapPage .sw-stat.on { border-color:var(--k-tx3); background:var(--k-panel2); color:var(--k-tx-strong); box-shadow:inset 0 0 0 1px var(--k-tx3); }
+#swapPage .sw-stat-n.on { border-color:rgba(var(--sw-n),.7); box-shadow:inset 0 0 0 1px rgba(var(--sw-n),.7); } #swapPage .sw-stat-n.on b { background:rgb(var(--sw-n)); color:#fff; }
+#swapPage .sw-stat-m.on { border-color:rgba(var(--sw-m),.7); box-shadow:inset 0 0 0 1px rgba(var(--sw-m),.7); } #swapPage .sw-stat-m.on b { background:rgb(var(--sw-m)); color:#fff; }
+#swapPage .sw-actions { display:flex; flex-wrap:wrap; gap:8px; }
+
+/* รายการ: แบ่งกลุ่มตามวัน */
+#swapPage .sw-list { display:flex; flex-direction:column; gap:18px; }
+#swapPage .sw-group-h { display:flex; align-items:center; gap:10px; margin:0 2px 10px; }
+#swapPage .sw-group-date { display:inline-flex; align-items:center; gap:8px; font-weight:800; font-size:15px; color:var(--k-tx-strong); }
+#swapPage .sw-group-date .material-icons { color:var(--k-mute); }
+#swapPage .sw-group-n { font-size:12px; font-weight:800; color:var(--k-mute); padding:3px 10px; border-radius:999px; background:var(--k-sunk); border:1px solid var(--k-line); }
+#swapPage .sw-group-h::after { content:""; flex:1; height:1px; background:var(--k-line); }
+#swapPage .sw-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(310px,1fr)); gap:10px; }
+#swapPage .sw-item { position:relative; display:flex; gap:13px; align-items:flex-start; padding:14px 14px 14px 14px; border-radius:16px; background:var(--k-panel); border:1px solid var(--k-line); transition:border-color .15s, transform .15s, box-shadow .15s; }
+#swapPage .sw-item::before { content:""; position:absolute; left:0; top:14px; bottom:14px; width:3px; border-radius:0 3px 3px 0; background:var(--sw-acc, var(--k-line3)); }
+#swapPage .sw-item:hover { border-color:var(--k-line4); box-shadow:0 8px 22px rgba(0,0,0,.18); }
+#swapPage .sw-item-ic { width:42px; height:42px; flex:none; border-radius:13px; display:flex; align-items:center; justify-content:center; background:var(--sw-ic-bg, var(--k-sunk)); color:var(--sw-ic, var(--k-mute)); }
+#swapPage .sw-item-ic .material-icons { font-size:22px; }
+#swapPage .sw-item-body { flex:1; min-width:0; padding-right:26px; }
+#swapPage .sw-item-name { display:flex; align-items:center; flex-wrap:wrap; gap:6px; font-weight:800; font-size:15px; color:var(--k-tx-strong); line-height:1.3; }
+#swapPage .sw-item-name .sw-link { cursor:pointer; border-bottom:1px dashed transparent; } #swapPage .sw-item-name .sw-link:hover { border-bottom-color:currentColor; }
+#swapPage .sw-dept { font-size:10.5px; font-weight:800; padding:2px 7px; border-radius:6px; background:var(--k-sunk); border:1px solid var(--k-line); color:var(--k-mute); }
+#swapPage .sw-me-badge { font-size:10.5px; font-weight:800; padding:2px 8px; border-radius:6px; background:#dc2626; color:#fff; }
+#swapPage .sw-item-act { display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin-top:3px; font-size:13px; font-weight:800; color:var(--sw-ic, var(--k-mute)); }
+#swapPage .sw-done { display:inline-flex; align-items:center; gap:3px; font-size:11px; padding:2px 8px; border-radius:999px; background:rgba(var(--sw-ok),.14); color:var(--sw-okt); border:1px solid rgba(var(--sw-ok),.35); }
+#swapPage .sw-done .material-icons { font-size:13px; }
+#swapPage .sw-item-steps { display:flex; flex-wrap:wrap; align-items:center; gap:5px; margin-top:9px; }
+#swapPage .sw-st { font-size:12px; font-weight:700; padding:4px 9px; border-radius:8px; background:var(--k-sunk); border:1px solid var(--k-line); color:var(--k-tx2); }
+#swapPage .sw-st.last { color:var(--k-tx-strong); border-color:var(--sw-acc, var(--k-line3)); }
+#swapPage .sw-arrow { font-size:15px !important; color:var(--k-mute); }
+#swapPage .sw-st-plain { font-size:12px; font-weight:600; color:var(--k-mute); }
+#swapPage .sw-del { position:absolute; top:10px; right:10px; width:30px; height:30px; border-radius:9px; display:flex; align-items:center; justify-content:center; color:var(--k-mute); opacity:.55; transition:opacity .15s, background .15s, color .15s; }
+#swapPage .sw-item:hover .sw-del { opacity:1; }
+#swapPage .sw-del:hover { background:var(--k-red-bg); color:var(--k-red-tx); }
+#swapPage .sw-del .material-icons { font-size:17px; }
+#swapPage .sw-k-night { --sw-acc:rgb(var(--sw-n)); --sw-ic:var(--sw-nt); --sw-ic-bg:rgba(var(--sw-n),.14); }
+#swapPage .sw-k-morning { --sw-acc:rgb(var(--sw-m)); --sw-ic:var(--sw-mt); --sw-ic-bg:rgba(var(--sw-m),.14); }
+#swapPage .sw-k-same { --sw-acc:var(--k-line3); }
+#swapPage .sw-k-same-m { --sw-ic:var(--sw-mt); } #swapPage .sw-k-same-n { --sw-ic:var(--sw-nt); }
+#swapPage .sw-k-done { --sw-acc:rgb(var(--sw-ok)); --sw-ic:var(--sw-okt); --sw-ic-bg:rgba(var(--sw-ok),.12); }
+#swapPage .sw-me { border-color:rgba(220,38,38,.7); box-shadow:0 0 0 1px rgba(220,38,38,.55), 0 8px 24px rgba(220,38,38,.15); }
+#swapPage .sw-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; padding:44px 16px; border-radius:18px; border:1px dashed var(--k-line3); background:var(--k-panel); color:var(--k-mute); font-weight:700; font-size:14px; text-align:center; }
+#swapPage .sw-empty .material-icons { font-size:34px; opacity:.7; }
+#swapPage .sw-empty.err { color:var(--k-red-tx); border-color:var(--k-red-line); }
+#swapPage .sw-spin { animation:swSpin 1s linear infinite; }
+@keyframes swSpin { to { transform:rotate(360deg); } }
+
+/* แท็บสร้าง */
+#swapPage .sw-create { display:grid; grid-template-columns:minmax(0,5fr) minmax(0,7fr); gap:14px; }
+@media (max-width:1023px){ #swapPage .sw-create { grid-template-columns:1fr; } }
+#swapPage .sw-pane { padding:18px; display:flex; flex-direction:column; }
+#swapPage .sw-step { display:flex; align-items:center; flex-wrap:wrap; gap:9px; margin:4px 0 10px; font-weight:800; font-size:14px; color:var(--k-tx-strong); }
+#swapPage .sw-step:not(:first-child) { margin-top:20px; }
+#swapPage .sw-n { width:24px; height:24px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:900; background:rgba(var(--sw-m),.15); color:var(--sw-mt); }
+#swapPage .sw-month { font-size:11.5px; font-weight:700; color:var(--k-mute); }
+#swapPage .sw-field { position:relative; }
+#swapPage .sw-field select { width:100%; height:46px; padding:0 40px 0 14px; appearance:none; -webkit-appearance:none; border-radius:12px; background:var(--k-field); border:1px solid var(--k-line3); color:var(--k-tx-strong); font-weight:800; font-size:14px; outline:none; cursor:pointer; }
+#swapPage .sw-field select:focus { border-color:rgba(var(--sw-m),.7); box-shadow:0 0 0 3px rgba(var(--sw-m),.15); }
+#swapPage .sw-field .material-icons { position:absolute; right:12px; top:50%; transform:translateY(-50%); color:var(--k-mute); pointer-events:none; }
+#swapPage .sw-pairs { display:grid; grid-template-columns:repeat(auto-fill,minmax(128px,1fr)); gap:8px; }
+#swapPage .sw-pair { display:flex; flex-direction:column; align-items:flex-start; gap:2px; padding:11px 12px; border-radius:13px; text-align:left; background:var(--k-field); border:1px solid var(--k-line3); color:var(--k-tx2); transition:border-color .15s, background .15s; }
+#swapPage .sw-pair:hover { border-color:var(--k-line4); }
+#swapPage .sw-pair-ic { font-size:15px; letter-spacing:1px; margin-bottom:3px; }
+#swapPage .sw-pair b { font-size:14px; color:var(--k-tx-strong); }
+#swapPage .sw-pair small { font-size:11.5px; font-weight:700; color:var(--k-mute); }
+#swapPage .sw-pair.on { border-color:rgb(var(--sw-m)); background:rgba(var(--sw-m),.1); box-shadow:inset 0 0 0 1px rgb(var(--sw-m)); }
+#swapPage .sw-range { display:flex; align-items:center; gap:8px; padding:6px; border-radius:14px; background:var(--k-field); border:1px solid var(--k-line3); }
+#swapPage .sw-range label { flex:1; display:flex; flex-direction:column; padding:4px 8px; cursor:pointer; }
+#swapPage .sw-range label > span { font-size:11px; font-weight:800; color:var(--k-mute); }
+#swapPage .sw-range input { background:transparent; border:0; outline:none; font-weight:800; font-size:14px; color:var(--k-tx-strong); cursor:pointer; color-scheme:light dark; }
+#swapPage .sw-range-arrow { color:var(--k-mute); }
+#swapPage .sw-range .k36dp-field { font-weight:800; font-size:14px; color:var(--k-tx-strong); padding-top:2px; }   /* ช่องวันที่ที่ปฏิทินกลางของเว็บครอบทับ */
+#swapPage .sw-locks { display:grid; grid-template-columns:1fr 1fr; gap:12px; flex:1; }
+@media (max-width:640px){ #swapPage .sw-locks { grid-template-columns:1fr; } }
+#swapPage .sw-lock { display:flex; flex-direction:column; padding:12px; border-radius:14px; border:1px solid var(--k-line); background:var(--k-sunk); }
+#swapPage .sw-lock-h { display:flex; align-items:center; gap:6px; font-size:13px; font-weight:800; margin-bottom:9px; }
+#swapPage .sw-lock-m .sw-lock-h { color:var(--sw-mt); } #swapPage .sw-lock-n .sw-lock-h { color:var(--sw-nt); }
+#swapPage .sw-lock-search { position:relative; display:flex; align-items:center; gap:7px; height:38px; padding:0 11px; border-radius:11px; background:var(--k-field); border:1px solid var(--k-line3); margin-bottom:9px; }
+#swapPage .sw-lock-search:focus-within { border-color:var(--k-line4); }
+#swapPage .sw-lock-search > .material-icons { color:var(--k-mute); font-size:17px; }
+#swapPage .sw-lock-search input { flex:1; min-width:0; background:transparent; border:0; outline:none; font-size:13px; font-weight:600; color:var(--k-tx-strong); }
+#swapPage .sw-drop { position:absolute; top:calc(100% + 6px); left:0; right:0; max-height:220px; overflow-y:auto; z-index:30; border-radius:12px; background:var(--k-panel); border:1px solid var(--k-line3); box-shadow:0 16px 36px rgba(0,0,0,.35); padding:4px; }
+#swapPage .sw-drop-item { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:9px 10px; border-radius:9px; cursor:pointer; font-size:13px; font-weight:800; color:var(--k-tx-strong); }
+#swapPage .sw-drop-item:hover { background:var(--k-btn-h); }
+#swapPage .sw-drop-dept { font-size:10.5px; color:var(--k-mute); }
+#swapPage .sw-tags { flex:1; min-height:92px; max-height:170px; overflow-y:auto; display:flex; flex-wrap:wrap; align-content:flex-start; gap:6px; padding:9px; border-radius:11px; border:1px dashed var(--k-line3); }
+#swapPage .sw-tag { display:inline-flex; align-items:center; gap:4px; height:28px; padding:0 4px 0 10px; border-radius:999px; font-size:12.5px; font-weight:800; }
+#swapPage .sw-tag[data-shift="กะเช้า"] { background:rgba(var(--sw-m),.14); color:var(--sw-mt); border:1px solid rgba(var(--sw-m),.35); }
+#swapPage .sw-tag[data-shift="กะดึก"] { background:rgba(var(--sw-n),.14); color:var(--sw-nt); border:1px solid rgba(var(--sw-n),.35); }
+#swapPage .sw-tag button { width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; opacity:.7; }
+#swapPage .sw-tag button:hover { opacity:1; background:rgba(0,0,0,.12); }
+#swapPage .sw-tag .material-icons { font-size:14px; }
+#swapPage .sw-cta { width:100%; height:56px; display:flex; align-items:center; justify-content:center; gap:9px; border-radius:16px; font-size:16px; font-weight:900; color:#fff; background:linear-gradient(135deg,#f97316,#ea580c); box-shadow:0 10px 26px rgba(var(--sw-m),.35); transition:transform .1s, filter .15s; }
+#swapPage .sw-cta:hover { filter:brightness(1.06); } #swapPage .sw-cta:active { transform:scale(.99); }
+#swapPage .sw-cta .material-icons { font-size:22px; }
+
+/* ตัวอย่างแผน */
+#swapPage #swapPlanPreview { margin-top:6px; }
+#swapPage .sw-prev-head { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin:10px 0 12px; }
+#swapPage .sw-prev-head h4 { display:flex; align-items:center; gap:7px; font-size:17px; font-weight:900; color:var(--k-tx-strong); margin-right:auto; }
+#swapPage .sw-note { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:var(--k-amber-tx); padding:7px 11px; border-radius:10px; background:color-mix(in srgb, var(--k-amber-tx) 12%, transparent); border:1px solid color-mix(in srgb, var(--k-amber-tx) 30%, transparent); }
+#swapPage .sw-note .material-icons { font-size:16px; }
+#swapPage .sw-days { display:flex; flex-direction:column; gap:10px; }
+#swapPage .sw-day { border-radius:16px; overflow:hidden; background:var(--k-panel); border:1px solid var(--k-line); }
+#swapPage .sw-day-h { display:flex; align-items:center; gap:10px; padding:10px 14px; background:var(--k-panel2); border-bottom:1px solid var(--k-line); }
+#swapPage .sw-q { font-size:12px; font-weight:900; padding:3px 10px; border-radius:999px; background:rgba(var(--sw-m),.15); color:var(--sw-mt); }
+#swapPage .sw-day-date { font-weight:800; font-size:14px; color:var(--k-tx-strong); }
+#swapPage .sw-lanes { display:grid; grid-template-columns:1fr 1fr; }
+@media (max-width:767px){ #swapPage .sw-lanes { grid-template-columns:1fr; } }
+#swapPage .sw-lane { padding:12px 14px 14px; transition:background .15s; }
+#swapPage .sw-lane + .sw-lane { border-left:1px solid var(--k-line); }
+@media (max-width:767px){ #swapPage .sw-lane + .sw-lane { border-left:0; border-top:1px solid var(--k-line); } }
+#swapPage .sw-lane-h, #swapPage .sw-lane-note { pointer-events:none; }
+#swapPage .sw-lane-h { display:flex; align-items:center; gap:6px; font-size:13px; font-weight:900; }
+#swapPage .sw-lane-h b { margin-left:auto; font-size:12px; color:var(--k-mute); }
+#swapPage .sw-lane-m .sw-lane-h { color:var(--sw-mt); } #swapPage .sw-lane-n .sw-lane-h { color:var(--sw-nt); }
+#swapPage .sw-lane-note { font-size:11.5px; font-weight:600; color:var(--k-mute); margin:3px 0 9px; }
+#swapPage .sw-lane-note b { color:var(--k-tx2); } #swapPage .sw-hl-n { color:var(--sw-nt) !important; } #swapPage .sw-hl-m { color:var(--sw-okt) !important; }
+#swapPage .sw-chips { display:flex; flex-wrap:wrap; gap:6px; min-height:34px; align-content:flex-start; }
+#swapPage .sw-chip { display:inline-flex; align-items:center; gap:3px; height:30px; padding:0 11px 0 5px; border-radius:9px; font-size:12.5px; font-weight:800; cursor:grab; user-select:none; transition:box-shadow .15s, transform .1s; }
+#swapPage .sw-chip .material-icons { font-size:15px; opacity:.45; }
+#swapPage .sw-chip:hover { box-shadow:0 0 0 2px currentColor; }
+#swapPage .sw-chip:active { cursor:grabbing; transform:scale(.97); }
+#swapPage .sw-chip-MtoN { background:rgba(var(--sw-m),.13); color:var(--sw-mt); border:1px solid rgba(var(--sw-m),.3); }
+#swapPage .sw-chip-NtoM { background:rgba(var(--sw-n),.13); color:var(--sw-nt); border:1px solid rgba(var(--sw-n),.3); }
+#swapPage .sw-savebar { position:sticky; bottom:0; margin-top:14px; padding:16px 0 6px; background:linear-gradient(to top, var(--k-bg) 72%, transparent); z-index:10; }
+#swapPage .sw-save { width:100%; height:56px; display:flex; align-items:center; justify-content:center; gap:9px; border-radius:16px; font-size:16px; font-weight:900; color:#fff; background:linear-gradient(135deg,#10b981,#059669); box-shadow:0 10px 26px rgba(16,185,129,.35); transition:transform .1s, filter .15s; }
+#swapPage .sw-save:hover { filter:brightness(1.06); } #swapPage .sw-save:active { transform:scale(.99); }
+
+@media (max-width:640px){
+    #swapPage .sw-wrap { padding:12px 12px 32px; }
+    #swapPage .sw-grid { grid-template-columns:1fr; }
+    #swapPage .sw-maintabs { width:100%; } #swapPage .sw-maintabs button { flex:1; justify-content:center; padding:9px 10px; }
+    #swapPage .sw-seg { width:100%; } #swapPage .sw-seg-btn { flex:1; justify-content:center; padding:7px 8px; }
+}
+@media (prefers-reduced-motion:reduce){ #swapPage .sw-spin { animation:none; } }
+</style>

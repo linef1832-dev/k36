@@ -34,7 +34,7 @@ window.openAutoSwapModal = async function() {
     const canManageSwap = isGlobalAdmin || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('swap_manage'));
 
     if (canManageSwap) {
-        if(adminPanel) adminPanel.style.display = 'block';
+        // แผงสร้างตาราง: อยู่ในแท็บ "สร้างตารางใหม่" (swapSetMainTab คุมการแสดง)
         if(managerToolbar) managerToolbar.style.display = 'flex';
         if(previewPanel) previewPanel.style.display = 'none';
         
@@ -55,6 +55,7 @@ window.openAutoSwapModal = async function() {
         if(managerToolbar) managerToolbar.style.display = 'none';
         if(previewPanel) previewPanel.style.display = 'none';
     }
+    if (typeof window.swapSyncUI === 'function') window.swapSyncUI();   // ปุ่ม/แท็บบนจอให้ตรงกับค่าจริง
 }
 
 window.updateSwapMonthLabel = function() {
@@ -63,7 +64,7 @@ window.updateSwapMonthLabel = function() {
         const d = new Date(startDateVal);
         const monthStr = d.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
         const label = document.getElementById('swapTargetMonthLabel');
-        if(label) label.innerText = `(อิงวันหยุดเดือน: ${monthStr})`;
+        if(label) label.innerText = `อิงวันหยุดเดือน ${monthStr}`;
     }
 }
 
@@ -485,6 +486,7 @@ window.confirmAndSaveSwapPlan = async function() {
                 Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', text: 'พนักงานสามารถเช็คตารางของตัวเองได้แล้ว', timer: 2500 });
                 document.getElementById('swapPlanPreview').style.display = 'none';
                 clearExcludeStaff(); fetchPublicSwapSchedule(); 
+                if (typeof swapSetMainTab === 'function') swapSetMainTab('list');   // บันทึกแล้วพากลับไปดูตารางที่เพิ่งสร้าง
                 if(typeof fetchLeaveData === 'function') fetchLeaveData();
             } catch (err) { 
                 Swal.fire('Error', 'เกิดข้อผิดพลาดในการบันทึก: ' + err.message, 'error'); 

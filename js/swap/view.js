@@ -1,32 +1,66 @@
 // ════════════════════════════════════════════════════════════════════
 // 📦 swap/view.js — ส่วนที่ 2/4 ของระบบสลับกะ (แยกจาก swap.js เดิม 1,633 บรรทัด)
-// เนื้อหา: ตัวกรอง, ดึงตารางมาแสดง, ค้นหา, ลบ/กู้คืน
+// เนื้อหา: ตัวกรอง, ดึงตารางมาแสดง (แบ่งกลุ่มตามวัน), ค้นหา, ลบ/กู้คืน, แท็บ/ปุ่มของหน้าออกแบบใหม่
 // ⚠️ ลำดับโหลด: swap/core → swap/view → swap/admin → swap/extras (ห้ามสลับ — ตัวแปร top-level แชร์ scope เดียวกัน)
 // ════════════════════════════════════════════════════════════════════
+const _swEsc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const _swCanManage = () => canPerm('swap_manage') || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('swap_manage'));
+
+// ==========================================
+// 🗂️ แท็บหลัก: ตารางสลับกะ / สร้างตารางใหม่
+// ==========================================
+window.swapSetMainTab = function(tab) {
+    if (tab === 'create' && !_swCanManage()) tab = 'list';
+    window._swTab = tab;
+    document.querySelectorAll('#swMainTabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+    const list = document.getElementById('staffSwapView'), create = document.getElementById('adminSwapControls');
+    if (list) list.style.display = tab === 'list' ? '' : 'none';
+    if (create) create.style.display = tab === 'create' ? 'block' : 'none';
+    const body = document.getElementById('autoSwapModalBody'); if (body) body.scrollTop = 0;
+};
+// สถานะ: รอสลับ / สำเร็จแล้ว (ปุ่มแคปซูล → ใส่ค่าใน select เดิมที่ระบบใช้อยู่)
+window.swapSetStatus = function(v) {
+    const sel = document.getElementById('swapStatusFilter'); if (!sel) return;
+    sel.value = v;
+    document.querySelectorAll('.sw-seg-status .sw-seg-btn').forEach(b => b.classList.toggle('active', b.dataset.status === v));
+    window.fetchPublicSwapSchedule();
+};
+// รูปแบบการสลับ: การ์ดเลือก → ใส่ค่าใน select เดิม (swapShiftPair)
+window.swapPickPair = function(v) {
+    const sel = document.getElementById('swapShiftPair'); if (!sel) return;
+    if (sel.value !== v) { sel.value = v; if (typeof clearExcludeStaff === 'function') clearExcludeStaff(); }
+    window.swapSyncPairUI();
+};
+window.swapSyncPairUI = function() {
+    const v = (document.getElementById('swapShiftPair') || {}).value || 'M_N';
+    document.querySelectorAll('#swPairs .sw-pair').forEach(b => b.classList.toggle('on', b.dataset.pair === v));
+};
+// ให้ปุ่มบนจอตรงกับค่าจริงเสมอ (เช่นกลับเข้าหน้านี้จากภาพที่จำไว้)
+window.swapSyncUI = function() {
+    ['AM', 'OD', 'AMQL', 'ODQL'].forEach(d => { const b = document.getElementById(`btnSwapDept${d}`); if (b) b.classList.toggle('active', d === activeSwapDeptFilter); });
+    const st = (document.getElementById('swapStatusFilter') || {}).value || 'pending';
+    document.querySelectorAll('.sw-seg-status .sw-seg-btn').forEach(b => b.classList.toggle('active', b.dataset.status === st));
+    document.querySelectorAll('.swap-filter-btn').forEach(b => b.classList.toggle('on', b.id === `btnFilterSwap${activeSwapTypeFilter}`));
+    window.swapSyncPairUI();
+    const tabBtn = document.getElementById('swTabCreate'); if (tabBtn) tabBtn.style.display = _swCanManage() ? '' : 'none';
+    window.swapSetMainTab(window._swTab || 'list');
+};
+
+// ==========================================
 // 👁️ ตัวกรองหน้าสลับกะ (Filter)
 // ==========================================
 window.setSwapTypeFilter = function(type) {
     activeSwapTypeFilter = type;
-    document.querySelectorAll('.swap-filter-btn').forEach(btn => {
-        btn.classList.remove('ring-2', 'ring-blue-400', 'scale-[1.02]');
-        btn.classList.add('opacity-60');
-        if (btn.id === 'btnFilterSwapall') btn.classList.replace('bg-blue-600', 'bg-slate-600');
-    });
-    
-    const activeBtn = document.getElementById(`btnFilterSwap${type}`);
-    if (activeBtn) {
-        activeBtn.classList.remove('opacity-60');
-        activeBtn.classList.add('scale-[1.02]', 'ring-2', 'ring-blue-400');
-        if (type === 'all') activeBtn.classList.replace('bg-slate-600', 'bg-blue-600');
-    }
+    document.querySelectorAll('.swap-filter-btn').forEach(btn => btn.classList.toggle('on', btn.id === `btnFilterSwap${type}`));
     window.filterSwapSchedule(); 
 };
 
 window.setSwapDeptFilter = function(dept) {
     activeSwapDeptFilter = dept;
-    ['AM', 'OD', 'TRAINER'].forEach(d => {
+    // [แก้] เดิมไล่แค่ AM/OD/TRAINER → กดผู้สอน AM/OD แล้วปุ่มไม่ติดสถานะเลือก
+    ['AM', 'OD', 'AMQL', 'ODQL'].forEach(d => {
         const btn = document.getElementById(`btnSwapDept${d}`);
-        if (btn) { if (d === dept) btn.classList.add('active'); else btn.classList.remove('active'); }
+        if (btn) btn.classList.toggle('active', d === dept);
     });
 
     const deptSelect = document.getElementById('swapDeptSelect');
@@ -37,12 +71,12 @@ window.setSwapDeptFilter = function(dept) {
 };
 
 // ==========================================
-// 📊 ดึงตารางสลับกะมาแสดง
+// 📊 ดึงตารางสลับกะมาแสดง (แบ่งกลุ่มตามวันที่สลับ)
 // ==========================================
 window.fetchPublicSwapSchedule = async function() {
     const box = document.getElementById('publicSwapList');
     if (!box) return;
-    box.innerHTML = `<div class="col-span-full flex flex-col items-center justify-center py-10"><span class="material-icons animate-spin text-blue-500 text-4xl mb-2">sync</span><span class="text-gray-500 font-bold text-sm">กำลังดึงข้อมูลตารางสลับกะ...</span></div>`;
+    box.innerHTML = `<div class="sw-empty"><span class="material-icons sw-spin">sync</span>กำลังดึงข้อมูลตารางสลับกะ…</div>`;
 
     try {
         const statusFilterEl = document.getElementById('swapStatusFilter');
@@ -56,13 +90,15 @@ window.fetchPublicSwapSchedule = async function() {
         const { data, error } = await query;
         if (error) throw error;
 
-        let countMorning = 0; let countNight = 0; let countSame = 0; let validDataCount = 0; let html = '';
+        let countMorning = 0; let countNight = 0; let countSame = 0; let validDataCount = 0;
+        const groups = new Map();   // key → { title, icon, items[] }
+        const canManageSwap = _swCanManage();
 
         if (data && data.length > 0) {
             const safeUserList = (typeof GLOBAL_USER_LIST !== 'undefined') ? GLOBAL_USER_LIST : [];
             window._swapScheduleTasks = Object.fromEntries(data.map(t => [t.id, t]));
 
-            html = data.map(task => {
+            data.forEach(task => {
                 let p = {}; try { p = typeof task.payload === 'string' ? JSON.parse(task.payload) : (task.payload || {}); } catch(e) {}
                 const userName = String(p.user_name || 'ไม่ทราบชื่อ'); 
                 const targetShift = String(p.target_shift || '');
@@ -72,8 +108,8 @@ window.fetchPublicSwapSchedule = async function() {
                 const userDept = dbUser ? (dbUser.department || 'AM') : 'AM';
 
                 if (activeSwapDeptFilter !== 'ALL') {
-                    if (activeSwapDeptFilter === 'TRAINER') { if (userDept === 'AM' || userDept === 'OD') return ''; } 
-                    else { if (userDept !== activeSwapDeptFilter) return ''; }
+                    if (activeSwapDeptFilter === 'TRAINER') { if (userDept === 'AM' || userDept === 'OD') return; } 
+                    else { if (userDept !== activeSwapDeptFilter) return; }
                 }
 
                 validDataCount++; 
@@ -82,117 +118,104 @@ window.fetchPublicSwapSchedule = async function() {
                     if (p.display_desc && p.display_desc.includes('ดึก')) origShift = 'กะดึก';
                 }
                 
-                let dateStr = '-'; let prevDateStr = '-';
-                if (task.scheduled_for) {
-                    const dateObj = new Date(task.scheduled_for);
-                    dateStr = dateObj.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' });
-                    const prevDateObj = new Date(dateObj); prevDateObj.setDate(prevDateObj.getDate() - 1);
-                    prevDateStr = prevDateObj.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' });
-                }
+                let dateStr = '-';
+                if (task.scheduled_for) dateStr = new Date(task.scheduled_for).toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' });
 
-                let icon = '', bgClass = '', txtClass = '', actionTitle = '', detailHtml = '';
+                // ขั้นตอน (จาก display_desc "A → B → C") → แสดงเป็นลำดับขั้นอ่านง่าย
+                const steps = (txt) => {
+                    const sep = txt.includes(' → ') ? ' → ' : ' | ';
+                    const parts = txt.split(sep).map(x => x.trim()).filter(Boolean);
+                    return parts.map((part, i) => `<span class="sw-st${i === parts.length - 1 ? ' last' : ''}">${_swEsc(part)}</span>`).join('<span class="material-icons sw-arrow">arrow_forward</span>');
+                };
+
+                let icon = '', kind = '', actionTitle = '', detailHtml = '';
                 let swapTypeForFilter = 'same'; 
 
                 if (task.status === 'info_only' || targetShift === 'คงเดิม') {
-                    if (origShift === 'กะเช้า') { icon = 'wb_sunny'; actionTitle = 'ไม่ได้สลับกะ (อยู่เช้าต่อ)'; bgClass = 'bg-slate-800 border-orange-900/30 opacity-90'; txtClass = 'text-orange-400'; } 
-                    else if (origShift === 'กะดึก') { icon = 'dark_mode'; actionTitle = 'ไม่ได้สลับกะ (อยู่ดึกต่อ)'; bgClass = 'bg-slate-800 border-purple-900/30 opacity-90'; txtClass = 'text-purple-400'; } 
-                    else { icon = 'person_off'; actionTitle = 'ไม่ได้สลับกะ (อยู่กะเดิม)'; bgClass = 'bg-slate-800 border-gray-600 opacity-90'; txtClass = 'text-gray-400'; }
-                    detailHtml = `<span class="text-gray-400">${p.display_desc || 'อยู่กะเดิมในรอบนี้'}</span>`;
+                    if (origShift === 'กะเช้า') { icon = 'wb_sunny'; actionTitle = 'อยู่เช้าต่อ (ไม่ได้สลับ)'; kind = 'same sw-k-same-m'; }
+                    else if (origShift === 'กะดึก') { icon = 'dark_mode'; actionTitle = 'อยู่ดึกต่อ (ไม่ได้สลับ)'; kind = 'same sw-k-same-n'; }
+                    else { icon = 'person_off'; actionTitle = 'อยู่กะเดิม (ไม่ได้สลับ)'; kind = 'same'; }
+                    detailHtml = `<span class="sw-st-plain">${_swEsc(p.display_desc || 'อยู่กะเดิมในรอบนี้')}</span>`;
                     swapTypeForFilter = 'same'; countSame++; 
                 } 
                 else if (targetShift === 'กะดึก') {
-                    icon = 'dark_mode'; bgClass = 'bg-[#1e1b4b] border-purple-900/50'; txtClass = 'text-purple-400'; actionTitle = 'สลับไปดึก';
-                    if (p.display_desc) {
-                        const sep = p.display_desc.includes(' → ') ? ' → ' : ' | ';
-                        const parts = p.display_desc.split(sep);
-                        if (parts.length >= 2) {
-                            const colors = ['text-orange-400', 'text-purple-400', 'text-purple-300'];
-                            detailHtml = parts.map((part, i) => `<span class="block text-xs font-bold mt-0.5 ${colors[i]||'text-purple-400'}">${part}</span>`).join('');
-                        } else {
-                            detailHtml = `<span class="text-orange-400 font-bold text-xs">${p.display_desc}</span>`;
-                        }
-                    } else {
-                        detailHtml = `<span class="text-purple-400 font-bold text-xs">เริ่มเข้าดึกวันที่: <b class="text-gray-200">${dateStr}</b></span>`;
-                    }
+                    icon = 'dark_mode'; kind = 'night'; actionTitle = 'สลับไปดึก';
+                    detailHtml = p.display_desc ? steps(p.display_desc) : `<span class="sw-st last">เริ่มเข้าดึก ${_swEsc(dateStr)}</span>`;
                     swapTypeForFilter = 'night'; countNight++;
                 }
                 else if (targetShift === 'กะเช้า') {
-                    icon = 'wb_sunny'; bgClass = 'bg-[#422006] border-orange-900/50'; txtClass = 'text-orange-500'; actionTitle = 'สลับไปเช้า';
-                    if (p.display_desc) {
-                        const sep = p.display_desc.includes(' → ') ? ' → ' : ' | ';
-                        const parts = p.display_desc.split(sep);
-                        if (parts.length >= 2) {
-                            const colors = ['text-purple-400', 'text-yellow-400', 'text-green-400'];
-                            detailHtml = parts.map((part, i) => `<span class="block text-xs font-bold mt-0.5 ${colors[i]||'text-purple-400'}">${part}</span>`).join('');
-                        } else {
-                            detailHtml = `<span class="text-purple-400 font-bold text-xs">${p.display_desc}</span>`;
-                        }
-                    } else {
-                        detailHtml = `<span class="text-purple-400 font-bold text-xs">เริ่มเข้าเช้าวันที่: <b class="text-green-400">${dateStr}</b></span>`;
-                    }
+                    icon = 'wb_sunny'; kind = 'morning'; actionTitle = 'สลับไปเช้า';
+                    detailHtml = p.display_desc ? steps(p.display_desc) : `<span class="sw-st last">เริ่มเข้าเช้า ${_swEsc(dateStr)}</span>`;
                     swapTypeForFilter = 'morning'; countMorning++;
                 }
 
                 let completedBadge = '';
                 if (task.status === 'completed') {
-                    bgClass = bgClass.replace(/border-(purple|orange)-900\/50/g, 'border-green-900/50').replace('bg-[#1e1b4b]', 'bg-slate-900').replace('bg-[#422006]', 'bg-slate-900');
-                    completedBadge = `<div class="absolute -top-3 -right-2 bg-green-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md flex items-center gap-1 border border-green-400 z-20"><span class="material-icons text-[10px]">check_circle</span> สำเร็จแล้ว</div>`;
-                    txtClass = 'text-gray-400'; 
+                    kind = 'done';
+                    completedBadge = `<span class="sw-done"><span class="material-icons">check_circle</span>สำเร็จแล้ว</span>`;
                 }
 
-                const isMe = userName === (currentUser.username || '');
-                const myHighlight = isMe ? 'ring-2 ring-red-500 shadow-[0_0_15px_rgba(239,68,68,0.3)] scale-[1.02] z-10' : '';
-                const safeSearchName = userName.toLowerCase();
-                
-                const isGlobalAdmin = canPerm('swap_manage');
-                const canManageSwap = isGlobalAdmin || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('swap_manage'));
-                const adminDelete = canManageSwap ? `<button onclick="deleteTask(${task.id}); setTimeout(fetchPublicSwapSchedule, 500);" class="absolute top-2 right-2 text-red-500 hover:text-red-400 p-1 bg-black/20 rounded-lg transition z-20" title="${task.status === 'completed' ? 'ลบประวัตินี้' : 'ยกเลิกคิวนี้'}"><span class="material-icons text-sm">delete</span></button>` : '';
+                const isMe = userName === ((typeof currentUser !== 'undefined' && currentUser && currentUser.username) || '');
+                const adminDelete = canManageSwap ? `<button onclick="deleteTask(${task.id}); setTimeout(fetchPublicSwapSchedule, 500);" class="sw-del" title="${task.status === 'completed' ? 'ลบประวัตินี้' : 'ยกเลิกคิวนี้'}"><span class="material-icons">delete</span></button>` : '';
 
-                let displayDeptBadge = userDept;
-                if (userDept !== 'AM' && userDept !== 'OD') displayDeptBadge = 'AMQL';
+                // ป้ายแผนก: เดิมผู้สอนทุกแบบขึ้น "AMQL" (ODQL ก็ขึ้น AMQL) → ขึ้นตามจริง
+                const displayDeptBadge = (userDept === 'AM' || userDept === 'OD' || userDept === 'AMQL' || userDept === 'ODQL') ? userDept : 'ผู้สอน';
 
                 const canEditSaved = canManageSwap && task.status !== 'completed';
                 const userNameHtml = canEditSaved
-                    ? `<span onclick="openSavedSwapMenu(${task.id})" class="cursor-pointer hover:underline hover:text-blue-300 transition" title="คลิกเพื่อจัดการ">${userName}</span>`
-                    : userName;
+                    ? `<span onclick="openSavedSwapMenu(${task.id})" class="sw-link" title="คลิกเพื่อจัดการ">${_swEsc(userName)}</span>`
+                    : _swEsc(userName);
 
-                return window.renderTemplate('tpl-swap-schedule-item', {
-                    bgClass: bgClass,
-                    myHighlight: myHighlight,
-                    safeSearchName: safeSearchName,
+                const html = window.renderTemplate('tpl-swap-schedule-item', {
+                    kind: kind,
+                    myHighlight: isMe ? 'sw-me' : '',
+                    safeSearchName: _swEsc(userName.toLowerCase()),
                     swapTypeForFilter: swapTypeForFilter,
-                    userDept: userDept,
+                    userDept: _swEsc(userDept),
                     completedBadge: completedBadge,
                     adminDelete: adminDelete,
-                    txtClass: txtClass,
                     icon: icon,
                     userNameHtml: userNameHtml,
-                    displayDeptBadge: displayDeptBadge,
-                    isMeBadge: isMe ? '<span class="text-[10px] bg-red-600 text-white px-2 py-0.5 rounded shadow-sm">คุณ</span>' : '',
+                    displayDeptBadge: _swEsc(displayDeptBadge),
+                    isMeBadge: isMe ? '<span class="sw-me-badge">คุณ</span>' : '',
                     actionTitle: actionTitle,
                     detailHtml: detailHtml
                 });
-            }).join('');
+
+                // กลุ่ม: คนที่สลับ → ตามวันที่สลับ / คนที่อยู่กะเดิม → กลุ่มเดียวท้ายสุด
+                const same = swapTypeForFilter === 'same' && task.status !== 'completed';
+                const dKey = task.scheduled_for ? String(task.scheduled_for).slice(0, 10) : 'none';
+                const key = same ? '~same' : dKey;
+                if (!groups.has(key)) {
+                    let title = 'ไม่ระบุวันที่';
+                    if (same) title = 'อยู่กะเดิม · ไม่ได้สลับรอบนี้';
+                    else if (dKey !== 'none') title = new Date(dKey + 'T00:00:00').toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+                    groups.set(key, { title, icon: same ? 'person_off' : 'event', items: [] });
+                }
+                groups.get(key).items.push(html);
+            });
         }
 
         if (validDataCount === 0) {
             const noDataMsg = statusMode === 'pending' ? 'ไม่มีกำหนดการสลับกะในช่วงนี้' : 'ยังไม่มีประวัติการสลับกะที่สำเร็จแล้ว';
-            box.innerHTML = `<div class="col-span-full text-center text-gray-400 py-8 bg-slate-800/50 rounded-xl border border-dashed border-slate-600">${noDataMsg}</div>`;
-        } else { box.innerHTML = html; }
+            box.innerHTML = `<div class="sw-empty"><span class="material-icons">${statusMode === 'pending' ? 'event_available' : 'history'}</span>${noDataMsg}</div>`;
+        } else {
+            const ordered = [...groups.entries()].sort((a, b) => (a[0] === '~same') - (b[0] === '~same'));   // กลุ่มอยู่กะเดิมไว้ท้าย
+            box.innerHTML = ordered.map(([, g]) => `<section class="sw-group">
+                <div class="sw-group-h"><span class="sw-group-date"><span class="material-icons">${g.icon}</span>${_swEsc(g.title)}</span><span class="sw-group-n">${g.items.length} คน</span></div>
+                <div class="sw-grid">${g.items.join('')}</div>
+            </section>`).join('');
+        }
 
-        const isGlobalAdminStat = canPerm('swap_manage');
-        const canManageSwapStat = isGlobalAdminStat || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('swap_manage'));
-        
-        if (isGlobalAdminStat || canManageSwapStat) {
-            const elMorning = document.getElementById('statSwapMorning'); const elNight = document.getElementById('statSwapNight'); const elSame = document.getElementById('statSwapSame');
-            if (elMorning) { elMorning.innerText = countMorning; elMorning.style.color = '#ffffff'; }
-            if (elNight) { elNight.innerText = countNight; elNight.style.color = '#ffffff'; }
-            if (elSame) { elSame.innerText = countSame; elSame.style.color = '#ffffff'; }
+        if (canManageSwap) {
+            const set = (id, n) => { const el = document.getElementById(id); if (el) el.innerText = n; };
+            set('statSwapMorning', countMorning); set('statSwapNight', countNight); set('statSwapSame', countSame);
+            set('statSwapAll', countMorning + countNight + countSame);
         }
 
         window.filterSwapSchedule();
     } catch (err) {
-        box.innerHTML = `<div class="col-span-full text-center text-red-500 py-6">เกิดข้อผิดพลาดในการโหลดข้อมูล</div>`;
+        box.innerHTML = `<div class="sw-empty err"><span class="material-icons">error_outline</span>เกิดข้อผิดพลาดในการโหลดข้อมูล</div>`;
     }
 }
 
@@ -202,7 +225,7 @@ window.fetchPublicSwapSchedule = async function() {
 window.filterSwapSchedule = function() {
     const input = document.getElementById('searchSwapSchedule');
     if (!input) return;
-    const filterText = input.value.toLowerCase();
+    const filterText = input.value.toLowerCase().trim();
     const items = document.querySelectorAll('.swap-item');
     
     let foundCount = 0;
@@ -219,12 +242,19 @@ window.filterSwapSchedule = function() {
         else { item.style.display = 'none'; }
     });
 
+    // กลุ่มวันที่ไม่มีใครเหลือหลังกรอง → ซ่อนทั้งกลุ่ม + อัปเดตจำนวนคนที่หัวกลุ่ม
+    document.querySelectorAll('#publicSwapList .sw-group').forEach(g => {
+        const n = [...g.querySelectorAll('.swap-item')].filter(it => it.style.display !== 'none').length;
+        g.style.display = n ? '' : 'none';
+        const c = g.querySelector('.sw-group-n'); if (c) c.textContent = n + ' คน';
+    });
+
     const box = document.getElementById('publicSwapList');
     let noResultMsg = document.getElementById('noSwapResult');
     
-    if (foundCount === 0 && (filterText !== '' || activeSwapTypeFilter !== 'all' || activeSwapDeptFilter !== 'ALL')) {
-        if (!noResultMsg) box.insertAdjacentHTML('beforeend', `<div id="noSwapResult" class="col-span-full text-center text-gray-400 py-6">ไม่พบรายชื่อตามเงื่อนไขที่ค้นหา</div>`);
-        else noResultMsg.style.display = 'block';
+    if (items.length && foundCount === 0) {
+        if (!noResultMsg) box.insertAdjacentHTML('beforeend', `<div id="noSwapResult" class="sw-empty"><span class="material-icons">search_off</span>ไม่พบรายชื่อตามเงื่อนไขที่ค้นหา</div>`);
+        else noResultMsg.style.display = '';
     } else if (noResultMsg) { noResultMsg.style.display = 'none'; }
 }
 
