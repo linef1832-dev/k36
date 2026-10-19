@@ -17,9 +17,9 @@
     // แพทเทิร์นเริ่มต้น — ต้องตรงกับ DEFAULT_* ใน botlink/bot/chat_count.py
     const DEF = {
         ask: '📊 **นับแชท {รอบ}** · {วันที่}\nรีพลายข้อความนี้ บอกชื่อเว็บ + จำนวนแชท\nตัวอย่าง: `MK8 15`  `JL69 3`',
-        report: '📊 นับแชท {วันที่} {รอบ}\n\n{รายการ}\n\nรวม {รวม} แชท',
-        line: '{เว็บ} = {จำนวน}',
-        missing: '{เว็บ} = ยังไม่ตอบ',
+        report: 'ตรวจสอบจำนวนแชท{รอบ}\nเวลา {เวลา} น\n\n{รายการ}',
+        line: '{สี}เว็บ {เว็บ}{สี}\nไลน์หลัก {จำนวน} แชท\n',
+        missing: '{สี}เว็บ {เว็บ}{สี}\nไลน์หลัก ยังไม่ตอบ\n',
     };
 
     let _settings = { webs: [], channels: [], channels_updated_at: null };
@@ -48,6 +48,10 @@
     const thaiDate = d => { const [y, m, dd] = String(d).slice(0, 10).split('-'); return `${dd}/${m}/${Number(y) + 543}`; };
     const fmtTime = iso => iso ? new Date(iso).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' }) : '';
     const render = (t, vals) => Object.keys(vals).reduce((s, k) => s.split('{' + k + '}').join(String(vals[k])), t || '');
+    // อีโมจิประจำเว็บเริ่มต้น (แก้ได้ในแท็บ "รายชื่อเว็บ") ใช้แทน {สี}
+    const DEF_EMOJI = { Jun88: '🔵', MK8: '⚫️', PG688: '🟣', F168: '🟠', JL69: '🟡', NM9: '🔴', VV72: '🔘', TH26: '🟤', K188: '🩷', BT678: '⚪️' };
+    const webEmoji = name => { const w = (_settings.webs || []).find(x => x && x.name === name); return (w && w.emoji) || ''; };
+    const thaiTime = t => String(t || '').replace(':', '.');
     const webNames = () => (_settings.webs || []).map(w => typeof w === 'string' ? w : w.name).filter(Boolean);
     const chanName = id => { const c = (_settings.channels || []).find(x => String(x.id) === String(id)); return c ? c.name : id; };
     const normId = v => (window.normChatId ? window.normChatId(v) : String(v || '').replace(/^-/, ''));
@@ -475,10 +479,10 @@
                 ${field('ข้อความสรุปที่ส่งเข้า Telegram <span style="font-weight:500;color:var(--k-mute)">ใช้ได้: {วันที่} {รอบ} {เวลา} {รายการ} {รวม} {ตอบแล้ว} {ทั้งหมด} {ยังไม่ตอบ}</span>',
                     `<textarea id="ccReport" rows="5" oninput="window.ccPreview()" style="${FD}resize:vertical;font-family:monospace">${esc(s.report_template || DEF.report)}</textarea>`)}
                 <div style="display:flex;gap:10px;flex-wrap:wrap">
-                    <div style="flex:1;min-width:220px">${field('1 บรรทัดใน {รายการ} ต่อ 1 เว็บ <span style="font-weight:500;color:var(--k-mute)">{เว็บ} {จำนวน} {ห้อง} {ผู้ตอบ}</span>',
-                        `<input id="ccLine" oninput="window.ccPreview()" style="${FD}font-family:monospace" value="${esc(s.line_template || DEF.line)}">`)}</div>
-                    <div style="flex:1;min-width:220px">${field('บรรทัดเว็บที่ยังไม่ตอบ (ตอนกดส่งเท่าที่มี) <span style="font-weight:500;color:var(--k-mute)">{เว็บ} · เว้นว่าง = ไม่แสดง</span>',
-                        `<input id="ccMissing" oninput="window.ccPreview()" style="${FD}font-family:monospace" value="${esc(s.missing_template == null ? DEF.missing : s.missing_template)}">`)}</div>
+                    <div style="flex:1;min-width:220px">${field('ข้อความต่อ 1 เว็บ (ไปแทน {รายการ}) <span style="font-weight:500;color:var(--k-mute)">{สี} {เว็บ} {จำนวน} {ห้อง} {ผู้ตอบ} · ขึ้นบรรทัดใหม่ได้ · เว้นบรรทัดท้าย = เว้นระหว่างเว็บ</span>',
+                        `<textarea id="ccLine" rows="3" oninput="window.ccPreview()" style="${FD}resize:vertical;font-family:monospace">${esc(s.line_template || DEF.line)}</textarea>`)}</div>
+                    <div style="flex:1;min-width:220px">${field('ข้อความเว็บที่ยังไม่ตอบ (ใช้ตอนกดส่งเท่าที่มี) <span style="font-weight:500;color:var(--k-mute)">{สี} {เว็บ} · เว้นว่าง = ไม่แสดง</span>',
+                        `<textarea id="ccMissing" rows="3" oninput="window.ccPreview()" style="${FD}resize:vertical;font-family:monospace">${esc(s.missing_template == null ? DEF.missing : s.missing_template)}</textarea>`)}</div>
                 </div>
                 <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
                     <div style="flex:1;min-width:240px;text-align:left"><label style="${LB}">ตัวอย่างในห้อง Discord</label><pre id="ccPrevAsk" style="white-space:pre-wrap;font-family:inherit;font-size:12.5px;background:var(--k-field);padding:10px;border-radius:10px;margin:0;color:var(--k-tx)"></pre></div>
@@ -543,16 +547,16 @@
         const name = $('ccName').value.trim() || 'รอบ 14:00';
         const time = $('ccTime').value || '14:00';
         const date = thaiDate(thaiToday());
-        $('ccPrevAsk').textContent = render(a.value, { 'รอบ': name, 'วันที่': date, 'เวลา': time, 'เว็บทั้งหมด': sample.join(', ') });
+        $('ccPrevAsk').textContent = render(a.value, { 'รอบ': name, 'วันที่': date, 'เวลา': thaiTime(time), 'เว็บทั้งหมด': sample.join(', ') });
         // ตัวอย่าง: ตอบแล้วทุกเว็บ ยกเว้นเว็บสุดท้าย (ให้เห็นบรรทัด "ยังไม่ตอบ" ด้วย)
         let total = 0;
         const lines = sample.map((w, i) => {
-            if (i === sample.length - 1 && sample.length > 1) return $('ccMissing').value.trim() ? render($('ccMissing').value, { 'เว็บ': w }) : null;
-            const n = 5 + ((i * 7) % 13); total += n;
-            return render($('ccLine').value, { 'เว็บ': w, 'จำนวน': n, 'ห้อง': 'ห้อง ' + (i + 1), 'ผู้ตอบ': 'BOB' });
+            if (i === sample.length - 1 && sample.length > 1) return $('ccMissing').value.trim() ? render($('ccMissing').value, { 'เว็บ': w, 'สี': webEmoji(w) }) : null;
+            const n = (i * 7) % 4; total += n;
+            return render($('ccLine').value, { 'เว็บ': w, 'สี': webEmoji(w), 'จำนวน': n, 'ห้อง': 'ห้อง ' + (i + 1), 'ผู้ตอบ': 'BOB' });
         }).filter(x => x != null);
         $('ccPrevReport').textContent = render($('ccReport').value, {
-            'วันที่': date, 'รอบ': name, 'เวลา': time, 'รายการ': lines.join('\n'), 'รวม': total,
+            'วันที่': date, 'รอบ': name, 'เวลา': thaiTime(time), 'รายการ': lines.join('\n'), 'รวม': total,
             'ตอบแล้ว': Math.max(sample.length - 1, 1), 'ทั้งหมด': sample.length, 'ยังไม่ตอบ': sample.length > 1 ? sample[sample.length - 1] : '-',
         }).trim();
     };
@@ -600,19 +604,21 @@
     function renderWebs() {
         const box = $('ccView_webs');
         if (!_webDraft) {
-            const cur = (_settings.webs || []).map(w => ({ name: typeof w === 'string' ? w : w.name }));
+            const cur = (_settings.webs || []).map(w => typeof w === 'string' ? { name: w } : { name: w.name, emoji: w.emoji });
             const seed = (typeof TEAM_LIST !== 'undefined' && Array.isArray(TEAM_LIST)) ? TEAM_LIST : [];
-            _webDraft = cur.length ? cur : seed.map(n => ({ name: n }));
+            _webDraft = (cur.length ? cur : seed.map(n => ({ name: n })))
+                .map(w => ({ name: w.name, emoji: w.emoji || DEF_EMOJI[w.name] || '' }));   // ยังไม่เคยตั้งสี → ใส่สีเริ่มต้นให้
         }
         box.innerHTML = `
             <div style="font-size:12px;color:var(--k-mute);margin-bottom:10px">
                 พนักงานต้องพิมพ์ชื่อเว็บ<b style="color:#fbbf24">ตรงทุกตัวอักษร (รวมตัวพิมพ์ใหญ่/เล็ก)</b> ตามที่ตั้งไว้ในนี้ ถ้าพิมพ์ผิด บอทจะไม่รับและแจ้งให้รีพลายใหม่
-                · ชื่อต้องขึ้นต้นด้วยตัวอักษรอังกฤษ · ลำดับในนี้ = ลำดับบรรทัดในข้อความสรุป
+                · ชื่อต้องขึ้นต้นด้วยตัวอักษรอังกฤษ · ลำดับในนี้ = ลำดับในข้อความสรุป · ช่องซ้าย = อีโมจิประจำเว็บ (ใช้แทน <b>{สี}</b> ในแพทเทิร์น)
             </div>
             <div style="display:flex;flex-direction:column;gap:6px">
                 ${_webDraft.map((w, i) => `
                 <div style="display:flex;gap:6px;align-items:center">
                     <span style="width:22px;text-align:right;color:var(--k-mute);font-weight:800">${i + 1}</span>
+                    <input oninput="window.ccWebSet(${i},'emoji',this.value)" value="${esc(w.emoji || '')}" placeholder="🔵" title="อีโมจิประจำเว็บ ใช้แทน {สี}" style="${FD}width:64px;flex:none;text-align:center;font-size:16px">
                     <input oninput="window.ccWebSet(${i},'name',this.value)" value="${esc(w.name)}" placeholder="ชื่อเว็บ เช่น MK8" style="${FD}flex:1;max-width:320px;font-family:monospace">
                     <button onclick="window.ccWebMove(${i},-1)" style="${BTN}" title="เลื่อนขึ้น">${MI('arrow_upward')}</button>
                     <button onclick="window.ccWebMove(${i},1)" style="${BTN}" title="เลื่อนลง">${MI('arrow_downward')}</button>
@@ -627,9 +633,9 @@
     window.ccWebSet = (i, k, v) => { _webDraft[i][k] = v; };
     window.ccWebMove = (i, d) => { const j = i + d; if (j < 0 || j >= _webDraft.length) return; [_webDraft[i], _webDraft[j]] = [_webDraft[j], _webDraft[i]]; renderWebs(); };
     window.ccWebDel = i => { _webDraft.splice(i, 1); renderWebs(); };
-    window.ccWebAdd = () => { _webDraft.push({ name: '' }); renderWebs(); };
+    window.ccWebAdd = () => { _webDraft.push({ name: '', emoji: '' }); renderWebs(); };
     window.ccWebSave = async function () {
-        const webs = _webDraft.map(w => ({ name: String(w.name || '').trim() })).filter(w => w.name);
+        const webs = _webDraft.map(w => ({ name: String(w.name || '').trim(), emoji: String(w.emoji || '').trim() })).filter(w => w.name);
         const names = webs.map(w => w.name.toLowerCase());
         if (new Set(names).size !== names.length) return Swal.fire({ ...SWAL, icon: 'warning', title: 'ชื่อเว็บซ้ำกัน' });
         // ต้องตรงกับรูปแบบที่บอทอ่านได้ (ขึ้นต้นด้วยตัวอักษรอังกฤษ ตามด้วยอักษร/ตัวเลข ไม่มีเว้นวรรค)
