@@ -20,28 +20,37 @@ let summarySubscription = null;
 
 // 🌟 ฟังก์ชันสำหรับโหลด ExcelJS แบบ Lazy Load
 window.loadExcelLibrary = function(callback) {
-    if (typeof ExcelJS !== 'undefined') {
-        callback();
-        return;
+    if (typeof ExcelJS !== 'undefined') { callback(); return; }
+    // [แก้] เดิมไม่มี onerror → เน็ต/CDN ล่ม หน้าต่าง "กำลังโหลด" ค้างตลอดไป
+    //      และกดซ้ำระหว่างโหลด จะใส่ <script> ซ้ำหลายชุด
+    Swal.fire({ title: 'กำลังโหลดเครื่องมือ Excel...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    if (!window._excelLibP) {
+        const add = (src) => new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = src; sc.onload = res; sc.onerror = () => rej(new Error('load ' + src)); document.body.appendChild(sc); });
+        window._excelLibP = (window.JSZip ? Promise.resolve() : add('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'))
+            .then(() => add('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js'))
+            .catch(e => { window._excelLibP = null; throw e; });
     }
-
-    Swal.fire({ title: 'กำลังโหลดเครื่องมือสร้าง Excel...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-
-    const script1 = document.createElement('script');
-    script1.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-    document.body.appendChild(script1);
-
-    script1.onload = () => {
-        const script2 = document.createElement('script');
-        script2.src = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js';
-        document.body.appendChild(script2);
-
-        script2.onload = () => {
-            Swal.close();
-            callback();
-        };
-    };
+    window._excelLibP.then(() => { Swal.close(); callback(); })
+        .catch(() => Swal.fire('โหลดเครื่องมือ Excel ไม่สำเร็จ', 'ตรวจการเชื่อมต่ออินเทอร์เน็ตแล้วลองใหม่อีกครั้ง', 'error'));
 };
+
+// 🌟 ตัวช่วยเดียวสำหรับกรองกะ (เดิมเขียนเงื่อนไขซ้ำ 4 ที่ และไม่ตรงกัน: การ์ดเว็บ/Excel ไม่นับคนที่กะเป็น UNKNOWN)
+function smShiftMatch(item, f) {
+    if (!f || f === 'ALL') return true;
+    if (f === 'UNKNOWN') return item.shift === 'UNKNOWN' || item.shift === 'กะอิสระ' || !item.shift;
+    return item.shift === f;
+}
+// 🌟 หลังบ้านเริ่มต้นของแต่ละเว็บ (เดิมเขียนซ้ำ 3 ที่ และหน้าตั้งค่าขาด BT678 / K188)
+const SM_DEFAULT_WEBS = ['Jun88', 'MK8', 'F168', 'PG688', 'JL69', 'NM9', 'VV72', 'TH26', 'BT678', 'K188'];
+function smWebList() { return (typeof TEAM_LIST !== 'undefined' && TEAM_LIST.length > 0) ? TEAM_LIST : SM_DEFAULT_WEBS; }
+function smSystemOf(web, customSystems) {
+    if (customSystems && customSystems[web]) return customSystems[web];
+    if (['Jun88', 'MK8', 'VV72', 'TH26', 'BT678', 'K188'].includes(web)) return 'K36';
+    if (web === 'F168') return 'WG';
+    if (['PG688', 'JL69', 'NM9'].includes(web)) return 'TCG';
+    return 'SYSTEM';
+}
+function smCustomSystems() { try { return JSON.parse(localStorage.getItem('custom_web_systems') || '{}'); } catch (e) { return {}; } }
 
 // 🌟 ตัวช่วยคำนวณ "วันที่เมื่อวาน" ที่แม่นยำที่สุด
 window.getYesterdayDateStr = function(dateStr) {
@@ -71,7 +80,7 @@ function buildDiffBadge(diffValue, extraClasses = '') {
 function getTpl(templateId, data = {}) {
     const tpl = document.getElementById(templateId);
     if (!tpl) {
-        if (templateId === 'tpl-no-data') return `<div class="text-center py-20 text-gray-400 font-bold flex flex-col items-center"><span class="material-icons text-7xl mb-4 opacity-20">search_off</span>ไม่พบข้อมูลตามเงื่อนไขที่เลือก</div>`;
+        if (templateId === 'tpl-no-data') return `<div class="sm-noemp"><span class="material-icons">search_off</span>ไม่พบข้อมูลตามเงื่อนไขที่เลือก</div>`;
         if (templateId === 'tpl-emp-not-found') return `<div class="text-center py-10 text-gray-400 font-bold">ไม่พบพนักงานชื่อ "${data.keyword}" ในวันนี้</div>`;
         return ''; 
     }
@@ -184,13 +193,24 @@ window.loadWebLogos = async function() {
 }
 
 window.fetchAvailableDates = async function(forceRender = false) {
+    // [แก้] เดิมดึง 1,000 แถวล่าสุดแล้วตัดซ้ำ — 1 วันมีหลายร้อยแถว เลยได้จริงแค่ ~6–7 วัน (ไม่ถึง 15)
+    //      ตอนนี้ดึงทีละหน้า (เฉพาะคอลัมน์วันที่) จนได้ครบ 15 วัน
     try {
-        const { data } = await (window.cachedQuery
-            ? window.cachedQuery('sum_dates', () => appDB.from('transaction_daily_summary').select('date').order('date', {ascending: false}).limit(1000), 60000)
-            : appDB.from('transaction_daily_summary').select('date').order('date', {ascending: false}).limit(1000));
+        const load = async () => {
+            const seen = new Set();
+            for (let page = 0; page < 8 && seen.size < 16; page++) {
+                const { data, error } = await appDB.from('transaction_daily_summary').select('date').order('date', { ascending: false }).range(page * 1000, page * 1000 + 999);
+                if (error) throw error;
+                (data || []).forEach(r => seen.add(r.date));
+                if (!data || data.length < 1000) break;
+            }
+            return { data: [...seen].slice(0, 15).map(date => ({ date })) };
+        };
+        const { data } = await (window.cachedQuery ? window.cachedQuery('sum_dates15', load, 60000) : load());
         if (data) {
-            window.availableSummaryDates = [...new Set(data.map(item => item.date))].slice(0, 15);
+            window.availableSummaryDates = data.map(item => item.date);
             if (forceRender || !pendingSummaryData || pendingSummaryData.length === 0) window.renderSummaryDashboard();
+            else window.renderDateSelector && window.renderDateSelector();
         }
     } catch(e) { console.error("Fetch dates error:", e); }
 }
@@ -459,12 +479,17 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
         try {
             let totalExtracted = 0; let skippedFiles = []; let errorFiles = [];
             window._unknownTcgBrands = new Set(); // 🌟 เริ่มนับแบรนด์แปลกใหม่ทุกรอบการดึง
-            let savedFilesList = [];
-            
-            if (typeof appDB !== 'undefined') {
-                const { data: savedFilesData } = await appDB.from('settings').select('value').eq('key', 'saved_excel_files').single();
-                if (savedFilesData && savedFilesData.value) savedFilesList = JSON.parse(savedFilesData.value);
+            // [แก้] เดิมดึงรายชื่อไฟล์ที่เคยบันทึก (saved_excel_files) ทุกครั้งแต่ไม่ได้ใช้ → ตัดทิ้ง
+
+            // [แก้] กำลังดูยอดที่บันทึกไว้อยู่ แล้วอัปไฟล์ใหม่ → เดิมยอดไฟล์ใหม่ไปบวกรวมกับยอดเก่าบนจอ (กดบันทึกแล้วซ้ำ/เพี้ยน)
+            //      ตอนนี้เริ่มชุดพรีวิวใหม่ทุกครั้งที่อัปไฟล์ระหว่างดูข้อมูลย้อนหลัง
+            if (viewMode !== 'preview') {
+                pendingSummaryData = []; viewMode = 'preview'; summaryActiveWebFilter = 'ALL';
+                window.uploadedFileDates.clear(); window.pendingFileNames = [];
+                if (window.selectedSummaryDates) window.selectedSummaryDates.clear();
             }
+            const customSystemsAll = smCustomSystems();   // อ่านครั้งเดียว (เดิมอ่าน+แปลงทุกแถว)
+            const pendingIdx = new Map(pendingSummaryData.map((p, i) => [`${p.date}|${String(p.empName).toLowerCase()}|${String(p.website).toLowerCase()}`, i]));
 
             for (let fIndex = 0; fIndex < files.length; fIndex++) {
                 let file = files[fIndex];
@@ -476,9 +501,12 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                 if (window.pendingFileNames.includes(fileName)) { skippedFiles.push(`${file.name} (ซ้ำในรอบนี้)`); continue; }
                 window.pendingFileNames.push(fileName);
 
-                let fileSystem = 'K36'; 
+                // ชื่อไฟล์บอกเว็บได้ → ใช้ตามชื่อไฟล์ / ไม่บอก → ใช้ระบบของกล่องที่วางไฟล์
+                // [แก้] เดิมไม่สนกล่องเลย ไฟล์ TCG ชื่อทั่วไป (เช่น export.xlsx) ถูกอ่านแบบ K36 → ยอดไม่ขึ้น/ผิด
+                let fileSystem = fallbackSystemName || 'K36';
                 if (fileName.includes('jl69') || fileName.includes('nm9') || fileName.includes('pg688')) fileSystem = 'TCG';
                 else if (fileName.includes('f168')) fileSystem = 'WG';
+                else if (['vv72', 'jun88', 'mk8', 'th26', 'bt678', 'k188'].some(w => fileName.includes(w))) fileSystem = 'K36';
 
                 try {
                     let parsedRowsData = [];
@@ -752,17 +780,14 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                     }
 
                     extractedRows.forEach(row => {
-                        let existingIndex = pendingSummaryData.findIndex(p => 
-                            p.empName.toLowerCase() === row.empName.toLowerCase() && 
-                            p.website.toLowerCase() === row.website.toLowerCase() && 
-                            p.date === row.date
-                        );
+                        // ⚡ หาแถวเดิมด้วย Map (เดิมไล่หาทั้งก้อนทุกแถว + แปลง localStorage ทุกแถว → ไฟล์ใหญ่ช้ามาก)
+                        const pk = `${row.date}|${row.empName.toLowerCase()}|${row.website.toLowerCase()}`;
+                        let existingIndex = pendingIdx.has(pk) ? pendingIdx.get(pk) : -1;
                         
                         const rowYestDate = window.getYesterdayDateStr(row.date);
                         const yestCount = yestMap[`${rowYestDate}_${window.cleanKeyStr(row.empName, row.website)}`] || 0;
 
-                        let customSystems = JSON.parse(localStorage.getItem('custom_web_systems') || '{}');
-                        if (customSystems[row.website]) { row.system = customSystems[row.website]; }
+                        if (customSystemsAll[row.website]) { row.system = customSystemsAll[row.website]; }
 
                         if (existingIndex > -1) {
                             pendingSummaryData[existingIndex].count += 1;
@@ -771,12 +796,12 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                             else pendingSummaryData[existingIndex].approvedCount = (pendingSummaryData[existingIndex].approvedCount || 0) + 1;
                             
                             pendingSummaryData[existingIndex].yestCount = yestCount; 
-                            pendingSummaryData[existingIndex].diffFromYesterday = pendingSummaryData[existingIndex].count - yestCount;
                         } else {
+                            pendingIdx.set(pk, pendingSummaryData.length);
                             pendingSummaryData.push({
                                 date: row.date, empName: row.empName, website: row.website, system: row.system, shift: row.shift, odType: row.odType,
                                 count: 1, approvedCount: row.status !== 'Reject' ? 1 : 0, rejectCount: row.status === 'Reject' ? 1 : 0,
-                                totalAmount: row.amount, yestCount: yestCount, diffFromYesterday: 1 - yestCount
+                                totalAmount: row.amount, yestCount: yestCount
                             });
                         }
                     });
@@ -833,7 +858,7 @@ function _buildSummaryDatesHtml() {
                 const [y, m, day] = d.split('-');
                 return getTpl('tpl-date-button', {
                         d: d, day: day, m: m, year: y,
-                        cardClass: window.selectedSummaryDates.has(d) ? 'bg-gradient-to-br from-sky-500 to-blue-600 border-transparent shadow-[0_0_15px_rgba(14,165,233,0.4)] scale-105 z-10' : 'bg-slate-800 border-slate-600 hover:border-sky-400 hover:bg-slate-700',
+                        cardClass: window.selectedSummaryDates.has(d) ? 'on' : '',
                         iconClass: window.selectedSummaryDates.has(d) ? 'text-white' : 'text-gray-500',
                         textClass: window.selectedSummaryDates.has(d) ? 'text-white' : 'text-gray-300',
                         checkIcon: window.selectedSummaryDates.has(d) ? 'check_circle' : 'radio_button_unchecked'
@@ -844,6 +869,8 @@ function _buildSummaryDatesHtml() {
                 selectedCount: window.selectedSummaryDates.size,
                 disabledAttr: window.selectedSummaryDates.size === 0 ? 'disabled' : ''
         });
+    } else {
+        datesHtml = '<div class="sm-empty-s">ยังไม่มียอดที่บันทึกไว้ — อัปโหลดไฟล์ทางขวาแล้วกดบันทึก</div>';
     }
     return datesHtml;
 }
@@ -863,22 +890,21 @@ window.renderSummaryDashboard = function() {
     const odFilter = document.getElementById('summaryOdFilter') ? document.getElementById('summaryOdFilter').value : 'ALL';
     const searchKeyword = document.getElementById('summarySearch') ? document.getElementById('summarySearch').value.toLowerCase().trim() : '';
 
-    if (webBox) webBox.className = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 p-1";
-    if (mainBox) mainBox.className = "flex-1 overflow-y-auto custom-scrollbar pr-2 content-start";
-
     const hasData = typeof pendingSummaryData !== 'undefined' && pendingSummaryData.length > 0;
 
-    if (!hasData) {
-        let datesHtml = _buildSummaryDatesHtml();
+    // 📅 ตัวเลือกวันที่อยู่ที่ขั้นที่ 1 เสมอ (เดิมไปซ่อนอยู่ท้ายแผงรายบุคคล หาไม่เจอ)
+    const datePicker = document.getElementById('smDatePicker');
+    if (datePicker) datePicker.innerHTML = _buildSummaryDatesHtml();
 
-        if(mainBox) mainBox.innerHTML = getTpl('tpl-no-data') + `<div class="text-center py-2 w-full">${datesHtml}</div>`;
-        if(statsBox) statsBox.innerHTML = '<div class="text-center text-gray-400 text-sm py-2 w-full">ยังไม่มีข้อมูลยอดรวม</div>';
+    if (!hasData) {
+        if(mainBox) mainBox.innerHTML = '<div class="sm-noemp"><span class="material-icons">inventory_2</span>เลือกวันที่ หรืออัปโหลดไฟล์ในขั้นที่ 1</div>';
+        if(statsBox) statsBox.innerHTML = '<div class="sm-kpi-empty"><span class="material-icons">hourglass_empty</span>ยังไม่มีข้อมูล — เลือกวันที่หรืออัปโหลดไฟล์ในขั้นที่ 1</div>';
         
     } else {
         let shiftStats = { 'กะเช้า': 0, 'กะกลาง': 0, 'กะดึก': 0, 'UNKNOWN': 0, 'TOTAL': 0, 'TOTAL_YEST': 0, 'APPROVED': 0, 'REJECT': 0 };
         
         let filteredData = pendingSummaryData;
-        if (shiftFilter !== 'ALL') filteredData = filteredData.filter(item => item.shift === shiftFilter || (shiftFilter==='UNKNOWN' && (item.shift==='กะอิสระ' || item.shift==='UNKNOWN')));
+        if (shiftFilter !== 'ALL') filteredData = filteredData.filter(item => smShiftMatch(item, shiftFilter));
         if (odFilter !== 'ALL') filteredData = filteredData.filter(item => item.odType === odFilter || (item.odType === undefined && odFilter === 'ปกติ'));
         if (typeof summaryActiveWebFilter !== 'undefined' && summaryActiveWebFilter !== 'ALL') filteredData = filteredData.filter(item => item.website === summaryActiveWebFilter);
 
@@ -957,21 +983,23 @@ window.renderSummaryDashboard = function() {
                     let groupDiff = dGroup.totalCount - dGroup.totalYestCount;
                     let groupDiffHtml = buildDiffBadge(groupDiff);
 
-                    htmlArr.push(getTpl('tpl-date-group-start', {
+                    // [แก้] เดิมเทมเพลตเปิด/ปิดกล่องแยกกัน → เบราว์เซอร์ปิดแท็กให้เอง รายชื่อเลยหลุดออกนอกกล่องวันที่
+                    const groupRows = [];
+                    const groupHead = getTpl('tpl-date-group-start', {
                         displayDate: displayDate,
                         empCount: Object.keys(dGroup.emps).length,
                         totalCount: dGroup.totalCount.toLocaleString(),
                         totalDiffHtml: groupDiffHtml,
                         totalApproved: dGroup.totalApproved,
                         totalReject: dGroup.totalReject,
-                        hiddenClass: sortedDates.length === 1 ? '' : 'hidden'
-                    }));
+                    });
+                    const groupHidden = sortedDates.length === 1 ? '' : 'hidden';
 
                     let sortedEmps = Object.keys(dGroup.emps).sort((a, b) => dGroup.emps[b].totalCount - dGroup.emps[a].totalCount);
                     if (searchKeyword !== '') sortedEmps = sortedEmps.filter(name => name.toLowerCase().includes(searchKeyword));
 
                     if (sortedEmps.length === 0) {
-                        htmlArr.push(getTpl('tpl-emp-not-found', { keyword: searchKeyword }));
+                        groupRows.push(getTpl('tpl-emp-not-found', { keyword: searchKeyword }));
                     } else {
                         sortedEmps.forEach((name, index) => {
                             const data = dGroup.emps[name];
@@ -999,7 +1027,7 @@ window.renderSummaryDashboard = function() {
                             let empDiff = data.totalCount - data.totalYestCount;
                             let empDiffHtml = buildDiffBadge(empDiff, 'mt-1');
 
-                            htmlArr.push(getTpl('tpl-emp-row', {
+                            groupRows.push(getTpl('tpl-emp-row', {
                                 index: index + 1, name: name, odBadge: odBadge, shiftBadge: shiftBadgeHtml,
                                 quickWebBadges: quickWebBadges, totalCount: data.totalCount, 
                                 totalDiffHtml: empDiffHtml,
@@ -1007,13 +1035,9 @@ window.renderSummaryDashboard = function() {
                             }));
                         });
                     }
-                    htmlArr.push(getTpl('tpl-date-group-end'));
+                    htmlArr.push(`<div class="sm-dg">${groupHead}<div class="${groupHidden} sm-dg-body">${groupRows.join('')}</div></div>`);
                 });
 
-                if (viewMode === 'history' || viewMode === 'monthly_history') {
-                    let datesHtml = _buildSummaryDatesHtml();
-                    htmlArr.push(getTpl('tpl-history-footer', { datesHtml: datesHtml }));
-                }
 
                 mainBox.innerHTML = htmlArr.join('');
             }
@@ -1022,23 +1046,12 @@ window.renderSummaryDashboard = function() {
 
     if (webBox) {
         let webAgg = {};
-        let defaultWebList = (typeof TEAM_LIST !== 'undefined' && TEAM_LIST.length > 0) ? TEAM_LIST : ['Jun88', 'MK8', 'F168', 'PG688', 'JL69', 'NM9', 'VV72', 'TH26', 'BT678', 'K188']; 
-        let customSystems = JSON.parse(localStorage.getItem('custom_web_systems') || '{}');
-
-        defaultWebList.forEach(web => {
-            let sysLabel = 'SYSTEM';
-            if (customSystems[web]) sysLabel = customSystems[web];
-            else {
-                if(['Jun88', 'MK8', 'VV72', 'TH26', 'BT678', 'K188'].includes(web)) sysLabel = 'K36';
-                else if(['F168'].includes(web)) sysLabel = 'WG';
-                else if(['PG688', 'JL69', 'NM9'].includes(web)) sysLabel = 'TCG';
-            }
-            webAgg[web] = { count: 0, amount: 0, sys: sysLabel };
-        });
+        const customSystems = smCustomSystems();
+        smWebList().forEach(web => { webAgg[web] = { count: 0, amount: 0, sys: smSystemOf(web, customSystems) }; });
 
         if (hasData) {
             let dataForWebCards = pendingSummaryData;
-            if (shiftFilter !== 'ALL') dataForWebCards = dataForWebCards.filter(item => item.shift === shiftFilter || (shiftFilter==='UNKNOWN' && item.shift==='กะอิสระ'));
+            if (shiftFilter !== 'ALL') dataForWebCards = dataForWebCards.filter(item => smShiftMatch(item, shiftFilter));
             if (odFilter !== 'ALL') dataForWebCards = dataForWebCards.filter(item => item.odType === odFilter || (item.odType === undefined && odFilter === 'ปกติ'));
 
             dataForWebCards.forEach(item => {
@@ -1057,7 +1070,7 @@ window.renderSummaryDashboard = function() {
                 const isActive = (typeof summaryActiveWebFilter !== 'undefined' && summaryActiveWebFilter === web);
                 
                 return getTpl('tpl-web-card', {
-                    cardStyle: isActive ? 'ring-2 ring-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)] z-20 scale-[1.02]' : 'hover:border-sky-500 hover:shadow-lg opacity-95 hover:opacity-100',
+                    cardStyle: (isActive ? 'on ' : '') + (w.count > 0 ? '' : 'zero'),
                     web: web, imgUrl: imgUrl, sys: w.sys,
                     filterBadge: isActive ? '<div class="absolute top-3 left-3 bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-md z-30 flex items-center gap-1"><span class="material-icons text-[10px]">check_circle</span> กำลังดู</div>' : '',
                     countColor: w.count > 0 ? 'text-sky-400' : 'text-gray-500',
@@ -1068,7 +1081,46 @@ window.renderSummaryDashboard = function() {
             }).join('');
         }
     }
+    smSyncSource();
 };
+
+// วาดตัวเลือกวันที่ใหม่ (เรียกจาก initSummaryDate ตอนใช้วันที่จากแคช — เดิมไม่มีฟังก์ชันนี้)
+window.renderDateSelector = function() { const dp = document.getElementById('smDatePicker'); if (dp) dp.innerHTML = _buildSummaryDatesHtml(); };
+
+// 🧭 แถบสถานะบนสุด: บอกว่าตอนนี้กำลังดูข้อมูลชุดไหน + ปุ่มที่ใช้ได้ตอนนั้น
+function smSyncSource() {
+    const box = document.getElementById('smSource'); if (!box) return;
+    const fd = document.getElementById('summaryFileDates'); if (fd) fd.classList.add('hidden');
+    const hasData = typeof pendingSummaryData !== 'undefined' && pendingSummaryData.length > 0;
+    const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+    const fmt = (d) => { const p = String(d).split('-'); return p.length === 3 ? `${+p[2]}/${+p[1]}/${+p[0] + 543}` : d; };
+    const tag = document.getElementById('smSrcTag'), save = document.getElementById('smBtnSave'), clr = document.getElementById('smBtnClear');
+    const people = hasData ? new Set(pendingSummaryData.map(x => x.empName)).size : 0;
+    const total = hasData ? pendingSummaryData.reduce((a, x) => a + (x.count || 0), 0) : 0;
+    box.classList.remove('is-preview', 'is-history', 'is-empty');
+    if (!hasData) {
+        box.classList.add('is-empty'); set('smSrcIcon', 'inventory_2'); set('smSrcTitle', 'ยังไม่ได้เลือกข้อมูล');
+        set('smSrcSub', 'เลือกวันที่ที่บันทึกไว้ หรืออัปโหลดไฟล์ Excel ใหม่ในขั้นที่ 1');
+        if (tag) tag.style.display = 'none'; save && save.classList.add('hide'); clr && clr.classList.add('hide');
+        return;
+    }
+    const stat = `พนักงาน ${people.toLocaleString()} คน · ยอดรวม ${total.toLocaleString()} รายการ`;
+    if (viewMode === 'preview') {
+        const ds = Array.from(window.uploadedFileDates || []).sort().map(fmt);
+        box.classList.add('is-preview'); set('smSrcIcon', 'upload_file'); set('smSrcTitle', 'ไฟล์ที่อัปโหลด');
+        if (tag) { tag.style.display = ''; tag.textContent = 'ยังไม่ได้บันทึก'; }
+        set('smSrcSub', (ds.length ? `วันที่ในไฟล์ ${ds.join(', ')} · ` : '') + stat + ' — ตรวจยอดแล้วกดบันทึก');
+        save && save.classList.remove('hide'); clr && clr.classList.remove('hide'); set('smBtnClearTxt', 'ล้างข้อมูลที่พรีวิว');
+    } else {
+        const ds = (window.selectedSummaryDates && window.selectedSummaryDates.size) ? Array.from(window.selectedSummaryDates).sort()
+                 : [((document.getElementById('summaryDateFilter') || {}).value || '')].filter(Boolean);
+        box.classList.add('is-history'); set('smSrcIcon', 'history');
+        set('smSrcTitle', ds.length > 1 ? `ยอดรวม ${ds.length} วัน` : 'ยอดที่บันทึกไว้');
+        if (tag) { tag.style.display = ''; tag.textContent = 'บันทึกแล้ว'; }
+        set('smSrcSub', (ds.length ? `วันที่ ${ds.map(fmt).join(', ')} · ` : '') + stat);
+        save && save.classList.add('hide'); clr && clr.classList.remove('hide'); set('smBtnClearTxt', 'ปิด / เลือกใหม่');
+    }
+}
 
 window.fetchLeaderboardData = async function() {
     const lbBox = document.getElementById('summaryLeaderboard');
@@ -1081,24 +1133,10 @@ window.fetchLeaderboardData = async function() {
     let lbShiftFilter = document.getElementById('leaderboardShiftFilter');
     let lbWebFilter = document.getElementById('leaderboardWebFilter');
     
-    if (!lbWebFilter && modeEl) {
-        let webOptions = (typeof TEAM_LIST !== 'undefined' && TEAM_LIST.length > 0) ? TEAM_LIST : ['Jun88', 'MK8', 'F168', 'PG688', 'JL69', 'NM9', 'VV72', 'TH26', 'BT678', 'K188'];
-        const filterHtml = `
-            <select id="leaderboardShiftFilter" onchange="fetchLeaderboardData()" class="bg-transparent text-sky-400 text-[10px] font-bold outline-none cursor-pointer pr-1 border-r border-gray-600 mr-2">
-                <option value="ALL" class="bg-slate-800 text-white">⏱️ รวมทุกกะ</option>
-                <option value="กะเช้า" class="bg-slate-800 text-white">☀️ เช้า</option>
-                <option value="กะกลาง" class="bg-slate-800 text-white">🌤️ กลาง</option>
-                <option value="กะดึก" class="bg-slate-800 text-white">🌙 ดึก</option>
-                <option value="UNKNOWN" class="bg-slate-800 text-gray-400">❓ ไม่ระบุกะ</option>
-            </select>
-            <select id="leaderboardWebFilter" onchange="fetchLeaderboardData()" class="bg-transparent text-emerald-400 text-[10px] font-bold outline-none cursor-pointer pr-1 border-r border-gray-600 mr-2">
-                <option value="ALL" class="bg-slate-800 text-white">🏆 รวมทุกเว็บ</option>
-                ${webOptions.map(w => `<option value="${w}" class="bg-slate-800 text-white">${w}</option>`).join('')}
-            </select>
-        `;
-        modeEl.insertAdjacentHTML('beforebegin', filterHtml);
-        lbShiftFilter = document.getElementById('leaderboardShiftFilter');
-        lbWebFilter = document.getElementById('leaderboardWebFilter');
+    // ตัวเลือกเว็บของอันดับ: ช่องอยู่ในหน้าแล้ว เติมรายชื่อเว็บครั้งแรก
+    // (เดิมมีอีกชุดที่สร้าง <select> แทรกเข้าไปเองถ้าไม่เจอ — ตอนนี้อยู่ในหน้าแล้ว ตัดทิ้ง)
+    if (lbWebFilter && lbWebFilter.options.length <= 1) {
+        lbWebFilter.insertAdjacentHTML('beforeend', smWebList().map(w => `<option value="${w}">${w}</option>`).join(''));
     }
 
     let mode = 'monthly';
@@ -1109,16 +1147,18 @@ window.fetchLeaderboardData = async function() {
     if (monthInput) {
         if (mode === 'monthly') {
             monthInput.classList.remove('hidden');
+            if (monthInput.parentElement) monthInput.parentElement.style.display = '';
             if(!monthInput.value) {
                 const d = new Date();
                 monthInput.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
             }
         } else {
             monthInput.classList.add('hidden');
+            if (monthInput.parentElement) monthInput.parentElement.style.display = 'none';   // ซ่อนทั้งกล่อง ไม่เหลือช่องว่าง
         }
     }
 
-    lbBox.innerHTML = '<div class="text-center py-10 text-gray-400"><span class="material-icons animate-spin text-3xl mb-2">sync</span><br>กำลังคำนวณอันดับ...</div>';
+    lbBox.innerHTML = '<div class="sm-noemp"><span class="material-icons animate-spin">sync</span>กำลังคำนวณอันดับ…</div>';
 
     if (typeof fetchUsers === 'function' && (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0)) {
         await fetchUsers();
@@ -1128,18 +1168,7 @@ window.fetchLeaderboardData = async function() {
         let aggMap = {};
         let targetData = pendingSummaryData;
         
-        if (shiftFilter !== 'ALL') {
-            targetData = targetData.filter(i => {
-                let s = i.shift;
-                if (!s || s === 'UNKNOWN') {
-                    if (i.empName.includes('เช้า')) s = 'กะเช้า';
-                    else if (i.empName.includes('กลาง')) s = 'กะกลาง';
-                    else if (i.empName.includes('ดึก')) s = 'กะดึก';
-                    else s = 'UNKNOWN';
-                }
-                return s === shiftFilter || (shiftFilter === 'UNKNOWN' && s === 'กะอิสระ');
-            });
-        }
+        if (shiftFilter !== 'ALL') targetData = targetData.filter(i => smShiftMatch(i, shiftFilter));
         
         if (odFilter !== 'ALL') targetData = targetData.filter(i => i.odType === odFilter || (i.odType === undefined && odFilter === 'ปกติ'));
         if (selectedWeb !== 'ALL') targetData = targetData.filter(i => i.website === selectedWeb); 
@@ -1188,7 +1217,7 @@ window.fetchLeaderboardData = async function() {
         if (error) throw error;
 
         if (!data || data.length === 0) {
-            lbBox.innerHTML = '<div class="text-center py-10 text-gray-400 font-bold">ไม่มีข้อมูลจัดอันดับ</div>';
+            lbBox.innerHTML = '<div class="sm-noemp"><span class="material-icons">emoji_events</span>ยังไม่มีข้อมูลอันดับในช่วงนี้</div>';
             return;
         }
 
@@ -1222,7 +1251,7 @@ window.fetchLeaderboardData = async function() {
         drawLeaderboardFromMap(aggMap, lbBox);
 
     } catch (e) {
-        lbBox.innerHTML = '<div class="text-center py-10 text-red-500 font-bold">โหลดข้อมูลผิดพลาด</div>';
+        lbBox.innerHTML = '<div class="sm-noemp" style="color:var(--k-red-tx)"><span class="material-icons">error_outline</span>โหลดข้อมูลผิดพลาด</div>';
     }
 };
 
@@ -1235,7 +1264,7 @@ function drawLeaderboardFromMap(aggMap, lbBox) {
     });
 
     if(sortedEmps.length === 0) {
-        lbBox.innerHTML = `<div class="text-center py-10 text-gray-400 font-bold">ไม่พบข้อมูล</div>`;
+        lbBox.innerHTML = `<div class="sm-noemp"><span class="material-icons">emoji_events</span>ยังไม่มีข้อมูลอันดับในช่วงนี้</div>`;
         return;
     }
 
@@ -1259,7 +1288,7 @@ function drawLeaderboardFromMap(aggMap, lbBox) {
 }
 
 window.saveSummaryToSupabase = async function() {
-    if (viewMode === 'monthly_history') return Swal.fire('ข้อมูลรายเดือน', 'นี่คือข้อมูลสรุปรวมทั้งเดือนจากฐานข้อมูล ไม่สามารถบันทึกซ้ำได้ครับ', 'info');
+    if (viewMode === 'monthly_history' || viewMode === 'history') return Swal.fire('เป็นยอดที่บันทึกไว้แล้ว', 'ข้อมูลที่ดูอยู่มาจากฐานข้อมูลอยู่แล้ว ไม่ต้องบันทึกซ้ำครับ', 'info');
     if (!pendingSummaryData || pendingSummaryData.length === 0) return Swal.fire('ไม่มีข้อมูล', 'กรุณาอัปโหลดไฟล์ให้เรียบร้อยก่อนบันทึก', 'warning');
 
     Swal.fire({title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
@@ -1308,18 +1337,29 @@ window.saveSummaryToSupabase = async function() {
             window.pendingFileNames = []; 
         }
 
+        // [แก้] เดิมเปิดดูตามช่องวันที่ (มักว่างหลังอัปไฟล์) → จอยังเป็นยอดพรีวิวแต่ขึ้นว่าบันทึกแล้ว
+        //      ตอนนี้เปิดวันที่ในไฟล์ที่เพิ่งบันทึกจากฐานข้อมูลให้เลย (หลายวัน = รวมหลายวัน)
+        const savedDates = [...new Set(finalInsertData.map(r => r.date).filter(Boolean))].sort();
+        window.uploadedFileDates.clear();
+        if (window.clearQueryCache) window.clearQueryCache('sum_');
+        await fetchAvailableDates();
+        if (savedDates.length > 1 && typeof window.fetchMultipleHistoricalSummary === 'function') {
+            window.selectedSummaryDates = new Set(savedDates);
+            await window.fetchMultipleHistoricalSummary();
+        } else {
+            const d = savedDates[0] || fallbackDate;
+            document.getElementById('summaryDateFilter').value = d;
+            if (window.selectedSummaryDates) { window.selectedSummaryDates.clear(); if (d) window.selectedSummaryDates.add(d); }
+            await window.fetchHistoricalSummary(true);
+        }
+        const fallbackDateSent = savedDates[0] || fallbackDate;
         Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ', timer: 1500, showConfirmButton: false});
-        
-        viewMode = 'history';
-        await fetchAvailableDates(); 
-        document.getElementById('summaryDateFilter').value = fallbackDate; 
-        await window.fetchHistoricalSummary(true); 
 
         // [FIX] เดิมสร้าง channel ใหม่แล้ว .send() ทันทีโดยไม่ได้ subscribe ก่อน — Supabase จะไม่ส่งออกไปจริง
         // ใช้ channel เดิมที่ subscribeSummaryChanges เปิดค้างไว้แทน
         if (summarySubscription) {
             summarySubscription.send({
-                type: 'broadcast', event: 'force_summary_reload', payload: { date: fallbackDate }
+                type: 'broadcast', event: 'force_summary_reload', payload: { date: fallbackDateSent }
             });
         }
     } catch(e) {
@@ -1343,9 +1383,7 @@ window.fetchHistoricalSummary = async function(silent = false) {
         }
 
         // 🌟 แก้ไข: บังคับคำนวณหาวันที่เมื่อวานให้ถูกต้องที่สุด
-        const yesterdayDateObj = new Date(dateVal);
-        yesterdayDateObj.setDate(yesterdayDateObj.getDate() - 1);
-        const yesterdayStr = `${yesterdayDateObj.getFullYear()}-${String(yesterdayDateObj.getMonth() + 1).padStart(2, '0')}-${String(yesterdayDateObj.getDate()).padStart(2, '0')}`;
+        const yesterdayStr = window.getYesterdayDateStr(dateVal);
 
         // ⚡ กันยิงซ้ำ: ถ้าคำขอชุดเดิม (วันเดียวกัน) ยังวิ่งอยู่ ให้รอผลก้อนเดิมแทนการยิงใหม่
         //    และเก็บผลไว้ใช้ซ้ำ 20 วินาที (กดสลับหน้าไปมาไม่ต้องโหลดใหม่ทุกครั้ง)
@@ -1359,7 +1397,7 @@ window.fetchHistoricalSummary = async function(silent = false) {
                 promise: Promise.all([
                     appDB.from('transaction_daily_summary').select('date, employee_name, website, count, approved_count, reject_count, total_amount').eq('date', dateVal),
                     appDB.from('transaction_daily_summary').select('employee_name, website, count').eq('date', yesterdayStr),
-                    appDB.from('schedules').select('staff_name, shift_name').eq('work_date', dateVal)
+                    appDB.from('schedules').select('work_date, staff_name, shift_name').eq('work_date', dateVal)   // [แก้] เดิมไม่ดึง work_date → จับคู่กะจากตารางกะไม่เคยเจอ
                 ]),
             };
             _entry.promise.then(r => { _entry.data = r; _entry.promise = null; _entry.ts = Date.now(); })
@@ -1425,10 +1463,9 @@ window.fetchHistoricalSummary = async function(silent = false) {
                 }
 
                 return {
-                    empName: r.employee_name, website: r.website, system: r.system, count: todayCount, totalAmount: parseFloat(r.total_amount) || 0,
+                    date: r.date, empName: r.employee_name, website: r.website, system: r.system, count: todayCount, totalAmount: parseFloat(r.total_amount) || 0,
                     shift: actualShift, 
                     yestCount: yestCount, // 🌟 กำหนดค่าที่นี่ให้ชัดเจน
-                    diffFromYesterday: todayCount - yestCount, // 🌟 คำนวณส่วนต่าง
                     approvedCount: appCount, rejectCount: rejCount
                 };
             });

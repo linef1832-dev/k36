@@ -23,15 +23,14 @@ window.loadDutyAssignmentMap = async function(filteredData, shiftFilterUi) {
         
         // แผนกของ user — ปกติเป็น AM/OD (ใช้ currentUser หรือ default 'AM')
         // ลองหลายๆ แผนกที่อาจเก็บข้อมูลไว้
-        const deptsToTry = ['AM', 'OD'];
-        if (typeof currentUser !== 'undefined' && currentUser && currentUser.dept) {
-            if (!deptsToTry.includes(currentUser.dept)) deptsToTry.unshift(currentUser.dept);
-        }
+        const deptsToTry = ['AM', 'OD', 'AMQL', 'ODQL'];
+        const myDept = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.department || currentUser.dept) : '';
+        if (myDept && !deptsToTry.includes(myDept)) deptsToTry.unshift(myDept);
         
         // กะที่ใช้ — ถ้า shiftFilterUi = 'ALL' ลองทุกกะ
         const shiftsToTry = (shiftFilterUi && shiftFilterUi !== 'ALL') 
             ? [shiftFilterUi]
-            : ['กะเช้า', 'กะบ่าย', 'กะดึก'];
+            : ['กะเช้า', 'กะกลาง', 'กะดึก'];   // [แก้] เดิมใช้ "กะบ่าย" ซึ่งหน้าจัดหน้าที่ไม่มี → คนกะกลางไม่มีเว็บหลัก/รองใน Excel
         
         // สร้าง keys ทั้งหมดที่จะ query
         const keys = [];
@@ -93,7 +92,7 @@ window.exportSummaryToExcel = async function() {
             const odFilter = document.getElementById('summaryOdFilter') ? document.getElementById('summaryOdFilter').value : 'ALL';
             
             let filteredData = pendingSummaryData;
-            if (shiftFilter !== 'ALL') filteredData = filteredData.filter(item => item.shift === shiftFilter || (shiftFilter==='UNKNOWN' && item.shift==='กะอิสระ'));
+            if (shiftFilter !== 'ALL') filteredData = filteredData.filter(item => smShiftMatch(item, shiftFilter));
             if (odFilter !== 'ALL') filteredData = filteredData.filter(item => item.odType === odFilter || (item.odType === undefined && odFilter === 'ปกติ'));
             if (typeof summaryActiveWebFilter !== 'undefined' && summaryActiveWebFilter !== 'ALL') filteredData = filteredData.filter(item => item.website === summaryActiveWebFilter);
 
@@ -106,7 +105,7 @@ window.exportSummaryToExcel = async function() {
             filteredData.forEach(item => {
                 if(!empGroups[item.empName]) {
                     empGroups[item.empName] = { 
-                        name: item.empName, shift: item.shift === 'UNKNOWN' ? 'UNKNOWN' : item.shift.replace('กะ', ''), odType: item.odType || 'ปกติ',
+                        name: item.empName, shift: (!item.shift || item.shift === 'UNKNOWN') ? 'UNKNOWN' : String(item.shift).replace('กะ', ''), odType: item.odType || 'ปกติ',
                         totalApproved: 0, totalReject: 0, grandTotal: 0, websData: {} 
                     };
                     targetWebOrder.forEach(w => { empGroups[item.empName].websData[w] = { approved: 0, reject: 0, total: 0 }; });
@@ -293,7 +292,7 @@ window.exportSummaryToExcel = async function() {
             const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
             const url = URL.createObjectURL(blob);
             const link = document.createElement("a");
-            link.href = url; link.download = `สรุปยอดรวมแต่ละเว็บ_ครบถ้วน.xlsx`; document.body.appendChild(link);
+            link.href = url; link.download = `สรุปยอดรวมแต่ละเว็บ_${titleDateStr.replace(/[\\/:*?"<>|]/g, '-').slice(0, 60)}.xlsx`;   // ใส่วันที่ในชื่อไฟล์ document.body.appendChild(link);
             link.click(); document.body.removeChild(link); URL.revokeObjectURL(url);
 
             Swal.fire({ icon: 'success', title: 'ดาวน์โหลดไฟล์ Excel สำเร็จ!', timer: 1500, showConfirmButton: false });
@@ -302,18 +301,12 @@ window.exportSummaryToExcel = async function() {
 };
 
 window.openManageSystemModal = async function() {
-    let customSystems = JSON.parse(localStorage.getItem('custom_web_systems') || '{}');
-    let defaultWebList = (typeof TEAM_LIST !== 'undefined' && TEAM_LIST.length > 0) ? TEAM_LIST : ['Jun88', 'MK8', 'F168', 'PG688', 'JL69', 'NM9', 'VV72', 'TH26'];
+    let customSystems = smCustomSystems();
+    let defaultWebList = smWebList();   // [แก้] เดิมขาด BT678 / K188 → ตั้งหลังบ้าน 2 เว็บนี้ไม่ได้
 
     let html = '<div class="flex flex-col gap-3 max-h-[50vh] overflow-y-auto p-1 custom-scrollbar text-sm">';
     defaultWebList.forEach(web => {
-        let currentSys = customSystems[web];
-        if (!currentSys) {
-            if(['Jun88', 'MK8', 'VV72', 'TH26'].includes(web)) currentSys = 'K36';
-            else if(['F168'].includes(web)) currentSys = 'WG';
-            else if(['PG688', 'JL69', 'NM9'].includes(web)) currentSys = 'TCG';
-            else currentSys = 'SYSTEM';
-        }
+        const currentSys = smSystemOf(web, customSystems);
         
         html += getTpl('tpl-manage-system-item', {
             web: web,
@@ -402,11 +395,7 @@ window.fetchMultipleHistoricalSummary = async function() {
         }
 
         // 🌟 สร้าง Array ของวันที่เมื่อวานให้ตรงกับทุกวันที่เลือก
-        const yesterdayDates = dates.map(d => {
-            const dt = new Date(d);
-            dt.setDate(dt.getDate() - 1);
-            return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
-        });
+        const yesterdayDates = dates.map(d => window.getYesterdayDateStr(d));
 
         // [FIX] ทั้งสามคำขอเดิมถูกตัดที่ 1000 แถวโดยไม่แจ้ง error — ยิ่งเลือกหลายวันยิ่งขาดมาก
         // ห่อด้วย selectAllRows ให้ดึงครบทุกหน้า และใส่ order เพื่อให้การแบ่งหน้าเสถียร
@@ -468,22 +457,18 @@ window.fetchMultipleHistoricalSummary = async function() {
                         count: 0, totalAmount: 0, approvedCount: 0, rejectCount: 0,
                         shift: actualShift, 
                         yestCount: yestMap[key] || 0, // 🌟 ดึงค่ายอดของเมื่อวานมาใช้
-                        diffFromYesterday: 0
                     };
                 }
                 groupedData[key].count += parseInt(r.count) || 0;
                 groupedData[key].totalAmount += parseFloat(r.total_amount) || 0;
                 groupedData[key].approvedCount += (r.approved_count !== null ? parseInt(r.approved_count) : (parseInt(r.count) || 0));
                 groupedData[key].rejectCount += parseInt(r.reject_count) || 0;
-                
-                // 🌟 คำนวณส่วนต่างหลังจากบวกทบยอดของวันนี้เสร็จแล้ว
-                groupedData[key].diffFromYesterday = groupedData[key].count - groupedData[key].yestCount;
             });
         }
 
         pendingSummaryData = Object.values(groupedData);
         viewMode = 'monthly_history'; 
-        window.uploadedFileDates = new Set(dates);
+        window.uploadedFileDates.clear();   // [แก้] เดิมเอาวันที่ที่เลือกไปใส่ "วันที่ในไฟล์อัปโหลด" → อัปไฟล์ต่อแล้ววันที่ปนกัน
 
         renderSummaryDashboard();
         fetchLeaderboardData();
@@ -505,8 +490,11 @@ window.deleteSummaryDate = function(dateStr) {
         if (result.isConfirmed) {
             Swal.fire({ title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
             try {
-                await appDB.from('transaction_daily_summary').delete().eq('date', dateStr);
+                const { error: delErr } = await appDB.from('transaction_daily_summary').delete().eq('date', dateStr);
+                if (delErr) throw delErr;   // [แก้] เดิมไม่เช็ค → ลบไม่สำเร็จแต่ขึ้นว่าลบสำเร็จ
                 await appDB.from('settings').update({ value: '[]' }).eq('key', 'saved_excel_files');
+                if (window.clearQueryCache) window.clearQueryCache('sum_');
+                if (window._sumCache) delete window._sumCache[`daily_${dateStr}`];
                 
                 window.selectedSummaryDates.delete(dateStr);
                 window.pendingFileNames = []; 

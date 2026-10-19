@@ -751,7 +751,7 @@ const PAGE_SCRIPTS = {
     leave:             ['leave/core', 'leave/table', 'leave/controls', 'swap/core', 'swap/view', 'swap/admin', 'swap/extras'],
     swap:              ['leave/core', 'leave/table', 'leave/controls', 'swap/core', 'swap/view', 'swap/admin', 'swap/extras'],
     duty:              ['duty/core', 'duty/dragdrop', 'duty/roles', 'duty/tools', 'duty/support', 'duty/rotation'],   // แยกจาก duty.js เดิม (5,478) — core ต้องมาก่อน
-    discord:           ['discord/core', 'discord/history', 'discord/message', 'discord/breaktrack', 'discord/tts', 'discord/chatcount'],   // ลำดับสำคัญ: core ต้องมาก่อนเสมอ
+    discord:           ['discord/core', 'discord/history', 'discord/message', 'discord/breaktrack', 'discord/tts'],   // ลำดับสำคัญ: core ต้องมาก่อนเสมอ
     summary:           ['summary/core', 'summary/export'],
     telegram:          ['telegram/Telegram'],
     password:          ['password/Password'],
@@ -1162,9 +1162,9 @@ async function showPage(pageName) {
                     if (typeof initWithdrawalReport === 'function') await initWithdrawalReport();
                 }
                 else if (pageName === 'summary') {
-                    if (typeof initSummaryDate === 'function') initSummaryDate();
-                    if (typeof fetchAvailableDates === 'function') fetchAvailableDates(); 
-                    if (typeof fetchHistoricalSummary === 'function') await fetchHistoricalSummary(true); 
+                    // [แก้] เดิมเรียก 3 ตัวซ้อนกัน (initSummaryDate ข้างในก็ดึงวันที่ + ยอดอยู่แล้ว) → ดึงซ้ำ 2 รอบ
+                    //      และกลับเข้าหน้านี้ระหว่างมีไฟล์พรีวิว ยอดพรีวิวถูกยอดในฐานข้อมูลทับหาย
+                    if (typeof initSummaryDate === 'function') await initSummaryDate();
                 }
                 else if (pageName === 'telegram') {
                     if (typeof initTelegramApp === 'function') await initTelegramApp();
