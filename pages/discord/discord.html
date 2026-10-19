@@ -85,7 +85,6 @@
             <button onclick="switchDiscordTab('manage')" id="tabDsManage" class="ds-tab" style="--acc:#8b5cf6"><span class="tab-chip"><span class="material-icons">manage_accounts</span></span> ฐานข้อมูล</button>
             <button onclick="switchDiscordTab('voicelog')" id="tabDsVoicelog" class="ds-tab" style="--acc:#f59e0b"><span class="tab-chip"><span class="material-icons">history</span></span> เข้า/ออกดิส</button>
             <button onclick="switchDiscordTab('breaktrack')" id="tabDsBreaktrack" class="ds-tab" style="--acc:#10b981"><span class="tab-chip"><span class="material-icons">coffee</span></span> เช็คอิน</button>
-            <button onclick="switchDiscordTab('checkin')" id="tabDsCheckin" class="ds-tab" style="--acc:#d946ef"><span class="tab-chip"><span class="material-icons">photo_camera</span></span> ถ่ายรูป</button>
             <button onclick="switchDiscordTab('ttsvoice')" id="tabDsTtsvoice" class="ds-tab" style="--acc:#0ea5e9"><span class="tab-chip"><span class="material-icons">campaign</span></span> ศูนย์เสียง</button>
         </div>
         <button onclick="showPage('dashboard')" class="ds-close"><span class="material-icons" style="font-size:15px">close</span> ปิด</button>
@@ -160,88 +159,6 @@
                         </button>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <div id="dsContent_checkin" class="max-w-6xl mx-auto hidden fade-in pb-10">
-            <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-lg">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-violet-400 font-black flex items-center gap-2 text-xl"><span class="material-icons">photo_camera</span> ถ่ายรูปเช็คชื่อเข้างาน</h2>
-                    <div class="flex gap-2">
-                        <button onclick="window.toggleCheckinGroupsPanel()" class="text-gray-400 hover:text-white flex items-center gap-1 text-sm bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-600 transition">
-                            <span class="material-icons text-sm">group</span> ตั้งค่ากลุ่ม
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Settings กลุ่ม Telegram -->
-                <div id="checkinGroupsPanel" class="hidden bg-slate-900 border border-slate-700 rounded-2xl p-4 mb-4">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-white font-black text-sm flex items-center gap-2">
-                            <span class="material-icons text-violet-400 text-sm">settings</span> ตั้งค่ากลุ่มถ่ายรูป (เช็คชื่อ/กะ)
-                        </h3>
-                        <button onclick="document.getElementById('checkinGroupsPanel').classList.add('hidden')" class="text-gray-400 hover:text-white transition">
-                            <span class="material-icons text-sm">close</span>
-                        </button>
-                    </div>
-                    <div>
-                        <!-- กลุ่มเช็คชื่อ/ถ่ายรูป -->
-                        <div>
-                            <div class="flex items-center gap-2 mb-2">
-                                <span class="material-icons text-violet-400 text-sm">photo_camera</span>
-                                <span class="text-violet-400 font-black text-xs uppercase tracking-wider">กลุ่มถ่ายรูป</span>
-                                <span class="text-gray-500 text-xs">(เช็คชื่อ/กะ)</span>
-                            </div>
-                            <div id="checkinGroupsList_shift" class="flex flex-col gap-1.5 mb-2 max-h-40 overflow-y-auto custom-scrollbar"></div>
-                            <p class="text-gray-500 text-xs mb-2">เพิ่มกลุ่มแล้วกด <b class="text-gray-400">แก้ไข</b> เพื่อใส่ Sound ID</p>
-                            <div class="flex gap-2">
-                                <input type="text" id="newGroupName_shift" placeholder="ชื่อกลุ่ม (ป้ายชื่อ)" class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs outline-none focus:border-violet-500">
-                                <input type="text" id="newGroupChatId_shift" placeholder="Chat ID เช่น -1001234567890" class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs font-mono outline-none focus:border-violet-500">
-                                <select id="newGroupTag_shift" title="TAG ที่ต้องถ่ายรูปในกลุ่มนี้" class="w-28 bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-violet-500 cursor-pointer">
-                                    <option value="" class="bg-slate-800">— TAG —</option>
-                                    <option value="ONLINE" class="bg-slate-800">ONLINE</option>
-                                    <option value="TEMP" class="bg-slate-800">TEMP</option>
-                                    <option value="ONSITE" class="bg-slate-800">ONSITE</option>
-                                </select>
-                                <button onclick="window.addCheckinGroup('shift')" class="bg-violet-600 hover:bg-violet-500 text-white px-3 py-2 rounded-xl font-bold text-xs transition active:scale-95">
-                                    <span class="material-icons text-xs">add</span>
-                                </button>
-                            </div>
-                        </div>
-
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-4 mb-4">
-                    <div><label class="text-gray-400 text-xs font-bold mb-1 block">หัวข้อ</label><input type="text" id="tgTitle" value="เช็คชื่อเข้างาน" class="w-full bg-slate-900 border border-slate-600 rounded-xl p-3 text-white outline-none focus:border-sky-500"></div>
-                    <div><label class="text-gray-400 text-xs font-bold mb-1 block">วันที่</label><input type="date" id="tgDate" class="w-full bg-slate-900 border border-slate-600 rounded-xl p-3 text-white outline-none focus:border-sky-500" onchange="fetchTodaysLeaves().then(_doRenderCheckinTable)"></div>
-                </div>
-                <div class="mb-4">
-                    <label class="text-gray-400 text-xs font-bold mb-1 block">ผู้ทำรายการ</label>
-                    <input type="text" id="reporterName" placeholder="ชื่อผู้ทำรายการ" class="w-full bg-slate-900 border border-slate-600 rounded-xl p-3 text-white outline-none focus:border-sky-500">
-                </div>
-                <div class="border-2 border-dashed border-slate-600 rounded-xl p-8 text-center text-gray-400 mb-4 cursor-pointer hover:bg-slate-700 transition flex flex-col items-center justify-center gap-2 bg-slate-900" id="pasteArea" tabindex="0">
-                    <span class="material-icons text-3xl opacity-50">content_paste</span>
-                    <span>คลิกที่นี่ แล้วกด <b>Ctrl + V</b> เพื่อวางรูปภาพหลักฐาน</span>
-                </div>
-                <div id="imgGallery" class="flex gap-2 flex-wrap mb-4"></div>
-                <div class="bg-slate-900 border border-slate-700 rounded-xl p-4 mb-6">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-white font-bold flex items-center gap-2"><span class="material-icons text-emerald-400 text-sm">checklist</span> รายชื่อพนักงาน</h3>
-                        <button onclick="clearCheckinStatus()" class="text-red-400 border border-red-500/50 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-500/10 transition">ล้างสถานะทั้งหมด</button>
-                    </div>
-                    <div class="flex gap-2 mb-4">
-                        <select id="groupFilter" onchange="renderCheckinTable()" class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-lg p-2.5 text-sm outline-none focus:border-sky-500"><option value="ALL">-- ทุกกลุ่ม --</option></select>
-                        <select id="roundFilter" class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-lg p-2.5 text-sm outline-none focus:border-sky-500">
-                            <option value="">-- ไม่ระบุรอบ --</option><option value="รอบที่ 1">รอบที่ 1</option><option value="รอบที่ 2">รอบที่ 2</option>
-                        </select>
-                    </div>
-                    <input type="text" id="searchTable" placeholder="🔍 ค้นหาชื่อ..." onkeyup="renderCheckinTable()" class="w-full bg-slate-800 border border-slate-600 text-white rounded-lg p-2.5 text-sm outline-none focus:border-sky-500 mb-4">
-                    <div id="statusSummary" class="flex gap-3 mb-4"></div>
-                    <div id="checkinTableContainer" class="max-h-80 overflow-y-auto custom-scrollbar border border-slate-700 rounded-xl p-2 bg-slate-800 text-sm"></div>
-                </div>
-                <button onclick="sendToTelegram()" class="w-full bg-sky-600 hover:bg-sky-500 text-white font-black py-4 rounded-xl shadow transition active:scale-95 text-lg">
-                    <span class="material-icons">send</span> ส่งเข้ากลุ่ม Telegram
-                </button>
             </div>
         </div>
 
@@ -685,21 +602,6 @@
         </label>
     </template>
     
-    <template id="tpl-ds-checkin-row">
-        <div class="flex justify-between items-center p-2.5 border-b border-slate-700/50 hover:bg-slate-700/30 transition">
-            <div class="font-bold text-sm flex items-center gap-2 {{onlineColorClass}}">
-                <span class="w-2.5 h-2.5 rounded-full {{onlineDotClass}}"></span>
-                {{name}} {{leaveBadgeHtml}}
-            </div>
-            <select class="bg-slate-900 border border-slate-600 text-white p-1.5 rounded-lg text-xs outline-none focus:border-sky-500 cursor-pointer" onchange="updateCheckinStatus('{{id}}', this.value)">
-                <option value="✅" {{selA}}>✅ มา</option>
-                <option value="🏖️" {{selB}}>🏖️ หยุด</option>
-                <option value="🤒" {{selC}}>🤒 ป่วย</option>
-                <option value="📝" {{selD}}>📝 กิจ</option>
-                <option value="❌" {{selE}}>❌ ขาด</option>
-            </select>
-        </div>
-    </template>
 
     <template id="tpl-ds-manager-row">
         <div class="flex justify-between items-center p-3 bg-slate-900 rounded-xl border border-slate-700 shadow-sm mb-2 hover:border-sky-500 transition">
