@@ -23,12 +23,16 @@ window.ds_subscribeVoiceLogs = function() {
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'discord_voice_logs' }, () => {
                 const tab = document.getElementById('ds_voiceLogBody');
                 if (!tab) return;
+                // [FIX] โหลดใหม่เฉพาะตอนเปิดแท็บ "เข้า/ออกห้อง" อยู่จริง — เดิมทำงานทุกแท็บของหน้า Discord
+                //       แล้วเด้ง Toast ทุกครั้งที่มีคนเข้า-ออกห้อง ทำให้หน้าต่างที่กำลังกรอกอยู่ (เช่น เพิ่มรอบเวลา นับแชท) ถูกปิดทิ้ง
+                const panel = document.getElementById('dsContent_voicelog');
+                if (!panel || panel.classList.contains('hidden')) return;
                 // ดูวันนี้ + หน้าแรกอยู่ → โหลดใหม่ (กันรัว: หน่วง 800ms)
                 const dateInput = document.getElementById('voiceLogDate');
                 const today = new Date(); const todayStr = new Date(today.getTime() - today.getTimezoneOffset() * 60000).toISOString().split('T')[0];
                 if (dateInput && dateInput.value && dateInput.value !== todayStr) return;
                 clearTimeout(window._dsVoiceLogTimer);
-                window._dsVoiceLogTimer = setTimeout(() => window.ds_fetchVoiceLogs(true, 1), 800);
+                window._dsVoiceLogTimer = setTimeout(() => window.ds_fetchVoiceLogs(false, 1), 800);   // อัปเดตเงียบ ไม่เด้ง Toast
             })
             .subscribe();
         if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(window._dsVoiceLogSub);
@@ -110,7 +114,8 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false, page = window.ds
         // 🌟 วาดปุ่มเปลี่ยนหน้า (ส่ง count ที่แท้จริงไปให้)
         ds_renderPaginationControls(count);
 
-        if (forceRefresh === true && !searchText) {
+        // ไม่เด้ง Toast ถ้ามีหน้าต่าง Swal เปิดอยู่ (Swal เปิดได้ทีละอัน Toast จะไปปิดหน้าต่างนั้นทิ้ง)
+        if (forceRefresh === true && !searchText && !(window.Swal && Swal.isVisible())) {
             const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
             Toast.fire({ icon: 'success', title: 'อัปเดตข้อมูลเรียบร้อย' });
         }
@@ -651,4 +656,3 @@ window.ds_clearOldMoveLogs = async function() {
         }
     }
 };
-
