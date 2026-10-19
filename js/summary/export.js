@@ -80,219 +80,267 @@ window.loadDutyAssignmentMap = async function(filteredData, shiftFilterUi) {
     return map;
 };
 
+// ==========================================
+// 📥 ส่งออก Excel (ออกแบบใหม่: อ่านง่าย ไม่ต้องเลื่อนขวาไกล)
+//   ชีต 1 "สรุปรายคน"     : แบ่งกลุ่มตามกะ · 1 คอลัมน์ต่อเว็บ (เฉพาะเว็บที่มียอด) · หลัก/รอง แยกคอลัมน์ · รวมย่อยต่อกะ + รวมทั้งหมด
+//   ชีต 2 "สรุปตามเว็บ"    : ยอด / สำเร็จ / ปฏิเสธ / ยอดเงิน / สัดส่วน ของแต่ละเว็บ
+//   ชีต 3 "รายละเอียด"     : สำเร็จ-ปฏิเสธ-รวม แยกทุกเว็บ (แบบเดิม สำหรับคนที่ต้องการดูละเอียด)
+// ใช้ข้อมูลตามตัวกรองที่เลือกบนหน้าจอ (กะ / ประเภท / เว็บที่กดเลือก)
+// ==========================================
 window.exportSummaryToExcel = async function() {
-    if (!pendingSummaryData || pendingSummaryData.length === 0) return Swal.fire('ไม่มีข้อมูล', 'ไม่มีข้อมูลสำหรับดาวน์โหลด กรุณาอัปโหลดไฟล์ให้เรียบร้อย', 'warning');
+    if (!pendingSummaryData || pendingSummaryData.length === 0) return Swal.fire('ไม่มีข้อมูล', 'ไม่มีข้อมูลสำหรับดาวน์โหลด กรุณาเลือกวันที่หรืออัปโหลดไฟล์ก่อน', 'warning');
 
-    // เรียกฟังก์ชันแอบโหลดก่อน
     window.loadExcelLibrary(async function() {
-        Swal.fire({ title: 'กำลังสร้างไฟล์ Excel...', text: 'จัดระเบียบตามรูปแบบใหม่...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-
+        Swal.fire({ title: 'กำลังสร้างไฟล์ Excel...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
         try {
             const shiftFilter = document.getElementById('summaryShiftFilter') ? document.getElementById('summaryShiftFilter').value : 'ALL';
             const odFilter = document.getElementById('summaryOdFilter') ? document.getElementById('summaryOdFilter').value : 'ALL';
-            
-            let filteredData = pendingSummaryData;
+            let filteredData = pendingSummaryData.filter(item => !String(item.empName || '').toLowerCase().match(/system|auto/));
             if (shiftFilter !== 'ALL') filteredData = filteredData.filter(item => smShiftMatch(item, shiftFilter));
             if (odFilter !== 'ALL') filteredData = filteredData.filter(item => item.odType === odFilter || (item.odType === undefined && odFilter === 'ปกติ'));
             if (typeof summaryActiveWebFilter !== 'undefined' && summaryActiveWebFilter !== 'ALL') filteredData = filteredData.filter(item => item.website === summaryActiveWebFilter);
+            if (!filteredData.length) { Swal.fire('ไม่มีข้อมูล', 'ไม่มีข้อมูลตามตัวกรองที่เลือก', 'info'); return; }
 
-            const targetWebOrder = ['Jun88', 'MK8', 'VV72', 'TH26', 'F168', 'PG688', 'JL69', 'NM9', 'BT678', 'K188'];
-            // [ใหม่] เว็บใหม่ที่เพิ่มในหน้าตั้งค่าหลังบ้าน / ที่มีในข้อมูล → ต่อท้ายคอลัมน์ให้อัตโนมัติ (เดิมเว็บใหม่หายจาก Excel)
-            smWebList().concat(filteredData.map(x => x.website)).forEach(w => { if (w && !targetWebOrder.some(t => t.toLowerCase() === String(w).toLowerCase())) targetWebOrder.push(w); });
-            const E = 4 + targetWebOrder.length * 3;   // คอลัมน์สุดท้ายของกลุ่มเว็บ (เดิมตายตัว 34 = 10 เว็บ)
+            // ลำดับเว็บ: ชุดหลัก + เว็บใหม่ (จากหน้าตั้งค่า / ที่มีในข้อมูล)
+            const allWebs = ['Jun88', 'MK8', 'VV72', 'TH26', 'F168', 'PG688', 'JL69', 'NM9', 'BT678', 'K188'];
+            smWebList().concat(filteredData.map(x => x.website)).forEach(w => { if (w && !allWebs.some(t => t.toLowerCase() === String(w).toLowerCase())) allWebs.push(w); });
+            const webKey = (w) => allWebs.find(t => t.toLowerCase() === String(w || '').toLowerCase());
 
-            // 🌟 [NEW] โหลดข้อมูลจัดเวร (หลัก/รอง) ของวันที่นั้น
             const dutyAssignmentMap = await window.loadDutyAssignmentMap(filteredData, shiftFilter);
 
-            let empGroups = {};
+            // ── รวมยอดรายคน
+            const emps = {};
+            const webTot = {}; allWebs.forEach(w => { webTot[w] = { n: 0, ok: 0, no: 0, amt: 0 }; });
             filteredData.forEach(item => {
-                if(!empGroups[item.empName]) {
-                    empGroups[item.empName] = { 
-                        name: item.empName, shift: (!item.shift || item.shift === 'UNKNOWN') ? 'UNKNOWN' : String(item.shift).replace('กะ', ''), odType: item.odType || 'ปกติ',
-                        totalApproved: 0, totalReject: 0, grandTotal: 0, websData: {} 
-                    };
-                    targetWebOrder.forEach(w => { empGroups[item.empName].websData[w] = { approved: 0, reject: 0, total: 0 }; });
-                }
-                
-                empGroups[item.empName].totalApproved += (item.approvedCount || 0);
-                empGroups[item.empName].totalReject += (item.rejectCount || 0);
-                empGroups[item.empName].grandTotal += (item.count || 0);
-                
-                const webKey = targetWebOrder.find(w => w.toLowerCase() === item.website.toLowerCase());
-                if (webKey) {
-                    empGroups[item.empName].websData[webKey].approved += (item.approvedCount || 0);
-                    empGroups[item.empName].websData[webKey].reject += (item.rejectCount || 0);
-                    empGroups[item.empName].websData[webKey].total += (item.count || 0);
-                }
+                const k = item.empName;
+                const sh = (!item.shift || item.shift === 'UNKNOWN') ? 'ไม่ระบุ' : String(item.shift).replace('กะ', '');
+                const e = emps[k] || (emps[k] = { name: k, shift: sh === 'all' ? 'อิสระ' : sh, ok: 0, no: 0, n: 0, amt: 0, webs: {} });
+                const w = webKey(item.website); if (!w) return;
+                const wd = e.webs[w] || (e.webs[w] = { ok: 0, no: 0, n: 0 });
+                wd.ok += item.approvedCount || 0; wd.no += item.rejectCount || 0; wd.n += item.count || 0;
+                e.ok += item.approvedCount || 0; e.no += item.rejectCount || 0; e.n += item.count || 0; e.amt += item.totalAmount || 0;
+                const t = webTot[w]; t.n += item.count || 0; t.ok += item.approvedCount || 0; t.no += item.rejectCount || 0; t.amt += item.totalAmount || 0;
             });
+            const webs = allWebs.filter(w => webTot[w].n > 0);   // ⚡ เฉพาะเว็บที่มียอด → ตารางแคบ อ่านง่าย
+            const empList = Object.values(emps);
+            const G = empList.reduce((a, e) => ({ ok: a.ok + e.ok, no: a.no + e.no, n: a.n + e.n, amt: a.amt + e.amt }), { ok: 0, no: 0, n: 0, amt: 0 });
 
-            const wb = new ExcelJS.Workbook();
-            const ws = wb.addWorksheet(`สรุปยอดแยกเว็บ`);
-
-            // ── ตารางหลัก: ลำดับ | ชื่อ | กะ | แผนก | (สำเร็จ/ปฏิเสธ/รวม ของแต่ละเว็บ) | รวมสำเร็จ | รวมปฏิเสธ | รวมทั้งสิ้น
-            // [เปลี่ยน] ตารางอ้างอิง (ชื่อ / กะ / สรุปยอดแต่ละเว็บ) เดิมอยู่ขวาสุด ต้องเลื่อนขวาไกล → ย้ายลงไปอยู่ใต้ตารางหลัก เลื่อนขึ้น-ลงอย่างเดียว
-            let headers = ['ลำดับ', 'ชื่อพนักงาน', 'กะ', 'แผนก'];
-            targetWebOrder.forEach(w => { headers.push(`${w} (สำเร็จ)`); headers.push(`${w} (ปฏิเสธ)`); headers.push(`${w} (รวม)`); });
-            headers.push('รวมสำเร็จ'); headers.push('รวมปฏิเสธ'); headers.push('รวมทั้งสิ้น');
-            const LASTCOL = headers.length;   // = E + 3
-
+            // ── หัวเรื่อง (วันที่)
             let titleDateStr = '';
             if (viewMode === 'preview' && window.uploadedFileDates && window.uploadedFileDates.size > 0) {
-                const datesArr = Array.from(window.uploadedFileDates).sort();
-                if (datesArr.length === 1) {
-                    const [y, m, d] = datesArr[0].split('-'); titleDateStr = `วันที่ ${d} เดือน ${m} ${y}`;
-                } else {
-                    const formattedDates = datesArr.map(d => { const [yy, mm, dd] = d.split('-'); return `${dd}/${mm}/${yy}`; });
-                    titleDateStr = `ข้อมูลรวมหลายวัน: ${formattedDates.join(', ')}`;
-                }
+                const ds = Array.from(window.uploadedFileDates).sort();
+                titleDateStr = ds.length === 1 ? smThaiDate(ds[0]) : `รวม ${ds.length} วัน: ` + ds.map(d => smThaiDate(d, true)).join(', ');
+            } else if (window.selectedSummaryDates && window.selectedSummaryDates.size > 1) {
+                const ds = Array.from(window.selectedSummaryDates).sort();
+                titleDateStr = `รวม ${ds.length} วัน: ` + ds.map(d => smThaiDate(d, true)).join(', ');
             } else {
-                const dateVal = document.getElementById('summaryDateFilter').value;
-                if (dateVal) { const [y, m, d] = dateVal.split('-'); titleDateStr = `วันที่ ${d} เดือน ${m} ${y}`; } 
-                else { titleDateStr = 'ข้อมูลพรีวิว (ยังไม่ได้บันทึก)'; }
+                const dv = (document.getElementById('summaryDateFilter') || {}).value;
+                titleDateStr = dv ? smThaiDate(dv) : 'ข้อมูลพรีวิว (ยังไม่ได้บันทึก)';
             }
+            const notes = [];
+            if (shiftFilter !== 'ALL') notes.push(shiftFilter === 'UNKNOWN' ? 'ไม่ระบุกะ' : shiftFilter);
+            if (odFilter !== 'ALL') notes.push(odFilter);
+            if (typeof summaryActiveWebFilter !== 'undefined' && summaryActiveWebFilter !== 'ALL') notes.push('เว็บ ' + summaryActiveWebFilter);
 
-            const thin = (c) => ({ style: 'thin', color: { argb: c } });
-            const solid = (c) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb: c } });
-            const shiftCellStyle = (cell) => {
-                cell.font = { bold: true };
-                if (cell.value === 'เช้า') { cell.fill = solid('FFFFEDD5'); cell.font.color = { argb: 'FFEA580C' }; }
-                else if (cell.value === 'กลาง') { cell.fill = solid('FFEFF6FF'); cell.font.color = { argb: 'FF2563EB' }; }
-                else if (cell.value === 'ดึก') { cell.fill = solid('FFF3E8FF'); cell.font.color = { argb: 'FF9333EA' }; }
-                else if (cell.value === 'อิสระ' || cell.value === 'all') { cell.fill = solid('FFECFDF5'); cell.font.color = { argb: 'FF059669' }; cell.value = 'อิสระ'; }
+            // ── สไตล์
+            const FONT = 'Tahoma';
+            const C = { ink: 'FF0F172A', mute: 'FF64748B', line: 'FFE2E8F0', head: 'FF1E293B', gold: 'FFE8C15A', goldBg: 'FFFEF3C7', zebra: 'FFF8FAFC', ok: 'FF15803D', no: 'FFDC2626' };
+            const SHIFT = { 'เช้า': ['FFFFF7ED', 'FFC2410C', '☀️'], 'กลาง': ['FFEFF6FF', 'FF1D4ED8', '🌤️'], 'ดึก': ['FFF5F3FF', 'FF6D28D9', '🌙'], 'อิสระ': ['FFECFDF5', 'FF047857', '🔄'], 'ไม่ระบุ': ['FFF1F5F9', 'FF475569', '❔'] };
+            const fill = (c) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb: c } });
+            const bLine = { style: 'thin', color: { argb: C.line } };
+            const NUM = '#,##0;-#,##0;"–"';           // 0 แสดงเป็น – ตาไม่ล้า
+            const MONEY = '#,##0.00;-#,##0.00;"–"';
+            const wb = new ExcelJS.Workbook(); wb.creator = 'K36';
+
+            // หัวชีต: ชื่อ + วันที่ + ตัวเลขสรุป
+            const sheetHead = (ws, title, lastCol) => {
+                const L = ws.getColumn(lastCol).letter;
+                ws.mergeCells(`A1:${L}1`); Object.assign(ws.getCell('A1'), { value: title });
+                ws.getCell('A1').font = { name: FONT, size: 16, bold: true, color: { argb: C.ink } };
+                ws.mergeCells(`A2:${L}2`); ws.getCell('A2').value = titleDateStr + (notes.length ? '   ·   ตัวกรอง: ' + notes.join(' · ') : '');
+                ws.getCell('A2').font = { name: FONT, size: 11, bold: true, color: { argb: 'FFB45309' } };
+                ws.mergeCells(`A3:${L}3`);
+                ws.getCell('A3').value = `ยอดรวม ${G.n.toLocaleString()} รายการ   ·   สำเร็จ ${G.ok.toLocaleString()}   ·   ปฏิเสธ ${G.no.toLocaleString()}   ·   พนักงาน ${empList.length} คน   ·   ยอดเงิน ฿${G.amt.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+                ws.getCell('A3').font = { name: FONT, size: 10, bold: true, color: { argb: C.mute } };
+                ws.getRow(1).height = 26; ws.getRow(2).height = 18; ws.getRow(3).height = 18;
+                return 5;   // แถวหัวตาราง
+            };
+            const headRow = (ws, r, labels, opts = {}) => {
+                const row = ws.getRow(r); row.height = 30;
+                labels.forEach((v, i) => {
+                    const c = row.getCell(i + 1); c.value = v;
+                    c.font = { name: FONT, size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+                    c.fill = fill(opts.gold && opts.gold.includes(i + 1) ? 'FFB45309' : C.head);
+                    c.alignment = { horizontal: i < (opts.leftCols || 0) ? 'left' : 'center', vertical: 'middle', wrapText: true, indent: i < (opts.leftCols || 0) ? 1 : 0 };
+                    c.border = { bottom: { style: 'medium', color: { argb: C.gold } } };
+                });
             };
 
-            const titleRow = ws.addRow([titleDateStr]);
-            ws.mergeCells(1, 1, 1, LASTCOL);
-            titleRow.height = 30;
-            titleRow.getCell(1).font = { size: 16, bold: true, color: { argb: 'FF000000' } };
-            titleRow.getCell(1).fill = solid('FFFFFF00');
-            titleRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
-            titleRow.getCell(1).border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: {style:'medium'} };
-
-            const headerRow = ws.addRow(headers); headerRow.height = 25;
-            const headerColors = ['FFDBEAFE', 'FFDCFCE7', 'FFFEE2E2', 'FFFEF3C7', 'FFF3E8FF', 'FFFFEDD5', 'FFCCFBF1', 'FFE0E7FF', 'FFFCE7F3', 'FFE2E8F0'];
-            const dataBgColors = ['FFF0F9FF', 'FFF0FDF4', 'FFFEF2F2', 'FFFFFBEB', 'FFFAF5FF', 'FFFFF7ED', 'FFF0FDFA', 'FFEEF2FF', 'FFFDF2F8', 'FFF8FAFC'];
-
-            headerRow.eachCell((cell, colNumber) => {
-                cell.font = { bold: true }; cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-                if (colNumber <= 4) {
-                    cell.fill = solid('FF1F2937'); cell.font.color = { argb: 'FFFFFFFF' };
-                    cell.border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: thin('FF94A3B8') };
-                } else if (colNumber <= E) {
-                    const webIndex = Math.floor((colNumber - 5) / 3);
-                    const isLastInGroup = (colNumber - 5) % 3 === 2; const isFirstInGroup = (colNumber - 5) % 3 === 0;
-                    cell.fill = solid(headerColors[webIndex % headerColors.length]); cell.font.color = { argb: 'FF0F172A' };
-                    cell.border = { top: {style:'medium'}, bottom: {style:'medium'}, right: {style: isLastInGroup ? 'medium' : 'thin', color:{argb:'FF94A3B8'}}, left: {style: isFirstInGroup ? 'medium' : 'thin', color:{argb:'FF94A3B8'}} };
-                } else {
-                    cell.fill = solid('FFDC2626'); cell.font.color = { argb: 'FFFFFFFF' };
-                    cell.border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: {style:'medium'} };
-                }
-            });
-
-            ws.views = [{ state: 'frozen', xSplit: 4, ySplit: 2 }];
-
-            const sortedEmps = Object.values(empGroups).sort((a, b) => b.totalApproved - a.totalApproved);
-            let rowIndex = 1;
-            sortedEmps.forEach((emp) => {
-                // 🌟 ต่อชื่อพนักงานด้วย (หลัก XXX) (รอง YYY) จาก duty assignment
-                let displayName = emp.name;
-                const dutyInfo = dutyAssignmentMap[emp.name.toLowerCase()];
-                if (dutyInfo) {
-                    const parts = [];
-                    if (dutyInfo.main) parts.push(`หลัก ${dutyInfo.main}`);
-                    if (dutyInfo.secondary) parts.push(`รอง ${dutyInfo.secondary}`);
-                    if (parts.length > 0) displayName = `${emp.name} (${parts.join(') (')})`;
-                }
-
-                let rowData = [ rowIndex++, displayName, emp.shift, emp.odType === 'ปกติ' ? 'UNKNOWN' : emp.odType ];
-                targetWebOrder.forEach(w => { rowData.push(emp.websData[w].approved); rowData.push(emp.websData[w].reject); rowData.push(emp.websData[w].total); });
-                rowData.push(emp.totalApproved); rowData.push(emp.totalReject); rowData.push(emp.grandTotal);
-
-                const empRow = ws.addRow(rowData);
-                empRow.eachCell((cell, colNumber) => {
-                    cell.alignment = { vertical: 'middle', horizontal: 'center' };
-                    if (colNumber <= 4) {
-                        cell.border = { top: thin('FFCBD5E1'), bottom: thin('FFCBD5E1'), left: thin('FFCBD5E1'), right: thin('FFCBD5E1') };
-                        if (colNumber === 2) { cell.font = { bold: true }; cell.alignment = { vertical: 'middle', horizontal: 'left' }; }
-                        if (colNumber === 3) shiftCellStyle(cell);
-                    } else if (colNumber <= E) {
-                        const webIndex = Math.floor((colNumber - 5) / 3); const colIdxInGroup = (colNumber - 5) % 3;
-                        cell.fill = solid(dataBgColors[webIndex % dataBgColors.length]);
-                        cell.border = { top: thin('FFCBD5E1'), bottom: thin('FFCBD5E1'), right: {style: colIdxInGroup === 2 ? 'medium' : 'thin', color:{argb:'FF94A3B8'}}, left: {style: colIdxInGroup === 0 ? 'medium' : 'thin', color:{argb:'FF94A3B8'}} };
-                        if (cell.value > 0) {
-                            if (colIdxInGroup === 0) cell.font = { color: { argb: 'FF16A34A' }, bold: true };
-                            if (colIdxInGroup === 1) cell.font = { color: { argb: 'FFDC2626' }, bold: true };
-                            if (colIdxInGroup === 2) cell.font = { color: { argb: 'FF2563EB' }, bold: true };
-                        } else { cell.font = { color: { argb: 'FF94A3B8' } }; }
-                    } else {
-                        cell.border = { top: thin('FFCBD5E1'), bottom: thin('FFCBD5E1'), left: thin('FFCBD5E1'), right: thin('FFCBD5E1') };
-                        if (colNumber === E + 3) cell.fill = solid('FFFDE047');
-                        if (cell.value > 0) {
-                            if (colNumber === E + 1) cell.font = { color: { argb: 'FF16A34A' }, bold: true };
-                            if (colNumber === E + 2) cell.font = { color: { argb: 'FFDC2626' }, bold: true };
-                            if (colNumber === E + 3) cell.font = { color: { argb: 'FF000000' }, bold: true };
-                        }
+            // ═════════ ชีต 1: สรุปรายคน ═════════
+            const ws = wb.addWorksheet('สรุปรายคน', { views: [{ showGridLines: false }] });
+            // ลำดับ | ชื่อ | กะ | หลัก | รอง | เว็บ... | สำเร็จ | ปฏิเสธ | รวม | ยอดเงิน
+            const cols = ['#', 'ชื่อพนักงาน', 'กะ', 'เว็บหลัก', 'เว็บรอง', ...webs, 'สำเร็จ', 'ปฏิเสธ', 'รวม', 'ยอดเงิน (฿)'];
+            const cW0 = 6, cOK = cW0 + webs.length, cNO = cOK + 1, cTOT = cOK + 2, cAMT = cOK + 3;
+            let r = sheetHead(ws, 'สรุปยอดทำรายการ · รายคน', cols.length);
+            headRow(ws, r, cols, { leftCols: 2, gold: [cTOT] });
+            const headerRowNo = r; r++;
+            const ORDER = ['เช้า', 'กลาง', 'ดึก', 'อิสระ', 'ไม่ระบุ'];
+            const shifts = [...new Set(empList.map(e => e.shift))].sort((a, b) => (ORDER.indexOf(a) + 1 || 99) - (ORDER.indexOf(b) + 1 || 99));
+            let no = 1;
+            const writeNums = (row, vals, bold, color) => vals.forEach(([col, v, fmt]) => { const c = row.getCell(col); c.value = v; c.numFmt = fmt || NUM; c.alignment = { horizontal: 'center', vertical: 'middle' }; c.font = { name: FONT, size: 10, bold: !!bold, color: { argb: color || C.ink } }; });
+            shifts.forEach(sh => {
+                const [bg, tx, ic] = SHIFT[sh] || SHIFT['ไม่ระบุ'];
+                const list = empList.filter(e => e.shift === sh).sort((a, b) => b.n - a.n || b.ok - a.ok);
+                const sub = list.reduce((a, e) => ({ ok: a.ok + e.ok, no: a.no + e.no, n: a.n + e.n, amt: a.amt + e.amt }), { ok: 0, no: 0, n: 0, amt: 0 });
+                // แถบชื่อกะ
+                ws.mergeCells(r, 1, r, cols.length);
+                const band = ws.getCell(r, 1);
+                band.value = `${ic}  กะ${sh === 'ไม่ระบุ' ? 'ไม่ระบุ' : sh}   ·   ${list.length} คน   ·   ${sub.n.toLocaleString()} รายการ   ·   เฉลี่ย ${(sub.n / Math.max(1, list.length)).toFixed(1)} ต่อคน`;
+                band.font = { name: FONT, size: 11, bold: true, color: { argb: tx } }; band.fill = fill(bg);
+                band.alignment = { vertical: 'middle', indent: 1 }; band.border = { left: { style: 'thick', color: { argb: tx } } };
+                ws.getRow(r).height = 24; r++;
+                list.forEach((e, i) => {
+                    const row = ws.getRow(r); row.height = 20;
+                    const d = dutyAssignmentMap[String(e.name).toLowerCase()] || {};
+                    [[1, no++], [2, e.name], [3, e.shift], [4, d.main || ''], [5, d.secondary || '']].forEach(([c, v]) => { row.getCell(c).value = v; });
+                    for (let c = 1; c <= cols.length; c++) {
+                        const cell = row.getCell(c);
+                        cell.font = { name: FONT, size: 10, color: { argb: C.ink } };
+                        cell.alignment = { horizontal: c === 2 ? 'left' : 'center', vertical: 'middle', indent: c === 2 ? 1 : 0 };
+                        cell.border = { bottom: bLine };
+                        if (i % 2 === 1) cell.fill = fill(C.zebra);
                     }
+                    row.getCell(1).font = { name: FONT, size: 9, color: { argb: C.mute } };
+                    row.getCell(2).font = { name: FONT, size: 10, bold: true, color: { argb: C.ink } };
+                    row.getCell(3).font = { name: FONT, size: 10, bold: true, color: { argb: tx } };
+                    row.getCell(4).font = { name: FONT, size: 10, bold: true, color: { argb: 'FFB45309' } };
+                    row.getCell(5).font = { name: FONT, size: 10, color: { argb: C.mute } };
+                    webs.forEach((w, j) => { const c = row.getCell(cW0 + j); c.value = (e.webs[w] || {}).n || 0; c.numFmt = NUM; c.font = { name: FONT, size: 10, color: { argb: c.value ? 'FF1D4ED8' : 'FFCBD5E1' } }; });
+                    writeNums(row, [[cOK, e.ok, NUM], [cNO, e.no, NUM]], true);
+                    row.getCell(cOK).font = { name: FONT, size: 10, bold: true, color: { argb: e.ok ? C.ok : 'FFCBD5E1' } };
+                    row.getCell(cNO).font = { name: FONT, size: 10, bold: true, color: { argb: e.no ? C.no : 'FFCBD5E1' } };
+                    const ct = row.getCell(cTOT); ct.value = e.n; ct.numFmt = NUM; ct.fill = fill(C.goldBg); ct.font = { name: FONT, size: 11, bold: true, color: { argb: C.ink } };
+                    const ca = row.getCell(cAMT); ca.value = e.amt; ca.numFmt = MONEY; ca.alignment = { horizontal: 'right', vertical: 'middle' }; ca.font = { name: FONT, size: 10, color: { argb: 'FF047857' } };
+                    r++;
                 });
+                // รวมย่อยของกะ
+                const row = ws.getRow(r); row.height = 22;
+                ws.mergeCells(r, 1, r, 5); row.getCell(1).value = `รวมกะ${sh}`;
+                row.getCell(1).alignment = { horizontal: 'right', vertical: 'middle', indent: 1 };
+                webs.forEach((w, j) => { const c = row.getCell(cW0 + j); c.value = list.reduce((a, e) => a + ((e.webs[w] || {}).n || 0), 0); c.numFmt = NUM; });
+                row.getCell(cOK).value = sub.ok; row.getCell(cNO).value = sub.no; row.getCell(cTOT).value = sub.n; row.getCell(cAMT).value = sub.amt;
+                for (let c = 1; c <= cols.length; c++) {
+                    const cell = row.getCell(c);
+                    cell.font = { name: FONT, size: 10, bold: true, color: { argb: tx } }; cell.fill = fill(bg);
+                    if (c > 5) { cell.numFmt = c === cAMT ? MONEY : NUM; cell.alignment = { horizontal: c === cAMT ? 'right' : 'center', vertical: 'middle' }; }
+                    cell.border = { top: { style: 'thin', color: { argb: tx } } };
+                }
+                r += 2;   // เว้น 1 แถวคั่นกะ
             });
-
-            // ── ตารางอ้างอิง (ย้ายมาไว้ใต้ตารางหลัก): ลำดับ | ชื่อพนักงาน | กะ | ยอดรวมของแต่ละเว็บ
-            ws.addRow([]); ws.addRow([]);
-            const refTitle = ws.addRow(['ตารางอ้างอิง — ชื่อพนักงาน / กะ / ยอดรวมแต่ละเว็บ']);
-            ws.mergeCells(refTitle.number, 1, refTitle.number, 3 + targetWebOrder.length);
-            refTitle.height = 24;
-            refTitle.getCell(1).font = { size: 13, bold: true, color: { argb: 'FFFFFFFF' } };
-            refTitle.getCell(1).fill = solid('FF1F2937');
-            refTitle.getCell(1).alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
-
-            const refHead = ws.addRow(['ลำดับ', 'ชื่อพนักงาน (อ้างอิง)', 'กะ (อ้างอิง)'].concat(targetWebOrder.map(w => `${w} (สรุปยอด)`)));
-            refHead.height = 25;
-            refHead.eachCell((cell, colNumber) => {
-                cell.font = { bold: true }; cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-                if (colNumber <= 3) { cell.fill = solid('FF1F2937'); cell.font.color = { argb: 'FFFFFFFF' }; }
-                else { cell.fill = solid(headerColors[(colNumber - 4) % headerColors.length]); cell.font.color = { argb: 'FF0F172A' }; }
-                cell.border = { top: {style:'medium'}, bottom: {style:'medium'}, left: thin('FF94A3B8'), right: thin('FF94A3B8') };
-            });
-            sortedEmps.forEach((emp, i) => {
-                const r = ws.addRow([i + 1, emp.name, emp.shift].concat(targetWebOrder.map(w => emp.websData[w].total)));
-                r.eachCell((cell, colNumber) => {
-                    cell.alignment = { vertical: 'middle', horizontal: colNumber === 2 ? 'left' : 'center' };
-                    cell.border = { top: thin('FFCBD5E1'), bottom: thin('FFCBD5E1'), left: thin('FFCBD5E1'), right: thin('FFCBD5E1') };
-                    if (colNumber === 2) cell.font = { bold: true };
-                    else if (colNumber === 3) shiftCellStyle(cell);
-                    else if (colNumber > 3) {
-                        cell.fill = solid(dataBgColors[(colNumber - 4) % dataBgColors.length]);
-                        cell.font = cell.value > 0 ? { color: { argb: 'FF2563EB' }, bold: true } : { color: { argb: 'FF94A3B8' } };
-                    }
-                });
-            });
-
-            // ความกว้างคอลัมน์: ต้องพอทั้งตารางหลักและตารางอ้างอิงด้านล่าง
-            for (let c = 1; c <= LASTCOL; c++) {
-                const col = ws.getColumn(c);
-                if (c === 1) col.width = 8;
-                else if (c === 2) col.width = 30;
-                else if (c === 3) col.width = 11;
-                else if (c === 4) col.width = 13;
-                else if (c > E) col.width = 14;
-                else col.width = 11;
+            // รวมทั้งหมด
+            {
+                const row = ws.getRow(r); row.height = 26;
+                ws.mergeCells(r, 1, r, 5); row.getCell(1).value = 'รวมทั้งหมด';
+                webs.forEach((w, j) => { row.getCell(cW0 + j).value = webTot[w].n; });
+                row.getCell(cOK).value = G.ok; row.getCell(cNO).value = G.no; row.getCell(cTOT).value = G.n; row.getCell(cAMT).value = G.amt;
+                for (let c = 1; c <= cols.length; c++) {
+                    const cell = row.getCell(c);
+                    cell.font = { name: FONT, size: 11, bold: true, color: { argb: 'FFFFFFFF' } }; cell.fill = fill(C.head);
+                    cell.alignment = { horizontal: c === 1 ? 'right' : (c === cAMT ? 'right' : 'center'), vertical: 'middle', indent: c === 1 ? 1 : 0 };
+                    if (c > 5) cell.numFmt = c === cAMT ? MONEY : NUM;
+                }
+                row.getCell(cTOT).fill = fill(C.gold); row.getCell(cTOT).font = { name: FONT, size: 12, bold: true, color: { argb: C.ink } };
             }
+            // ความกว้าง + ตรึงหัว/ชื่อ + พิมพ์พอดีหน้า
+            const widths = { 1: 5, 2: 22, 3: 8, 4: 10, 5: 10 };
+            for (let c = 1; c <= cols.length; c++) ws.getColumn(c).width = widths[c] || (c === cAMT ? 15 : (c >= cOK ? 10 : 9));
+            ws.views = [{ state: 'frozen', xSplit: 2, ySplit: headerRowNo, showGridLines: false }];
+            ws.autoFilter = { from: { row: headerRowNo, column: 1 }, to: { row: headerRowNo, column: cols.length } };
+            ws.pageSetup = { orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: `${headerRowNo}:${headerRowNo}`, margins: { left: .4, right: .4, top: .5, bottom: .5, header: .3, footer: .3 } };
+
+            // ═════════ ชีต 2: สรุปตามเว็บ ═════════
+            const w2 = wb.addWorksheet('สรุปตามเว็บ', { views: [{ showGridLines: false }] });
+            const cols2 = ['เว็บ', 'หลังบ้าน', 'รายการ', 'สำเร็จ', 'ปฏิเสธ', 'สัดส่วน', 'ยอดเงิน (฿)'];
+            let r2 = sheetHead(w2, 'สรุปยอดทำรายการ · ตามเว็บ', cols2.length);
+            headRow(w2, r2, cols2, { leftCols: 1, gold: [3] }); const h2 = r2; r2++;
+            const csys = smCustomSystems();
+            webs.slice().sort((a, b) => webTot[b].n - webTot[a].n).forEach((w, i) => {
+                const t = webTot[w], row = w2.getRow(r2); row.height = 22;
+                row.values = [w, smSystemOf(w, csys) === 'SYSTEM' ? '-' : smSystemOf(w, csys), t.n, t.ok, t.no, G.n ? t.n / G.n : 0, t.amt];
+                for (let c = 1; c <= cols2.length; c++) {
+                    const cell = row.getCell(c);
+                    cell.font = { name: FONT, size: 10, bold: c === 1 || c === 3, color: { argb: c === 4 ? C.ok : c === 5 ? C.no : c === 7 ? 'FF047857' : C.ink } };
+                    cell.alignment = { horizontal: c === 1 ? 'left' : (c === 7 ? 'right' : 'center'), vertical: 'middle', indent: c === 1 ? 1 : 0 };
+                    cell.border = { bottom: bLine }; if (i % 2) cell.fill = fill(C.zebra);
+                }
+                [3, 4, 5].forEach(c => { row.getCell(c).numFmt = NUM; }); row.getCell(6).numFmt = '0.0%'; row.getCell(7).numFmt = MONEY;
+                row.getCell(3).fill = fill(C.goldBg);
+                r2++;
+            });
+            {
+                const row = w2.getRow(r2); row.height = 24;
+                row.values = ['รวมทั้งหมด', '', G.n, G.ok, G.no, G.n ? 1 : 0, G.amt];
+                for (let c = 1; c <= cols2.length; c++) { const cell = row.getCell(c); cell.font = { name: FONT, size: 11, bold: true, color: { argb: 'FFFFFFFF' } }; cell.fill = fill(C.head); cell.alignment = { horizontal: c === 1 ? 'left' : (c === 7 ? 'right' : 'center'), vertical: 'middle', indent: c === 1 ? 1 : 0 }; }
+                [3, 4, 5].forEach(c => { row.getCell(c).numFmt = NUM; }); row.getCell(6).numFmt = '0.0%'; row.getCell(7).numFmt = MONEY;
+                row.getCell(3).fill = fill(C.gold); row.getCell(3).font = { name: FONT, size: 12, bold: true, color: { argb: C.ink } };
+            }
+            // แถบสัดส่วนในช่อง "รายการ"
+            if (webs.length) w2.addConditionalFormatting({ ref: `C${h2 + 1}:C${h2 + webs.length}`, rules: [{ type: 'dataBar', cfvo: [{ type: 'min' }, { type: 'max' }], color: { argb: 'FFE8C15A' }, gradient: false }] });
+            [18, 12, 13, 12, 12, 12, 20].forEach((wd, i) => { w2.getColumn(i + 1).width = wd; });
+            w2.pageSetup = { orientation: 'portrait', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+            w2.views = [{ state: 'frozen', ySplit: h2, showGridLines: false }];
+
+            // ═════════ ชีต 3: รายละเอียด (สำเร็จ/ปฏิเสธ/รวม แยกเว็บ) ═════════
+            const w3 = wb.addWorksheet('รายละเอียด', { views: [{ showGridLines: false }] });
+            const lastC3 = 3 + webs.length * 3 + 3;
+            let r3 = sheetHead(w3, 'รายละเอียดสำเร็จ / ปฏิเสธ แยกเว็บ', lastC3);
+            // หัว 2 ชั้น: ชื่อเว็บ (รวม 3 ช่อง) / สำเร็จ-ปฏิเสธ-รวม
+            const top = w3.getRow(r3), sub3 = w3.getRow(r3 + 1);
+            [['#', 1], ['ชื่อพนักงาน', 2], ['กะ', 3]].forEach(([v, c]) => { w3.mergeCells(r3, c, r3 + 1, c); top.getCell(c).value = v; });
+            webs.forEach((w, j) => { const c0 = 4 + j * 3; w3.mergeCells(r3, c0, r3, c0 + 2); top.getCell(c0).value = w; ['สำเร็จ', 'ปฏิเสธ', 'รวม'].forEach((v, k) => { sub3.getCell(c0 + k).value = v; }); });
+            const cT3 = 4 + webs.length * 3; w3.mergeCells(r3, cT3, r3, cT3 + 2); top.getCell(cT3).value = 'รวมทั้งหมด'; ['สำเร็จ', 'ปฏิเสธ', 'รวม'].forEach((v, k) => { sub3.getCell(cT3 + k).value = v; });
+            [top, sub3].forEach(row => { row.height = 22; for (let c = 1; c <= lastC3; c++) { const cell = row.getCell(c); cell.font = { name: FONT, size: 10, bold: true, color: { argb: 'FFFFFFFF' } }; cell.fill = fill(c >= cT3 ? 'FFB45309' : C.head); cell.alignment = { horizontal: 'center', vertical: 'middle' }; cell.border = { left: (c >= 4 && (c - 4) % 3 === 0) ? { style: 'thin', color: { argb: 'FF475569' } } : undefined }; } });
+            r3 += 2; const h3 = r3 - 1;
+            empList.slice().sort((a, b) => b.n - a.n).forEach((e, i) => {
+                const vals = [i + 1, e.name, e.shift];
+                webs.forEach(w => { const d = e.webs[w] || {}; vals.push(d.ok || 0, d.no || 0, d.n || 0); });
+                vals.push(e.ok, e.no, e.n);
+                const row = w3.getRow(r3); row.values = vals; row.height = 19;
+                for (let c = 1; c <= lastC3; c++) {
+                    const cell = row.getCell(c); const k = (c - 4) % 3;
+                    cell.alignment = { horizontal: c === 2 ? 'left' : 'center', vertical: 'middle', indent: c === 2 ? 1 : 0 };
+                    cell.font = { name: FONT, size: 10, bold: c === 2 || (c >= 4 && k === 2), color: { argb: c < 4 ? C.ink : (!cell.value ? 'FFCBD5E1' : k === 0 ? C.ok : k === 1 ? C.no : C.ink) } };
+                    if (c >= 4) cell.numFmt = NUM;
+                    cell.border = { bottom: bLine, left: (c >= 4 && k === 0) ? { style: 'thin', color: { argb: 'FFCBD5E1' } } : undefined };
+                    if (i % 2) cell.fill = fill(C.zebra);
+                    if (c >= cT3) cell.fill = fill(C.goldBg);
+                }
+                r3++;
+            });
+            for (let c = 1; c <= lastC3; c++) w3.getColumn(c).width = c === 1 ? 5 : c === 2 ? 22 : c === 3 ? 8 : 8;
+            w3.views = [{ state: 'frozen', xSplit: 3, ySplit: h3, showGridLines: false }];
+            w3.pageSetup = { orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: `${h3 - 1}:${h3}` };
 
             const buffer = await wb.xlsx.writeBuffer();
             const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
             const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            // ใส่วันที่ในชื่อไฟล์ (ตัดอักขระที่ใช้ตั้งชื่อไฟล์ไม่ได้)
-            link.href = url; link.download = `สรุปยอดรวมแต่ละเว็บ_${titleDateStr.replace(/[\\/:*?"<>|]/g, '-').slice(0, 60)}.xlsx`;
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `สรุปยอดทำรายการ_${titleDateStr.replace(/[\\/:*?"<>|]/g, '-').slice(0, 60)}.xlsx`;
             document.body.appendChild(link);
             link.click();
             link.remove();
-            setTimeout(() => URL.revokeObjectURL(url), 2000);   // ปล่อยให้เบราว์เซอร์เริ่มดาวน์โหลดก่อนค่อยคืนหน่วยความจำ
-
+            setTimeout(() => URL.revokeObjectURL(url), 2000);
             Swal.fire({ icon: 'success', title: 'ดาวน์โหลดไฟล์ Excel สำเร็จ!', timer: 1500, showConfirmButton: false });
-        } catch (error) { Swal.fire('เกิดข้อผิดพลาด', 'ดาวน์โหลด Excel ไม่สำเร็จ: ' + error.message, 'error'); }
+        } catch (error) { console.error(error); Swal.fire('เกิดข้อผิดพลาด', 'ดาวน์โหลด Excel ไม่สำเร็จ: ' + error.message, 'error'); }
     });
 };
+// "18 ตุลาคม 2569" / แบบสั้น "18 ต.ค."
+function smThaiDate(d, short) {
+    const p = String(d).split('-'); if (p.length !== 3) return d;
+    const full = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+    return short ? `${+p[2]} ${SM_TH_MON[+p[1] - 1]}` : `วันที่ ${+p[2]} ${full[+p[1] - 1]} ${+p[0] + 543}`;
+}
 
 // ⚙️ ตั้งค่าหลังบ้านของแต่ละเว็บ (ใช้จริง: ระบบอ่านไฟล์ตามค่านี้) + เพิ่มเว็บใหม่ได้เอง
 //    บันทึกลงฐานข้อมูล → ทุกคนทุกเครื่องใช้ชุดเดียวกัน
