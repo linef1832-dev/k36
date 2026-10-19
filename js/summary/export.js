@@ -129,17 +129,12 @@ window.exportSummaryToExcel = async function() {
             const wb = new ExcelJS.Workbook();
             const ws = wb.addWorksheet(`สรุปยอดแยกเว็บ`);
 
+            // ── ตารางหลัก: ลำดับ | ชื่อ | กะ | แผนก | (สำเร็จ/ปฏิเสธ/รวม ของแต่ละเว็บ) | รวมสำเร็จ | รวมปฏิเสธ | รวมทั้งสิ้น
+            // [เปลี่ยน] ตารางอ้างอิง (ชื่อ / กะ / สรุปยอดแต่ละเว็บ) เดิมอยู่ขวาสุด ต้องเลื่อนขวาไกล → ย้ายลงไปอยู่ใต้ตารางหลัก เลื่อนขึ้น-ลงอย่างเดียว
             let headers = ['ลำดับ', 'ชื่อพนักงาน', 'กะ', 'แผนก'];
-            // 1. สร้างคอลัมน์ สำเร็จ/ปฏิเสธ/รวม ของแต่ละเว็บ
             targetWebOrder.forEach(w => { headers.push(`${w} (สำเร็จ)`); headers.push(`${w} (ปฏิเสธ)`); headers.push(`${w} (รวม)`); });
-            // 2. สร้างคอลัมน์ รวมทั้งสิ้น
             headers.push('รวมสำเร็จ'); headers.push('รวมปฏิเสธ'); headers.push('รวมทั้งสิ้น');
-            
-            // ขยับช่องว่างและเพิ่มคอลัมน์อ้างอิง (ชื่อ และ กะ)
-            headers.push('', '', 'ชื่อพนักงาน (อ้างอิง)', 'กะ (อ้างอิง)');
-
-            // 3. สร้างคอลัมน์ สรุปยอด ของแต่ละเว็บ ไว้ท้ายสุด
-            targetWebOrder.forEach(w => { headers.push(`${w} (สรุปยอด)`); });
+            const LASTCOL = headers.length;   // = E + 3
 
             let titleDateStr = '';
             if (viewMode === 'preview' && window.uploadedFileDates && window.uploadedFileDates.size > 0) {
@@ -156,11 +151,21 @@ window.exportSummaryToExcel = async function() {
                 else { titleDateStr = 'ข้อมูลพรีวิว (ยังไม่ได้บันทึก)'; }
             }
 
+            const thin = (c) => ({ style: 'thin', color: { argb: c } });
+            const solid = (c) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb: c } });
+            const shiftCellStyle = (cell) => {
+                cell.font = { bold: true };
+                if (cell.value === 'เช้า') { cell.fill = solid('FFFFEDD5'); cell.font.color = { argb: 'FFEA580C' }; }
+                else if (cell.value === 'กลาง') { cell.fill = solid('FFEFF6FF'); cell.font.color = { argb: 'FF2563EB' }; }
+                else if (cell.value === 'ดึก') { cell.fill = solid('FFF3E8FF'); cell.font.color = { argb: 'FF9333EA' }; }
+                else if (cell.value === 'อิสระ' || cell.value === 'all') { cell.fill = solid('FFECFDF5'); cell.font.color = { argb: 'FF059669' }; cell.value = 'อิสระ'; }
+            };
+
             const titleRow = ws.addRow([titleDateStr]);
-            ws.mergeCells(1, 1, 1, headers.length); 
+            ws.mergeCells(1, 1, 1, LASTCOL);
             titleRow.height = 30;
             titleRow.getCell(1).font = { size: 16, bold: true, color: { argb: 'FF000000' } };
-            titleRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } }; 
+            titleRow.getCell(1).fill = solid('FFFFFF00');
             titleRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
             titleRow.getCell(1).border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: {style:'medium'} };
 
@@ -169,127 +174,109 @@ window.exportSummaryToExcel = async function() {
             const dataBgColors = ['FFF0F9FF', 'FFF0FDF4', 'FFFEF2F2', 'FFFFFBEB', 'FFFAF5FF', 'FFFFF7ED', 'FFF0FDFA', 'FFEEF2FF', 'FFFDF2F8', 'FFF8FAFC'];
 
             headerRow.eachCell((cell, colNumber) => {
-                cell.font = { bold: true }; cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                cell.font = { bold: true }; cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
                 if (colNumber <= 4) {
-                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2937' } }; 
-                    cell.font.color = { argb: 'FFFFFFFF' };
-                    cell.border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: {style:'thin', color: {argb:'FF94A3B8'}} };
-                } else if (colNumber > 4 && colNumber <= E) {
+                    cell.fill = solid('FF1F2937'); cell.font.color = { argb: 'FFFFFFFF' };
+                    cell.border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: thin('FF94A3B8') };
+                } else if (colNumber <= E) {
                     const webIndex = Math.floor((colNumber - 5) / 3);
                     const isLastInGroup = (colNumber - 5) % 3 === 2; const isFirstInGroup = (colNumber - 5) % 3 === 0;
-                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: headerColors[webIndex % headerColors.length] } };
-                    cell.font.color = { argb: 'FF0F172A' };
-                    let rightBorder = isLastInGroup ? 'medium' : 'thin'; let leftBorder = isFirstInGroup ? 'medium' : 'thin';
-                    cell.border = { top: {style:'medium'}, bottom: {style:'medium'}, right: {style:rightBorder, color:{argb:'FF94A3B8'}}, left: {style:leftBorder, color:{argb:'FF94A3B8'}} };
-                } else if (colNumber > E && colNumber <= E + 3) {
-                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDC2626' } }; 
-                    cell.font.color = { argb: 'FFFFFFFF' };
-                    cell.border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: {style:'medium'} };
-                } else if (colNumber > E + 3 && colNumber <= E + 7) {
-                    if (colNumber >= E + 6) {
-                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2937' } }; 
-                        cell.font.color = { argb: 'FFFFFFFF' };
-                        cell.border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: {style:'medium'} };
-                    }
+                    cell.fill = solid(headerColors[webIndex % headerColors.length]); cell.font.color = { argb: 'FF0F172A' };
+                    cell.border = { top: {style:'medium'}, bottom: {style:'medium'}, right: {style: isLastInGroup ? 'medium' : 'thin', color:{argb:'FF94A3B8'}}, left: {style: isFirstInGroup ? 'medium' : 'thin', color:{argb:'FF94A3B8'}} };
                 } else {
-                    const webIndex = colNumber - (E + 8);
-                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: headerColors[webIndex % headerColors.length] } };
-                    cell.font.color = { argb: 'FF0F172A' };
-                    cell.border = { top: {style:'medium'}, left: {style:'thin', color:{argb:'FF94A3B8'}}, bottom: {style:'medium'}, right: {style:'thin', color:{argb:'FF94A3B8'}} };
+                    cell.fill = solid('FFDC2626'); cell.font.color = { argb: 'FFFFFFFF' };
+                    cell.border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: {style:'medium'} };
                 }
             });
 
             ws.views = [{ state: 'frozen', xSplit: 4, ySplit: 2 }];
 
+            const sortedEmps = Object.values(empGroups).sort((a, b) => b.totalApproved - a.totalApproved);
             let rowIndex = 1;
-            Object.values(empGroups).sort((a, b) => b.totalApproved - a.totalApproved).forEach((emp) => {
-                // 🌟 [NEW] ต่อชื่อพนักงานด้วย (หลัก XXX) (รอง YYY) จาก duty assignment
+            sortedEmps.forEach((emp) => {
+                // 🌟 ต่อชื่อพนักงานด้วย (หลัก XXX) (รอง YYY) จาก duty assignment
                 let displayName = emp.name;
                 const dutyInfo = dutyAssignmentMap[emp.name.toLowerCase()];
                 if (dutyInfo) {
                     const parts = [];
                     if (dutyInfo.main) parts.push(`หลัก ${dutyInfo.main}`);
                     if (dutyInfo.secondary) parts.push(`รอง ${dutyInfo.secondary}`);
-                    if (parts.length > 0) {
-                        displayName = `${emp.name} (${parts.join(') (')})`;
-                    }
+                    if (parts.length > 0) displayName = `${emp.name} (${parts.join(') (')})`;
                 }
-                
+
                 let rowData = [ rowIndex++, displayName, emp.shift, emp.odType === 'ปกติ' ? 'UNKNOWN' : emp.odType ];
                 targetWebOrder.forEach(w => { rowData.push(emp.websData[w].approved); rowData.push(emp.websData[w].reject); rowData.push(emp.websData[w].total); });
-                rowData.push(emp.totalApproved); rowData.push(emp.totalReject); rowData.push(emp.grandTotal); 
-                
-                // เพิ่มข้อมูลอ้างอิง ชื่อพนักงาน และ กะ
-                rowData.push('', '', emp.name, emp.shift);
-
-                targetWebOrder.forEach(w => { rowData.push(emp.websData[w].total); });
+                rowData.push(emp.totalApproved); rowData.push(emp.totalReject); rowData.push(emp.grandTotal);
 
                 const empRow = ws.addRow(rowData);
-
                 empRow.eachCell((cell, colNumber) => {
                     cell.alignment = { vertical: 'middle', horizontal: 'center' };
                     if (colNumber <= 4) {
-                        cell.border = { top: {style:'thin', color:{argb:'FFCBD5E1'}}, bottom: {style:'thin', color:{argb:'FFCBD5E1'}}, left: {style:'thin', color:{argb:'FFCBD5E1'}}, right: {style:'thin', color:{argb:'FFCBD5E1'}} };
+                        cell.border = { top: thin('FFCBD5E1'), bottom: thin('FFCBD5E1'), left: thin('FFCBD5E1'), right: thin('FFCBD5E1') };
                         if (colNumber === 2) { cell.font = { bold: true }; cell.alignment = { vertical: 'middle', horizontal: 'left' }; }
-                        if (colNumber === 3) {
-                            cell.font = { bold: true };
-                            if (cell.value === 'เช้า') { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFEDD5' } }; cell.font.color = { argb: 'FFEA580C' }; } 
-                            else if (cell.value === 'กลาง') { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } }; cell.font.color = { argb: 'FF2563EB' }; } 
-                            else if (cell.value === 'ดึก') { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E8FF' } }; cell.font.color = { argb: 'FF9333EA' }; } 
-                            else if (cell.value === 'อิสระ' || cell.value === 'all') { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFECFDF5' } }; cell.font.color = { argb: 'FF059669' }; cell.value = 'อิสระ'; }
-                        }
-                    } else if (colNumber > 4 && colNumber <= E) {
-                        const webIndex = Math.floor((colNumber - 5) / 3); const colIdxInGroup = (colNumber - 5) % 3; 
-                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: dataBgColors[webIndex % dataBgColors.length] } };
-                        let rightBorder = colIdxInGroup === 2 ? 'medium' : 'thin'; let leftBorder = colIdxInGroup === 0 ? 'medium' : 'thin';
-                        cell.border = { top: {style:'thin', color:{argb:'FFCBD5E1'}}, bottom: {style:'thin', color:{argb:'FFCBD5E1'}}, right: {style:rightBorder, color:{argb:'FF94A3B8'}}, left: {style:leftBorder, color:{argb:'FF94A3B8'}} };
+                        if (colNumber === 3) shiftCellStyle(cell);
+                    } else if (colNumber <= E) {
+                        const webIndex = Math.floor((colNumber - 5) / 3); const colIdxInGroup = (colNumber - 5) % 3;
+                        cell.fill = solid(dataBgColors[webIndex % dataBgColors.length]);
+                        cell.border = { top: thin('FFCBD5E1'), bottom: thin('FFCBD5E1'), right: {style: colIdxInGroup === 2 ? 'medium' : 'thin', color:{argb:'FF94A3B8'}}, left: {style: colIdxInGroup === 0 ? 'medium' : 'thin', color:{argb:'FF94A3B8'}} };
                         if (cell.value > 0) {
-                            if (colIdxInGroup === 0) cell.font = { color: { argb: 'FF16A34A' }, bold: true }; 
-                            if (colIdxInGroup === 1) cell.font = { color: { argb: 'FFDC2626' }, bold: true }; 
-                            if (colIdxInGroup === 2) cell.font = { color: { argb: 'FF2563EB' }, bold: true }; 
+                            if (colIdxInGroup === 0) cell.font = { color: { argb: 'FF16A34A' }, bold: true };
+                            if (colIdxInGroup === 1) cell.font = { color: { argb: 'FFDC2626' }, bold: true };
+                            if (colIdxInGroup === 2) cell.font = { color: { argb: 'FF2563EB' }, bold: true };
                         } else { cell.font = { color: { argb: 'FF94A3B8' } }; }
-                    } else if (colNumber > E && colNumber <= E + 3) {
-                        cell.border = { top: {style:'thin', color:{argb:'FFCBD5E1'}}, bottom: {style:'thin', color:{argb:'FFCBD5E1'}}, left: {style:'thin', color:{argb:'FFCBD5E1'}}, right: {style:'thin', color:{argb:'FFCBD5E1'}} };
-                        if (cell.value > 0) {
-                            if (colNumber === E + 1) cell.font = { color: { argb: 'FF16A34A' }, bold: true }; 
-                            if (colNumber === E + 2) cell.font = { color: { argb: 'FFDC2626' }, bold: true }; 
-                            if (colNumber === E + 3) { cell.font = { color: { argb: 'FF000000' }, bold: true }; cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE047' } }; }
-                        } else { if (colNumber === E + 3) { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE047' } }; } }
-                    } else if (colNumber > E + 3 && colNumber <= E + 7) {
-                        if (colNumber >= E + 6) {
-                            cell.font = { bold: true }; cell.alignment = { vertical: 'middle', horizontal: colNumber === E + 6 ? 'left' : 'center' };
-                            cell.border = { top: {style:'thin', color:{argb:'FFCBD5E1'}}, bottom: {style:'thin', color:{argb:'FFCBD5E1'}}, left: {style:'thin', color:{argb:'FFCBD5E1'}}, right: {style:'thin', color:{argb:'FFCBD5E1'}} };
-                            
-                            // ใส่สีให้คอลัมน์กะอ้างอิง (คอลัมน์ที่ 41)
-                            if (colNumber === E + 7) {
-                                if (cell.value === 'เช้า') { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFEDD5' } }; cell.font.color = { argb: 'FFEA580C' }; } 
-                                else if (cell.value === 'กลาง') { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } }; cell.font.color = { argb: 'FF2563EB' }; } 
-                                else if (cell.value === 'ดึก') { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E8FF' } }; cell.font.color = { argb: 'FF9333EA' }; } 
-                                else if (cell.value === 'อิสระ' || cell.value === 'all') { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFECFDF5' } }; cell.font.color = { argb: 'FF059669' }; cell.value = 'อิสระ'; }
-                            }
-                        }
                     } else {
-                        const webIndex = colNumber - (E + 8);
-                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: dataBgColors[webIndex % dataBgColors.length] } };
-                        cell.border = { top: {style:'thin', color:{argb:'FFCBD5E1'}}, bottom: {style:'thin', color:{argb:'FFCBD5E1'}}, left: {style:'thin', color:{argb:'FF94A3B8'}}, right: {style:'thin', color:{argb:'FF94A3B8'}} };
-                        if (cell.value > 0) cell.font = { color: { argb: 'FF2563EB' }, bold: true }; 
-                        else cell.font = { color: { argb: 'FF94A3B8' } }; 
+                        cell.border = { top: thin('FFCBD5E1'), bottom: thin('FFCBD5E1'), left: thin('FFCBD5E1'), right: thin('FFCBD5E1') };
+                        if (colNumber === E + 3) cell.fill = solid('FFFDE047');
+                        if (cell.value > 0) {
+                            if (colNumber === E + 1) cell.font = { color: { argb: 'FF16A34A' }, bold: true };
+                            if (colNumber === E + 2) cell.font = { color: { argb: 'FFDC2626' }, bold: true };
+                            if (colNumber === E + 3) cell.font = { color: { argb: 'FF000000' }, bold: true };
+                        }
                     }
                 });
             });
 
-            ws.columns.forEach((col, index) => {
-                if (index === 0) col.width = 8; 
-                else if (index === 1) col.width = 25; 
-                else if (index === 2) col.width = 10; 
-                else if (index === 3) col.width = 12; 
-                else if (index >= E && index < E + 3) col.width = 15; 
-                else if (index === E + 3 || index === E + 4) col.width = 5; 
-                else if (index === E + 5) col.width = 25; 
-                else if (index === E + 6) col.width = 12; 
-                else if (index >= E + 7) col.width = 16; 
-                else col.width = 11; 
+            // ── ตารางอ้างอิง (ย้ายมาไว้ใต้ตารางหลัก): ลำดับ | ชื่อพนักงาน | กะ | ยอดรวมของแต่ละเว็บ
+            ws.addRow([]); ws.addRow([]);
+            const refTitle = ws.addRow(['ตารางอ้างอิง — ชื่อพนักงาน / กะ / ยอดรวมแต่ละเว็บ']);
+            ws.mergeCells(refTitle.number, 1, refTitle.number, 3 + targetWebOrder.length);
+            refTitle.height = 24;
+            refTitle.getCell(1).font = { size: 13, bold: true, color: { argb: 'FFFFFFFF' } };
+            refTitle.getCell(1).fill = solid('FF1F2937');
+            refTitle.getCell(1).alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+
+            const refHead = ws.addRow(['ลำดับ', 'ชื่อพนักงาน (อ้างอิง)', 'กะ (อ้างอิง)'].concat(targetWebOrder.map(w => `${w} (สรุปยอด)`)));
+            refHead.height = 25;
+            refHead.eachCell((cell, colNumber) => {
+                cell.font = { bold: true }; cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                if (colNumber <= 3) { cell.fill = solid('FF1F2937'); cell.font.color = { argb: 'FFFFFFFF' }; }
+                else { cell.fill = solid(headerColors[(colNumber - 4) % headerColors.length]); cell.font.color = { argb: 'FF0F172A' }; }
+                cell.border = { top: {style:'medium'}, bottom: {style:'medium'}, left: thin('FF94A3B8'), right: thin('FF94A3B8') };
             });
+            sortedEmps.forEach((emp, i) => {
+                const r = ws.addRow([i + 1, emp.name, emp.shift].concat(targetWebOrder.map(w => emp.websData[w].total)));
+                r.eachCell((cell, colNumber) => {
+                    cell.alignment = { vertical: 'middle', horizontal: colNumber === 2 ? 'left' : 'center' };
+                    cell.border = { top: thin('FFCBD5E1'), bottom: thin('FFCBD5E1'), left: thin('FFCBD5E1'), right: thin('FFCBD5E1') };
+                    if (colNumber === 2) cell.font = { bold: true };
+                    else if (colNumber === 3) shiftCellStyle(cell);
+                    else if (colNumber > 3) {
+                        cell.fill = solid(dataBgColors[(colNumber - 4) % dataBgColors.length]);
+                        cell.font = cell.value > 0 ? { color: { argb: 'FF2563EB' }, bold: true } : { color: { argb: 'FF94A3B8' } };
+                    }
+                });
+            });
+
+            // ความกว้างคอลัมน์: ต้องพอทั้งตารางหลักและตารางอ้างอิงด้านล่าง
+            for (let c = 1; c <= LASTCOL; c++) {
+                const col = ws.getColumn(c);
+                if (c === 1) col.width = 8;
+                else if (c === 2) col.width = 30;
+                else if (c === 3) col.width = 11;
+                else if (c === 4) col.width = 13;
+                else if (c > E) col.width = 14;
+                else col.width = 11;
+            }
 
             const buffer = await wb.xlsx.writeBuffer();
             const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });

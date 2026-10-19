@@ -583,6 +583,7 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                             row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
                                 let val = cell.value;
                                 if (val && typeof val === 'object' && val.text) val = val.text;
+                                else if (val && typeof val === 'object' && 'result' in val) val = val.result;   // ช่องที่เป็นสูตร → ใช้ค่าผลลัพธ์
                                 if (val && val instanceof Date) {
                                     const offset = val.getTimezoneOffset() * 60000;
                                     const localDate = new Date(val - offset);
@@ -598,6 +599,13 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                     }
 
                     // ชื่อเว็บที่ระบบรู้จัก (รวมเว็บใหม่จากหน้าตั้งค่า) เรียงชื่อยาวก่อน
+                    // [แก้] หลังบ้านบางระบบส่งข้อความในรูป ="odolstorm" (กัน Excel แปลงค่า) → ชื่อพนักงานกลายเป็น ="odolstorm
+                    //      แยกเป็นคนใหม่ ยอดไม่เข้าคนจริง (STORM) → ล้างให้เหลือแค่ข้อความข้างใน
+                    parsedRowsData = parsedRowsData.map(row => (row || []).map(c => {
+                        const t = String(c == null ? '' : c).trim();
+                        return /^=\s*"?[^=]/.test(t) && !/^=\s*[\d(+-]/.test(t) ? t.replace(/^=\s*"?/, '').replace(/"$/, '') : t;
+                    }));
+
                     const webNameMap = {};
                     smWebList().slice().sort((a, b) => b.length - a.length).forEach(w => { webNameMap[w.toLowerCase()] = w; });
                     let colMap = { amount: -1, status: -1, emp: -1, web: -1 };
