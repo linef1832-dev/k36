@@ -292,8 +292,12 @@ window.exportSummaryToExcel = async function() {
             const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
             const url = URL.createObjectURL(blob);
             const link = document.createElement("a");
-            link.href = url; link.download = `สรุปยอดรวมแต่ละเว็บ_${titleDateStr.replace(/[\\/:*?"<>|]/g, '-').slice(0, 60)}.xlsx`;   // ใส่วันที่ในชื่อไฟล์ document.body.appendChild(link);
-            link.click(); document.body.removeChild(link); URL.revokeObjectURL(url);
+            // ใส่วันที่ในชื่อไฟล์ (ตัดอักขระที่ใช้ตั้งชื่อไฟล์ไม่ได้)
+            link.href = url; link.download = `สรุปยอดรวมแต่ละเว็บ_${titleDateStr.replace(/[\\/:*?"<>|]/g, '-').slice(0, 60)}.xlsx`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 2000);   // ปล่อยให้เบราว์เซอร์เริ่มดาวน์โหลดก่อนค่อยคืนหน่วยความจำ
 
             Swal.fire({ icon: 'success', title: 'ดาวน์โหลดไฟล์ Excel สำเร็จ!', timer: 1500, showConfirmButton: false });
         } catch (error) { Swal.fire('เกิดข้อผิดพลาด', 'ดาวน์โหลด Excel ไม่สำเร็จ: ' + error.message, 'error'); }
