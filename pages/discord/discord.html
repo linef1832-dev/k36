@@ -86,6 +86,7 @@
             <button onclick="switchDiscordTab('voicelog')" id="tabDsVoicelog" class="ds-tab" style="--acc:#f59e0b"><span class="tab-chip"><span class="material-icons">history</span></span> เข้า/ออกดิส</button>
             <button onclick="switchDiscordTab('breaktrack')" id="tabDsBreaktrack" class="ds-tab" style="--acc:#10b981"><span class="tab-chip"><span class="material-icons">coffee</span></span> เช็คอิน</button>
             <button onclick="switchDiscordTab('ttsvoice')" id="tabDsTtsvoice" class="ds-tab" style="--acc:#0ea5e9"><span class="tab-chip"><span class="material-icons">campaign</span></span> ศูนย์เสียง</button>
+            <button onclick="switchDiscordTab('chatcount')" id="tabDsChatcount" class="ds-tab" style="--acc:#0ea5e9;display:none"><span class="tab-chip"><span class="material-icons">forum</span></span> นับแชท</button>
         </div>
         <button onclick="showPage('dashboard')" class="ds-close"><span class="material-icons" style="font-size:15px">close</span> ปิด</button>
     </div>
@@ -525,6 +526,9 @@
         </div>
       </div>
       <!-- ===== จบ TAB เช็คอิน ===== -->
+
+        <!-- 📊 นับแชท — เนื้อหาวาดโดย js/discord/chatcount.js -->
+        <div id="dsContent_chatcount" class="max-w-6xl mx-auto hidden fade-in pb-16"></div>
         <!-- 🔊 ศูนย์ควบคุมเสียงแจ้งเตือน (พรีเมียม) -->
         <div id="dsContent_ttsvoice" class="max-w-5xl mx-auto hidden fade-in pb-16">
 
