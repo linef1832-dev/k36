@@ -851,29 +851,63 @@ window.debounceRenderSummary = function() {
 };
 
 // 📅 ปุ่มเลือกวันที่ (ใช้ทั้งตอนยังไม่มีข้อมูล และตอนดูย้อนหลัง) — เดิมเขียนซ้ำ 2 ที่
+const SM_TH_WD = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
+const SM_TH_MON = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
 function _buildSummaryDatesHtml() {
     let datesHtml = '';
-    if (window.availableSummaryDates && window.availableSummaryDates.length > 0) {
-        let btns = window.availableSummaryDates.map(d => {
+    const list = window.availableSummaryDates || [];
+    if (list.length > 0) {
+        const sel = window.selectedSummaryDates;
+        let btns = list.map((d, i) => {
                 const [y, m, day] = d.split('-');
+                const wd = new Date(+y, +m - 1, +day).getDay();
                 return getTpl('tpl-date-button', {
                         d: d, day: day, m: m, year: y,
-                        cardClass: window.selectedSummaryDates.has(d) ? 'on' : '',
-                        iconClass: window.selectedSummaryDates.has(d) ? 'text-white' : 'text-gray-500',
-                        textClass: window.selectedSummaryDates.has(d) ? 'text-white' : 'text-gray-300',
-                        checkIcon: window.selectedSummaryDates.has(d) ? 'check_circle' : 'radio_button_unchecked'
+                        dnum: +day, wd: SM_TH_WD[wd], mon: SM_TH_MON[+m - 1],
+                        latest: i === 0 ? '<span class="sm-dlatest">ล่าสุด</span>' : '',
+                        cardClass: (sel.has(d) ? 'on ' : '') + ((wd === 0 || wd === 6) ? 'we' : ''),
+                        checkIcon: sel.has(d) ? 'check_circle' : 'radio_button_unchecked'
                 });
         }).join('');
+        const n = sel.size;
+        // ป้ายบอกว่าเลือกช่วงไหนอยู่ (ปุ่มลัดติดสถานะเลือก)
+        const isRecent = (k) => n === Math.min(k, list.length) && list.slice(0, k).every(d => sel.has(d));
         datesHtml = getTpl('tpl-date-selector-container', {
                 datesHtml: btns,
-                selectedCount: window.selectedSummaryDates.size,
-                disabledAttr: window.selectedSummaryDates.size === 0 ? 'disabled' : ''
+                selectedCount: n,
+                viewLabel: n > 1 ? `ดูยอดรวม ${n} วัน` : 'ดูยอด',
+                q1: isRecent(1) ? 'on' : '', q3: isRecent(3) ? 'on' : '', q7: isRecent(7) ? 'on' : '', qall: (n > 7 && isRecent(list.length)) ? 'on' : '',
+                disabledAttr: n === 0 ? 'disabled' : ''
         });
     } else {
         datesHtml = '<div class="sm-empty-s">ยังไม่มียอดที่บันทึกไว้ — อัปโหลดไฟล์ทางขวาแล้วกดบันทึก</div>';
     }
     return datesHtml;
 }
+// ปุ่มลัด: เลือก n วันล่าสุด ('all' = ทั้งหมดที่แสดง)
+window.smPickRecent = function(n) {
+    const list = window.availableSummaryDates || [];
+    window.selectedSummaryDates = new Set(n === 'all' ? list : list.slice(0, n));
+    window.renderDateSelector();
+};
+// ดูยอดที่เลือก: วันเดียว → ดูแบบรายวัน (เทียบเมื่อวานได้), หลายวัน → รวมหลายวัน
+window.smViewSelected = function() {
+    const ds = [...(window.selectedSummaryDates || [])].sort();
+    if (ds.length === 0) return;
+    if (ds.length === 1) {
+        document.getElementById('summaryDateFilter').value = ds[0];
+        return window.fetchHistoricalSummary();
+    }
+    return window.fetchMultipleHistoricalSummary();
+};
+// ทางลัดจากกล่องว่าง: เปิดยอดวันล่าสุดทันที
+window.smOpenLatest = function() {
+    const d = (window.availableSummaryDates || [])[0];
+    if (!d) return Swal.fire('ยังไม่มียอดที่บันทึกไว้', 'อัปโหลดไฟล์ Excel แล้วกดบันทึกก่อนครับ', 'info');
+    window.selectedSummaryDates = new Set([d]);
+    document.getElementById('summaryDateFilter').value = d;
+    window.fetchHistoricalSummary();
+};
 
 window.renderSummaryDashboard = function() {
     if (typeof SETTINGS !== 'undefined' && SETTINGS['summary_web_logos']) {
@@ -898,7 +932,15 @@ window.renderSummaryDashboard = function() {
 
     if (!hasData) {
         if(mainBox) mainBox.innerHTML = '<div class="sm-noemp"><span class="material-icons">inventory_2</span>เลือกวันที่ หรืออัปโหลดไฟล์ในขั้นที่ 1</div>';
-        if(statsBox) statsBox.innerHTML = '<div class="sm-kpi-empty"><span class="material-icons">hourglass_empty</span>ยังไม่มีข้อมูล — เลือกวันที่หรืออัปโหลดไฟล์ในขั้นที่ 1</div>';
+        if(statsBox) statsBox.innerHTML = `<div class="sm-kpi-empty">
+            <span class="sm-ke-ic"><span class="material-icons">insights</span></span>
+            <div class="sm-ke-t">ยังไม่ได้เปิดข้อมูล</div>
+            <div class="sm-ke-s">เปิดยอดวันล่าสุดได้ในคลิกเดียว หรือเลือกวัน/อัปโหลดไฟล์ในขั้นที่ 1</div>
+            <div class="sm-ke-a">
+                <button onclick="smOpenLatest()" class="sm-btn primary"><span class="material-icons">bolt</span>เปิดยอดวันล่าสุด</button>
+                <button onclick="document.querySelector('#summaryApp .sm-ups').scrollIntoView({behavior:'smooth',block:'center'})" class="sm-btn"><span class="material-icons">upload_file</span>อัปโหลดไฟล์</button>
+            </div>
+        </div>`;
         
     } else {
         let shiftStats = { 'กะเช้า': 0, 'กะกลาง': 0, 'กะดึก': 0, 'UNKNOWN': 0, 'TOTAL': 0, 'TOTAL_YEST': 0, 'APPROVED': 0, 'REJECT': 0 };
@@ -1062,8 +1104,15 @@ window.renderSummaryDashboard = function() {
             });
         }
 
-        if (Object.keys(webAgg).length > 0) {
-            webBox.innerHTML = Object.keys(webAgg).map(web => {
+        // ยังไม่มีข้อมูล → ไม่ต้องโชว์การ์ดเว็บที่เป็น 0 ทั้งแถบ (รก)
+        const webHead = document.getElementById('smWebsHead');
+        if (webHead) webHead.style.display = hasData ? '' : 'none';
+        webBox.style.display = hasData ? '' : 'none';
+        const webTotal = Object.values(webAgg).reduce((a, w) => a + w.count, 0);
+        const webMax = Math.max(1, ...Object.values(webAgg).map(w => w.count));
+        const webOrder = Object.keys(webAgg).sort((a, b) => webAgg[b].count - webAgg[a].count);   // ยอดมากอยู่หน้า เว็บที่เป็น 0 ไปท้าย
+        if (hasData && webOrder.length > 0) {
+            webBox.innerHTML = webOrder.map(web => {
                 const w = webAgg[web];
                 const defaultImg = `https://ui-avatars.com/api/?name=${web}&background=random&color=fff&size=256`;
                 const imgUrl = safeWebLogos[web] ? safeWebLogos[web] : defaultImg;
@@ -1076,10 +1125,12 @@ window.renderSummaryDashboard = function() {
                     countColor: w.count > 0 ? 'text-sky-400' : 'text-gray-500',
                     count: w.count.toLocaleString(),
                     amountColor: w.amount > 0 ? 'text-emerald-400 bg-[#0b1120] border-emerald-900/50' : 'text-gray-500 bg-slate-800 border-slate-700',
-                    amount: w.amount.toLocaleString('en-US', {minimumFractionDigits: 2})
+                    amount: w.amount.toLocaleString('en-US', {minimumFractionDigits: 2}),
+                    pct: Math.round(w.count / webMax * 100),
+                    share: (webTotal && w.count) ? (w.count / webTotal * 100).toFixed(w.count / webTotal < 0.1 ? 1 : 0) : '0'
                 });
             }).join('');
-        }
+        } else { webBox.innerHTML = ''; }
     }
     smSyncSource();
 };

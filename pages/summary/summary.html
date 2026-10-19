@@ -50,18 +50,6 @@
 #summaryApp .sm-pick>div+div{border-left:1px solid var(--k-line)}
 #summaryApp .sm-sub{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:900;color:var(--k-tx-strong);margin-bottom:11px}
 #summaryApp .sm-sub .material-icons{color:var(--k-mute)}
-#summaryApp .sm-dates-row{display:flex;flex-wrap:wrap;gap:7px}
-#summaryApp .sm-dchip{position:relative;display:inline-flex;align-items:stretch;border-radius:11px;border:1px solid var(--k-line3);background:var(--k-field);transition:border-color .15s,background .15s}
-#summaryApp .sm-dchip:hover{border-color:var(--k-line4)}
-#summaryApp .sm-dchip>button:first-child{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 12px 0 9px;font-size:13px;font-weight:800;color:var(--k-tx2);font-variant-numeric:tabular-nums}
-#summaryApp .sm-dchip>button:first-child .material-icons{font-size:17px;color:var(--k-mute2)}
-#summaryApp .sm-dchip small{font-size:10.5px;color:var(--k-mute);font-weight:700}
-#summaryApp .sm-dchip.on{border-color:var(--g);background:rgba(232,193,90,.14);box-shadow:inset 0 0 0 1px var(--g)}
-#summaryApp .sm-dchip.on>button:first-child{color:var(--k-tx-strong)}
-#summaryApp .sm-dchip.on>button:first-child .material-icons{color:var(--k-gold-tx)}
-#summaryApp .sm-dchip .sm-ddel{position:absolute;top:-7px;right:-7px;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#ef4444;color:#fff;opacity:0;transform:scale(.8);transition:opacity .15s,transform .15s;box-shadow:0 2px 8px rgba(0,0,0,.3)}
-#summaryApp .sm-dchip:hover .sm-ddel{opacity:1;transform:scale(1)}
-#summaryApp .sm-dchip .sm-ddel .material-icons{font-size:12px}
 #summaryApp .sm-dates-foot{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px dashed var(--k-line2)}
 #summaryApp .sm-dates-cnt{font-size:12.5px;font-weight:800;color:var(--k-mute);margin-left:auto}
 #summaryApp .sm-dates-cnt b{color:var(--k-gold-tx);font-size:15px}
@@ -75,6 +63,60 @@
 #summaryApp .sm-dcta{margin-left:auto;font-size:11.5px;font-weight:800;color:var(--c);display:flex;align-items:center;gap:4px;white-space:nowrap}
 #summaryApp .sm-dcta .material-icons{font-size:15px}
 
+/* ชิปวันที่แบบปฏิทิน */
+#summaryApp .sm-quick{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:11px}
+#summaryApp .sm-quick-l{font-size:11.5px;font-weight:800;color:var(--k-mute2);margin-right:2px}
+#summaryApp .sm-qb{height:30px;padding:0 12px;border-radius:999px;font-size:12px;font-weight:800;color:var(--k-tx3);background:var(--k-field);border:1px solid var(--k-line2);transition:background .15s,border-color .15s,color .15s}
+#summaryApp .sm-qb:hover{border-color:var(--k-line4);color:var(--k-tx-strong)}
+#summaryApp .sm-qb.on{background:rgba(232,193,90,.15);border-color:var(--g);color:var(--k-gold-tx)}
+#summaryApp .sm-dates-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:7px}
+#summaryApp .sm-dchip{position:relative}
+#summaryApp .sm-dchip>button:first-child{position:relative;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:7px 4px 8px;border-radius:13px;border:1px solid var(--k-line2);background:var(--k-field);transition:border-color .15s,background .15s,transform .1s;line-height:1.15}
+#summaryApp .sm-dchip>button:first-child:hover{border-color:var(--k-line4);transform:translateY(-1px)}
+#summaryApp .sm-dwd{font-size:10.5px;font-weight:800;color:var(--k-mute)}
+#summaryApp .sm-dnum{font-size:21px;font-weight:900;color:var(--k-tx-strong);font-variant-numeric:tabular-nums;margin:1px 0}
+#summaryApp .sm-dmon{font-size:10.5px;font-weight:800;color:var(--k-mute)}
+#summaryApp .sm-dchip.we .sm-dwd{color:#f87171}
+#summaryApp .sm-dchk{position:absolute;top:5px;right:5px;width:16px;height:16px;border-radius:50%;font-size:12px !important;display:none;align-items:center;justify-content:center;background:var(--g);color:var(--gi)}
+#summaryApp .sm-dlatest{position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);font-size:9px;font-weight:900;padding:1px 6px;border-radius:999px;background:#38bdf8;color:#04121c;white-space:nowrap}
+#summaryApp .sm-dchip.on>button:first-child{border-color:var(--g);background:linear-gradient(180deg,rgba(232,193,90,.2),rgba(232,193,90,.06));box-shadow:inset 0 0 0 1px var(--g),0 6px 16px rgba(232,193,90,.15)}
+#summaryApp .sm-dchip.on .sm-dnum{color:var(--k-gold-tx)}
+#summaryApp .sm-dchip.on .sm-dchk{display:flex}
+#summaryApp .sm-dchip .sm-ddel{position:absolute;top:-7px;left:-7px;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#ef4444;color:#fff;opacity:0;transform:scale(.8);transition:opacity .15s,transform .15s;box-shadow:0 2px 8px rgba(0,0,0,.3);z-index:2}
+#summaryApp .sm-dchip:hover .sm-ddel{opacity:1;transform:scale(1)}
+#summaryApp .sm-dchip .sm-ddel .material-icons{font-size:12px}
+/* กล่องว่างของยอดรวม */
+#summaryApp .sm-kpi-empty{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px;padding:26px 16px;border-radius:16px;border:1px dashed var(--k-line3);background:radial-gradient(120% 100% at 50% 0%,rgba(232,193,90,.07),transparent 60%)}
+#summaryApp .sm-ke-ic{width:52px;height:52px;border-radius:16px;display:flex;align-items:center;justify-content:center;background:rgba(232,193,90,.14);color:var(--k-gold-tx);margin-bottom:4px}
+#summaryApp .sm-ke-ic .material-icons{font-size:28px}
+#summaryApp .sm-ke-t{font-size:16px;font-weight:900;color:var(--k-tx-strong)}
+#summaryApp .sm-ke-s{font-size:12.5px;font-weight:700;color:var(--k-mute)}
+#summaryApp .sm-ke-a{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px}
+/* การ์ดเว็บ */
+#summaryApp .sm-webs-h{display:flex;align-items:center;gap:8px;padding:0 16px 9px;font-size:12.5px;font-weight:900;color:var(--k-tx3)}
+#summaryApp .sm-webs-h .sm-tip{font-weight:700}
+#summaryApp #summaryWebGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:9px;padding:0 16px 16px}
+#summaryApp .sm-web{position:relative;display:flex;flex-direction:column;gap:6px;padding:11px 12px 12px;border-radius:14px;background:var(--k-panel2);border:1px solid var(--k-line);cursor:pointer;text-align:left;transition:border-color .15s,background .15s,transform .1s,box-shadow .15s;min-width:0}
+#summaryApp .sm-web:hover{border-color:var(--k-line4);transform:translateY(-1px);box-shadow:0 8px 20px rgba(0,0,0,.18)}
+#summaryApp .sm-web:active{transform:scale(.98)}
+#summaryApp .sm-web.on{border-color:var(--g);background:linear-gradient(180deg,rgba(232,193,90,.12),var(--k-panel2));box-shadow:inset 0 0 0 1px var(--g)}
+#summaryApp .sm-web-top{display:flex;align-items:center;gap:9px;min-width:0}
+#summaryApp .sm-web-logo{width:34px;height:34px;border-radius:10px;background:#fff;display:flex;align-items:center;justify-content:center;flex:none;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+#summaryApp .sm-web-logo img{max-width:100%;max-height:100%;object-fit:contain}
+#summaryApp .sm-web-b{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.2}
+#summaryApp .sm-web-n{font-size:13.5px;font-weight:900;color:var(--k-tx-strong);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#summaryApp .sm-web-sys{font-size:9.5px;font-weight:900;color:var(--k-mute);letter-spacing:.4px}
+#summaryApp .sm-web-share{font-size:11.5px;font-weight:900;padding:2px 8px;border-radius:999px;background:var(--k-sunk);color:var(--k-tx3);border:1px solid var(--k-line);font-variant-numeric:tabular-nums}
+#summaryApp .sm-web-c{display:flex;align-items:baseline;gap:5px;font-size:24px;font-weight:900;color:var(--k-tx-strong);font-variant-numeric:tabular-nums;line-height:1.1;margin-top:2px}
+#summaryApp .sm-web-c small{font-size:11px;font-weight:700;color:var(--k-mute)}
+#summaryApp .sm-web-bar{height:5px;border-radius:99px;background:var(--k-sunk);overflow:hidden}
+#summaryApp .sm-web-bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#E8C15A,#f59e0b)}
+#summaryApp .sm-web-a{font-size:12px;font-weight:800;color:var(--k-green-tx);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#summaryApp .sm-web.zero{opacity:.5}
+#summaryApp .sm-web.zero .sm-web-c,#summaryApp .sm-web.zero .sm-web-a{color:var(--k-mute2)}
+#summaryApp .sm-web-chk{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--g);color:var(--gi);display:none;align-items:center;justify-content:center}
+#summaryApp .sm-web.on .sm-web-chk{display:flex}
+#summaryApp .sm-web-chk .material-icons{font-size:14px}
 /* ② ยอดรวม */
 #summaryApp #shiftSummaryStats{display:grid;grid-template-columns:1.5fr repeat(3,1fr);gap:10px;padding:14px 16px}
 #summaryApp .sm-kpi{min-width:0;padding:12px 14px;border-radius:14px;background:var(--k-panel2);border:1px solid var(--k-line)}
@@ -84,28 +126,6 @@
 #summaryApp .sm-kpi.main{border-color:rgba(232,193,90,.45);background:linear-gradient(135deg,rgba(232,193,90,.12),var(--k-panel2) 70%)}
 #summaryApp .sm-kpi.main .v{color:var(--k-gold-tx);font-size:32px}
 #summaryApp .sm-kpi .dot{width:9px;height:9px;border-radius:99px;display:inline-block}
-#summaryApp .sm-kpi-empty{grid-column:1/-1;display:flex;align-items:center;justify-content:center;gap:8px;padding:18px;border-radius:14px;border:1px dashed var(--k-line3);color:var(--k-mute2);font-size:13px;font-weight:700}
-#summaryApp .sm-webs-h{display:flex;align-items:center;gap:8px;padding:0 16px 8px;font-size:12.5px;font-weight:900;color:var(--k-tx3)}
-#summaryApp .sm-webs-h .sm-tip{font-weight:700}
-#summaryApp #summaryWebGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;padding:0 16px 16px}
-#summaryApp .sm-web{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:13px;background:var(--k-panel2);border:1px solid var(--k-line);cursor:pointer;text-align:left;transition:border-color .15s,background .15s,transform .1s;position:relative;min-width:0}
-#summaryApp .sm-web:hover{border-color:var(--k-line4)}
-#summaryApp .sm-web:active{transform:scale(.98)}
-#summaryApp .sm-web.on{border-color:var(--g);background:rgba(232,193,90,.1);box-shadow:inset 0 0 0 1px var(--g)}
-#summaryApp .sm-web-logo{width:40px;height:40px;border-radius:11px;background:#fff;display:flex;align-items:center;justify-content:center;flex:none;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.2)}
-#summaryApp .sm-web-logo img{max-width:100%;max-height:100%;object-fit:contain}
-#summaryApp .sm-web-b{flex:1;min-width:0}
-#summaryApp .sm-web-n{display:flex;align-items:center;gap:6px;font-size:13.5px;font-weight:900;color:var(--k-tx-strong)}
-#summaryApp .sm-web-sys{font-size:9.5px;font-weight:900;padding:1px 6px;border-radius:5px;background:var(--k-sunk);color:var(--k-mute);border:1px solid var(--k-line)}
-#summaryApp .sm-web-v{display:flex;align-items:baseline;justify-content:space-between;gap:6px;margin-top:2px}
-#summaryApp .sm-web-c{font-size:16px;font-weight:900;color:var(--k-tx-strong);font-variant-numeric:tabular-nums}
-#summaryApp .sm-web-c small{font-size:10.5px;font-weight:700;color:var(--k-mute)}
-#summaryApp .sm-web-a{font-size:11.5px;font-weight:800;color:var(--k-green-tx);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#summaryApp .sm-web.zero .sm-web-c,#summaryApp .sm-web.zero .sm-web-a{color:var(--k-mute2)}
-#summaryApp .sm-web.zero .sm-web-logo{opacity:.55}
-#summaryApp .sm-web-chk{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--g);color:var(--gi);display:none;align-items:center;justify-content:center}
-#summaryApp .sm-web.on .sm-web-chk{display:flex}
-#summaryApp .sm-web-chk .material-icons{font-size:14px}
 
 /* ③ รายบุคคล + อันดับ */
 #summaryApp .sm-split{display:grid;grid-template-columns:minmax(0,8fr) minmax(0,4fr);gap:14px}
@@ -169,7 +189,7 @@
 #leaderboardMonth{color:var(--k-gold-tx) !important;text-shadow:none !important;color-scheme:light dark}
 @media (max-width:1100px){ #summaryApp .sm-split{grid-template-columns:1fr} #summaryApp .sm-pick{grid-template-columns:1fr} #summaryApp .sm-pick>div+div{border-left:0;border-top:1px solid var(--k-line)} }
 @media (max-width:760px){ #summaryApp #shiftSummaryStats{grid-template-columns:1fr 1fr} #summaryApp .sm-kpi.main{grid-column:1/-1} }
-@media (max-width:640px){ #summaryApp .sm-body{padding:12px} #summaryApp .sm-head{padding:12px} #summaryApp .sm-head .sm-btn>span:not(.material-icons){display:none} #summaryApp .sm-src-acts{width:100%} #summaryApp .sm-src-acts .sm-btn{flex:1} #summaryApp #summaryWebGrid{grid-template-columns:1fr 1fr} }
+@media (max-width:640px){ #summaryApp .sm-body{padding:12px} #summaryApp .sm-head{padding:12px} #summaryApp .sm-head .sm-btn>span:not(.material-icons){display:none} #summaryApp .sm-src-acts{width:100%} #summaryApp .sm-src-acts .sm-btn{flex:1} #summaryApp #summaryWebGrid{grid-template-columns:1fr 1fr} #summaryApp .sm-dates-row{grid-template-columns:repeat(auto-fill,minmax(54px,1fr))} }
 @media (prefers-reduced-motion:reduce){ #summaryApp .sm-btn,#summaryApp .sm-drop,#summaryApp .sm-web{transition:none} }
 </style>
 <div id="summaryApp" class="k-auto-light fade-in flex flex-col h-full relative rounded-2xl overflow-hidden">
@@ -236,10 +256,10 @@
             <section class="sm-panel">
                 <div class="sm-ph"><div class="sm-h"><span class="sm-n">2</span>ยอดรวม</div></div>
                 <div id="shiftSummaryStats">
-                    <div class="sm-kpi-empty"><span class="material-icons">hourglass_empty</span>ยังไม่มีข้อมูล — เลือกวันที่หรืออัปโหลดไฟล์ในขั้นที่ 1</div>
+                    <div class="sm-kpi-empty"><span class="sm-ke-ic"><span class="material-icons">insights</span></span><div class="sm-ke-t">กำลังโหลด…</div></div>
                 </div>
-                <div class="sm-webs-h"><span class="material-icons" style="color:var(--k-mute)">language</span>แยกตามเว็บ <span class="sm-tip">· กดเว็บเพื่อกรองรายบุคคล กดซ้ำเพื่อดูทั้งหมด</span></div>
-                <div id="summaryWebGrid"></div>
+                <div class="sm-webs-h" id="smWebsHead" style="display:none"><span class="material-icons" style="color:var(--k-mute)">language</span>แยกตามเว็บ <span class="sm-tip">· กดเว็บเพื่อกรองรายบุคคล กดซ้ำเพื่อดูทั้งหมด</span></div>
+                <div id="summaryWebGrid" style="display:none"></div>
             </section>
 
             <!-- ③ รายบุคคล + อันดับ -->
@@ -384,21 +404,31 @@
 <div id="summaryTemplates" style="display: none;">
     <template id="tpl-date-button">
         <div class="sm-dchip {{cardClass}}">
-            <button onclick="toggleSummaryDate('{{d}}')"><span class="material-icons">{{checkIcon}}</span>{{day}}/{{m}} <small>{{year}}</small></button>
+            <button onclick="toggleSummaryDate('{{d}}')" title="{{dnum}} {{mon}} {{year}}">
+                <span class="sm-dwd">{{wd}}</span><span class="sm-dnum">{{dnum}}</span><span class="sm-dmon">{{mon}}</span>
+                <span class="sm-dchk material-icons">check</span>{{latest}}
+            </button>
             <button onclick="deleteSummaryDate('{{d}}')" class="sm-ddel" title="ลบข้อมูลของวันนี้ทิ้งถาวร"><span class="material-icons">close</span></button>
         </div>
     </template>
     <template id="tpl-date-selector-container">
         <div>
+            <div class="sm-quick">
+                <span class="sm-quick-l">เลือกเร็ว</span>
+                <button onclick="smPickRecent(1)" class="sm-qb {{q1}}">วันล่าสุด</button>
+                <button onclick="smPickRecent(3)" class="sm-qb {{q3}}">3 วัน</button>
+                <button onclick="smPickRecent(7)" class="sm-qb {{q7}}">7 วัน</button>
+                <button onclick="smPickRecent('all')" class="sm-qb {{qall}}">ทั้งหมด</button>
+            </div>
             <div class="sm-dates-row" id="availableDatesContainer">{{datesHtml}}</div>
             <div class="sm-dates-foot">
-                <label class="sm-field" title="ไปที่วันที่">
+                <label class="sm-field" title="ไปที่วันที่อื่นที่ไม่อยู่ในรายการ">
                     <span class="material-icons">event</span>
                     <input type="date" id="searchAvailableDate" onchange="if(this.value){ document.getElementById('summaryDateFilter').value = this.value; fetchHistoricalSummary(); }">
                 </label>
                 <span class="sm-dates-cnt">เลือกไว้ <b>{{selectedCount}}</b> วัน</span>
-                <button onclick="window.selectedSummaryDates.clear(); renderSummaryDashboard();" class="sm-btn sm ghost">ล้างการเลือก</button>
-                <button onclick="fetchMultipleHistoricalSummary()" class="sm-btn sm primary" {{disabledAttr}}><span class="material-icons">visibility</span>ดูยอด</button>
+                <button onclick="window.selectedSummaryDates.clear(); renderDateSelector();" class="sm-btn sm ghost">ล้าง</button>
+                <button onclick="smViewSelected()" class="sm-btn primary" {{disabledAttr}}><span class="material-icons">visibility</span>{{viewLabel}}</button>
             </div>
         </div>
     </template>
@@ -459,11 +489,14 @@
     <template id="tpl-web-card">
         <button type="button" onclick="toggleSummaryWebFilter('{{web}}')" class="sm-web {{cardStyle}}">
             <span class="sm-web-chk"><span class="material-icons">check</span></span>
-            <span class="sm-web-logo"><img src="{{imgUrl}}" loading="lazy" alt=""></span>
-            <span class="sm-web-b">
-                <span class="sm-web-n">{{web}}<span class="sm-web-sys">{{sys}}</span></span>
-                <span class="sm-web-v"><span class="sm-web-c">{{count}} <small>รายการ</small></span><span class="sm-web-a">฿{{amount}}</span></span>
+            <span class="sm-web-top">
+                <span class="sm-web-logo"><img src="{{imgUrl}}" loading="lazy" alt=""></span>
+                <span class="sm-web-b"><span class="sm-web-n">{{web}}</span><span class="sm-web-sys">{{sys}}</span></span>
+                <span class="sm-web-share">{{share}}%</span>
             </span>
+            <span class="sm-web-c">{{count}}<small>รายการ</small></span>
+            <span class="sm-web-bar"><i style="width:{{pct}}%"></i></span>
+            <span class="sm-web-a">฿{{amount}}</span>
         </button>
     </template>
     <template id="tpl-leaderboard-item">

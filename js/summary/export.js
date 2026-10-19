@@ -509,7 +509,7 @@ window.deleteSummaryDate = function(dateStr) {
 window.toggleSummaryDate = function(dateStr) {
     if (window.selectedSummaryDates.has(dateStr)) window.selectedSummaryDates.delete(dateStr);
     else window.selectedSummaryDates.add(dateStr);
-    renderSummaryDashboard();
+    window.renderDateSelector();   // วาดแค่ชิปวันที่ (เดิมวาดทั้งหน้าใหม่ทุกครั้งที่กดเลือกวัน)
 };
 
 window.saveWebLogo = async function() {
