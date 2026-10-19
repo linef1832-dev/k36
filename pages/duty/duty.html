@@ -79,6 +79,18 @@
     #dutyApp .ov-sum span b{color:var(--k-tx-strong);font-size:14px}
     #dutyApp .ov-sum span.bad{background:var(--k-red-bg);border-color:var(--k-red-line);color:var(--k-red-tx)}
     #dutyApp .ov-sum span.bad b{color:var(--k-red-tx)}
+    /* ➕ พ่วงเว็บอัตโนมัติ (ผู้สอน): เว็บที่ไม่มีคนประจำ ไปรวมกับเว็บที่มีคน */
+    #dutyApp .ov-sum span.auto{background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.45);color:var(--k-amber-tx)}
+    #dutyApp .ov-sum span.auto b{color:var(--k-amber-tx)}
+    #dutyApp .ov-auto{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+    #dutyApp .ov-auto-t{display:inline-flex;align-items:center;gap:3px;padding:1px 8px;border-radius:999px;font-size:10.5px;font-weight:900;color:var(--k-amber-tx);background:rgba(245,158,11,.12);border:1px dashed rgba(245,158,11,.6);cursor:default;white-space:nowrap}
+    #dutyApp .ov-auto-t em{font-style:normal;font-size:9.5px;font-weight:800;opacity:.75}
+    #dutyApp .ov-row.can .ov-auto-t{border-style:solid}
+    #dutyApp .ov-auto-t.off{color:var(--k-mute);background:var(--k-panel2);border:1px solid var(--k-line2)}
+    #dutyApp .ov-sum-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:10px;background:var(--k-panel);border:1px dashed rgba(245,158,11,.55);color:var(--k-amber-tx);font:inherit;font-size:12px;font-weight:800;cursor:pointer;margin-left:auto}
+    #dutyApp .ov-sum-btn:hover{background:rgba(245,158,11,.1)}
+    #dutyApp .ov-sum-btn .material-icons{font-size:15px}
+    #dutyApp .ov-sum-btn em{font-style:normal;opacity:.7;font-weight:700}
     /* 📐 ตารางหน้าใหญ่เสมอ: ย่อหน้าต่าง/ซูม ไม่จัดหน้าใหม่ — เลื่อนซ้าย-ขวาแทน */
     #dutyApp .ov-scroll{overflow-x:auto;border-radius:16px}
     #dutyApp .ov-scroll > .ov-table{min-width:1100px}
