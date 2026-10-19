@@ -42,7 +42,13 @@ function smShiftMatch(item, f) {
 }
 // 🌟 หลังบ้านเริ่มต้นของแต่ละเว็บ (เดิมเขียนซ้ำ 3 ที่ และหน้าตั้งค่าขาด BT678 / K188)
 const SM_DEFAULT_WEBS = ['Jun88', 'MK8', 'F168', 'PG688', 'JL69', 'NM9', 'VV72', 'TH26', 'BT678', 'K188'];
-function smWebList() { return (typeof TEAM_LIST !== 'undefined' && TEAM_LIST.length > 0) ? TEAM_LIST : SM_DEFAULT_WEBS; }
+// รายชื่อเว็บ = เว็บหลักของระบบ + เว็บใหม่ที่เพิ่มในหน้า "ตั้งค่าหลังบ้าน"
+function smWebList() {
+    const base = (typeof TEAM_LIST !== 'undefined' && TEAM_LIST.length > 0) ? TEAM_LIST : SM_DEFAULT_WEBS;
+    const out = [...base];
+    Object.keys(window.smWebSystems || {}).forEach(w => { if (w && !out.some(x => x.toLowerCase() === w.toLowerCase())) out.push(w); });
+    return out;
+}
 function smSystemOf(web, customSystems) {
     if (customSystems && customSystems[web]) return customSystems[web];
     if (['Jun88', 'MK8', 'VV72', 'TH26', 'BT678', 'K188'].includes(web)) return 'K36';
@@ -50,7 +56,41 @@ function smSystemOf(web, customSystems) {
     if (['PG688', 'JL69', 'NM9'].includes(web)) return 'TCG';
     return 'SYSTEM';
 }
-function smCustomSystems() { try { return JSON.parse(localStorage.getItem('custom_web_systems') || '{}'); } catch (e) { return {}; } }
+// ⚙️ ตั้งค่าหลังบ้านของแต่ละเว็บ — เก็บในฐานข้อมูล (settings: summary_web_systems) ทุกคนทุกเครื่องใช้ชุดเดียวกัน
+//    (เดิมเก็บในเบราว์เซอร์เครื่องเดียว และไม่มีผลกับการอ่านไฟล์เลย)
+function smCustomSystems() {
+    if (window.smWebSystems) return window.smWebSystems;
+    try { return JSON.parse(localStorage.getItem('custom_web_systems') || '{}'); } catch (e) { return {}; }
+}
+window.smLoadWebSystems = async function(force) {
+    try {
+        if (force && window.clearQueryCache) window.clearQueryCache('sum_websys');
+        const q = () => appDB.from('settings').select('value').eq('key', 'summary_web_systems').maybeSingle();
+        const { data } = await (window.cachedQuery ? window.cachedQuery('sum_websys', q, 300000) : q());
+        let v = data && data.value;
+        if (typeof v === 'string') { try { v = JSON.parse(v); } catch (e) { v = null; } }
+        if (v && typeof v === 'object') window.smWebSystems = v;
+        else {   // ยังไม่เคยตั้งในฐานข้อมูล → ใช้ของเดิมในเครื่อง (ถ้ามี)
+            try { window.smWebSystems = JSON.parse(localStorage.getItem('custom_web_systems') || '{}'); } catch (e) { window.smWebSystems = {}; }
+        }
+    } catch (e) { if (!window.smWebSystems) window.smWebSystems = {}; }
+    smRenderDropLabels();
+};
+// ป้ายใต้กล่องอัปโหลด: บอกว่าเว็บไหนอยู่ระบบไหน (อัปเดตตามที่ตั้งค่า)
+function smRenderDropLabels() {
+    const cs = smCustomSystems();
+    ['K36', 'WG', 'TCG'].forEach(sys => {
+        const el = document.getElementById('smDropWebs_' + sys);
+        if (el) { const ws = smWebList().filter(w => smSystemOf(w, cs) === sys); el.textContent = ws.length ? ws.join(', ') : 'ยังไม่มีเว็บ'; }
+    });
+}
+// เว็บที่ชื่อไฟล์บอก (ชื่อยาวก่อน กัน "mk8" ไปจับผิดตัว) → { web, sys }
+function smWebFromFileName(fileName) {
+    const fn = String(fileName || '').toLowerCase().replace(/[\s_\-]+/g, '');
+    const webs = smWebList().slice().sort((a, b) => b.length - a.length);
+    const w = webs.find(x => fn.includes(x.toLowerCase().replace(/[\s_\-]+/g, '')));
+    return w ? { web: w, sys: smSystemOf(w, smCustomSystems()) } : null;
+}
 
 // 🌟 ตัวช่วยคำนวณ "วันที่เมื่อวาน" ที่แม่นยำที่สุด
 window.getYesterdayDateStr = function(dateStr) {
@@ -149,7 +189,7 @@ window.initSummaryDate = async function() {
 
         // ดึงขนานกัน — logos + dates (dates ใช้ cache ถ้ายัง fresh)
         const now = Date.now();
-        const initFetches = [loadWebLogos()];
+        const initFetches = [loadWebLogos(), window.smLoadWebSystems()];
         if (typeof fetchAvailableDates === 'function' && (now - _summaryDatesCacheTs) > _SUMMARY_DATES_TTL) {
             initFetches.push(fetchAvailableDates().then(() => { _summaryDatesCacheTs = Date.now(); }));
         } else if (typeof fetchAvailableDates === 'function' && window.availableSummaryDates?.length > 0) {
@@ -503,10 +543,10 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
 
                 // ชื่อไฟล์บอกเว็บได้ → ใช้ตามชื่อไฟล์ / ไม่บอก → ใช้ระบบของกล่องที่วางไฟล์
                 // [แก้] เดิมไม่สนกล่องเลย ไฟล์ TCG ชื่อทั่วไป (เช่น export.xlsx) ถูกอ่านแบบ K36 → ยอดไม่ขึ้น/ผิด
+                // ใช้ "ตั้งค่าหลังบ้าน": ชื่อไฟล์มีชื่อเว็บ → อ่านตามระบบที่ตั้งไว้ให้เว็บนั้น (เว็บใหม่ก็ใช้ได้ ไม่ต้องแก้โค้ด)
                 let fileSystem = fallbackSystemName || 'K36';
-                if (fileName.includes('jl69') || fileName.includes('nm9') || fileName.includes('pg688')) fileSystem = 'TCG';
-                else if (fileName.includes('f168')) fileSystem = 'WG';
-                else if (['vv72', 'jun88', 'mk8', 'th26', 'bt678', 'k188'].some(w => fileName.includes(w))) fileSystem = 'K36';
+                const fileWeb = smWebFromFileName(fileName);
+                if (fileWeb && ['K36', 'WG', 'TCG'].includes(fileWeb.sys)) fileSystem = fileWeb.sys;
 
                 try {
                     let parsedRowsData = [];
@@ -557,7 +597,9 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                         });
                     }
 
-                    const webNameMap = { 'vv72': 'VV72', 'jun88': 'Jun88', 'mk8': 'MK8', 'th26': 'TH26', 'bt678': 'BT678', 'k188': 'K188', 'nm9': 'NM9', 'pg688': 'PG688', 'jl69': 'JL69', 'f168': 'F168' };
+                    // ชื่อเว็บที่ระบบรู้จัก (รวมเว็บใหม่จากหน้าตั้งค่า) เรียงชื่อยาวก่อน
+                    const webNameMap = {};
+                    smWebList().slice().sort((a, b) => b.length - a.length).forEach(w => { webNameMap[w.toLowerCase()] = w; });
                     let colMap = { amount: -1, status: -1, emp: -1, web: -1 };
                     let headerFound = false; let startDataRow = 1;
 
@@ -1133,6 +1175,7 @@ window.renderSummaryDashboard = function() {
         } else { webBox.innerHTML = ''; }
     }
     smSyncSource();
+    smRenderDropLabels();
 };
 
 // วาดตัวเลือกวันที่ใหม่ (เรียกจาก initSummaryDate ตอนใช้วันที่จากแคช — เดิมไม่มีฟังก์ชันนี้)

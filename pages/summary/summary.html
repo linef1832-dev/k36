@@ -231,19 +231,19 @@
                         <div class="sm-ups">
                             <label class="sm-drop" style="--c:#60a5fa" ondragover="handleDragOverExcel(event)" ondragleave="handleDragLeaveExcel(event)" ondrop="handleDropExcel(event, 'K36')">
                                 <span class="sm-dic pointer-events-none"><span class="material-icons">description</span></span>
-                                <span class="pointer-events-none min-w-0"><span class="sm-dname block">ระบบ K36</span><span class="sm-dwebs block">Jun88, MK8, VV72, TH26</span></span>
+                                <span class="pointer-events-none min-w-0"><span class="sm-dname block">ระบบ K36</span><span class="sm-dwebs block" id="smDropWebs_K36">Jun88, MK8, VV72, TH26</span></span>
                                 <span class="sm-dcta pointer-events-none"><span class="material-icons">file_upload</span>เลือกไฟล์</span>
                                 <input type="file" accept=".xlsx, .csv" class="hidden" onchange="processExcelUpload(event, 'K36')">
                             </label>
                             <label class="sm-drop" style="--c:#34d399" ondragover="handleDragOverExcel(event)" ondragleave="handleDragLeaveExcel(event)" ondrop="handleDropExcel(event, 'WG')">
                                 <span class="sm-dic pointer-events-none"><span class="material-icons">description</span></span>
-                                <span class="pointer-events-none min-w-0"><span class="sm-dname block">ระบบ WG</span><span class="sm-dwebs block">F168</span></span>
+                                <span class="pointer-events-none min-w-0"><span class="sm-dname block">ระบบ WG</span><span class="sm-dwebs block" id="smDropWebs_WG">F168</span></span>
                                 <span class="sm-dcta pointer-events-none"><span class="material-icons">file_upload</span>เลือกไฟล์</span>
                                 <input type="file" accept=".xlsx, .csv" class="hidden" onchange="processExcelUpload(event, 'WG')">
                             </label>
                             <label class="sm-drop" style="--c:#f472b6" ondragover="handleDragOverExcel(event)" ondragleave="handleDragLeaveExcel(event)" ondrop="handleDropExcel(event, 'TCG')">
                                 <span class="sm-dic pointer-events-none"><span class="material-icons">description</span></span>
-                                <span class="pointer-events-none min-w-0"><span class="sm-dname block">ระบบ TCG</span><span class="sm-dwebs block">PG688, JL69, NM9</span></span>
+                                <span class="pointer-events-none min-w-0"><span class="sm-dname block">ระบบ TCG</span><span class="sm-dwebs block" id="smDropWebs_TCG">PG688, JL69, NM9</span></span>
                                 <span class="sm-dcta pointer-events-none"><span class="material-icons">file_upload</span>เลือกไฟล์</span>
                                 <input type="file" accept=".xlsx, .csv" class="hidden" onchange="processExcelUpload(event, 'TCG')">
                             </label>
@@ -510,15 +510,5 @@
         </div>
     </template>
     
-<template id="tpl-manage-system-item">
-        <div class="flex justify-between items-center bg-slate-800 p-3 rounded-xl border border-slate-600 shadow-sm hover:border-sky-500 transition">
-            <div class="font-black text-white text-base">{{web}}</div>
-            <select id="sys_select_modal_{{web}}" class="bg-slate-900 border border-slate-500 text-sky-400 font-bold p-2 rounded-lg outline-none cursor-pointer focus:ring-2 focus:ring-sky-500">
-                <option value="SYSTEM" {{selSystem}}>- ไม่ระบุ -</option>
-                <option value="K36" {{selK36}}>K36</option>
-                <option value="WG" {{selWg}}>WG</option>
-                <option value="TCG" {{selTcg}}>TCG</option>
-            </select>
-        </div>
-    </template>
+<!-- (tpl-manage-system-item เดิม: เลิกใช้ — หน้าต่างตั้งค่าหลังบ้านสร้างเองใน export.js) -->
 </div>

@@ -97,6 +97,9 @@ window.exportSummaryToExcel = async function() {
             if (typeof summaryActiveWebFilter !== 'undefined' && summaryActiveWebFilter !== 'ALL') filteredData = filteredData.filter(item => item.website === summaryActiveWebFilter);
 
             const targetWebOrder = ['Jun88', 'MK8', 'VV72', 'TH26', 'F168', 'PG688', 'JL69', 'NM9', 'BT678', 'K188'];
+            // [ใหม่] เว็บใหม่ที่เพิ่มในหน้าตั้งค่าหลังบ้าน / ที่มีในข้อมูล → ต่อท้ายคอลัมน์ให้อัตโนมัติ (เดิมเว็บใหม่หายจาก Excel)
+            smWebList().concat(filteredData.map(x => x.website)).forEach(w => { if (w && !targetWebOrder.some(t => t.toLowerCase() === String(w).toLowerCase())) targetWebOrder.push(w); });
+            const E = 4 + targetWebOrder.length * 3;   // คอลัมน์สุดท้ายของกลุ่มเว็บ (เดิมตายตัว 34 = 10 เว็บ)
 
             // 🌟 [NEW] โหลดข้อมูลจัดเวร (หลัก/รอง) ของวันที่นั้น
             const dutyAssignmentMap = await window.loadDutyAssignmentMap(filteredData, shiftFilter);
@@ -171,25 +174,25 @@ window.exportSummaryToExcel = async function() {
                     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2937' } }; 
                     cell.font.color = { argb: 'FFFFFFFF' };
                     cell.border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: {style:'thin', color: {argb:'FF94A3B8'}} };
-                } else if (colNumber > 4 && colNumber <= 34) {
+                } else if (colNumber > 4 && colNumber <= E) {
                     const webIndex = Math.floor((colNumber - 5) / 3);
                     const isLastInGroup = (colNumber - 5) % 3 === 2; const isFirstInGroup = (colNumber - 5) % 3 === 0;
                     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: headerColors[webIndex % headerColors.length] } };
                     cell.font.color = { argb: 'FF0F172A' };
                     let rightBorder = isLastInGroup ? 'medium' : 'thin'; let leftBorder = isFirstInGroup ? 'medium' : 'thin';
                     cell.border = { top: {style:'medium'}, bottom: {style:'medium'}, right: {style:rightBorder, color:{argb:'FF94A3B8'}}, left: {style:leftBorder, color:{argb:'FF94A3B8'}} };
-                } else if (colNumber > 34 && colNumber <= 37) {
+                } else if (colNumber > E && colNumber <= E + 3) {
                     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDC2626' } }; 
                     cell.font.color = { argb: 'FFFFFFFF' };
                     cell.border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: {style:'medium'} };
-                } else if (colNumber > 37 && colNumber <= 41) {
-                    if (colNumber >= 40) {
+                } else if (colNumber > E + 3 && colNumber <= E + 7) {
+                    if (colNumber >= E + 6) {
                         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2937' } }; 
                         cell.font.color = { argb: 'FFFFFFFF' };
                         cell.border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: {style:'medium'} };
                     }
                 } else {
-                    const webIndex = colNumber - 42;
+                    const webIndex = colNumber - (E + 8);
                     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: headerColors[webIndex % headerColors.length] } };
                     cell.font.color = { argb: 'FF0F172A' };
                     cell.border = { top: {style:'medium'}, left: {style:'thin', color:{argb:'FF94A3B8'}}, bottom: {style:'medium'}, right: {style:'thin', color:{argb:'FF94A3B8'}} };
@@ -235,7 +238,7 @@ window.exportSummaryToExcel = async function() {
                             else if (cell.value === 'ดึก') { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E8FF' } }; cell.font.color = { argb: 'FF9333EA' }; } 
                             else if (cell.value === 'อิสระ' || cell.value === 'all') { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFECFDF5' } }; cell.font.color = { argb: 'FF059669' }; cell.value = 'อิสระ'; }
                         }
-                    } else if (colNumber > 4 && colNumber <= 34) {
+                    } else if (colNumber > 4 && colNumber <= E) {
                         const webIndex = Math.floor((colNumber - 5) / 3); const colIdxInGroup = (colNumber - 5) % 3; 
                         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: dataBgColors[webIndex % dataBgColors.length] } };
                         let rightBorder = colIdxInGroup === 2 ? 'medium' : 'thin'; let leftBorder = colIdxInGroup === 0 ? 'medium' : 'thin';
@@ -245,20 +248,20 @@ window.exportSummaryToExcel = async function() {
                             if (colIdxInGroup === 1) cell.font = { color: { argb: 'FFDC2626' }, bold: true }; 
                             if (colIdxInGroup === 2) cell.font = { color: { argb: 'FF2563EB' }, bold: true }; 
                         } else { cell.font = { color: { argb: 'FF94A3B8' } }; }
-                    } else if (colNumber > 34 && colNumber <= 37) {
+                    } else if (colNumber > E && colNumber <= E + 3) {
                         cell.border = { top: {style:'thin', color:{argb:'FFCBD5E1'}}, bottom: {style:'thin', color:{argb:'FFCBD5E1'}}, left: {style:'thin', color:{argb:'FFCBD5E1'}}, right: {style:'thin', color:{argb:'FFCBD5E1'}} };
                         if (cell.value > 0) {
-                            if (colNumber === 35) cell.font = { color: { argb: 'FF16A34A' }, bold: true }; 
-                            if (colNumber === 36) cell.font = { color: { argb: 'FFDC2626' }, bold: true }; 
-                            if (colNumber === 37) { cell.font = { color: { argb: 'FF000000' }, bold: true }; cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE047' } }; }
-                        } else { if (colNumber === 37) { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE047' } }; } }
-                    } else if (colNumber > 37 && colNumber <= 41) {
-                        if (colNumber >= 40) {
-                            cell.font = { bold: true }; cell.alignment = { vertical: 'middle', horizontal: colNumber === 40 ? 'left' : 'center' };
+                            if (colNumber === E + 1) cell.font = { color: { argb: 'FF16A34A' }, bold: true }; 
+                            if (colNumber === E + 2) cell.font = { color: { argb: 'FFDC2626' }, bold: true }; 
+                            if (colNumber === E + 3) { cell.font = { color: { argb: 'FF000000' }, bold: true }; cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE047' } }; }
+                        } else { if (colNumber === E + 3) { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE047' } }; } }
+                    } else if (colNumber > E + 3 && colNumber <= E + 7) {
+                        if (colNumber >= E + 6) {
+                            cell.font = { bold: true }; cell.alignment = { vertical: 'middle', horizontal: colNumber === E + 6 ? 'left' : 'center' };
                             cell.border = { top: {style:'thin', color:{argb:'FFCBD5E1'}}, bottom: {style:'thin', color:{argb:'FFCBD5E1'}}, left: {style:'thin', color:{argb:'FFCBD5E1'}}, right: {style:'thin', color:{argb:'FFCBD5E1'}} };
                             
                             // ใส่สีให้คอลัมน์กะอ้างอิง (คอลัมน์ที่ 41)
-                            if (colNumber === 41) {
+                            if (colNumber === E + 7) {
                                 if (cell.value === 'เช้า') { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFEDD5' } }; cell.font.color = { argb: 'FFEA580C' }; } 
                                 else if (cell.value === 'กลาง') { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } }; cell.font.color = { argb: 'FF2563EB' }; } 
                                 else if (cell.value === 'ดึก') { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E8FF' } }; cell.font.color = { argb: 'FF9333EA' }; } 
@@ -266,7 +269,7 @@ window.exportSummaryToExcel = async function() {
                             }
                         }
                     } else {
-                        const webIndex = colNumber - 42;
+                        const webIndex = colNumber - (E + 8);
                         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: dataBgColors[webIndex % dataBgColors.length] } };
                         cell.border = { top: {style:'thin', color:{argb:'FFCBD5E1'}}, bottom: {style:'thin', color:{argb:'FFCBD5E1'}}, left: {style:'thin', color:{argb:'FF94A3B8'}}, right: {style:'thin', color:{argb:'FF94A3B8'}} };
                         if (cell.value > 0) cell.font = { color: { argb: 'FF2563EB' }, bold: true }; 
@@ -280,11 +283,11 @@ window.exportSummaryToExcel = async function() {
                 else if (index === 1) col.width = 25; 
                 else if (index === 2) col.width = 10; 
                 else if (index === 3) col.width = 12; 
-                else if (index >= 34 && index < 37) col.width = 15; 
-                else if (index === 37 || index === 38) col.width = 5; 
-                else if (index === 39) col.width = 25; 
-                else if (index === 40) col.width = 12; 
-                else if (index >= 41) col.width = 16; 
+                else if (index >= E && index < E + 3) col.width = 15; 
+                else if (index === E + 3 || index === E + 4) col.width = 5; 
+                else if (index === E + 5) col.width = 25; 
+                else if (index === E + 6) col.width = 12; 
+                else if (index >= E + 7) col.width = 16; 
                 else col.width = 11; 
             });
 
@@ -304,45 +307,82 @@ window.exportSummaryToExcel = async function() {
     });
 };
 
+// ⚙️ ตั้งค่าหลังบ้านของแต่ละเว็บ (ใช้จริง: ระบบอ่านไฟล์ตามค่านี้) + เพิ่มเว็บใหม่ได้เอง
+//    บันทึกลงฐานข้อมูล → ทุกคนทุกเครื่องใช้ชุดเดียวกัน
 window.openManageSystemModal = async function() {
-    let customSystems = smCustomSystems();
-    let defaultWebList = smWebList();   // [แก้] เดิมขาด BT678 / K188 → ตั้งหลังบ้าน 2 เว็บนี้ไม่ได้
-
-    let html = '<div class="flex flex-col gap-3 max-h-[50vh] overflow-y-auto p-1 custom-scrollbar text-sm">';
-    defaultWebList.forEach(web => {
-        const currentSys = smSystemOf(web, customSystems);
-        
-        html += getTpl('tpl-manage-system-item', {
-            web: web,
-            selSystem: currentSys === 'SYSTEM' ? 'selected' : '',
-            selK36: currentSys === 'K36' ? 'selected' : '',
-            selWg: currentSys === 'WG' ? 'selected' : '',
-            selTcg: currentSys === 'TCG' ? 'selected' : ''
-        });
-    });
-    html += '</div>';
+    if (!window.smWebSystems && typeof window.smLoadWebSystems === 'function') await window.smLoadWebSystems();
+    const cs = Object.assign({}, smCustomSystems());
+    const esc = (v) => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const SYS = [['K36', '#60a5fa'], ['WG', '#34d399'], ['TCG', '#f472b6'], ['SYSTEM', '#94a3b8']];
+    const segs = (web, cur) => SYS.map(([k, c]) => `<button type="button" data-web="${esc(web)}" data-sys="${k}" class="mws-seg${cur === k ? ' on' : ''}" style="--c:${c}">${k === 'SYSTEM' ? 'ไม่ระบุ' : k}</button>`).join('');
+    const row = (web, isNew) => `<div class="mws-row" data-web="${esc(web)}"><b>${esc(web)}${isNew ? ' <small>ใหม่</small>' : ''}</b><div class="mws-segs">${segs(web, smSystemOf(web, cs))}</div></div>`;
+    const base = (typeof TEAM_LIST !== 'undefined' && TEAM_LIST.length) ? TEAM_LIST : SM_DEFAULT_WEBS;
+    const html = `
+        <style>
+            .mws-list{display:flex;flex-direction:column;gap:6px;max-height:46vh;overflow-y:auto;padding:2px;text-align:left}
+            .mws-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border-radius:12px;background:var(--k-panel2,#0f1829);border:1px solid var(--k-line,#1e293b)}
+            .mws-row b{font-size:14px;font-weight:900;color:var(--k-tx-strong,#fff)} .mws-row small{font-size:10px;padding:1px 6px;border-radius:99px;background:#E8C15A;color:#1b1406;margin-left:4px}
+            .mws-segs{display:flex;gap:3px;padding:3px;border-radius:10px;background:var(--k-sunk,#0b1222)}
+            .mws-seg{height:28px;padding:0 10px;border-radius:8px;font-size:12px;font-weight:800;color:var(--k-mute,#94a3b8)}
+            .mws-seg.on{background:color-mix(in srgb,var(--c) 22%,transparent);color:var(--c);box-shadow:inset 0 0 0 1px var(--c)}
+            .mws-add{display:flex;gap:6px;margin-top:12px;padding-top:12px;border-top:1px dashed var(--k-line2,#334155)}
+            .mws-add input{flex:1;min-width:0;height:38px;padding:0 12px;border-radius:10px;background:var(--k-field,#0b1222);border:1px solid var(--k-line3,#334155);color:var(--k-tx-strong,#fff);font-weight:800;outline:none}
+            .mws-add select{height:38px;padding:0 8px;border-radius:10px;background:var(--k-field,#0b1222);border:1px solid var(--k-line3,#334155);color:var(--k-tx-strong,#fff);font-weight:800}
+            .mws-add button{height:38px;padding:0 14px;border-radius:10px;background:#E8C15A;color:#1b1406;font-weight:900}
+            .mws-tip{font-size:12px;color:var(--k-mute,#94a3b8);margin:0 0 10px;text-align:left;line-height:1.5}
+        </style>
+        <p class="mws-tip">ระบบจะอ่านไฟล์ Excel ตามที่ตั้งตรงนี้ (ดูจากชื่อเว็บในชื่อไฟล์) · มีเว็บใหม่ → เพิ่มด้านล่างแล้วเลือกหลังบ้าน</p>
+        <div class="mws-list" id="mwsList">${smWebList().map(w => row(w, !base.some(x => x.toLowerCase() === w.toLowerCase()))).join('')}</div>
+        <div class="mws-add">
+            <input id="mwsNewWeb" placeholder="ชื่อเว็บใหม่ เช่น AB99" maxlength="20">
+            <select id="mwsNewSys"><option value="K36">K36</option><option value="WG">WG</option><option value="TCG">TCG</option></select>
+            <button type="button" id="mwsAddBtn">+ เพิ่ม</button>
+        </div>`;
 
     const { isConfirmed } = await Swal.fire({
-        title: '<div class="text-xl font-black text-sky-400 flex items-center justify-center gap-2"><span class="material-icons">settings_applications</span> ตั้งค่าหลังบ้านให้เว็บไซต์</div>',
-        html: `<p class="text-xs text-gray-400 mb-3">ตั้งค่าตรงนี้ก่อนอัปโหลดไฟล์ Excel ข้อมูลจะได้เข้าถูกกล่อง</p>${html}`,
-        showCancelButton: true, confirmButtonText: 'บันทึกการตั้งค่า', cancelButtonText: 'ปิด', confirmButtonColor: '#0ea5e9', cancelButtonColor: '#64748b',
-        customClass: { popup: 'dark:bg-slate-900 dark:text-white rounded-3xl' }
-    });
-
-    if (isConfirmed) {
-        defaultWebList.forEach(web => {
-            const sel = document.getElementById(`sys_select_modal_${web}`);
-            if(sel) customSystems[web] = sel.value;
-        });
-        window.safeSetItem('custom_web_systems', JSON.stringify(customSystems));
-
-        if (typeof pendingSummaryData !== 'undefined') {
-            pendingSummaryData.forEach(item => {
-                if (customSystems[item.website]) item.system = customSystems[item.website];
+        title: 'ตั้งค่าหลังบ้านให้เว็บไซต์',
+        html,
+        width: 560,
+        showCancelButton: true, confirmButtonText: 'บันทึก', cancelButtonText: 'ปิด', confirmButtonColor: '#E8C15A', cancelButtonColor: '#64748b',
+        customClass: { popup: 'rounded-3xl' },
+        didOpen: (pop) => {
+            const list = pop.querySelector('#mwsList');
+            list.addEventListener('click', (e) => {
+                const b = e.target.closest('.mws-seg'); if (!b) return;
+                cs[b.dataset.web] = b.dataset.sys;
+                list.querySelectorAll(`.mws-seg[data-web="${CSS.escape(b.dataset.web)}"]`).forEach(x => x.classList.toggle('on', x === b));
             });
+            const add = () => {
+                const inp = pop.querySelector('#mwsNewWeb'); const name = inp.value.trim().replace(/\s+/g, '');
+                if (!name) return inp.focus();
+                if (!/^[A-Za-z0-9ก-๙]{2,20}$/.test(name)) { Swal.showValidationMessage('ชื่อเว็บใช้ได้เฉพาะตัวอักษร/ตัวเลข 2–20 ตัว'); return; }
+                if (smWebList().concat(Object.keys(cs)).some(w => w.toLowerCase() === name.toLowerCase())) { Swal.showValidationMessage(`มีเว็บ ${name} อยู่แล้ว`); return; }
+                Swal.resetValidationMessage();
+                cs[name] = pop.querySelector('#mwsNewSys').value;
+                list.insertAdjacentHTML('beforeend', row(name, true));
+                list.lastElementChild.scrollIntoView({ block: 'nearest' });
+                inp.value = '';
+            };
+            pop.querySelector('#mwsAddBtn').addEventListener('click', add);
+            pop.querySelector('#mwsNewWeb').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } });
         }
-        Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ', text: 'คราวหน้าอัปโหลด Excel ระบบจะดึงเข้ากล่องให้ถูกต้องเลย', timer: 2000, showConfirmButton: false});
-        if (typeof debounceRenderSummary === 'function') debounceRenderSummary();
+    });
+    if (!isConfirmed) return;
+
+    try {
+        const { error } = await appDB.from('settings').upsert([{ key: 'summary_web_systems', value: JSON.stringify(cs) }]);
+        if (error) throw error;
+        window.smWebSystems = cs;
+        try { window.safeSetItem('custom_web_systems', JSON.stringify(cs)); } catch (e) {}
+        if (window.clearQueryCache) window.clearQueryCache('sum_websys');
+        if (typeof pendingSummaryData !== 'undefined') pendingSummaryData.forEach(item => { const v = smSystemOf(item.website, cs); if (v !== 'SYSTEM') item.system = v; });
+        // ตัวเลือกเว็บของอันดับ: เติมใหม่ (มีเว็บใหม่)
+        const lbw = document.getElementById('leaderboardWebFilter');
+        if (lbw) { const cur = lbw.value; lbw.innerHTML = '<option value="ALL">ทุกเว็บ</option>' + smWebList().map(w => `<option value="${esc(w)}">${esc(w)}</option>`).join(''); lbw.value = cur; }
+        Swal.fire({ icon: 'success', title: 'บันทึกแล้ว', text: 'อัปโหลดไฟล์ครั้งต่อไป ระบบจะอ่านตามหลังบ้านที่ตั้งไว้', timer: 1800, showConfirmButton: false });
+        if (typeof window.renderSummaryDashboard === 'function') window.renderSummaryDashboard();
+    } catch (e) {
+        Swal.fire('บันทึกไม่สำเร็จ', e.message || String(e), 'error');
     }
 };
 
