@@ -28,7 +28,6 @@
     let _answers = {};      // round_id → [answers]
     let _tgGroups = [];
     let _sub = 'live';
-    let _built = false;
     let _timer = null;
 
     // ── สไตล์กลาง (inline ไม่ต้องคอมไพล์ Tailwind ใหม่) ──────────────────
@@ -111,10 +110,19 @@
     }
     const _origPerm = window.applyDiscordPermissions;
     window.applyDiscordPermissions = function () {
-        const r = typeof _origPerm === 'function' ? _origPerm.apply(this, arguments) : undefined;
-        applyPerm();
-        return r;
+        // try/finally: ต่อให้ตัวเดิมพังกลางทาง ปุ่มแท็บนับแชทก็ยังถูกเช็คสิทธิ์และแสดงเสมอ
+        try { return typeof _origPerm === 'function' ? _origPerm.apply(this, arguments) : undefined; }
+        finally { try { applyPerm(); } catch (e) { console.error('[ChatCount] applyPerm:', e); } }
     };
+    // สิทธิ์อาจซิงค์จาก Supabase ทีหลัง (applySidebarPermissions) → เช็คปุ่มแท็บซ้ำหลังซิงค์เสร็จ
+    const _origSidebar = window.applySidebarPermissions;
+    if (typeof _origSidebar === 'function' && !_origSidebar._ccWrapped) {
+        window.applySidebarPermissions = async function () {
+            try { return await _origSidebar.apply(this, arguments); }
+            finally { try { applyPerm(); } catch (e) {} }
+        };
+        window.applySidebarPermissions._ccWrapped = true;
+    }
     applyPerm();
 
     function stopTimer() { if (_timer) { clearInterval(_timer); _timer = null; } }
@@ -131,8 +139,9 @@
     // ── โครงหน้า ─────────────────────────────────────────────────────
     function buildShell() {
         const panel = $('dsContent_chatcount');
-        if (!panel || _built) return;
-        _built = true;
+        // หน้า Discord ถูกโหลด HTML ใหม่ทุกครั้งที่สลับเมนู → เช็คจาก DOM ไม่ใช่ตัวแปร ไม่งั้นกลับมาอีกรอบแท็บจะว่าง
+        if (!panel || panel.dataset.ccBuilt) return;
+        panel.dataset.ccBuilt = '1';
         const subBtn = (id, icon, label) => `<button id="ccSub_${id}" onclick="window.ccSetSub('${id}')" style="${BTN}">${MI(icon)} ${label}</button>`;
         panel.innerHTML = `
             <div class="bg-slate-800 p-5 rounded-3xl border border-slate-700 shadow-lg">
