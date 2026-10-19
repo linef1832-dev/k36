@@ -423,6 +423,95 @@
     }
 
     // ── หน้าต่างแก้รอบเวลา ───────────────────────────────────────────
+    // ซ้าย = ตั้งค่า 3 ขั้น (เวลา → ห้องที่ถาม → กลุ่มที่รับสรุป) + ปรับแต่งข้อความ (พับไว้)
+    // ขวา = ตัวอย่างข้อความจริง หน้าตาแบบแชท Discord / Telegram อัปเดตทันทีที่แก้
+    function ensureEditorStyle() {
+        if (document.getElementById('cce-style')) return;
+        const css = `
+.cce-pop.swal2-popup{padding:0 0 18px;border-radius:20px;border:1px solid rgba(148,163,184,.14)}
+.cce-pop .swal2-title{margin:0;padding:22px 28px 0;text-align:left;font-size:20px;font-weight:900;letter-spacing:.2px}
+.cce-pop .swal2-html-container{margin:14px 0 0;padding:0 28px;overflow:visible}
+.cce-pop .swal2-actions{margin-top:16px;padding:0 28px;justify-content:flex-end;width:100%;box-sizing:border-box}
+.cce-pop .swal2-validation-message{margin:12px 28px 0;border-radius:10px}
+.cce{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:22px;text-align:left;color:var(--k-tx)}
+.cce-main{max-height:66vh;overflow-y:auto;padding-right:6px}
+.cce-side{max-height:66vh;overflow-y:auto;background:rgba(2,6,23,.45);border:1px solid rgba(148,163,184,.12);border-radius:16px;padding:16px}
+.cce-step{padding:4px 0 20px;border-bottom:1px solid rgba(148,163,184,.10);margin-bottom:18px}
+.cce-step:last-of-type{border-bottom:0}
+.cce-sh{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.cce-num{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:900;background:rgba(14,165,233,.16);color:#7dd3fc;flex:none}
+.cce-sh h4{margin:0;font-size:14px;font-weight:900;color:var(--k-tx-strong)}
+.cce-sh .cce-aside{margin-left:auto;font-size:12px;color:var(--k-mute);font-weight:600}
+.cce-in{width:100%;box-sizing:border-box;padding:11px 13px;border-radius:11px;border:1px solid rgba(148,163,184,.22);background:rgba(15,23,42,.7);color:var(--k-tx);font-size:13.5px;font-weight:600;outline:none;transition:border-color .15s}
+.cce-in:focus{border-color:#38bdf8;box-shadow:0 0 0 3px rgba(56,189,248,.15)}
+.cce-time{font-size:17px;font-weight:900;font-variant-numeric:tabular-nums;color:#7dd3fc;padding-top:9px;padding-bottom:9px}
+.cce-row{display:grid;grid-template-columns:minmax(0,1fr) 180px;gap:10px}
+.cce-lb{display:block;font-size:12px;font-weight:700;color:var(--k-mute);margin:0 0 6px}
+.cce-box{border:1px solid rgba(148,163,184,.14);border-radius:12px;background:rgba(15,23,42,.45);max-height:220px;overflow-y:auto;padding:6px 10px 10px;margin-top:8px}
+.cce-cat{font-size:11.5px;font-weight:800;color:var(--k-mute);margin:10px 2px 6px;display:flex;gap:6px}
+.cce-cat span{opacity:.6;font-weight:600}
+.cce-chips{display:flex;flex-wrap:wrap;gap:6px}
+.cce-chip{display:inline-flex;align-items:center;gap:6px;padding:7px 11px;border-radius:10px;border:1px solid rgba(148,163,184,.2);background:rgba(30,41,59,.6);font-size:12.5px;font-weight:700;cursor:pointer;user-select:none;color:var(--k-tx);transition:background .12s,border-color .12s}
+.cce-chip:hover{border-color:rgba(56,189,248,.5)}
+.cce-chip i{font-style:normal;font-size:11px;opacity:.55}
+.cce-chip input,.cce-tg input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+.cce-chip:has(input:checked){background:rgba(14,165,233,.18);border-color:#38bdf8;color:#e0f2fe}
+.cce-chip:has(input:checked) i{opacity:1}
+.cce-chip:has(input:focus-visible),.cce-tg:has(input:focus-visible){outline:2px solid #38bdf8;outline-offset:2px}
+.cce-picked{display:flex;flex-wrap:wrap;gap:6px;min-height:20px;font-size:12px;color:var(--k-mute)}
+.cce-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 6px 4px 10px;border-radius:99px;background:rgba(14,165,233,.16);color:#bae6fd;font-weight:700}
+.cce-pill button{border:0;background:rgba(2,6,23,.4);color:#bae6fd;border-radius:50%;width:18px;height:18px;line-height:18px;cursor:pointer;font-size:12px;padding:0}
+.cce-tglist{display:flex;flex-direction:column;gap:4px}
+.cce-tg{position:relative;display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:10px;cursor:pointer;border:1px solid transparent}
+.cce-tg:hover{background:rgba(30,41,59,.7)}
+.cce-tg b{font-size:13px;font-weight:700;color:var(--k-tx);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cce-tg small{font-size:11px;color:var(--k-mute);font-variant-numeric:tabular-nums}
+.cce-tg .cce-dot{width:16px;height:16px;border-radius:50%;border:2px solid rgba(148,163,184,.4);flex:none}
+.cce-tg:has(input:checked){background:rgba(14,165,233,.14);border-color:rgba(56,189,248,.6)}
+.cce-tg:has(input:checked) .cce-dot{border-color:#38bdf8;background:radial-gradient(#38bdf8 45%,transparent 50%)}
+.cce-link{background:none;border:0;color:#7dd3fc;font-size:12px;font-weight:700;cursor:pointer;padding:0}
+.cce-adv{border:1px solid rgba(148,163,184,.14);border-radius:14px;padding:0 14px}
+.cce-adv summary{cursor:pointer;list-style:none;padding:14px 0;display:flex;align-items:center;gap:8px;font-weight:900;font-size:14px;color:var(--k-tx-strong)}
+.cce-adv summary::-webkit-details-marker{display:none}
+.cce-adv summary::after{content:'';width:8px;height:8px;border-right:2px solid var(--k-mute);border-bottom:2px solid var(--k-mute);transform:rotate(45deg);margin:0 4px 4px auto;transition:transform .15s}
+.cce-adv[open] summary::after{transform:rotate(225deg);margin-bottom:-4px}
+.cce-adv summary span{font-size:12px;font-weight:600;color:var(--k-mute)}
+.cce-ta{width:100%;box-sizing:border-box;padding:11px 13px;border-radius:11px;border:1px solid rgba(148,163,184,.22);background:rgba(15,23,42,.7);color:var(--k-tx);font-size:13px;line-height:1.55;resize:vertical;outline:none;font-family:inherit}
+.cce-ta:focus{border-color:#38bdf8;box-shadow:0 0 0 3px rgba(56,189,248,.15)}
+.cce-f{margin-bottom:14px}
+.cce-vars{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.cce-vars button{border:1px solid rgba(148,163,184,.2);background:rgba(30,41,59,.6);color:#bae6fd;border-radius:7px;padding:2px 7px;font-size:11.5px;font-weight:700;cursor:pointer}
+.cce-vars button:hover{border-color:#38bdf8}
+.cce-switch{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;cursor:pointer;margin-top:4px}
+.cce-switch input{appearance:none;width:38px;height:22px;border-radius:99px;background:rgba(148,163,184,.3);position:relative;cursor:pointer;transition:background .15s;flex:none;margin:0}
+.cce-switch input::after{content:'';position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .15s}
+.cce-switch input:checked{background:#0ea5e9}
+.cce-switch input:checked::after{left:19px}
+.cce-ph{font-size:12px;font-weight:800;color:var(--k-mute);margin:0 0 8px;display:flex;align-items:center;gap:6px}
+.cce-ph em{font-style:normal;font-weight:600;opacity:.8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cce-dc{background:#313338;border-radius:12px;padding:12px 14px;display:flex;gap:12px;margin-bottom:18px}
+.cce-av{width:36px;height:36px;border-radius:50%;background:#0ea5e9;display:grid;place-items:center;font-size:17px;flex:none}
+.cce-dcn{font-size:13.5px;font-weight:700;color:#f2f3f5;display:flex;align-items:center;gap:6px;margin-bottom:2px}
+.cce-dcn span{background:#5865f2;color:#fff;font-size:10px;font-weight:800;padding:1px 5px;border-radius:4px}
+.cce-dct{font-size:13.5px;line-height:1.45;color:#dbdee1;white-space:pre-wrap;word-break:break-word}
+.cce-dct code{background:#2b2d31;border:1px solid #1e1f22;border-radius:4px;padding:0 4px;font-size:12.5px}
+.cce-tgw{background:#0e1621;border-radius:12px;padding:14px;display:flex;justify-content:flex-end}
+.cce-tgb{background:#2b5278;color:#fff;border-radius:14px 14px 4px 14px;padding:9px 12px 6px;max-width:92%;font-size:13.5px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.cce-tgb small{display:block;text-align:right;font-size:11px;color:#a5c6e6;margin-top:4px}
+.cce-seg{display:inline-flex;background:rgba(15,23,42,.7);border-radius:9px;padding:3px;margin-left:auto}
+.cce-seg button{border:0;background:none;color:var(--k-mute);font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:7px;cursor:pointer}
+.cce-seg button.on{background:rgba(14,165,233,.25);color:#e0f2fe}
+@media (max-width:520px){.cce-row{grid-template-columns:1fr}.cce-pop .swal2-title,.cce-pop .swal2-html-container,.cce-pop .swal2-actions{padding-left:16px;padding-right:16px}}
+@media (max-width:860px){.cce{grid-template-columns:1fr}.cce-main,.cce-side{max-height:none;overflow:visible}.cce-pop .swal2-html-container{max-height:72vh;overflow-y:auto}}
+@media (prefers-reduced-motion:reduce){.cce *{transition:none!important}}`;
+        const st = document.createElement('style');
+        st.id = 'cce-style';
+        st.textContent = css;
+        document.head.appendChild(st);
+    }
+
+    let _ccPrevMode = 'full';   // full = ตอบครบ, partial = กดส่งเท่าที่มี
+
     window.ccEditSchedule = async function (id, copy) {
         if (!can()) return;
         await loadBase();   // ดึงรายชื่อห้อง/กลุ่มล่าสุดทุกครั้งที่เปิดหน้าต่าง
@@ -430,6 +519,8 @@
             await Swal.fire({ ...SWAL, icon: 'info', title: 'ตั้งรายชื่อเว็บก่อน', text: 'ไปที่แท็บย่อย "รายชื่อเว็บ" แล้วกดบันทึกก่อนครับ' });
             return window.ccSetSub('webs');
         }
+        ensureEditorStyle();
+        _ccPrevMode = 'full';
         const src = id ? _schedules.find(x => Number(x.id) === Number(id)) : null;
         const s = src ? { ...src } : {
             name: '', time: '', channel_ids: [], telegram_chat_id: '',
@@ -439,69 +530,105 @@
         const isEdit = src && !copy;
         const selCh = new Set((s.channel_ids || []).map(String));
 
-        const field = (label, inner) => `<div style="text-align:left;margin-top:14px"><label style="${LB}">${label}</label>${inner}</div>`;
-        const chk = (cls, val, on, label) => `<label style="display:inline-flex;align-items:center;gap:5px;padding:5px 9px;border:1px solid var(--k-line2);border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;color:var(--k-tx)"><input type="checkbox" class="${cls}" value="${esc(val)}" ${on ? 'checked' : ''}> ${label}</label>`;
-
-        // ห้องจัดกลุ่มตามหมวดใน Discord
+        // ── ห้อง Discord จัดกลุ่มตามหมวด
         const groups = {};
         (_settings.channels || []).forEach(c => { (groups[c.category || 'ไม่มีหมวด'] = groups[c.category || 'ไม่มีหมวด'] || []).push(c); });
         const knownIds = new Set((_settings.channels || []).map(c => String(c.id)));
         const unknown = [...selCh].filter(x => !knownIds.has(x));
         const chHtml = Object.keys(groups).length ? Object.entries(groups).map(([cat, chs]) => `
-            <div class="cc-chgroup" style="margin-bottom:8px">
-                <div style="font-size:11px;font-weight:800;color:var(--k-mute);margin:4px 0">${esc(cat)}</div>
-                <div style="display:flex;flex-wrap:wrap;gap:6px">${chs.map(c => `<span class="cc-chitem" data-name="${esc(String(c.name).toLowerCase())}">${chk('cc-ch', c.id, selCh.has(String(c.id)), (c.type === 'voice' ? '🔊 ' : '# ') + esc(c.name))}</span>`).join('')}</div>
-            </div>`).join('') : `<div style="font-size:12px;color:#fbbf24">ยังไม่มีรายชื่อห้องจากบอท (รอบอทรันแล้วกดรีเฟรช) — ใส่ Channel ID เองด้านล่างได้</div>`;
+            <div class="cc-chgroup">
+                <div class="cce-cat">${esc(cat)} <span>${chs.length}</span></div>
+                <div class="cce-chips">${chs.map(c => `<label class="cce-chip cc-chitem" data-name="${esc(String(c.name).toLowerCase())}"><input type="checkbox" class="cc-ch" value="${esc(c.id)}" data-label="${esc(c.name)}" ${selCh.has(String(c.id)) ? 'checked' : ''}><i>${c.type === 'voice' ? '🔊' : '#'}</i>${esc(c.name)}</label>`).join('')}</div>
+            </div>`).join('') : `<div style="padding:14px 4px;font-size:12.5px;color:#fbbf24">ยังไม่มีรายชื่อห้องจากบอท ตรวจว่า botlink รันอยู่ หรือใส่ Channel ID เองด้านล่าง</div>`;
 
+        // ── กลุ่ม Telegram
         const curTg = tgFind(s.telegram_chat_id);
-        const tgKnown = !!curTg;
+        const tgHtml = tgList().map(g => `<label class="cce-tg cc-tgitem" data-name="${esc(String(g.name).toLowerCase())} ${esc(g.id)}">
+                <input type="radio" name="ccTg" class="cc-tg" value="${esc(g.id)}" data-label="${esc(g.name)}" ${curTg && normId(curTg.id) === normId(g.id) ? 'checked' : ''}>
+                <span class="cce-dot"></span><b>${esc(g.name)}</b><small>${esc(g.id)}</small></label>`).join('')
+            || `<div style="padding:14px 4px;font-size:12.5px;color:#fbbf24">ยังไม่มีรายชื่อกลุ่มจากบอท ใส่ Chat ID เองด้านล่างได้</div>`;
+
+        const vars = (taId, list) => `<div class="cce-vars">${list.map(v => `<button type="button" onmousedown="event.preventDefault()" onclick="window.ccInsertVar('${taId}','{${v}}')">{${v}}</button>`).join('')}</div>`;
 
         const res = await Swal.fire({
-            ...SWAL, width: 820, showCancelButton: true, focusConfirm: false,
-            title: isEdit ? 'แก้ไขรอบเวลา' : 'เพิ่มรอบเวลา', confirmButtonText: 'บันทึก', cancelButtonText: 'ยกเลิก',
-            html: `<div style="max-height:68vh;overflow-y:auto;padding:2px 4px">
-                <div style="display:flex;gap:10px;flex-wrap:wrap">
-                    <div style="flex:2;min-width:200px">${field('ชื่อรอบ', `<input id="ccName" style="${FD}" value="${esc(s.name)}" placeholder="เช่น รอบ 14:00">`)}</div>
-                    <div style="flex:1;min-width:120px">${field('เวลา (ไทย)', `<input id="ccTime" type="time" style="${FD}" value="${esc(s.time)}">`)}</div>
-                </div>
-                ${field(`ห้อง Discord ที่จะส่งคำถาม <span style="font-weight:500;color:var(--k-mute)">(ติ๊กได้หลายห้อง)</span>`,
-                    `<input id="ccChSearch" oninput="window.ccFilterCh(this.value)" placeholder="🔍 ค้นหาห้อง" style="${FD}margin-bottom:8px">
-                     <div style="max-height:220px;overflow-y:auto;border:1px solid var(--k-line);border-radius:10px;padding:8px">${chHtml}</div>
-                     <input id="ccChExtra" style="${FD}margin-top:8px" value="${esc(unknown.join(', '))}" placeholder="Channel ID เพิ่มเติม (ถ้าห้องไม่อยู่ในรายการ) คั่นด้วย ,">`)}
-                ${field(`ส่งสรุปเข้ากลุ่ม Telegram <span style="font-weight:500;color:var(--k-mute)">(${tgList().length} กลุ่มที่บัญชีอยู่)</span>`,
-                    `<input id="ccTgSearch" oninput="window.ccFilterTg(this.value)" placeholder="🔍 ค้นหาชื่อกลุ่ม" style="${FD}margin-bottom:8px">
-                     <select id="ccTgSel" size="6" style="${FD}height:auto;padding:4px">${tgOptions('', curTg ? curTg.id : '')}</select>
-                     <input id="ccTgManual" style="${FD}margin-top:8px" value="${tgKnown ? '' : esc(s.telegram_chat_id || '')}" placeholder="หรือใส่ Chat ID เอง (กรณีกลุ่มไม่อยู่ในรายการ)">`)}
+            ...SWAL, width: 1040, showCancelButton: true, focusConfirm: false, reverseButtons: true,
+            customClass: { popup: 'cce-pop' },
+            title: isEdit ? 'แก้ไขรอบเวลา' : 'เพิ่มรอบเวลา',
+            confirmButtonText: isEdit ? 'บันทึกการแก้ไข' : 'บันทึกรอบเวลา', cancelButtonText: 'ยกเลิก',
+            html: `<div class="cce">
+              <div class="cce-main">
+                <section class="cce-step">
+                    <div class="cce-sh"><span class="cce-num">1</span><h4>ชื่อรอบและเวลา</h4><span class="cce-aside">ส่งทุกวัน · ถามทุกเว็บ</span></div>
+                    <div class="cce-row">
+                        <div><label class="cce-lb" for="ccName">ชื่อรอบ</label><input id="ccName" class="cce-in" value="${esc(s.name)}" placeholder="เช่น กะเช้า รอบที่ 1" oninput="window.ccPreview()"></div>
+                        <div><label class="cce-lb" for="ccTime">เวลา (ไทย)</label><input id="ccTime" type="time" class="cce-in cce-time" value="${esc(s.time)}" oninput="window.ccPreview()"></div>
+                    </div>
+                </section>
 
-                <div style="text-align:left;margin-top:18px;padding-top:12px;border-top:1px solid var(--k-line);font-weight:900;color:var(--k-tx-strong)">📝 แพทเทิร์นข้อความ</div>
-                ${field('ข้อความคำถามที่ส่งเข้าห้อง Discord <span style="font-weight:500;color:var(--k-mute)">ใช้ได้: {รอบ} {วันที่} {เวลา} {เว็บทั้งหมด}</span>',
-                    `<textarea id="ccAsk" rows="4" oninput="window.ccPreview()" style="${FD}resize:vertical;font-family:monospace">${esc(s.ask_template || DEF.ask)}</textarea>`)}
-                ${field('ข้อความสรุปที่ส่งเข้า Telegram <span style="font-weight:500;color:var(--k-mute)">ใช้ได้: {วันที่} {รอบ} {เวลา} {รายการ} {รวม} {ตอบแล้ว} {ทั้งหมด} {ยังไม่ตอบ}</span>',
-                    `<textarea id="ccReport" rows="5" oninput="window.ccPreview()" style="${FD}resize:vertical;font-family:monospace">${esc(s.report_template || DEF.report)}</textarea>`)}
-                <div style="display:flex;gap:10px;flex-wrap:wrap">
-                    <div style="flex:1;min-width:220px">${field('ข้อความต่อ 1 เว็บ (ไปแทน {รายการ}) <span style="font-weight:500;color:var(--k-mute)">{สี} {เว็บ} {จำนวน} {ห้อง} {ผู้ตอบ} · ขึ้นบรรทัดใหม่ได้ · เว้นบรรทัดท้าย = เว้นระหว่างเว็บ</span>',
-                        `<textarea id="ccLine" rows="3" oninput="window.ccPreview()" style="${FD}resize:vertical;font-family:monospace">${esc(s.line_template || DEF.line)}</textarea>`)}</div>
-                    <div style="flex:1;min-width:220px">${field('ข้อความเว็บที่ยังไม่ตอบ (ใช้ตอนกดส่งเท่าที่มี) <span style="font-weight:500;color:var(--k-mute)">{สี} {เว็บ} · เว้นว่าง = ไม่แสดง</span>',
-                        `<textarea id="ccMissing" rows="3" oninput="window.ccPreview()" style="${FD}resize:vertical;font-family:monospace">${esc(s.missing_template == null ? DEF.missing : s.missing_template)}</textarea>`)}</div>
-                </div>
-                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
-                    <div style="flex:1;min-width:240px;text-align:left"><label style="${LB}">ตัวอย่างในห้อง Discord</label><pre id="ccPrevAsk" style="white-space:pre-wrap;font-family:inherit;font-size:12.5px;background:var(--k-field);padding:10px;border-radius:10px;margin:0;color:var(--k-tx)"></pre></div>
-                    <div style="flex:1;min-width:240px;text-align:left"><label style="${LB}">ตัวอย่างใน Telegram</label><pre id="ccPrevReport" style="white-space:pre-wrap;font-family:inherit;font-size:12.5px;background:var(--k-field);padding:10px;border-radius:10px;margin:0;color:var(--k-tx)"></pre></div>
-                </div>
-                <label style="display:flex;align-items:center;gap:6px;margin-top:14px;font-size:13px;font-weight:700;color:var(--k-tx)"><input type="checkbox" id="ccActive" ${s.active !== false ? 'checked' : ''}> เปิดใช้งานรอบนี้</label>
+                <section class="cce-step">
+                    <div class="cce-sh"><span class="cce-num">2</span><h4>ห้อง Discord ที่จะถาม</h4><span class="cce-aside" id="ccChCount"></span></div>
+                    <div class="cce-picked" id="ccChPicked"></div>
+                    <input id="ccChSearch" class="cce-in" style="margin-top:10px" oninput="window.ccFilterCh(this.value)" placeholder="🔍 ค้นหาห้อง">
+                    <div class="cce-box" onchange="window.ccEdSync()">${chHtml}</div>
+                    <details style="margin-top:8px" ${unknown.length ? 'open' : ''}><summary class="cce-link" style="list-style:none">ห้องไม่อยู่ในรายการ? ใส่ Channel ID เอง</summary>
+                        <input id="ccChExtra" class="cce-in" style="margin-top:8px" value="${esc(unknown.join(', '))}" placeholder="123456789012345678, ..."></details>
+                </section>
+
+                <section class="cce-step">
+                    <div class="cce-sh"><span class="cce-num">3</span><h4>ส่งสรุปเข้ากลุ่ม Telegram</h4><span class="cce-aside">${tgList().length} กลุ่มที่บัญชีอยู่</span></div>
+                    <input id="ccTgSearch" class="cce-in" oninput="window.ccFilterTg(this.value)" placeholder="🔍 ค้นหาชื่อกลุ่ม">
+                    <div class="cce-box cce-tglist" onchange="window.ccEdSync()">${tgHtml}</div>
+                    <details style="margin-top:8px" ${s.telegram_chat_id && !curTg ? 'open' : ''}><summary class="cce-link" style="list-style:none">ไม่เจอกลุ่ม? ใส่ Chat ID เอง</summary>
+                        <input id="ccTgManual" class="cce-in" style="margin-top:8px" value="${curTg ? '' : esc(s.telegram_chat_id || '')}" placeholder="-1001234567890" oninput="window.ccEdSync()"></details>
+                </section>
+
+                <details class="cce-adv">
+                    <summary>ปรับแต่งข้อความ <span>ไม่ต้องแก้ ถ้าใช้รูปแบบเดิม</span></summary>
+                    <div class="cce-f"><label class="cce-lb" for="ccAsk">ข้อความคำถามในห้อง Discord</label>
+                        <textarea id="ccAsk" rows="3" class="cce-ta" oninput="window.ccPreview()">${esc(s.ask_template || DEF.ask)}</textarea>
+                        ${vars('ccAsk', ['รอบ', 'วันที่', 'เวลา', 'เว็บทั้งหมด'])}</div>
+                    <div class="cce-f"><label class="cce-lb" for="ccReport">ข้อความสรุปใน Telegram</label>
+                        <textarea id="ccReport" rows="4" class="cce-ta" oninput="window.ccPreview()">${esc(s.report_template || DEF.report)}</textarea>
+                        ${vars('ccReport', ['รายการ', 'รอบ', 'เวลา', 'วันที่', 'รวม', 'ตอบแล้ว', 'ทั้งหมด', 'ยังไม่ตอบ'])}</div>
+                    <div class="cce-f"><label class="cce-lb" for="ccLine">แต่ละเว็บใน {รายการ} <span style="font-weight:500">· บรรทัดว่างท้ายสุด = เว้นระหว่างเว็บ</span></label>
+                        <textarea id="ccLine" rows="3" class="cce-ta" oninput="window.ccPreview()">${esc(s.line_template || DEF.line)}</textarea>
+                        ${vars('ccLine', ['สี', 'เว็บ', 'จำนวน', 'ห้อง', 'ผู้ตอบ'])}</div>
+                    <div class="cce-f"><label class="cce-lb" for="ccMissing">เว็บที่ยังไม่ตอบ <span style="font-weight:500">· ใช้ตอนกด "ส่งเท่าที่มี" · เว้นว่าง = ไม่แสดง</span></label>
+                        <textarea id="ccMissing" rows="3" class="cce-ta" oninput="window.ccPreview()">${esc(s.missing_template == null ? DEF.missing : s.missing_template)}</textarea>
+                        ${vars('ccMissing', ['สี', 'เว็บ'])}</div>
+                </details>
+
+                <label class="cce-switch" style="margin-top:18px"><input type="checkbox" id="ccActive" ${s.active !== false ? 'checked' : ''}> เปิดใช้งาน ส่งอัตโนมัติตามเวลา</label>
+              </div>
+
+              <aside class="cce-side">
+                <div class="cce-ph">ในห้อง Discord <em id="ccPrevChan"></em></div>
+                <div class="cce-dc"><div class="cce-av">📊</div><div style="min-width:0"><div class="cce-dcn">BotLink <span>BOT</span></div><div class="cce-dct" id="ccPrevAsk"></div></div></div>
+                <div class="cce-ph">ใน Telegram <em id="ccPrevTg"></em>
+                    <div class="cce-seg"><button type="button" id="ccSegFull" class="on" onclick="window.ccPrevMode('full')">ตอบครบ</button><button type="button" id="ccSegPart" onclick="window.ccPrevMode('partial')">ส่งเท่าที่มี</button></div></div>
+                <div class="cce-tgw"><div class="cce-tgb"><span id="ccPrevReport"></span><small id="ccPrevTime"></small></div></div>
+                <div style="font-size:11.5px;color:var(--k-mute);margin-top:10px">ตัวเลขในตัวอย่างเป็นเลขสมมติ</div>
+              </aside>
             </div>`,
-            didOpen: () => window.ccPreview(),
+            didOpen: () => {
+                window.ccEdSync();
+                // เลื่อนรายการกลุ่ม Telegram ไปให้เห็นกลุ่มที่เลือกไว้
+                const on = document.querySelector('.cc-tg:checked');
+                const item = on && on.closest('.cce-tg'), box = item && item.parentElement;
+                if (item && box) box.scrollTop = item.offsetTop - box.offsetTop - 8;
+            },
             preConfirm: () => {
                 const name = $('ccName').value.trim();
                 const time = $('ccTime').value.trim();
                 if (!name) return Swal.showValidationMessage('ใส่ชื่อรอบ');
-                if (!/^\d{2}:\d{2}$/.test(time)) return Swal.showValidationMessage('ใส่เวลา');
+                if (!/^\d{2}:\d{2}$/.test(time)) return Swal.showValidationMessage('ใส่เวลาส่ง');
                 const extra = $('ccChExtra').value.split(/[\s,]+/).map(x => x.trim()).filter(Boolean);
-                if (extra.some(x => !/^\d{15,22}$/.test(x))) return Swal.showValidationMessage('Channel ID เพิ่มเติมต้องเป็นตัวเลข 15-22 หลัก');
+                if (extra.some(x => !/^\d{15,22}$/.test(x))) return Swal.showValidationMessage('Channel ID ที่ใส่เองต้องเป็นตัวเลข 15-22 หลัก');
                 const channel_ids = [...new Set([...document.querySelectorAll('.cc-ch:checked')].map(x => x.value).concat(extra))];
                 if (!channel_ids.length) return Swal.showValidationMessage('เลือกห้อง Discord อย่างน้อย 1 ห้อง');
-                const tg = $('ccTgManual').value.trim() || $('ccTgSel').value;
-                if (!tg) return Swal.showValidationMessage('เลือกกลุ่ม Telegram ปลายทาง');
+                const picked = document.querySelector('.cc-tg:checked');
+                const tg = $('ccTgManual').value.trim() || (picked ? picked.value : '');
+                if (!tg) return Swal.showValidationMessage('เลือกกลุ่ม Telegram ที่จะรับสรุป');
                 if (window.normChatId && !window.normChatId(tg)) return Swal.showValidationMessage('Chat ID Telegram ต้องเป็นตัวเลข');
                 return {
                     name, time, days: [0, 1, 2, 3, 4, 5, 6], channel_ids, webs: [], telegram_chat_id: tg,   // ส่งทุกวัน ถามทุกเว็บ
@@ -517,19 +644,51 @@
             : appDB.from('chatcount_schedules').insert([res.value]);
         const { error } = await q;
         if (error) return Swal.fire({ ...SWAL, icon: 'error', title: 'บันทึกไม่ได้', text: error.message });
-        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'บันทึกแล้ว', showConfirmButton: false, timer: 1500 });
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'บันทึกรอบเวลาแล้ว', showConfirmButton: false, timer: 1500 });
         window.ccLoadSchedules();
     };
 
-    function tgOptions(q, selected) {
-        q = String(q || '').trim().toLowerCase();
-        const list = tgList().filter(g => !q || String(g.name).toLowerCase().includes(q) || String(g.id).includes(q));
-        if (!list.length) return `<option value="" disabled>ไม่พบกลุ่ม</option>`;
-        return list.map(g => `<option value="${esc(g.id)}" ${normId(g.id) === normId(selected) ? 'selected' : ''}>${esc(g.name)}  (${esc(g.id)})</option>`).join('');
-    }
+    // อัปเดตส่วนที่ขึ้นกับการเลือก: ห้องที่เลือก (pill), จำนวน, ชื่อในตัวอย่าง
+    window.ccEdSync = function () {
+        const boxes = [...document.querySelectorAll('.cc-ch:checked')];
+        const picked = $('ccChPicked');
+        if (picked) {
+            picked.innerHTML = boxes.length
+                ? boxes.map(b => `<span class="cce-pill">${esc(b.dataset.label)}<button type="button" aria-label="เอาออก" onclick="window.ccUnpick('${esc(b.value)}')">×</button></span>`).join('')
+                : 'ยังไม่ได้เลือกห้อง';
+        }
+        const cnt = $('ccChCount');
+        if (cnt) cnt.textContent = boxes.length ? `เลือก ${boxes.length} ห้อง` : '';
+        const prevCh = $('ccPrevChan');
+        if (prevCh) prevCh.textContent = boxes.length ? '#' + boxes[0].dataset.label + (boxes.length > 1 ? ` และอีก ${boxes.length - 1} ห้อง` : '') : '';
+        const tg = document.querySelector('.cc-tg:checked');
+        const manual = $('ccTgManual') ? $('ccTgManual').value.trim() : '';
+        const prevTg = $('ccPrevTg');
+        if (prevTg) prevTg.textContent = manual ? manual : (tg ? tg.dataset.label : '');
+        window.ccPreview();
+    };
+    window.ccUnpick = function (val) {
+        const b = [...document.querySelectorAll('.cc-ch')].find(x => x.value === val);
+        if (b) { b.checked = false; window.ccEdSync(); }
+    };
+    window.ccInsertVar = function (taId, token) {
+        const ta = $(taId); if (!ta) return;
+        const st = ta.selectionStart ?? ta.value.length, en = ta.selectionEnd ?? ta.value.length;
+        ta.value = ta.value.slice(0, st) + token + ta.value.slice(en);
+        ta.focus();
+        ta.selectionStart = ta.selectionEnd = st + token.length;
+        window.ccPreview();
+    };
+    window.ccPrevMode = function (m) {
+        _ccPrevMode = m;
+        $('ccSegFull')?.classList.toggle('on', m === 'full');
+        $('ccSegPart')?.classList.toggle('on', m === 'partial');
+        window.ccPreview();
+    };
+
     window.ccFilterTg = function (q) {
-        const sel = $('ccTgSel');
-        if (sel) sel.innerHTML = tgOptions(q, sel.value);
+        q = String(q || '').trim().toLowerCase();
+        document.querySelectorAll('.cc-tgitem').forEach(el => { el.style.display = !q || el.dataset.name.includes(q) ? '' : 'none'; });
     };
 
     window.ccFilterCh = function (q) {
@@ -541,25 +700,32 @@
         });
     };
 
+    // Discord markdown แบบย่อ (**หนา**, `โค้ด`) สำหรับตัวอย่าง
+    const dcMd = t => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`([^`]+)`/g, '<code>$1</code>');
+
     window.ccPreview = function () {
         const a = $('ccAsk'); if (!a) return;
         const sample = webNames();
-        const name = $('ccName').value.trim() || 'รอบ 14:00';
-        const time = $('ccTime').value || '14:00';
+        const name = $('ccName').value.trim() || 'กะเช้า รอบที่ 1';
+        const time = $('ccTime').value || '12:00';
         const date = thaiDate(thaiToday());
-        $('ccPrevAsk').textContent = render(a.value, { 'รอบ': name, 'วันที่': date, 'เวลา': thaiTime(time), 'เว็บทั้งหมด': sample.join(', ') });
-        // ตัวอย่าง: ตอบแล้วทุกเว็บ ยกเว้นเว็บสุดท้าย (ให้เห็นบรรทัด "ยังไม่ตอบ" ด้วย)
-        let total = 0;
+        $('ccPrevAsk').innerHTML = dcMd(render(a.value, { 'รอบ': name, 'วันที่': date, 'เวลา': thaiTime(time), 'เว็บทั้งหมด': sample.join(', ') }).trim());
+        // ส่งเท่าที่มี: สมมติว่าเว็บท้ายสุด 2 เว็บยังไม่ตอบ
+        const partial = _ccPrevMode === 'partial';
+        const missing = partial ? sample.slice(-2) : [];
+        let total = 0, answered = 0;
         const lines = sample.map((w, i) => {
-            if (i === sample.length - 1 && sample.length > 1) return $('ccMissing').value.trim() ? render($('ccMissing').value, { 'เว็บ': w, 'สี': webEmoji(w) }) : null;
-            const n = (i * 7) % 4; total += n;
+            if (missing.includes(w)) return $('ccMissing').value.trim() ? render($('ccMissing').value, { 'เว็บ': w, 'สี': webEmoji(w) }) : null;
+            const n = [2, 0, 9, 3, 7, 1, 0, 4, 5, 3][i % 10]; total += n; answered++;
             return render($('ccLine').value, { 'เว็บ': w, 'สี': webEmoji(w), 'จำนวน': n, 'ห้อง': 'ห้อง ' + (i + 1), 'ผู้ตอบ': 'BOB' });
         }).filter(x => x != null);
         $('ccPrevReport').textContent = render($('ccReport').value, {
             'วันที่': date, 'รอบ': name, 'เวลา': thaiTime(time), 'รายการ': lines.join('\n'), 'รวม': total,
-            'ตอบแล้ว': Math.max(sample.length - 1, 1), 'ทั้งหมด': sample.length, 'ยังไม่ตอบ': sample.length > 1 ? sample[sample.length - 1] : '-',
+            'ตอบแล้ว': answered, 'ทั้งหมด': sample.length, 'ยังไม่ตอบ': missing.join(', ') || '-',
         }).trim();
+        $('ccPrevTime').textContent = time;
     };
+
 
     window.ccToggleSchedule = async function (id) {
         const s = _schedules.find(x => Number(x.id) === Number(id));
