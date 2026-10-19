@@ -346,42 +346,31 @@ window.openManageSystemModal = async function() {
     }
 };
 
-window.openManageLogoModal = async function() {
-    let defaultWebList = (typeof TEAM_LIST !== 'undefined' && TEAM_LIST.length > 0) ? TEAM_LIST : ['Jun88', 'MK8', 'F168', 'PG688', 'JL69', 'NM9', 'VV72', 'TH26', 'BT678', 'K188'];
-    let optionsHtml = defaultWebList.map(w => `<option value="${w}">${w}</option>`).join('');
-
-    const { value: selectedWeb } = await Swal.fire({
-        title: 'เลือกเว็บไซต์',
-        html: `
-            <p class="text-sm text-gray-400 mb-4">ต้องการเปลี่ยนโลโก้ของเว็บไหนครับ?</p>
-            <select id="swal-web-select" class="w-full p-3 rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-white font-bold outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer shadow-inner">
-                <option value="">-- เลือกเว็บไซต์ --</option>
-                ${optionsHtml}
-            </select>
-        `,
-        showCancelButton: true, confirmButtonColor: '#f59e0b', cancelButtonColor: '#64748b', confirmButtonText: 'ถัดไป', cancelButtonText: 'ยกเลิก',
-        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' },
-        preConfirm: () => {
-            const val = document.getElementById('swal-web-select').value;
-            if (!val) { Swal.showValidationMessage('กรุณาเลือกเว็บไซต์ก่อนครับ'); return false; }
-            return val;
-        }
-    });
-
-    if (selectedWeb) {
-        document.getElementById('webLogoKey').value = selectedWeb;
-        document.getElementById('webLogoTargetName').innerText = selectedWeb;
-        document.getElementById('webLogoUrlInput').value = '';
-        document.getElementById('webLogoFileInput').value = '';
-        
-        const currentLogo = window.summaryWebLogos && window.summaryWebLogos[selectedWeb];
-        const previewBox = document.getElementById('currentWebLogoPreviewBox');
-        const previewImg = document.getElementById('currentWebLogoPreview');
-        
-        if (currentLogo) { previewImg.src = currentLogo; previewBox.classList.remove('hidden'); } 
-        else { previewBox.classList.add('hidden'); }
-        document.getElementById('webLogoModal').classList.remove('hidden');
-    }
+// 🖼️ จัดการโลโก้ — หน้าต่างเดียว: เลือกเว็บจากรูป → ใส่รูปใหม่ → บันทึก
+// (เดิม 2 ขั้น: หน้าต่างเลือกเว็บจาก dropdown → กด "ถัดไป" → ค่อยเปิดหน้าต่างใส่รูป)
+window.openManageLogoModal = function(webName) {
+    const webs = smWebList();
+    const logos = window.summaryWebLogos || {};
+    const esc = (v) => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const picker = document.getElementById('webLogoPicker');
+    if (picker) picker.innerHTML = webs.map(w => `<button type="button" class="lg-w" data-web="${esc(w)}" onclick="smPickLogoWeb('${esc(w)}')">
+            <span class="lg-img">${logos[w] ? `<img src="${esc(logos[w])}" alt="">` : `<i>${esc(String(w).slice(0, 3))}</i>`}</span>${esc(w)}</button>`).join('');
+    // เลือกให้ก่อน: เว็บที่กำลังกรองอยู่ (ถ้ามี) ไม่งั้นเว็บแรก
+    const first = webName || ((typeof summaryActiveWebFilter !== 'undefined' && summaryActiveWebFilter !== 'ALL') ? summaryActiveWebFilter : webs[0]);
+    window.smPickLogoWeb(first);
+    document.getElementById('webLogoModal').classList.remove('hidden');
+};
+window.smPickLogoWeb = function(web) {
+    document.getElementById('webLogoKey').value = web;
+    document.getElementById('webLogoTargetName').innerText = web;
+    document.getElementById('webLogoUrlInput').value = '';
+    document.getElementById('webLogoFileInput').value = '';
+    document.querySelectorAll('#webLogoPicker .lg-w').forEach(b => b.classList.toggle('on', b.dataset.web === web));
+    const currentLogo = window.summaryWebLogos && window.summaryWebLogos[web];
+    const previewBox = document.getElementById('currentWebLogoPreviewBox');
+    const previewImg = document.getElementById('currentWebLogoPreview');
+    if (currentLogo) { previewImg.src = currentLogo; previewBox.classList.remove('hidden'); }
+    else { previewBox.classList.add('hidden'); }
 };
 
 window.fetchMultipleHistoricalSummary = async function() {
