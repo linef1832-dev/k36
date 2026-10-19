@@ -14,15 +14,12 @@ let dsRoomList = [];
 let extStaffList = [];
 let extOnlineUsers = [];
 let extStaffGroups = {}; 
-let checkinStatusMap = {};
-let uploadFiles = [];
 let selectedAssign = new Set();
 let selectedRemove = new Set(); 
 let scheduledTransfers = [];
 let transferHistory = [];
 let selectedTransfer = new Set();
 let spySelectedUsers = new Set();
-let todaysLeaves = [];
 let dsTimers = {};
 window.customDiscordNames = window.customDiscordNames || {};
 window.isSpyDropdownFocused = false;
@@ -711,7 +708,6 @@ window.applyDiscordPermissions = function() {
     const tabs = [
         { btnId: 'tabDsSpy', viewId: 'spy', reqPerm: 'ds_spy' },
         { btnId: 'tabDsMove', viewId: 'move', reqPerm: 'ds_move' },
-        { btnId: 'tabDsCheckin', viewId: 'checkin', reqPerm: 'ds_checkin' },
         { btnId: 'tabDsManage', viewId: 'manage', reqPerm: 'ds_manage' },
         { btnId: 'tabDsVoicelog', viewId: 'voicelog', reqPerm: 'ds_log' },
         { btnId: 'tabDsBreaktrack', viewId: 'breaktrack', reqPerm: 'ds_checkin' }
@@ -734,7 +730,7 @@ window.applyDiscordPermissions = function() {
 
     if (firstAllowedTab) {
         document.getElementById('discordNoAccessMessage')?.remove();
-        const activeTabs = ['spy', 'move', 'checkin', 'manage', 'voicelog', 'breaktrack'];
+        const activeTabs = ['spy', 'move', 'manage', 'voicelog', 'breaktrack'];
         let isCurrentTabValid = false;
         
         activeTabs.forEach(t => {
@@ -779,7 +775,7 @@ window.applyDiscordPermissions = function() {
 
 window.switchDiscordTab = function(tabName) {
     try {
-        const allViews = ['spy', 'move', 'checkin', 'manage', 'voicelog', 'breaktrack'];
+        const allViews = ['spy', 'move', 'manage', 'voicelog', 'breaktrack'];
         allViews.forEach(view => {
             const el = document.getElementById('dsContent_' + view);
             if (el) el.classList.add('hidden');
@@ -805,19 +801,6 @@ window.switchDiscordTab = function(tabName) {
             else if (tabName === 'move') {
                 activeBtn.className = "ds-tab ds-tab-active";
                 ds_fetchChannels(); 
-            }
-            else if (tabName === 'checkin') {
-                activeBtn.className = "ds-tab ds-tab-active";
-                const d = new Date();
-                const y = d.getFullYear(); const m = String(d.getMonth() + 1).padStart(2, '0'); const day = String(d.getDate()).padStart(2, '0');
-                if(document.getElementById('tgDate')) document.getElementById('tgDate').value = `${y}-${m}-${day}`;
-                
-                ds_fetchSpy().then(() => {
-                    fetchTodaysLeaves().then(() => {
-                        if (!isDataLoaded) fetchSystemData(false).then(() => _doRenderCheckinTable()); 
-                        else _doRenderCheckinTable();
-                    });
-                });
             }
             else if (tabName === 'manage') {
                 activeBtn.className = "ds-tab ds-tab-active";
@@ -895,7 +878,6 @@ window.fetchSystemData = async function(forceSync = false, silent = false) {
 
         updateAllFilters();
         if (typeof renderGroupList === 'function') renderGroupList();
-        if (typeof _doRenderCheckinTable === 'function') _doRenderCheckinTable();
         if (typeof _doRenderManagerList === 'function') _doRenderManagerList();
         if (typeof renderTransferUserList === 'function') renderTransferUserList();
         if (typeof fetchTransfers === 'function') fetchTransfers();
@@ -1088,276 +1070,6 @@ window.ds_returnMove = async function() {
             ds_logAction('Return Move', `ดึงพนักงาน ${r.count} คนกลับห้องเดิม`);
         } else Swal.fire('Error', r.error, 'error');
     } catch(e) { Swal.fire('Error', 'เชื่อมต่อบอทไม่ได้', 'error'); }
-};
-
-window.loadTgConfigLocal = function() {
-    const savedToken = localStorage.getItem('tg_bot_token');
-    const savedChatId = localStorage.getItem('tg_chat_id');
-    if(savedToken && document.getElementById('cfgToken')) document.getElementById('cfgToken').value = savedToken;
-    if(savedChatId && document.getElementById('cfgChatId')) document.getElementById('cfgChatId').value = savedChatId;
-};
-
-window.saveTgConfigLocal = async function() {
-    // [เปลี่ยน] แผงตั้งค่าถูกเอาออกจากหน้าแล้ว — กันไว้ไม่ให้พังถ้ามีอะไรเรียกฟังก์ชันนี้
-    const _t = document.getElementById('cfgToken');
-    const _c = document.getElementById('cfgChatId');
-    if (!_t || !_c) return;
-    const token = _t.value.trim();
-    const chatId = _c.value.trim();
-    window.safeSetItem('tg_bot_token', token);
-    window.safeSetItem('tg_chat_id', chatId);
-    try { await fetch(DISCORD_API_URL + '/api/save-tg-config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ botToken: token, chatId: chatId }) }); } catch(e) {}
-    Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ', text: 'ระบบจะจำการตั้งค่านี้ไว้ในเบราว์เซอร์ของคุณ', timer: 2000, showConfirmButton: false});
-    document.getElementById('tgSettingsBox')?.classList.add('hidden');
-};
-
-window.renderCheckinTable = function() { dsDebounce('checkin', _doRenderCheckinTable, 200); };
-
-// 🏖️ หาเหตุผลการลาวันนี้ของพนักงาน (จับคู่ชื่อแบบตัดสัญลักษณ์) — เดิมเขียนซ้ำ 2 ที่
-function _dsLeaveReasonFor(dbUser) {
-    if (!dbUser || !todaysLeaves || todaysLeaves.length === 0) return null;
-    const dbNameClean = dbUser.username.toLowerCase().replace(/[^a-z0-9ก-๙]/g, '');
-    const foundLeave = todaysLeaves.find(l => {
-        const dbNameLeave = l.user_name ? l.user_name.toLowerCase().replace(/[^a-z0-9ก-๙]/g, '') : '';
-        return dbNameLeave === dbNameClean || dbNameClean.includes(dbNameLeave);
-    });
-    return foundLeave ? foundLeave.reason : null;
-}
-
-window._doRenderCheckinTable = function() {
-    const container = document.getElementById('checkinTableContainer');
-    if(!container) return;
-    const group = document.getElementById('groupFilter').value;
-    const search = document.getElementById('searchTable').value.toLowerCase();
-    
-    let counts = { '✅':0, '🏖️':0, '🤒':0, '📝':0, '❌':0, 'TOTAL':0 };
-    
-    const filteredStaff = extStaffList.filter(s => {
-        const passGroup = passGroupFilter(s, group);
-        const passSearch = search === '' || s.name.toLowerCase().includes(search);
-        return passGroup && passSearch;
-    });
-
-    if (filteredStaff.length === 0) {
-        container.innerHTML = '<div class="text-center text-gray-500 p-8 font-bold">ไม่พบข้อมูลรายชื่อ</div>';
-        document.getElementById('statusSummary').innerHTML = '';
-        return;
-    }
-
-    container.innerHTML = filteredStaff.map(s => {
-        counts.TOTAL++;
-        const inVoiceRoom = globalSpyData.some(spy => (String(spy.id) === String(s.id) || spy.name === s.name) && spy.currentRoom);
-        const isOnline = extOnlineUsers.includes(String(s.id)) || inVoiceRoom;
-        
-        const dbUser = getDbUserFromDiscordName(s.name);
-        
-        let leaveReasonDb = _dsLeaveReasonFor(dbUser);
-        
-        let st = checkinStatusMap[s.id];
-        if (!st) {
-            if (leaveReasonDb) {
-                if (leaveReasonDb === 'KL') st = '📝'; 
-                else st = '🏖️'; 
-            }
-            else if (isOnline) st = '✅';
-            else st = '❌';
-        }
-        
-        if(counts[st] !== undefined) counts[st]++;
-
-        let leaveBadgeHtml = '';
-        if (leaveReasonDb) {
-            let badgeText = 'ลาหยุดวันนี้';
-            let badgeColor = 'bg-amber-500 text-white';
-            if (leaveReasonDb === 'KL') { badgeText = 'ลากิจ (KL)'; badgeColor = 'bg-green-600 text-white'; }
-            else if (leaveReasonDb === 'X' || leaveReasonDb === 'Table-Booking') { badgeText = 'หยุดปกติ (X)'; badgeColor = 'bg-red-500 text-white'; }
-            else if (leaveReasonDb === 'XX') { badgeText = 'เปลี่ยนกะ (XX)'; badgeColor = 'bg-yellow-400 text-yellow-900'; }
-            else if (leaveReasonDb === 'X4') { badgeText = 'ลาครึ่งวัน (X4)'; badgeColor = 'bg-pink-500 text-white'; }
-            else if (leaveReasonDb === 'TL' || leaveReasonDb === 'TX') { badgeText = 'สลับวันหยุด (' + leaveReasonDb + ')'; badgeColor = 'bg-blue-500 text-white'; }
-            else if (leaveReasonDb === 'PN') { badgeText = 'พักร้อน (PN)'; badgeColor = 'bg-amber-800 text-white'; }
-            
-            leaveBadgeHtml = `<span class="text-[9px] ${badgeColor} px-1.5 py-0.5 rounded shadow-sm ml-1 font-bold border border-black/10">${badgeText}</span>`;
-        }
-        
-        return window.renderTemplate('tpl-ds-checkin-row', {
-            onlineColorClass: isOnline ? 'text-emerald-400' : 'text-gray-400',
-            onlineDotClass: isOnline ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 'bg-gray-600',
-            name: s.name,
-            leaveBadgeHtml: leaveBadgeHtml,
-            id: s.id,
-            selA: st==='✅'?'selected':'',
-            selB: st==='🏖️'?'selected':'',
-            selC: st==='🤒'?'selected':'',
-            selD: st==='📝'?'selected':'',
-            selE: st==='❌'?'selected':''
-        });
-    }).join('');
-    
-    document.getElementById('statusSummary').innerHTML = `
-        <div class="flex-1 bg-slate-900 border border-slate-700 p-3 rounded-xl text-center shadow-inner"><b class="text-white text-lg">${counts.TOTAL}</b><br><span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">ทั้งหมด</span></div>
-        <div class="flex-1 bg-emerald-500/10 border border-emerald-500/30 p-3 rounded-xl text-center shadow-inner"><b class="text-emerald-400 text-lg">${counts['✅']}</b><br><span class="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">มาทำงาน</span></div>
-        <div class="flex-1 bg-amber-500/10 border border-amber-500/30 p-3 rounded-xl text-center shadow-inner"><b class="text-amber-400 text-lg">${counts['🏖️']}</b><br><span class="text-[10px] font-bold text-amber-500 uppercase tracking-widest">ลาหยุด</span></div>
-        <div class="flex-1 bg-red-500/10 border border-red-500/30 p-3 rounded-xl text-center shadow-inner"><b class="text-red-400 text-lg">${counts['❌']}</b><br><span class="text-[10px] font-bold text-red-500 uppercase tracking-widest">ขาด</span></div>
-    `;
-};
-
-window.updateCheckinStatus = function(uid, val) { checkinStatusMap[uid] = val; _doRenderCheckinTable(); };
-window.clearCheckinStatus = function() { if (!window.dsRequire('ds_checkin')) return; if(confirm('ล้างสถานะทั้งหมด?')) { checkinStatusMap={}; _doRenderCheckinTable(); } };
-
-document.addEventListener('paste', e => {
-    const dsContentCheckin = document.getElementById('dsContent_checkin');
-    if(!dsContentCheckin || dsContentCheckin.classList.contains('hidden')) return;
-    
-    const items = e.clipboardData.items;
-    for(let i=0; i<items.length; i++) if(items[i].type.indexOf('image')!==-1) uploadFiles.push(items[i].getAsFile());
-    
-    const g = document.getElementById('imgGallery'), pa = document.getElementById('pasteArea');
-    if(!g || !pa) return;
-
-    g.innerHTML = '';
-    if (uploadFiles.length > 0) pa.classList.add('hidden'); else pa.classList.remove('hidden');
-    uploadFiles.forEach((f, idx) => {
-        g.innerHTML += `<div class="relative group"><img src="${URL.createObjectURL(f)}" class="w-16 h-16 object-cover rounded-xl border border-slate-500 shadow-md"><button onclick="removeUploadImage(${idx})" class="absolute -top-2 -right-2 bg-red-500 text-white w-5 h-5 rounded-full text-[10px] font-bold opacity-0 group-hover:opacity-100 transition shadow-lg">X</button></div>`;
-    });
-});
-
-window.removeUploadImage = function(idx) { uploadFiles.splice(idx, 1); document.dispatchEvent(new Event('paste')); };
-
-window.sendToTelegram = async function() {
-    if (!window.dsRequire('ds_checkin')) return;
-
-    if(uploadFiles.length === 0) return Swal.fire('แจ้งเตือน', 'กรุณากด Ctrl+V เพื่อวางรูปภาพหลักฐานก่อนครับ', 'warning');
-    
-    // [เปลี่ยน] เอาแผงตั้งค่า Bot ออกจากหน้าแล้ว จึงอ่านค่าจากที่เก็บในเบราว์เซอร์อย่างเดียว
-    const botToken = localStorage.getItem('tg_bot_token') || '';
-    const chatId = localStorage.getItem('tg_chat_id') || '';
-    
-    if (!botToken || !chatId) {
-        return Swal.fire('ยังตั้งค่าบอทไม่ครบ', 'ไม่พบ Token หรือ Chat ID ของบอทในเครื่องนี้ ติดต่อผู้ดูแลระบบเพื่อตั้งค่าให้ก่อนครับ', 'info');
-    }
-
-    const title = document.getElementById('tgTitle').value;
-    const group = document.getElementById('groupFilter').value;
-    const round = document.getElementById('roundFilter').value;
-    const reporter = document.getElementById('reporterName').value;
-    
-    let listText = `📋 <b>${title}</b>`;
-    if (group !== 'ALL') listText += ` (${group})`;
-    if (round) listText += ` - ${round}`;
-    
-    const dateVal = document.getElementById('tgDate').value;
-    if(dateVal) { 
-        const [y,m,d] = dateVal.split('-'); 
-        listText += `\n📅 ${d}/${m}/${parseInt(y)+543}\n\n`; 
-    } else { 
-        listText += `\n\n`; 
-    }
-    
-    let counts = { '✅':0, '🏖️':0, '🤒':0, '📝':0, '❌':0 }, namesText = "";
-    extStaffList.forEach(s => {
-        if(group !== 'ALL' && !extStaffGroups[group]?.includes(s.id)) return;
-        
-        const dbUser = getDbUserFromDiscordName(s.name);
-        
-        let leaveReasonDb = _dsLeaveReasonFor(dbUser);
-        
-        let st = checkinStatusMap[s.id];
-        if (!st) {
-            if (leaveReasonDb) {
-                st = (leaveReasonDb === 'KL') ? '📝' : '🏖️';
-            } else {
-                const inVoiceRoom = globalSpyData.some(spy => (String(spy.id) === String(s.id) || spy.name === s.name) && spy.currentRoom);
-                const isOnline = extOnlineUsers.includes(String(s.id)) || inVoiceRoom;
-                st = isOnline ? '✅' : '❌';
-            }
-        }
-
-        counts[st]++;
-        let txt = '(ยังไม่เข้างาน❌)';
-        if(st==='✅') txt='(✅)'; else if(st==='🏖️') txt='(หยุด 🏖)'; else if(st==='🤒') txt='(ป่วย 🤒)'; else if(st==='📝') txt='(กิจ 📝)';
-        namesText += `${s.name} ${txt}\n`;
-    });
-    
-    let summaryParts = [];
-    if(counts['✅'] > 0) summaryParts.push(`มา ${counts['✅']}`);
-    if(counts['🏖️'] > 0) summaryParts.push(`หยุด ${counts['🏖️']}`);
-    if(counts['🤒'] > 0) summaryParts.push(`ลาป่วย ${counts['🤒']}`);
-    if(counts['📝'] > 0) summaryParts.push(`ลากิจ ${counts['📝']}`);
-    if(counts['❌'] > 0) summaryParts.push(`ขาด ${counts['❌']}`);
-    if(summaryParts.length > 0) listText += `📊 สรุป: ` + summaryParts.join(' | ') + '\n\n';
-    
-    listText += namesText;
-    if(reporter) listText += `\n👤 ผู้ทำรายการ: ${reporter}`;
-
-    Swal.fire({title: 'กำลังส่งข้อมูล...', text: 'กำลังยิงเข้ากลุ่ม Telegram...', didOpen: () => Swal.showLoading(), allowOutsideClick: false});
-    
-    try {
-        const tgApiUrl = `https://api.telegram.org/bot${botToken}`;
-
-        const textRes = await fetch(`${tgApiUrl}/sendMessage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                chat_id: chatId,
-                text: listText,
-                parse_mode: 'HTML'
-            })
-        });
-
-        if (!textRes.ok) {
-            const errData = await textRes.json();
-            throw new Error(`ส่งข้อความไม่ผ่าน: ${errData.description}`);
-        }
-
-        if (uploadFiles.length === 1) {
-            const fd = new FormData();
-            fd.append('chat_id', chatId);
-            fd.append('photo', uploadFiles[0]); 
-
-            const imgRes = await fetch(`${tgApiUrl}/sendPhoto`, { method: 'POST', body: fd });
-            if (!imgRes.ok) {
-                const errData = await imgRes.json();
-                throw new Error(`ส่งรูปไม่ผ่าน: ${errData.description}`);
-            }
-        } else {
-            const fd = new FormData();
-            fd.append('chat_id', chatId);
-            
-            let mediaArray = [];
-            uploadFiles.forEach((file, index) => {
-                mediaArray.push({ type: 'photo', media: `attach://img${index}` });
-                fd.append(`img${index}`, file);
-            });
-            
-            fd.append('media', JSON.stringify(mediaArray));
-            const imgRes = await fetch(`${tgApiUrl}/sendMediaGroup`, { method: 'POST', body: fd });
-            if (!imgRes.ok) {
-                const errData = await imgRes.json();
-                throw new Error(`ส่งรูปไม่ผ่าน: ${errData.description}`);
-            }
-        }
-
-        Swal.fire('สำเร็จ', 'ส่งข้อมูลเข้ากลุ่มเรียบร้อย', 'success'); 
-        if (typeof ds_logAction === 'function') ds_logAction('ส่งเช็คชื่อ (Telegram)', `ส่งรายงานเข้าหัวข้อ: ${title} (${group})`);
-        
-        uploadFiles = []; 
-        document.getElementById('imgGallery').innerHTML = ''; 
-        document.getElementById('pasteArea').classList.remove('hidden'); 
-
-    } catch(e) { 
-        console.error("Telegram Direct Send Error:", e);
-        Swal.fire('ส่งไม่ได้!', e.message || 'ตรวจสอบ Token และ Chat ID อีกครั้ง', 'error'); 
-    }
-};
-
-window.fetchTodaysLeaves = async function() {
-    try {
-        const todayStr = document.getElementById('tgDate').value;
-        if(typeof appDB !== 'undefined') {
-            const { data } = await appDB.from('leave_requests').select('user_name, reason').eq('leave_date', todayStr);
-            todaysLeaves = data || [];
-        }
-    } catch (e) { }
 };
 
 window.renderTransferSection = function() {
@@ -1621,4 +1333,3 @@ window.delTransfer = async function(id) {
     await fetch(DISCORD_API_URL + '/api/delete-transfer', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id})});
     fetchTransfers();
 };
-
