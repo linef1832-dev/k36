@@ -10,7 +10,6 @@
     const ACTIVE = 'ds-tab ds-tab-active';
     const INACTIVE = 'ds-tab';
     const PERM = 'ds_chatcount';
-    const DAY_LABELS = ['จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส', 'อา'];   // 0 = จันทร์ (ตรงกับฝั่งบอท)
     const $ = id => document.getElementById(id);
     const esc = v => window.dsEsc(v);
     const can = () => typeof window.canPerm === 'function' && window.canPerm(PERM);
@@ -52,11 +51,14 @@
     const render = (t, vals) => Object.keys(vals).reduce((s, k) => s.split('{' + k + '}').join(String(vals[k])), t || '');
     const webNames = () => (_settings.webs || []).map(w => typeof w === 'string' ? w : w.name).filter(Boolean);
     const chanName = id => { const c = (_settings.channels || []).find(x => String(x.id) === String(id)); return c ? c.name : id; };
-    const tgName = id => {
-        const n = window.normChatId ? window.normChatId(id) : String(id || '');
-        const g = _tgGroups.find(x => (window.normChatId ? window.normChatId(x.chat_id) : x.chat_id) === n);
-        return g ? g.group_name : (id || '-');
-    };
+    const normId = v => (window.normChatId ? window.normChatId(v) : String(v || '').replace(/^-/, ''));
+    // รายชื่อกลุ่ม Telegram: ใช้ที่บอทส่งมา (ทุกกลุ่มที่บัญชีอยู่) ถ้ายังไม่มี ค่อยใช้กลุ่มจากแท็บเช็คอิน
+    const tgList = () => (_settings.tg_groups && _settings.tg_groups.length)
+        ? _settings.tg_groups.map(g => ({ id: String(g.id), name: g.name }))
+        : _tgGroups.map(g => ({ id: String(g.chat_id), name: g.group_name }));
+    const tgFind = id => { const n = normId(id); return n ? tgList().find(g => normId(g.id) === n) : null; };
+    const tgName = id => { const g = tgFind(id); return g ? g.name : (id || '-'); };
+    const chanKnown = id => (_settings.channels || []).some(x => String(x.id) === String(id));
 
     // คำนวณสถานะรอบ — ตรรกะเดียวกับ evaluate_round() ฝั่งบอท
     function evaluate(rnd, answers) {
@@ -351,9 +353,13 @@
         await loadBase();
         const info = $('ccChanInfo');
         const nCh = (_settings.channels || []).length;
-        info.innerHTML = nCh
-            ? `บอทส่งรายชื่อห้องมาแล้ว ${nCh} ห้อง (อัปเดต ${fmtTime(_settings.channels_updated_at)})`
-            : `<span style="color:#fbbf24">⚠️ ยังไม่มีรายชื่อห้องจากบอท — ตรวจว่า botlink รันอยู่ (บอทส่งรายชื่อให้ทุก 5 นาที)</span>`;
+        const nTg = (_settings.tg_groups || []).length;
+        info.innerHTML = (nCh
+            ? `ห้อง Discord ${nCh} ห้อง (อัปเดต ${fmtTime(_settings.channels_updated_at)})`
+            : `<span style="color:#fbbf24">⚠️ ยังไม่มีรายชื่อห้องจากบอท — ตรวจว่า botlink รันอยู่</span>`)
+            + ' · ' + (nTg
+            ? `กลุ่ม Telegram ${nTg} กลุ่ม (อัปเดต ${fmtTime(_settings.tg_groups_updated_at)})`
+            : `<span style="color:#fbbf24">⚠️ ยังไม่มีรายชื่อกลุ่ม Telegram จากบอท</span>`);
         try {
             const { data, error } = await appDB.from('chatcount_schedules').select('*').order('time', { ascending: true });
             if (error) throw error;
@@ -371,9 +377,13 @@
             return;
         }
         list.innerHTML = _schedules.map(s => {
-            const days = (s.days || []).length === 7 ? 'ทุกวัน' : (s.days || []).map(d => DAY_LABELS[d]).join(' ');
-            const rooms = (s.channel_ids || []).map(id => '#' + esc(chanName(id))).join(', ') || '<span style="color:#f87171">ยังไม่เลือกห้อง</span>';
-            const webs = (s.webs || []).length ? (s.webs.length === webNames().length ? 'ทุกเว็บ' : s.webs.map(esc).join(', ')) : 'ทุกเว็บ';
+            const hasCh = (_settings.channels || []).length > 0;
+            const rooms = (s.channel_ids || []).map(id => (!hasCh || chanKnown(id))
+                ? '#' + esc(chanName(id))
+                : `<span style="color:#f87171" title="ไม่พบห้องนี้ใน Discord แล้ว (อาจถูกลบ)">⚠️ ${esc(id)}</span>`).join(', ') || '<span style="color:#f87171">ยังไม่เลือกห้อง</span>';
+            const tgOk = !(_settings.tg_groups || []).length || tgFind(s.telegram_chat_id);
+            const tgText = tgOk ? `<b style="color:var(--k-tx2)">${esc(tgName(s.telegram_chat_id))}</b>`
+                : `<b style="color:#f87171" title="บัญชี Telegram ไม่ได้อยู่ในกลุ่มนี้แล้ว">⚠️ ${esc(s.telegram_chat_id || '-')}</b>`;
             const badge = s.active
                 ? `<span style="${CHIP('rgba(16,185,129,.15)', '#34d399')}">เปิดอยู่</span>`
                 : `<span style="${CHIP('rgba(148,163,184,.15)', '#94a3b8')}">ปิดอยู่</span>`;
@@ -384,8 +394,8 @@
                             <span style="font-weight:900;font-size:20px;color:#38bdf8;font-family:monospace">${esc(s.time)}</span>
                             <span style="font-weight:900;color:var(--k-tx-strong)">${esc(s.name)}</span>${badge}
                         </div>
-                        <div style="font-size:12px;color:var(--k-mute);margin-top:4px">${days} · ห้อง: ${rooms}</div>
-                        <div style="font-size:12px;color:var(--k-mute);margin-top:2px">เว็บ: ${webs} · Telegram: <b style="color:var(--k-tx2)">${esc(tgName(s.telegram_chat_id))}</b></div>
+                        <div style="font-size:12px;color:var(--k-mute);margin-top:4px">ทุกวัน · ทุกเว็บ · ห้อง: ${rooms}</div>
+                        <div style="font-size:12px;color:var(--k-mute);margin-top:2px">Telegram: ${tgText}</div>
                     </div>
                     <div style="display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap">
                         <button onclick="window.ccSendNow(${Number(s.id)})" style="${BTN}color:#38bdf8">${MI('send')} ส่งเลยตอนนี้</button>
@@ -402,19 +412,19 @@
     // ── หน้าต่างแก้รอบเวลา ───────────────────────────────────────────
     window.ccEditSchedule = async function (id, copy) {
         if (!can()) return;
+        await loadBase();   // ดึงรายชื่อห้อง/กลุ่มล่าสุดทุกครั้งที่เปิดหน้าต่าง
         if (!webNames().length) {
             await Swal.fire({ ...SWAL, icon: 'info', title: 'ตั้งรายชื่อเว็บก่อน', text: 'ไปที่แท็บย่อย "รายชื่อเว็บ" แล้วกดบันทึกก่อนครับ' });
             return window.ccSetSub('webs');
         }
         const src = id ? _schedules.find(x => Number(x.id) === Number(id)) : null;
         const s = src ? { ...src } : {
-            name: '', time: '', days: [0, 1, 2, 3, 4, 5, 6], channel_ids: [], webs: webNames(), telegram_chat_id: '',
+            name: '', time: '', channel_ids: [], telegram_chat_id: '',
             ask_template: DEF.ask, report_template: DEF.report, line_template: DEF.line, missing_template: DEF.missing, active: true,
         };
         if (copy) { s.name = (s.name || '') + ' (สำเนา)'; s.time = ''; }
         const isEdit = src && !copy;
         const selCh = new Set((s.channel_ids || []).map(String));
-        const selWeb = new Set((s.webs && s.webs.length ? s.webs : webNames()));
 
         const field = (label, inner) => `<div style="text-align:left;margin-top:14px"><label style="${LB}">${label}</label>${inner}</div>`;
         const chk = (cls, val, on, label) => `<label style="display:inline-flex;align-items:center;gap:5px;padding:5px 9px;border:1px solid var(--k-line2);border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;color:var(--k-tx)"><input type="checkbox" class="${cls}" value="${esc(val)}" ${on ? 'checked' : ''}> ${label}</label>`;
@@ -430,8 +440,8 @@
                 <div style="display:flex;flex-wrap:wrap;gap:6px">${chs.map(c => `<span class="cc-chitem" data-name="${esc(String(c.name).toLowerCase())}">${chk('cc-ch', c.id, selCh.has(String(c.id)), (c.type === 'voice' ? '🔊 ' : '# ') + esc(c.name))}</span>`).join('')}</div>
             </div>`).join('') : `<div style="font-size:12px;color:#fbbf24">ยังไม่มีรายชื่อห้องจากบอท (รอบอทรันแล้วกดรีเฟรช) — ใส่ Channel ID เองด้านล่างได้</div>`;
 
-        const tgOpts = `<option value="">— เลือกกลุ่ม Telegram —</option>` + _tgGroups.map(g => `<option value="${esc(g.chat_id)}" ${String(g.chat_id) === String(s.telegram_chat_id) ? 'selected' : ''}>${esc(g.group_name)} (${esc(g.chat_id)})</option>`).join('');
-        const tgKnown = _tgGroups.some(g => String(g.chat_id) === String(s.telegram_chat_id));
+        const curTg = tgFind(s.telegram_chat_id);
+        const tgKnown = !!curTg;
 
         const res = await Swal.fire({
             ...SWAL, width: 820, showCancelButton: true, focusConfirm: false,
@@ -441,15 +451,14 @@
                     <div style="flex:2;min-width:200px">${field('ชื่อรอบ', `<input id="ccName" style="${FD}" value="${esc(s.name)}" placeholder="เช่น รอบ 14:00">`)}</div>
                     <div style="flex:1;min-width:120px">${field('เวลา (ไทย)', `<input id="ccTime" type="time" style="${FD}" value="${esc(s.time)}">`)}</div>
                 </div>
-                ${field('วันที่ส่ง', `<div style="display:flex;flex-wrap:wrap;gap:6px">${DAY_LABELS.map((d, i) => chk('cc-day', i, (s.days || []).includes(i), d)).join('')}</div>`)}
                 ${field(`ห้อง Discord ที่จะส่งคำถาม <span style="font-weight:500;color:var(--k-mute)">(ติ๊กได้หลายห้อง)</span>`,
                     `<input id="ccChSearch" oninput="window.ccFilterCh(this.value)" placeholder="🔍 ค้นหาห้อง" style="${FD}margin-bottom:8px">
                      <div style="max-height:220px;overflow-y:auto;border:1px solid var(--k-line);border-radius:10px;padding:8px">${chHtml}</div>
                      <input id="ccChExtra" style="${FD}margin-top:8px" value="${esc(unknown.join(', '))}" placeholder="Channel ID เพิ่มเติม (ถ้าห้องไม่อยู่ในรายการ) คั่นด้วย ,">`)}
-                ${field(`เว็บที่ต้องได้คำตอบครบ <a href="javascript:void(0)" onclick="document.querySelectorAll('.cc-web').forEach(x=>x.checked=true)" style="color:#38bdf8;font-weight:700;margin-left:6px">เลือกทั้งหมด</a>`,
-                    `<div style="display:flex;flex-wrap:wrap;gap:6px">${webNames().map(w => chk('cc-web', w, selWeb.has(w), esc(w))).join('')}</div>`)}
-                ${field('ส่งสรุปเข้ากลุ่ม Telegram', `<select id="ccTgSel" style="${FD}">${tgOpts}</select>
-                     <input id="ccTgManual" style="${FD}margin-top:8px" value="${tgKnown ? '' : esc(s.telegram_chat_id || '')}" placeholder="หรือใส่ Chat ID เอง เช่น -1001234567890">`)}
+                ${field(`ส่งสรุปเข้ากลุ่ม Telegram <span style="font-weight:500;color:var(--k-mute)">(${tgList().length} กลุ่มที่บัญชีอยู่)</span>`,
+                    `<input id="ccTgSearch" oninput="window.ccFilterTg(this.value)" placeholder="🔍 ค้นหาชื่อกลุ่ม" style="${FD}margin-bottom:8px">
+                     <select id="ccTgSel" size="6" style="${FD}height:auto;padding:4px">${tgOptions('', curTg ? curTg.id : '')}</select>
+                     <input id="ccTgManual" style="${FD}margin-top:8px" value="${tgKnown ? '' : esc(s.telegram_chat_id || '')}" placeholder="หรือใส่ Chat ID เอง (กรณีกลุ่มไม่อยู่ในรายการ)">`)}
 
                 <div style="text-align:left;margin-top:18px;padding-top:12px;border-top:1px solid var(--k-line);font-weight:900;color:var(--k-tx-strong)">📝 แพทเทิร์นข้อความ</div>
                 ${field('ข้อความคำถามที่ส่งเข้าห้อง Discord <span style="font-weight:500;color:var(--k-mute)">ใช้ได้: {รอบ} {วันที่} {เวลา} {เว็บทั้งหมด}</span>',
@@ -474,19 +483,15 @@
                 const time = $('ccTime').value.trim();
                 if (!name) return Swal.showValidationMessage('ใส่ชื่อรอบ');
                 if (!/^\d{2}:\d{2}$/.test(time)) return Swal.showValidationMessage('ใส่เวลา');
-                const days = [...document.querySelectorAll('.cc-day:checked')].map(x => Number(x.value));
-                if (!days.length) return Swal.showValidationMessage('เลือกวันอย่างน้อย 1 วัน');
                 const extra = $('ccChExtra').value.split(/[\s,]+/).map(x => x.trim()).filter(Boolean);
                 if (extra.some(x => !/^\d{15,22}$/.test(x))) return Swal.showValidationMessage('Channel ID เพิ่มเติมต้องเป็นตัวเลข 15-22 หลัก');
                 const channel_ids = [...new Set([...document.querySelectorAll('.cc-ch:checked')].map(x => x.value).concat(extra))];
                 if (!channel_ids.length) return Swal.showValidationMessage('เลือกห้อง Discord อย่างน้อย 1 ห้อง');
-                const webs = [...document.querySelectorAll('.cc-web:checked')].map(x => x.value);
-                if (!webs.length) return Swal.showValidationMessage('เลือกเว็บอย่างน้อย 1 เว็บ');
                 const tg = $('ccTgManual').value.trim() || $('ccTgSel').value;
                 if (!tg) return Swal.showValidationMessage('เลือกกลุ่ม Telegram ปลายทาง');
                 if (window.normChatId && !window.normChatId(tg)) return Swal.showValidationMessage('Chat ID Telegram ต้องเป็นตัวเลข');
                 return {
-                    name, time, days, channel_ids, webs, telegram_chat_id: tg,
+                    name, time, days: [0, 1, 2, 3, 4, 5, 6], channel_ids, webs: [], telegram_chat_id: tg,   // ส่งทุกวัน ถามทุกเว็บ
                     ask_template: $('ccAsk').value, report_template: $('ccReport').value,
                     line_template: $('ccLine').value, missing_template: $('ccMissing').value,
                     active: $('ccActive').checked, updated_at: new Date().toISOString(),
@@ -503,6 +508,17 @@
         window.ccLoadSchedules();
     };
 
+    function tgOptions(q, selected) {
+        q = String(q || '').trim().toLowerCase();
+        const list = tgList().filter(g => !q || String(g.name).toLowerCase().includes(q) || String(g.id).includes(q));
+        if (!list.length) return `<option value="" disabled>ไม่พบกลุ่ม</option>`;
+        return list.map(g => `<option value="${esc(g.id)}" ${normId(g.id) === normId(selected) ? 'selected' : ''}>${esc(g.name)}  (${esc(g.id)})</option>`).join('');
+    }
+    window.ccFilterTg = function (q) {
+        const sel = $('ccTgSel');
+        if (sel) sel.innerHTML = tgOptions(q, sel.value);
+    };
+
     window.ccFilterCh = function (q) {
         q = String(q || '').trim().toLowerCase();
         document.querySelectorAll('.cc-chitem').forEach(el => { el.style.display = !q || el.dataset.name.includes(q) ? '' : 'none'; });
@@ -514,8 +530,7 @@
 
     window.ccPreview = function () {
         const a = $('ccAsk'); if (!a) return;
-        const webs = [...document.querySelectorAll('.cc-web:checked')].map(x => x.value);
-        const sample = webs.length ? webs : webNames();
+        const sample = webNames();
         const name = $('ccName').value.trim() || 'รอบ 14:00';
         const time = $('ccTime').value || '14:00';
         const date = thaiDate(thaiToday());
@@ -558,7 +573,7 @@
         if (!ok.isConfirmed) return;
         const row = {
             schedule_id: s.id, trigger: 'manual', label: s.name, round_date: thaiToday(), round_time: thaiHHMM(),
-            channel_ids: s.channel_ids || [], expected_webs: (s.webs && s.webs.length) ? s.webs : webNames(),
+            channel_ids: s.channel_ids || [], expected_webs: webNames(),
             telegram_chat_id: s.telegram_chat_id, ask_template: s.ask_template, report_template: s.report_template,
             line_template: s.line_template, missing_template: s.missing_template,
         };
