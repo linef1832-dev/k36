@@ -476,8 +476,7 @@ window.refreshDutyData = async function() {
         const impListKey = `duty_important_tasks_list_${currentDutyDept}_${shiftFilter}`;
         const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
         const impLockKey = `duty_important_permanent_lock_${currentDutyDept}_${shiftFilter}`;
-        const impCfgKey = `duty_important_task_cfg_${currentDutyDept}_${shiftFilter}`;
-        const attachCfgKey = `duty_auto_attach_cfg_${currentDutyDept}`;   // ➕ ตั้งค่าพ่วงเว็บ (ต่อแผนก ใช้ทุกกะ)   // ⭐ จำนวนคน หลัก/ซัพพอร์ต ต่อหน้าที่
+        const impCfgKey = `duty_important_task_cfg_${currentDutyDept}_${shiftFilter}`;   // ⭐ จำนวนคน หลัก/ซัพพอร์ต ต่อหน้าที่
         const stayPinKey = `duty_stay_pins_${currentDutyDept}`;   // 📌 คนที่ถูกล็อกให้อยู่เว็บเดิมข้ามวัน
         const supportKey = `duty_support_${currentDutyDept}_${targetDate}_${shiftFilter}`;  // 🤝 ตารางซัพพอร์ตข้ามเว็บ
         const mergeKey = window.dutyMergeKey(targetDate, shiftFilter, currentDutyDept);   // 🏠 ผลรวมห้อง Discord (แยกตามฝั่ง)
@@ -498,7 +497,7 @@ window.refreshDutyData = async function() {
         const [leavesRes, schedulesRes, settingsRes, swapRes] = await Promise.all([
             appDB.from('leave_requests').select('user_id, reason, user_name').eq('leave_date', targetDate),
             appDB.from('schedules').select('staff_name, time_slot').eq('work_date', targetDate).eq('shift_name', shiftFilter),
-            appDB.from('settings').select('value, key').in('key', [saveKey, impListKey, impAssignKey, impLockKey, impCfgKey, attachCfgKey, stayPinKey, supportKey, mergeKey, mergeKeyOld, webGroupKey, backupKey]),
+            appDB.from('settings').select('value, key').in('key', [saveKey, impListKey, impAssignKey, impLockKey, impCfgKey, stayPinKey, supportKey, mergeKey, mergeKeyOld, webGroupKey, backupKey]),
             appDB.from('scheduled_tasks').select('payload, scheduled_for, status')
                 .eq('task_type', 'individual_shift_update')
                 .gte('scheduled_for', taskDayStart).lte('scheduled_for', taskDayEnd)
@@ -568,7 +567,6 @@ window.refreshDutyData = async function() {
         window.currentImportantAssigns = {};
         window.lockedImportantTasks = {};
         window.importantTaskCfg = {};
-        window.dutyAutoAttachCfg = { enabled: true, webs: {} };
         window.dutyStayPins = {};
         window.currentSupportData = {};
         window.savedMergeRooms = [];
@@ -611,14 +609,6 @@ window.refreshDutyData = async function() {
 
                 // ⭐ แปลงข้อมูลรูปแบบเก่า { งาน: "ชื่อ" } → { งาน: { main:[ชื่อ], support:[] } } ให้อัตโนมัติ
                 if (typeof window.impNormMap === 'function') window.currentImportantAssigns = window.impNormMap(window.currentImportantAssigns);
-
-                const attRow = data.find(d => d.key === attachCfgKey);
-                if (attRow && attRow.value) {
-                    try {
-                        const c = JSON.parse(attRow.value) || {};
-                        window.dutyAutoAttachCfg = { enabled: c.enabled !== false, webs: (c.webs && typeof c.webs === 'object') ? c.webs : {} };
-                    } catch (e) {}
-                }
 
                 const cfgRow = data.find(d => d.key === impCfgKey);
                 if (cfgRow && cfgRow.value) {
@@ -1674,62 +1664,6 @@ window.renderRosterGrid = async function(rosterData) {
         } catch (e) { console.error('โหลดตารางย้อนหลังไม่สำเร็จ:', e); }
     }
 
-    // ════════════════════════════════════════════════════════════════════
-    // ➕ [ผู้สอน] พ่วงเว็บอัตโนมัติ — เว็บที่ "ไม่มีคนประจำ" ไปรวมกับเว็บที่มีคนดูแลอยู่แล้ว
-    //   เช่น F168 ไม่มีใคร → แถวกลายเป็น "MK8 + F168" ใช้คนชุดเดียวกัน (ไม่ขึ้นขาดคน)
-    //   เลือกเว็บที่จะฝาก: 1) เว็บที่คนของมันเป็นสแตนด์บาย (งานรอง) ให้เว็บนั้นอยู่แล้ว มากสุด
-    //                      2) เว็บที่ยังรับพ่วงน้อยสุด  3) เว็บที่มีคนมากสุด  4) ตามลำดับเว็บ
-    //   คิดใหม่ทุกครั้งที่วาด ไม่บันทึกลง DB → มีคนเข้าเว็บนั้นเมื่อไหร่ ก็แยกกลับเป็นเว็บเดี่ยวเอง
-    // ════════════════════════════════════════════════════════════════════
-    const _autoAttach = {};   // ใบหลักของเว็บที่รับฝาก → [เว็บที่พ่วงมา]
-    const _attachedTo = {};   // เว็บที่พ่วง → ใบหลักของเว็บที่รับฝาก
-    const _attCfg = window.dutyAutoAttachCfg || { enabled: true, webs: {} };
-    const _canGive = t => !(_attCfg.webs[t] && _attCfg.webs[t].give === false);   // ไม่มีคนแล้ว ฝากไปเว็บอื่นได้ไหม
-    const _canTake = t => !(_attCfg.webs[t] && _attCfg.webs[t].take === false);   // มีคนแล้ว รับเว็บอื่นมาพ่วงได้ไหม
-    const _noGive = new Set();
-    const _noHost = new Set();   // เว็บว่างที่ฝากได้ แต่ไม่มีเว็บไหนเปิดรับพ่วงเลย   // เว็บที่ว่างแต่ตั้งไว้ว่า "ไม่พ่วง" → ขึ้นขาดคนเหมือนเดิม
-    if (window.isTrainerDept() && !window.isRosterPreview && _attCfg.enabled !== false) {
-        const _shNow = (document.getElementById('dutyShiftSelect') || {}).value || '';
-        const _cardOf = t => {
-            const pl = (typeof window.getBreakWebPool === 'function') ? window.getBreakWebPool(currentDutyDept, t, _shNow) : { members: [t], grouped: false };
-            const mem = pl.grouped ? sortedTeams.filter(x => pl.members.includes(x)) : [t];
-            return mem.length ? mem : [t];
-        };
-        const _realCnt = t => (rosterData[t] || []).filter(a => a && typeof a.username === 'string' && !a.username.includes('ขาดคน')).length;
-        const cards = [];
-        sortedTeams.forEach(t => { const m = _cardOf(t); if (m[0] === t) cards.push({ key: t, teams: m, people: m.reduce((n, x) => n + _realCnt(x), 0) }); });
-        // การ์ดที่จับกลุ่มไว้หลายเว็บ: ต้องอนุญาตทุกเว็บในการ์ด
-        const hosts = cards.filter(c => c.people > 0 && c.teams.every(_canTake));
-        const empties = cards.filter(c => {
-            if (c.people > 0) return false;
-            if (c.teams.every(_canGive)) return true;
-            _noGive.add(c.key); return false;
-        });
-        if (!hosts.length) empties.forEach(e => _noHost.add(e.key));
-        if (hosts.length && empties.length) {
-            const hostKeyOf = {};
-            hosts.forEach(c => c.teams.forEach(t => { hostKeyOf[t] = c.key; }));
-            const taken = {}; hosts.forEach(c => { taken[c.key] = 0; });
-            const order = {}; sortedTeams.forEach((t, i) => { order[t] = i; });
-            empties.forEach(e => {
-                const votes = {};
-                e.teams.forEach(t => (standbyData[t] || []).forEach(sb => {
-                    const hk = hostKeyOf[sb.fromTeam];
-                    if (hk) votes[hk] = (votes[hk] || 0) + 1;
-                }));
-                const best = hosts.slice().sort((a, b) =>
-                    ((votes[b.key] || 0) - (votes[a.key] || 0)) ||
-                    (taken[a.key] - taken[b.key]) ||
-                    (b.people - a.people) ||
-                    (order[a.key] - order[b.key]))[0];
-                taken[best.key]++;
-                (_autoAttach[best.key] = _autoAttach[best.key] || []).push(...e.teams);
-                e.teams.forEach(t => { _attachedTo[t] = best.key; });
-            });
-        }
-    }
-    window.currentDutyAutoAttach = _autoAttach;
-
     sortedTeams.forEach(team => {
         // 🔧 [FIX] ข้อมูลเก่าบางวันมีรายการที่ username ว่าง/null → a.username.includes() พัง ทั้งกระดานเลยขาว
         // 🔗 [กลุ่มเว็บ] เว็บที่ถูกจับกลุ่มไว้ = วาดการ์ดใบเดียวรวมกัน
@@ -1737,17 +1671,13 @@ window.renderRosterGrid = async function(rosterData) {
         const _pool = (typeof window.getBreakWebPool === 'function')
             ? window.getBreakWebPool(currentDutyDept, team, (document.getElementById('dutyShiftSelect') || {}).value || '')
             : { members: [team], grouped: false };
-        const _baseTeams = _pool.grouped ? sortedTeams.filter(t => _pool.members.includes(t)) : [team];
-        if (_pool.grouped && _baseTeams.length > 1 && _baseTeams[0] !== team) return;   // ไม่ใช่ใบหลัก ข้าม
-        if (_attachedTo[team]) return;   // ➕ เว็บนี้ถูกพ่วงไปอยู่กับเว็บอื่นแล้ว
-        const _addTeams = _autoAttach[team] || [];
-        const _grpTeams = [..._baseTeams, ..._addTeams];
+        const _grpTeams = _pool.grouped ? sortedTeams.filter(t => _pool.members.includes(t)) : [team];
+        if (_pool.grouped && _grpTeams.length > 1 && _grpTeams[0] !== team) return;   // ไม่ใช่ใบหลัก ข้าม
         const _isGrp = _grpTeams.length > 1;
         const _title = _grpTeams.join(' + ');
 
         // คนในการ์ด = รวมทุกเว็บในกลุ่ม
-        // (เว็บที่พ่วงมา: ไม่เอาช่อง "ขาดคน" ของมันมาด้วย ไม่งั้นแถวที่รับฝากจะขึ้นขาดคนตาม)
-        let assignees = _grpTeams.flatMap(t => (rosterData[t] || []).filter(a => a && typeof a.username === 'string' && !(_addTeams.includes(t) && a.username.includes('ขาดคน'))));
+        let assignees = _grpTeams.flatMap(t => (rosterData[t] || []).filter(a => a && typeof a.username === 'string'));
         // card เว็บแสดงเสมอ แม้จะไม่มีพนักงาน
         
         if (window.isTrainerDept()) {
@@ -1922,7 +1852,7 @@ window.renderRosterGrid = async function(rosterData) {
             }
         }
 
-        _dmItems.push({ team, title: _title, autoAdd: _addTeams, noGive: _noGive.has(team), noHost: _noHost.has(team), color: colorClass, count: primaryCount, standby: standbyCount, warn: !!breakWarnHtml, missing: assignees.some(u => String(u.username).includes('ขาดคน')) || primaryCount === 0,
+        _dmItems.push({ team, title: _title, color: colorClass, count: primaryCount, standby: standbyCount, warn: !!breakWarnHtml, missing: assignees.some(u => String(u.username).includes('ขาดคน')) || primaryCount === 0,
             standbyNames: standbyList.map(x => x.name),
             people: assignees.map(a => {
                 const miss = String(a.username).includes('ขาดคน');
@@ -1999,9 +1929,6 @@ window.renderRosterGrid = async function(rosterData) {
             <div class="ov-team">
                 <span class="ov-bar ${it.color.bg}"></span>
                 <span><b>${it.title}</b><small>${it.count} คน</small>
-                    ${it.noHost ? `<span class="ov-auto"><span class="ov-auto-t off" title="ไม่มีเว็บไหนเปิด 'รับพ่วงได้' ไว้ — ไปตั้งที่ปุ่มตั้งค่าพ่วงเว็บ">ไม่มีเว็บรับพ่วง</span></span>` : ''}
-                    ${it.noGive ? `<span class="ov-auto"><span class="ov-auto-t off" title="ตั้งค่าไว้ว่าเว็บนี้ไม่พ่วงไปเว็บอื่น">🚫 ไม่พ่วง</span></span>` : ''}
-                    ${(it.autoAdd && it.autoAdd.length) ? `<span class="ov-auto">${it.autoAdd.map(t => `<span class="ov-auto-t" ondragover="handleDragOver(event)" ondrop="event.stopPropagation(); handleDrop(event, '${t}')" title="${t} ไม่มีคนประจำ — ฝากเว็บนี้ดูแลแทน · ลากชื่อมาวางตรงนี้ = ให้ ${t} มีคนประจำของตัวเอง">➕ ${t} <em>พ่วง</em></span>`).join('')}</span>` : ''}
                     <span class="ov-narrow"><span class="ov-stp ${st[0]}">${st[1]}</span>${it.standbyNames.length ? `<span class="ov-sbn" title="สแตนด์บายช่วยเว็บนี้">รอง: ${it.standbyNames.map(n => window.escapeHtml(n)).join(', ')}</span>` : ''}</span>
                     ${it.trainerBtn || ''}</span>
             </div>
@@ -2012,7 +1939,7 @@ window.renderRosterGrid = async function(rosterData) {
     }).join('');
     const _okN = _dmItems.filter(x => !x.missing).length, _missN = _dmItems.filter(x => x.missing).length;
     const _overview = `<section class="ov-wrap">
-            <div class="ov-sum"><span>เว็บพร้อม <b>${_okN}/${_dmItems.length}</b></span>${_missN ? `<span class="bad">ขาดคน <b>${_missN}</b> เว็บ</span>` : ''}<span>คนทำงาน <b>${_dmItems.reduce((a, x) => a + x.count, 0)}</b></span>${(() => { const n = _dmItems.reduce((a, x) => a + ((x.autoAdd && x.autoAdd.length) || 0), 0); return n ? `<span class="auto" title="เว็บที่ไม่มีคนประจำ ถูกพ่วงไปให้เว็บอื่นดูแลแทน">➕ พ่วงเว็บ <b>${n}</b></span>` : ''; })()}${(window.isTrainerDept() && isAdmin) ? `<button type="button" class="ov-sum-btn" onclick="window.openAutoAttachSettings()" title="ตั้งค่าว่าเว็บไหนพ่วงได้ / ไม่ได้"><span class="material-icons">tune</span>ตั้งค่าพ่วงเว็บ${(window.dutyAutoAttachCfg && window.dutyAutoAttachCfg.enabled === false) ? ' <em>(ปิดอยู่)</em>' : ''}</button>` : ''}</div>
+            <div class="ov-sum"><span>เว็บพร้อม <b>${_okN}/${_dmItems.length}</b></span>${_missN ? `<span class="bad">ขาดคน <b>${_missN}</b> เว็บ</span>` : ''}<span>คนทำงาน <b>${_dmItems.reduce((a, x) => a + x.count, 0)}</b></span></div>
             <div class="ov-scroll custom-scrollbar"><div class="ov-table">
                 <div class="ov-row ov-h"><div>เว็บ</div><div>คนประจำ · เวลาพัก</div><div>สแตนด์บายช่วย</div><div style="text-align:right">สถานะ</div></div>
                 ${_ovRows}
@@ -2300,96 +2227,3 @@ window.searchDutyMyself = function() {
         searchInput.value = currentUser.username; window.filterDutyResult();
     }
 }
-
-
-// ════════════════════════════════════════════════════════════════════
-// ⚙️ ตั้งค่าพ่วงเว็บ (ผู้สอน) — settings 'duty_auto_attach_cfg_{แผนก}'
-//   { enabled: true/false, webs: { "F168": { give: false, take: true }, ... } }
-//   give = เว็บนี้ไม่มีคนประจำแล้ว ให้ฝากไปเว็บอื่นได้ไหม (ปิด = ขึ้นขาดคนตามเดิม)
-//   take = เว็บนี้มีคนแล้ว ให้รับเว็บอื่นมาพ่วงได้ไหม
-//   ไม่ได้ตั้ง = เปิดทุกอย่าง · ใช้กับทุกกะของแผนกนี้
-// ════════════════════════════════════════════════════════════════════
-window.openAutoAttachSettings = async function() {
-    if (!window.isDutyAdmin()) return Swal.fire('ไม่มีสิทธิ์', 'เฉพาะผู้จัดเวรเท่านั้นครับ', 'error');
-    const cfg = JSON.parse(JSON.stringify(window.dutyAutoAttachCfg || { enabled: true, webs: {} }));
-    cfg.webs = cfg.webs || {};
-    const esc = window.escapeHtml;
-    const webs = (sortedTeams || []).slice();
-    if (!webs.length) return Swal.fire('ไม่มีเว็บ', 'แผนกนี้ยังไม่มีรายชื่อเว็บครับ', 'info');
-
-    const sw = (cls, i, on) => `<input type="checkbox" class="${cls}" data-i="${i}" ${on ? 'checked' : ''} style="width:18px;height:18px;cursor:pointer;accent-color:#f59e0b">`;
-    const rows = webs.map((t, i) => {
-        const w = cfg.webs[t] || {};
-        const c = TEAM_COLORS[t] || TEAM_COLORS['DEFAULT'];
-        return `<tr style="border-top:1px solid rgba(148,163,184,.18)">
-            <td style="padding:7px 8px;text-align:left;font-weight:800;white-space:nowrap"><span class="${c.bg}" style="display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:7px;vertical-align:middle"></span>${esc(t)}</td>
-            <td style="padding:7px 8px;text-align:center">${sw('att-give', i, w.give !== false)}</td>
-            <td style="padding:7px 8px;text-align:center">${sw('att-take', i, w.take !== false)}</td>
-        </tr>`;
-    }).join('');
-    const th = 'padding:6px 8px;font-size:11px;font-weight:800;line-height:1.3;vertical-align:top';
-    // ปุ่มลัดใต้หัวคอลัมน์: เปิด/ปิดทุกเว็บในคอลัมน์นั้นทีเดียว (เช่นปิดหมดก่อน แล้วค่อยติ๊กเฉพาะเว็บที่ต้องการ)
-    const bl = 'border:1px solid rgba(148,163,184,.4);background:transparent;color:inherit;border-radius:6px;padding:1px 6px;font-size:10px;font-weight:800;cursor:pointer';
-    const bulk = cls => `<div style="display:flex;gap:4px;justify-content:center;margin-top:5px">
-        <button type="button" style="${bl}" onclick="document.querySelectorAll('.${cls}').forEach(c => c.checked = true)">เปิดหมด</button>
-        <button type="button" style="${bl}" onclick="document.querySelectorAll('.${cls}').forEach(c => c.checked = false)">ปิดหมด</button></div>`;
-
-    const res = await Swal.fire({
-        title: 'ตั้งค่าพ่วงเว็บ',
-        html: `
-            <div style="text-align:left;font-size:12px;opacity:.75;margin-bottom:10px;line-height:1.6">
-                เว็บที่ไม่มีคนประจำ จะถูกพ่วงไปรวมกับเว็บที่มีคนดูแล (เช่น <b>MK8 + F168</b>)<br>
-                ปิดช่องไหน = เว็บนั้นไม่เข้าร่วมในบทบาทนั้น · ใช้กับทุกกะของแผนกนี้
-            </div>
-            <label style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:12px;border:1px solid rgba(245,158,11,.45);background:rgba(245,158,11,.08);margin-bottom:10px;cursor:pointer">
-                <span style="font-weight:900;font-size:13px">เปิดระบบพ่วงเว็บอัตโนมัติ</span>
-                <input type="checkbox" id="attEnabled" ${cfg.enabled !== false ? 'checked' : ''} style="width:20px;height:20px;cursor:pointer;accent-color:#f59e0b">
-            </label>
-            <div id="attTableWrap" style="max-height:360px;overflow-y:auto;border:1px solid rgba(148,163,184,.25);border-radius:12px">
-                <table style="width:100%;border-collapse:collapse;font-size:13px;color:inherit">
-                    <thead><tr>
-                        <th style="${th};text-align:left">เว็บ</th>
-                        <th style="${th}">ฝากไปเว็บอื่นได้<br><span style="font-weight:600">(ตอนไม่มีคน)</span>${bulk('att-give')}</th>
-                        <th style="${th}">รับพ่วงได้<br><span style="font-weight:600">(ตอนมีคน)</span>${bulk('att-take')}</th>
-                    </tr></thead>
-                    <tbody>${rows}</tbody>
-                </table>
-            </div>`,
-        width: 520,
-        showCancelButton: true,
-        confirmButtonText: 'บันทึก',
-        cancelButtonText: 'ยกเลิก',
-        confirmButtonColor: '#f59e0b',
-        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' },
-        didOpen: () => {
-            const en = document.getElementById('attEnabled'), wrap = document.getElementById('attTableWrap');
-            const sync = () => { wrap.style.opacity = en.checked ? '1' : '.4'; wrap.style.pointerEvents = en.checked ? '' : 'none'; };
-            en.addEventListener('change', sync); sync();
-        },
-        preConfirm: () => {
-            const out = { enabled: document.getElementById('attEnabled').checked, webs: {} };
-            webs.forEach((t, i) => {
-                const give = document.querySelector(`.att-give[data-i="${i}"]`).checked;
-                const take = document.querySelector(`.att-take[data-i="${i}"]`).checked;
-                if (!give || !take) out.webs[t] = { give, take };   // เก็บเฉพาะเว็บที่ไม่ใช่ค่าเริ่มต้น
-            });
-            // เว็บที่ไม่ได้อยู่ในรายการตอนนี้ (เช่นปิดเว็บไปชั่วคราว) — เก็บค่าเดิมไว้ ไม่ให้หาย
-            Object.keys(cfg.webs).forEach(t => { if (!webs.includes(t)) out.webs[t] = cfg.webs[t]; });
-            return out;
-        }
-    });
-    if (!res.isConfirmed || !res.value) return;
-
-    const key = `duty_auto_attach_cfg_${currentDutyDept}`;
-    window.clearSettingCache();
-    const { error } = await appDB.from('settings').upsert([{ key, value: JSON.stringify(res.value) }]);
-    if (error) return Swal.fire('บันทึกไม่สำเร็จ', error.message || '', 'error');
-    window.dutyAutoAttachCfg = res.value;
-    try {
-        appDB.from('system_logs').insert([{ action_type: 'ตั้งค่าพ่วงเว็บ', performed_by: currentUser.username,
-            target_details: `${currentDutyDept}: ${res.value.enabled ? 'เปิด' : 'ปิด'} · ไม่ฝาก: ${Object.keys(res.value.webs).filter(t => res.value.webs[t].give === false).join(', ') || '-'} · ไม่รับ: ${Object.keys(res.value.webs).filter(t => res.value.webs[t].take === false).join(', ') || '-'}` }]).then(() => {}, () => {});
-    } catch (e) {}
-    await window.renderRosterGrid(currentRosterData);
-    if (typeof window.debouncedBroadcast === 'function') window.debouncedBroadcast('duty-updates', 'force_reload');
-    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'บันทึกค่าพ่วงเว็บแล้ว', showConfirmButton: false, timer: 1500 });
-};
