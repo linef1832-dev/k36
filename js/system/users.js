@@ -1063,7 +1063,10 @@ window.searchEmployee = function() {
 async function addScheduledTask() { if (!window.sysRequireAdmin()) return; 
     const f=document.getElementById('schFrom').value, t=document.getElementById('schTo').value, d=document.getElementById('schDate').value; 
     if(!d) return Swal.fire('!', 'กรุณาระบุวันเวลา', 'warning');
-    await appDB.from('scheduled_tasks').insert([{task_type:'move_shift', payload:{from:f, to:t}, scheduled_for:new Date(d).toISOString()}]); 
+    if(f===t) return Swal.fire('!', 'กะต้นทางและปลายทางเหมือนกัน', 'warning');   // [แก้] เดิมตั้งเวลาย้ายกะไปกะเดิมได้
+    // [แก้] เดิมไม่เช็คผล → บันทึกพังก็ขึ้น OK · ระบุ status ชัดเจนให้ตัวประมวลผลคิวหยิบไปทำแน่นอน
+    const { error } = await appDB.from('scheduled_tasks').insert([{task_type:'move_shift', payload:{from:f, to:t}, scheduled_for:new Date(d).toISOString(), status:'pending'}]); 
+    if (error) return Swal.fire('บันทึกไม่สำเร็จ', error.message, 'error');
     Swal.fire('OK','ตั้งเวลาย้ายกะแล้ว','success'); fetchTasks(); 
 }
 
@@ -1074,7 +1077,8 @@ async function moveNowInstant() {
     Swal.fire({ title: `ย้ายทันที?`, text: `ย้ายทุกคนจาก "${f}" ไป "${t}" เดี๋ยวนี้เลยไหม?`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'ย้ายเลย!', cancelButtonText: 'ยกเลิก' }).then(async (result) => {
         if(result.isConfirmed) {
             Swal.fire({title: 'กำลังประมวลผล...', didOpen: () => Swal.showLoading()});
-            await appDB.from('users').update({allowed_shift: t}).eq('allowed_shift', f);
+            const { error } = await appDB.from('users').update({allowed_shift: t}).eq('allowed_shift', f);
+            if (error) return Swal.fire('ย้ายไม่สำเร็จ', error.message, 'error');   // [แก้] เดิมพังก็ขึ้นว่าสำเร็จ
             await logAction('ย้ายกะด่วน', `ย้ายทุกคนจาก ${f} ไป ${t} (Manual)`);
             fetchUsers(); Swal.fire('สำเร็จ', `ย้ายเรียบร้อยแล้ว`, 'success');
         }

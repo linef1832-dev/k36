@@ -115,10 +115,28 @@ window.populateClearScheduleDept = function() {
 };
 
 // 🟢 ถ้ายังมีแบ็คอัพค้างใน session (เช่น รีเฟรชหน้า) ให้ปุ่มกู้คืนโผล่กลับมา
+// 🗂️ [แก้] เก็บแบ็คอัพเป็น "กอง" — เดิมเก็บได้ชุดเดียว ล้างครั้งที่ 2 (เช่น AM แล้วต่อด้วย OD) ทับของครั้งแรก กู้คืนครั้งแรกไม่ได้อีก
+window._schBackupStack = function() {
+    try {
+        const st = JSON.parse(sessionStorage.getItem('temp_schedule_backup_stack') || '[]');
+        if (Array.isArray(st) && st.length) return st;
+        const old = sessionStorage.getItem('temp_schedule_backup');   // ของเวอร์ชันเก่า (ชุดเดียว)
+        if (old) return [{ rows: JSON.parse(old), date: '', dept: 'all', shift: 'all' }];
+    } catch (e) {}
+    return [];
+};
+window._schBackupSave = function(stack) {
+    sessionStorage.removeItem('temp_schedule_backup');
+    if (stack.length) sessionStorage.setItem('temp_schedule_backup_stack', JSON.stringify(stack));
+    else sessionStorage.removeItem('temp_schedule_backup_stack');
+};
 window.syncUndoScheduleBtn = function() {
     const btn = document.getElementById('undoScheduleBtn');
     if (!btn) return;
-    btn.classList.toggle('hidden', !sessionStorage.getItem('temp_schedule_backup'));
+    const n = window._schBackupStack().length;
+    btn.classList.toggle('hidden', !n);
+    const lbl = btn.querySelector('.undo-count');
+    if (lbl) lbl.textContent = n > 1 ? ` (${n} ชุด)` : '';
 };
 
 // =========================================================
@@ -277,8 +295,10 @@ window.clearAllSchedules = async function() {
                 return Swal.fire('ไม่พบข้อมูล', 'ไม่มีประวัติการลงเวลาในเงื่อนไขที่เลือกครับ', 'info');
             }
 
-            // เก็บใส่ Session Storage (หน่วยความจำชั่วคราว)
-            sessionStorage.setItem('temp_schedule_backup', JSON.stringify(backupData));
+            // เก็บใส่ Session Storage (หน่วยความจำชั่วคราว) — ต่อท้ายกอง ไม่ทับชุดก่อนหน้า
+            const _stack = window._schBackupStack();
+            _stack.push({ rows: backupData, date: dateVal, dept: deptVal, shift: shiftVal, at: Date.now() });
+            window._schBackupSave(_stack);
 
             // 🌟 2. สั่งลบ "ตาม id ที่แบ็คอัพไว้เท่านั้น" → สิ่งที่ลบ = สิ่งที่กู้คืนได้ 100% เสมอ
             const ids = backupData.map(r => r.id).filter(id => id !== null && id !== undefined);
@@ -302,8 +322,7 @@ window.clearAllSchedules = async function() {
             Swal.fire('ล้างข้อมูลสำเร็จ!', `ลบข้อมูลไปทั้งหมด ${deletedCount} รายการ (สามารถกดกู้คืนได้หากลบผิด)`, 'success');
             
             // 🌟 3. โชว์ปุ่มสีเขียว "กู้คืน" ขึ้นมา
-            const undoBtn = document.getElementById('undoScheduleBtn');
-            if (undoBtn) undoBtn.classList.remove('hidden');
+            window.syncUndoScheduleBtn();
 
             // 📡 4. แจ้งเตือนคนที่ถูกลบ (ทุกเครื่องที่เปิดอยู่) + รีเฟรชกระดานฝั่งแอดมินทันที
             await _broadcastBoard('schedule_cleared', _boardPayload(backupData, dateVal, deptVal, shiftVal));
@@ -312,7 +331,9 @@ window.clearAllSchedules = async function() {
             
         } catch (e) {
             console.error(e);
-            Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถล้างข้อมูลได้: ' + e.message, 'error');
+            // [แก้] ลบไปได้บางส่วนแล้วพัง → เดิมปุ่มกู้คืนไม่โผล่ ทั้งที่แบ็คอัพไว้แล้ว
+            window.syncUndoScheduleBtn();
+            Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถล้างข้อมูลได้: ' + e.message + (window._schBackupStack().length ? '<br><small>ถ้าลบไปบางส่วนแล้ว กด "กู้คืนข้อมูลล่าสุด" ได้</small>' : ''), 'error');
         }
     }
 };
@@ -323,10 +344,10 @@ window.clearAllSchedules = async function() {
 window.undoClearSchedules = async function() {
     if (!window.sysRequireAdmin()) return;
 
-    const backupStr = sessionStorage.getItem('temp_schedule_backup');
-    if (!backupStr) return Swal.fire('ไม่พบข้อมูล', 'ไม่มีข้อมูลให้กู้คืนแล้วครับ', 'error');
-    
-    const backupData = JSON.parse(backupStr);
+    const stack = window._schBackupStack();
+    if (!stack.length) return Swal.fire('ไม่พบข้อมูล', 'ไม่มีข้อมูลให้กู้คืนแล้วครับ', 'error');
+    const batch = stack[stack.length - 1];   // กู้ชุดที่ล้างล่าสุดก่อน
+    const backupData = batch.rows || [];
 
     const confirm = await Swal.fire({
         title: 'ยืนยันการกู้คืน?',
@@ -348,9 +369,9 @@ window.undoClearSchedules = async function() {
             const { error } = await appDB.from('schedules').upsert(backupData, { onConflict: 'id' });
             if (error) throw error;
 
-            // กู้คืนเสร็จ ล้างกระเป๋า และซ่อนปุ่ม
-            sessionStorage.removeItem('temp_schedule_backup');
-            document.getElementById('undoScheduleBtn')?.classList.add('hidden');
+            // กู้คืนเสร็จ เอาชุดนี้ออกจากกอง (ชุดก่อนหน้ายังกู้ต่อได้)
+            stack.pop(); window._schBackupSave(stack);
+            window.syncUndoScheduleBtn();
 
             if (typeof logAction === 'function') await logAction('กู้คืนข้อมูล', `แอดมินกู้คืนข้อมูลการลงเวลาจำนวน ${backupData.length} รายการ`);
 
@@ -358,7 +379,7 @@ window.undoClearSchedules = async function() {
 
             // 📡 แจ้งคนที่ได้ข้อมูลคืน + รีเฟรชกระดานทันที
             const _d0 = backupData[0] || {};
-            await _broadcastBoard('schedule_restored', _boardPayload(backupData, _d0.work_date || '', 'all', 'all'));
+            await _broadcastBoard('schedule_restored', _boardPayload(backupData, batch.date || _d0.work_date || '', batch.dept || 'all', batch.shift || 'all'));
             if (typeof window.refreshTimeSlots === 'function') window.refreshTimeSlots();
             if (typeof fetchData === 'function') fetchData();
 

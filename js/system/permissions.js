@@ -200,8 +200,7 @@ const PERM_GROUPS = [
             {id: 'ds_checkin', name: 'เช็คชื่อ', isSub: true},
             {id: 'ds_manage', name: 'ฐานข้อมูล DS', isSub: true},
             {id: 'ds_log', name: 'ดูประวัติ DS', isSub: true},
-            {id: 'ds_sendmsg', name: 'ส่งข้อความ', isSub: true},
-            {id: 'ds_chatcount', name: 'นับแชท', isSub: true}
+            {id: 'ds_sendmsg', name: 'ส่งข้อความ', isSub: true}
         ]
     },
         {
@@ -844,14 +843,16 @@ window.addManualTimeSlot = async function() {
     if (!Array.isArray(G[shiftSelect])) G[shiftSelect] = [];
     if (G[shiftSelect].includes(timeSlot)) return Swal.fire('เตือน', `แผนก ${dep} มีรอบเวลานี้อยู่แล้ว`, 'warning');
 
+    const _before = JSON.parse(JSON.stringify(G[shiftSelect]));
     G[shiftSelect].push(timeSlot);
     G[shiftSelect] = window.sortSlotsByShift(shiftSelect, G[shiftSelect]);   // เรียงตามลำดับกะ (ดึก: 21:00 ก่อน)
 
+    Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    const { error } = await appDB.from('settings').upsert([{ key: 'custom_time_slots', value: JSON.stringify(window.SHIFT_GROUPS_ALL) }]);
+    if (error) { G[shiftSelect] = _before; return Swal.fire('บันทึกไม่สำเร็จ', error.message, 'error'); }   // [แก้] เดิมพังก็ขึ้นสำเร็จ และค่าบนจอเพี้ยนจากฐานข้อมูล
     SETTINGS['custom_time_slots'] = JSON.stringify(window.SHIFT_GROUPS_ALL);
     SHIFT_GROUPS = window.SHIFT_GROUPS_ALL[window._slotsViewerDept()] || {};
-
-    Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
-    await appDB.from('settings').upsert([{ key: 'custom_time_slots', value: JSON.stringify(window.SHIFT_GROUPS_ALL) }]);
+    if (typeof window.refreshTimeSlots === 'function') window.refreshTimeSlots();   // กระดานลงเวลาเห็นรอบใหม่ทันที
 
     renderManualTimeSlots();
     document.getElementById('newTimeStart').value = '';
@@ -869,7 +870,8 @@ window.resetTimeSlotsAuto = async function() {
     });
     if (!r.isConfirmed) return;
     Swal.fire({title: 'กำลังรีเซ็ต...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
-    await appDB.from('settings').delete().eq('key', 'custom_time_slots');
+    const { error: rErr } = await appDB.from('settings').delete().eq('key', 'custom_time_slots');
+    if (rErr) return Swal.fire('รีเซ็ตไม่สำเร็จ', rErr.message, 'error');
     delete SETTINGS['custom_time_slots'];
     window.applyCustomTimeSlots();
     if (typeof window.refreshTimeSlots === 'function') window.refreshTimeSlots();
@@ -879,18 +881,23 @@ window.resetTimeSlotsAuto = async function() {
 
 window.deleteManualTimeSlot = async function(dep, shift, timeSlot) {
     if (!window.sysRequireAdmin()) return;
+    // [แก้] เดิมกดพลาดนิดเดียวก็ลบทันที
+    const ask = await Swal.fire({ title: `ลบรอบ ${timeSlot}?`, text: `แผนก ${dep} · ${shift}`, icon: 'warning', showCancelButton: true, confirmButtonText: 'ลบ', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#dc2626' });
+    if (!ask.isConfirmed) return;
 
     const G = (window.SHIFT_GROUPS_ALL && window.SHIFT_GROUPS_ALL[dep]) || null;
+    const _before = G && Array.isArray(G[shift]) ? G[shift].slice() : null;
     if (G && Array.isArray(G[shift])) {
         G[shift] = G[shift].filter(t => t !== timeSlot);
         if (G[shift].length === 0) delete G[shift];
     }
 
+    Swal.fire({title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    const { error } = await appDB.from('settings').upsert([{ key: 'custom_time_slots', value: JSON.stringify(window.SHIFT_GROUPS_ALL) }]);
+    if (error) { if (G && _before) G[shift] = _before; return Swal.fire('ลบไม่สำเร็จ', error.message, 'error'); }
     SETTINGS['custom_time_slots'] = JSON.stringify(window.SHIFT_GROUPS_ALL);
     SHIFT_GROUPS = window.SHIFT_GROUPS_ALL[window._slotsViewerDept()] || {};
-
-    Swal.fire({title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
-    await appDB.from('settings').upsert([{ key: 'custom_time_slots', value: JSON.stringify(window.SHIFT_GROUPS_ALL) }]);
+    if (typeof window.refreshTimeSlots === 'function') window.refreshTimeSlots();
 
     renderManualTimeSlots();
     Swal.fire({icon: 'success', title: 'ลบสำเร็จ', timer: 1000, showConfirmButton: false});

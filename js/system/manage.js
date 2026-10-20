@@ -15,18 +15,21 @@ window.addToPendingList = function() {
     if (checkedBoxes.length === 0) return Swal.fire('ไม่ได้เลือก', 'กรุณาติ๊กเลือกพนักงานอย่างน้อย 1 คน', 'warning');
     if (!dateVal) return Swal.fire('ไม่ได้เลือกเวลา', 'กรุณาระบุวัน/เวลาที่มีผล', 'warning');
 
-    let addedCount = 0;
+    let addedCount = 0, dupCount = 0;
+    const whenIso = new Date(dateVal).toISOString();
 
     checkedBoxes.forEach(cb => {
         let userId = cb.value;
         if(!isNaN(Number(userId))) userId = Number(userId);
         const userName = cb.dataset.name;
+        // [แก้] กันเพิ่มคนเดิม-เวลาเดิมซ้ำ (เดิมกดซ้ำแล้วได้คิวซ้ำ 2 รายการ)
+        if (pendingSchedules.some(p => String(p.user_id) === String(userId) && p.scheduled_for === whenIso)) { cb.checked = false; dupCount++; return; }
 
         pendingSchedules.push({
             user_id: userId,
             user_name: userName,
             target_shift: shift,
-            scheduled_for: new Date(dateVal).toISOString()
+            scheduled_for: whenIso
         });
         
         cb.checked = false; // เอาติ๊กถูกออกให้หลังเพิ่มเสร็จ
@@ -40,7 +43,7 @@ window.addToPendingList = function() {
     if(selectAllCb) selectAllCb.checked = false;
 
     const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
-    Toast.fire({ icon: 'success', title: `เพิ่ม ${addedCount} รายการรอรันแล้ว` });
+    Toast.fire({ icon: addedCount ? 'success' : 'info', title: `เพิ่ม ${addedCount} รายการรอรันแล้ว${dupCount ? ` (ข้าม ${dupCount} ที่ซ้ำ)` : ''}` });
 };
 
 window.renderPendingTable = function() {
@@ -61,7 +64,7 @@ window.renderPendingTable = function() {
     if(countSpan) countSpan.innerText = pendingSchedules.length;
     tbody.innerHTML = pendingSchedules.map((item, index) => `
         <tr class="border-b border-gray-600/50">
-            <td class="p-1.5">${item.user_name}</td>
+            <td class="p-1.5">${window.escapeHtml(item.user_name)}</td>
             <td class="p-1.5 font-bold text-yellow-200">${item.target_shift}</td>
             <td class="p-1.5 font-mono">${new Date(item.scheduled_for).toLocaleString('th-TH')}</td>
             <td class="p-1.5 text-center">
@@ -97,9 +100,8 @@ async function commitIndividualSchedules() {
     } else {
         pendingSchedules = [];
         renderPendingTable();
-        if(typeof fetchIndividualTasks === 'function') fetchIndividualTasks();
-
-        if(typeof processPendingTasks === 'function') await processPendingTasks();
+        // [แก้] เดิมเรียก "ประมวลผลคิว" 2 ทางพร้อมกัน (ใน fetchIndividualTasks + เรียกตรงอีกครั้ง) → ทำซ้ำ + แจ้งเตือนซ้ำ
+        if(typeof fetchIndividualTasks === 'function') await fetchIndividualTasks();
 
         Swal.fire('สำเร็จ', 'บันทึกรายการเปลี่ยนกะล่วงหน้าเรียบร้อย', 'success');
     }
@@ -117,12 +119,14 @@ async function fetchIndividualTasks() {
          if (typeof processPendingTasks === 'function') await processPendingTasks();
      } catch(e) { console.warn('[fetchIndividualTasks] processPendingTasks error:', e); }
 
-     const {data} = await appDB.from('scheduled_tasks')
-        .select('*')
-        .eq('task_type', 'individual_shift_update')
-        .order('scheduled_for', {ascending: true});
-     
-     GLOBAL_INDIV_TASKS = data || [];
+     // ⚡ [แก้] เดิมดึงประวัติทั้งหมดตั้งแต่เริ่มระบบ (หน้าสลับกะสร้างหลายสิบรายการทุกเดือน → ยิ่งนานยิ่งหนัก และเกิน 1,000 แถวก็ตกหล่น)
+     //     ตอนนี้: รอทำงาน = ทั้งหมด · สำเร็จแล้ว = 300 รายการล่าสุด
+     const base = () => appDB.from('scheduled_tasks').select('*').eq('task_type', 'individual_shift_update');
+     const [pend, done] = await Promise.all([
+         base().eq('status', 'pending').order('scheduled_for', { ascending: true }).limit(1000),
+         base().eq('status', 'completed').order('scheduled_for', { ascending: false }).limit(300),
+     ]);
+     GLOBAL_INDIV_TASKS = [...(pend.data || []), ...((done.data || []).slice().reverse())];
      renderIndivTaskLog(GLOBAL_INDIV_TASKS);
 }
 
@@ -159,12 +163,13 @@ function renderIndivTaskLog(data) {
 
 function createIndivLogItem(t, isCompleted = false) {
      const time = new Date(t.scheduled_for).toLocaleString('th-TH');
-     const p = t.payload;
+     let p = t.payload || {};
+     if (typeof p === 'string') { try { p = JSON.parse(p); } catch (e) { p = {}; } }
      const statusBadge = isCompleted ? '<span class="text-[9px] bg-green-900 text-green-300 px-1 rounded">สำเร็จ</span>' : '';
      const shiftClass = p.target_shift === 'กะเช้า' ? 'text-orange-300' : (p.target_shift === 'กะกลาง' ? 'text-blue-300' : 'text-purple-300');
      
      return `<div class="flex justify-between border-b border-gray-700 py-1 indiv-log-item" data-shift="${p.target_shift}">
-        <span><span class="text-white font-bold user-name-span">${p.user_name}</span> -> <span class="${shiftClass}">${p.target_shift}</span> <span class="text-[9px] text-gray-500">[${time}]</span> ${statusBadge}</span>
+        <span><span class="text-white font-bold user-name-span">${window.escapeHtml(p.user_name || '-')}</span> -> <span class="${shiftClass}">${p.target_shift}</span> <span class="text-[9px] text-gray-500">[${time}]</span> ${statusBadge}</span>
         <span onclick="deleteTask(${t.id})" class="text-red-400 cursor-pointer material-icons text-xs hover:text-red-200">delete</span>
      </div>`;
 }
@@ -236,12 +241,15 @@ async function fetchTasks() {
     const {data}=await appDB.from('scheduled_tasks').select('*').neq('task_type', 'individual_shift_update').order('created_at',{ascending:false}).limit(5); 
     const taskLog = document.getElementById('taskLog');
     if(taskLog) {
-        taskLog.innerHTML=(data || []).map(t=>`<div class="flex justify-between border-b border-gray-700 py-1"><span>${new Date(t.scheduled_for).toLocaleString('th-TH')} ${t.payload.from}->${t.payload.to}</span><span onclick="deleteTask(${t.id})" class="text-red-400 cursor-pointer material-icons text-xs">delete</span></div>`).join(''); 
+        const pl = (t) => { let p = t.payload || {}; if (typeof p === 'string') { try { p = JSON.parse(p); } catch (e) { p = {}; } } return p; };   // [แก้] payload เป็นข้อความ → เดิมขึ้น undefined
+        taskLog.innerHTML=(data || []).map(t=>`<div class="flex justify-between border-b border-gray-700 py-1"><span>${new Date(t.scheduled_for).toLocaleString('th-TH')} ${pl(t).from || '-'} → ${pl(t).to || '-'}${t.status === 'completed' ? ' ✓' : ''}</span><span onclick="deleteTask(${t.id})" class="text-red-400 cursor-pointer material-icons text-xs">delete</span></div>`).join(''); 
     }
 }
 
 window.processPendingTasks = async function() { if (!window.sysIsAdmin()) return;   // ตัวประมวลผลเบื้องหลัง — เงียบ ไม่เด้ง popup
-   
+    // [แก้] กันรันซ้อน (เดิมถูกเรียกหลายทางพร้อมกัน → คิวเดียวกันถูกทำ 2 รอบ + แจ้งเตือนซ้ำ)
+    if (window._procTasksRunning) return;
+    window._procTasksRunning = true;
     try {
         const now = new Date().toISOString(); 
         const {data} = await appDB.from('scheduled_tasks').select('*').eq('status','pending').lte('scheduled_for',now); 
@@ -256,22 +264,26 @@ window.processPendingTasks = async function() { if (!window.sysIsAdmin()) return
                     try { p = JSON.parse(p); } catch(e) { p = {}; }
                 }
 
+                let okTask = true;
                 if (t.task_type === 'move_shift') { 
-                    await appDB.from('users').update({allowed_shift: p.to}).eq('allowed_shift', p.from); 
+                    const { error: mErr } = await appDB.from('users').update({allowed_shift: p.to}).eq('allowed_shift', p.from); 
+                    if (mErr) { okTask = false; console.error('ย้ายกะทั้งกลุ่มไม่สำเร็จ:', mErr); }
                 } 
                 else if (t.task_type === 'individual_shift_update') { 
                     const targetName = p.user_name;
                     const targetShift = p.target_shift;
                     
-                    if (targetName && targetShift && targetShift !== 'คงเดิม') {
-                        const { error: uErr } = await appDB.from('users')
-                            .update({ allowed_shift: targetShift })
-                            .eq('username', targetName); 
-                        
-                        if(uErr) console.error("อัปเดตกะไม่สำเร็จ:", uErr);
+                    if ((p.user_id || targetName) && targetShift && targetShift !== 'คงเดิม') {
+                        // [แก้] เดิมหาคนด้วย "ชื่อ" อย่างเดียว → ถ้าเปลี่ยนชื่อพนักงานหลังตั้งคิว กะไม่เปลี่ยนแต่ขึ้นว่าสำเร็จ
+                        //      ตอนนี้ใช้ user_id ก่อน (ไม่มีค่อยใช้ชื่อ)
+                        let q = appDB.from('users').update({ allowed_shift: targetShift });
+                        q = p.user_id ? q.eq('id', p.user_id) : q.eq('username', targetName);
+                        const { error: uErr } = await q;
+                        if (uErr) { okTask = false; console.error("อัปเดตกะไม่สำเร็จ:", uErr); }
                     }
                 } 
                 
+                if (!okTask) continue;   // [แก้] ทำไม่สำเร็จ → คงไว้เป็น pending ให้ลองใหม่รอบหน้า (เดิมขึ้นสำเร็จทั้งที่ไม่ได้เปลี่ยน)
                 completedTaskIds.push(t.id); // 🌟 [ปรับใหม่] เก็บ ID โยนลงตะกร้า (ยังไม่ยิง DB)
                 updateCount++;
             } 
@@ -282,16 +294,19 @@ window.processPendingTasks = async function() { if (!window.sysIsAdmin()) return
                 if (bulkErr) console.error('[processPendingTasks] อัปเดต status=completed ไม่สำเร็จ:', bulkErr);
             }
             
+            window._procTasksRunning = false;
             if(typeof fetchTasks === 'function') fetchTasks(); 
             if(typeof fetchIndividualTasks === 'function') fetchIndividualTasks(); 
             if(typeof fetchUsers === 'function') await fetchUsers(); 
 
-            const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
-            Toast.fire({ icon: 'success', title: `ถึงเวลาย้ายกะอัตโนมัติสำเร็จ ${updateCount} คน` });
+            if (updateCount) {
+                const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+                Toast.fire({ icon: 'success', title: `ถึงเวลาย้ายกะอัตโนมัติสำเร็จ ${updateCount} คน` });
+            }
         } 
     } catch (error) {
         console.error("Auto Shift Error:", error);
-    }
+    } finally { window._procTasksRunning = false; }
 };
 
 function renderOperatingHours() {
@@ -317,12 +332,12 @@ function renderOperatingHours() {
         
         // 🌟 [ปรับใหม่]
         opHtml += `
-            <div class="flex items-center gap-2 text-xs operating-row bg-slate-900/50 p-1 rounded border border-slate-700">
-                <span class="w-10 text-${color}-300 font-bold capitalize shift-label">${suffix}:</span>
+            <div class="flex items-center gap-2 text-xs operating-row bg-slate-900/50 p-1 rounded border border-slate-700" data-suffix="${window.escapeHtml(suffix)}">
+                <span class="w-10 text-${color}-300 font-bold capitalize shift-label">${window.escapeHtml(suffix)}:</span>
                 <input type="time" class="bg-slate-800 text-white p-1 rounded border border-slate-600 text-center flex-1 open-input" value="${openVal}">
                 <span class="text-gray-500">-</span>
                 <input type="time" class="bg-slate-800 text-white p-1 rounded border border-slate-600 text-center flex-1 close-input" value="${closeVal}">
-                <button onclick="deleteOperatingShift('${suffix}')" class="text-red-400 hover:text-red-300 ml-1"><span class="material-icons text-sm">close</span></button>
+                <button onclick="deleteOperatingShift(this.closest('.operating-row').dataset.suffix)" class="text-red-400 hover:text-red-300 ml-1" title="ลบกะนี้"><span class="material-icons text-sm">close</span></button>
             </div>
         `;
     });
@@ -340,8 +355,11 @@ async function addOperatingShift() {
         showCancelButton: true
     });
     
-    if (name) {
-        if(SETTINGS[`open_time_${name}`]) return Swal.fire('Error', 'มีกะนี้อยู่แล้ว', 'error');
+    const nm = String(name || '').trim().replace(/^กะ/, '');   // [แก้] ตัดช่องว่าง/คำว่า "กะ" ซ้ำ
+    if (nm) {
+        if (/[:'"<>]/.test(nm)) return Swal.fire('ชื่อไม่ถูกต้อง', 'ชื่อกะห้ามมีเครื่องหมาย : \' " < >', 'warning');
+        if(SETTINGS[`open_time_${nm}`]) return Swal.fire('Error', 'มีกะนี้อยู่แล้ว', 'error');
+        const name = nm;
         
         SETTINGS[`open_time_${name}`] = '00:00';
         SETTINGS[`close_time_${name}`] = '23:59';
@@ -362,7 +380,8 @@ async function deleteOperatingShift(suffix) {
     }).then(async (result) => {
         if (result.isConfirmed) {
               // [FIX] เดิม like '%_<กะ>' กิน quota_total_<กะ> ไปด้วย ทำให้โควตาหายถาวร — ระบุคีย์ตรง ๆ แทน
-              await appDB.from('settings').delete().in('key', [`open_time_${suffix}`, `close_time_${suffix}`]);
+              const { error: dErr } = await appDB.from('settings').delete().in('key', [`open_time_${suffix}`, `close_time_${suffix}`]);
+              if (dErr) return Swal.fire('ลบไม่สำเร็จ', dErr.message, 'error');
               delete SETTINGS[`open_time_${suffix}`];
               delete SETTINGS[`close_time_${suffix}`];
               if(typeof loadSettings === 'function') await loadSettings();
@@ -376,26 +395,34 @@ async function saveTimeSettings() { if (!window.sysRequireAdmin()) return;
     const container = document.getElementById('operatingTimeContainer');
     const rows = container.querySelectorAll('.operating-row');
     
+    let bad = '';
     rows.forEach(row => {
-        const suffix = row.querySelector('.shift-label').innerText.replace(':', '').trim();
+        // [แก้] อ่านชื่อกะจาก data-suffix (เดิมตัดจากข้อความบนจอ → ชื่อที่มี ":" ทำให้บันทึกผิดคีย์)
+        const suffix = row.dataset.suffix || row.querySelector('.shift-label').innerText.replace(':', '').trim();
         const openVal = row.querySelector('.open-input').value;
         const closeVal = row.querySelector('.close-input').value;
+        if (!openVal || !closeVal) bad = suffix;
         
         updates.push({key: `open_time_${suffix}`, value: openVal});
         updates.push({key: `close_time_${suffix}`, value: closeVal});
     });
+    if (bad) return Swal.fire('เวลาไม่ครบ', `กะ ${bad} ยังใส่เวลาเปิด/ปิดไม่ครบ`, 'warning');
 
-    await appDB.from('settings').upsert(updates); 
+    const { error } = await appDB.from('settings').upsert(updates); 
+    if (error) return Swal.fire('บันทึกไม่สำเร็จ', error.message, 'error');   // [แก้] เดิมขึ้น Saved ทุกครั้งแม้บันทึกพัง
     updates.forEach(u => SETTINGS[u.key] = u.value);
     Swal.fire('Saved','บันทึกเวลาเปิด-ปิดเรียบร้อย','success'); 
 }
 
 async function saveDailyLimit() { if (!window.sysRequireAdmin()) return; 
-    const dailyVal = document.getElementById('dailyLimitInput').value; 
+    const dailyVal = String(parseInt(document.getElementById('dailyLimitInput').value, 10) || ''); 
+    // [แก้] เดิมช่องว่าง/ติดลบก็บันทึกได้ → ขีดจำกัดเพี้ยน (จองได้ไม่จำกัด หรือจองไม่ได้เลย)
+    if (!dailyVal || +dailyVal < 1 || +dailyVal > 50) return Swal.fire('ค่าไม่ถูกต้อง', 'จำนวนครั้งต่อวันต้องเป็นเลข 1–50', 'warning');
     // ⏳ ระยะห่างขั้นต่ำ: แปลงเป็น "นาที" เก็บค่าเดียว (เลือกหน่วยได้แค่ตอนกรอก)
     const gEl = document.getElementById('gapValueInput'), uEl = document.getElementById('gapUnitInput');
     const gapMin = gEl ? Math.max(0, (parseInt(gEl.value) || 0) * ((uEl && uEl.value === 'hour') ? 60 : 1)) : 0;
-    await appDB.from('settings').upsert([{ key: 'daily_limit', value: dailyVal }, { key: 'break_gap_min', value: String(gapMin) }]); 
+    const { error: lErr } = await appDB.from('settings').upsert([{ key: 'daily_limit', value: dailyVal }, { key: 'break_gap_min', value: String(gapMin) }]); 
+    if (lErr) return Swal.fire('บันทึกไม่สำเร็จ', lErr.message, 'error');
     SETTINGS.daily_limit = parseInt(dailyVal); 
     SETTINGS.break_gap_min = String(gapMin);
     
@@ -519,14 +546,28 @@ function populateIndivUserSelect(filter = "") {
     if(count === 0) container.innerHTML = '<div class="text-center text-gray-400 text-xs py-4">ไม่พบรายชื่อ</div>';
 }
 
+// [แก้] เดิมพิมพ์กรองแล้ววาดรายชื่อใหม่ทั้งหมด → คนที่ติ๊กไว้ก่อนหน้า (ไม่ตรงคำค้น) ถูกเอาติ๊กออกเงียบ ๆ
+//      ตอนนี้ซ่อน/แสดงแถวแทน ติ๊กที่เลือกไว้ยังอยู่ครบ
 function filterIndivUserSelect() {
-    const searchVal = document.getElementById('indivSearchUser').value;
-    populateIndivUserSelect(searchVal);
+    const q = (document.getElementById('indivSearchUser').value || '').trim().toLowerCase();
+    const container = document.getElementById('indivUserListContainer');
+    if (!container) return;
+    if (!container.querySelector('.indiv-user-cb')) { populateIndivUserSelect(); }
+    let shown = 0;
+    container.querySelectorAll('.indiv-user-cb').forEach(cb => {
+        const row = cb.closest('div');
+        const ok = !q || String(cb.dataset.name || '').toLowerCase().includes(q);
+        if (row) row.style.display = ok ? '' : 'none';
+        if (ok) shown++;
+    });
+    let empty = container.querySelector('.indiv-empty');
+    if (!shown) { if (!empty) container.insertAdjacentHTML('beforeend', '<div class="indiv-empty text-center text-gray-400 text-xs py-4">ไม่พบรายชื่อ</div>'); }
+    else if (empty) empty.remove();
 }
 
 window.toggleSelectAllIndiv = function(source) {
-    const checkboxes = document.querySelectorAll('.indiv-user-cb');
-    checkboxes.forEach(cb => cb.checked = source.checked);
+    // เลือกทั้งหมด = เฉพาะคนที่แสดงอยู่ (ตามคำค้น)
+    document.querySelectorAll('.indiv-user-cb').forEach(cb => { const row = cb.closest('div'); if (!row || row.style.display !== 'none') cb.checked = source.checked; });
 }
 
 let isFetchingUsers = false;
@@ -1164,7 +1205,8 @@ window.getQuotaDepts = function() {
 // 💾 บันทึกรายชื่อแผนกบนหน้าโควตา
 window._saveQuotaDepts = async function(list) {
     const v = JSON.stringify([...new Set(list)]);
-    await appDB.from('settings').upsert([{ key: 'quota_depts', value: v }]);
+    const { error } = await appDB.from('settings').upsert([{ key: 'quota_depts', value: v }]);
+    if (error) { Swal.fire('บันทึกไม่สำเร็จ', error.message, 'error'); throw error; }   // [แก้] เดิมพังเงียบ
     SETTINGS['quota_depts'] = v;
     if (typeof window.clearSettingCache === "function") window.clearSettingCache();
 };
@@ -1199,7 +1241,8 @@ window.removeQuotaDept = async function(d) {
 // 🔗 บันทึกกลุ่มเว็บลงฐานข้อมูล
 window._saveWebGroups = async function(all) {
     const v = JSON.stringify(all);
-    await appDB.from('settings').upsert([{ key: 'break_web_groups', value: v }]);
+    const { error } = await appDB.from('settings').upsert([{ key: 'break_web_groups', value: v }]);
+    if (error) { Swal.fire('บันทึกไม่สำเร็จ', error.message, 'error'); throw error; }   // [แก้] เดิมพังเงียบ
     SETTINGS['break_web_groups'] = v;
     window._breakWebGroups = all;
     if (typeof window.clearSettingCache === "function") window.clearSettingCache();
@@ -1298,6 +1341,9 @@ window.renderQuotaSettings = async function() {
 
     const shifts = ['กะเช้า', 'กะกลาง', 'กะดึก'];
     const depts = window.getQuotaDepts();
+    // [แก้] ค่า "เฝ้า≥" ที่พิมพ์ไว้แต่ยังไม่กดบันทึก — เดิมหายทันทีเมื่อกดเลือกกะ/เปลี่ยนวันที่/รวมกลุ่มเว็บ (หน้าวาดใหม่)
+    const _typed = {};
+    container.querySelectorAll('input[data-brm][data-dirty="1"]').forEach(inp => { _typed[inp.dataset.brm] = inp.value; });
     await window.loadBreakMinRemainCfg(true);   // ⚙️ โหลดค่า "ต้องเหลือเฝ้ากี่คน" ล่าสุดมาแสดงในช่องกรอก
     await window.loadBreakWebGroups(true);
     const keys = [];
@@ -1419,10 +1465,15 @@ window.renderQuotaSettings = async function() {
                 </div>`).join('')}
             </div>
         </div>`;
+    Object.entries(_typed).forEach(([k, v]) => {
+        const inp = container.querySelector(`input[data-brm="${CSS.escape(k)}"]`);
+        if (inp) { inp.value = v; inp.dataset.dirty = '1'; window.brmPreview(inp); }
+    });
 };
 
 // ⚙️ พรีวิวสด: พิมพ์เลข "เฝ้า≥" แล้วตัวเลข "พักได้" อัปเดตทันที | ลบว่าง = ค่าเริ่มต้น (เหลือ 1)
 window.brmPreview = function(inp) {
+    inp.dataset.dirty = '1';   // พิมพ์แล้วยังไม่บันทึก
     const capEl = inp.closest('.rounded-lg')?.querySelector('.brm-cap');
     if (!capEl) return;
     const n = parseInt(capEl.dataset.n || '0', 10);
@@ -1436,11 +1487,13 @@ window.brmPreview = function(inp) {
 
 // 🔄 ล้างค่าที่ตั้งเองทั้งหมด → ทุกเว็บกลับไปใช้ค่าเริ่มต้น (เหลือเฝ้า 1)
 window.resetBreakMinRemain = async function() {
+    if (!window.sysRequireAdmin()) return;   // [แก้] เดิมไม่เช็คสิทธิ์
     const r = await Swal.fire({ title: 'ล้างเป็นอัตโนมัติทั้งหมด?', text: 'ค่า "เฝ้า≥" ที่ตั้งเองไว้ทุกช่องจะถูกลบ ทุกเว็บกลับไปใช้เพดานอัตโนมัติตามตารางขั้นบันได (เว็บมีกี่คน → พักได้กี่คน)', icon: 'question', showCancelButton: true, confirmButtonText: 'ล้างเลย', cancelButtonText: 'ยกเลิก' });
     if (!r.isConfirmed) return;
     try {
         // ใช้ upsert ค่าว่างแทนการลบแถว — realtime ตอน DELETE ไม่แนบชื่อ key ทำให้เครื่องพนักงานไม่รู้ว่าต้องรีโหลด
-        await appDB.from('settings').upsert([{ key: 'break_min_remain', value: '{}' }]);
+        const { error } = await appDB.from('settings').upsert([{ key: 'break_min_remain', value: '{}' }]);
+        if (error) throw error;   // [แก้] เดิมพังแต่ขึ้นว่า "ล้างแล้ว"
         await window.loadBreakMinRemainCfg(true);
         await window.loadBreakWebGroups(true);
         try { await appDB.from('system_logs').insert([{ action_type: 'ตั้งค่าเหลือเฝ้าหน้างาน', performed_by: (window.currentUser?.username || 'admin'), target_details: 'ล้างค่ากำหนดเองทั้งหมด กลับไปใช้ค่าเริ่มต้น (เหลือเฝ้า 1)' }]); } catch (e) {}
@@ -1451,6 +1504,7 @@ window.resetBreakMinRemain = async function() {
 
 // 💾 บันทึก: เก็บเฉพาะช่องที่พิมพ์เลขไว้ (กำหนดเอง) — ช่องว่าง = อัตโนมัติตามกฏ ไม่ต้องเก็บ
 window.saveBreakMinRemain = async function() {
+    if (!window.sysRequireAdmin()) return;   // [แก้] เดิมไม่เช็คสิทธิ์
     const cfg = {};
     let zeroCap = 0, customCount = 0;
     document.querySelectorAll('input[data-brm]').forEach(inp => {
@@ -1521,8 +1575,6 @@ window.renderQuotaHistory = async function() {
     }
 };
 
-window.saveQuotaSettings = async function() {
-    Swal.fire('ไม่ต้องบันทึก', 'เพดานพักต่อเว็บคำนวณอัตโนมัติจากตารางจัดหน้าที่ ไม่มีค่าให้ตั้งครับ', 'info');
-};
+// (saveQuotaSettings เดิม: ไม่มีปุ่มไหนเรียกใช้แล้ว — ลบออก)
 
 // =========================================================
