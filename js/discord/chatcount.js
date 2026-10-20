@@ -444,7 +444,31 @@
 .cce-sh .cce-aside{margin-left:auto;font-size:12px;color:var(--k-mute);font-weight:600}
 .cce-in{width:100%;box-sizing:border-box;padding:11px 13px;border-radius:11px;border:1px solid rgba(148,163,184,.22);background:rgba(15,23,42,.7);color:var(--k-tx);font-size:13.5px;font-weight:600;outline:none;transition:border-color .15s}
 .cce-in:focus{border-color:#38bdf8;box-shadow:0 0 0 3px rgba(56,189,248,.15)}
-.cce-time{font-size:17px;font-weight:900;font-variant-numeric:tabular-nums;color:#7dd3fc;padding-top:9px;padding-bottom:9px}
+.cce-tp{position:relative}
+.cce-tbtn{width:100%;display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:11px;border:1px solid rgba(148,163,184,.22);background:rgba(15,23,42,.7);color:var(--k-tx);cursor:pointer;text-align:left;transition:border-color .15s,box-shadow .15s}
+.cce-tbtn:hover{border-color:rgba(56,189,248,.5)}
+.cce-tbtn[aria-expanded=true],.cce-tbtn:focus-visible{border-color:#38bdf8;box-shadow:0 0 0 3px rgba(56,189,248,.15);outline:0}
+.cce-tval{font-size:20px;font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:.5px;color:#7dd3fc;line-height:1.2}
+.cce-tval.empty{color:var(--k-mute);font-weight:700}
+.cce-tunit{font-size:12px;font-weight:700;color:var(--k-mute)}
+.cce-tbtn svg{margin-left:auto;opacity:.6;flex:none}
+.cce-tpop{position:absolute;top:calc(100% + 8px);right:0;z-index:30;width:236px;padding:12px;border-radius:16px;background:#0f172a;border:1px solid rgba(148,163,184,.18);box-shadow:0 22px 50px rgba(2,6,23,.65);
+  opacity:0;transform:translateY(-6px) scale(.97);transform-origin:top right;pointer-events:none;transition:opacity .18s ease,transform .22s cubic-bezier(.2,.8,.2,1)}
+.cce-tpop.open{opacity:1;transform:none;pointer-events:auto}
+.cce-wheels{position:relative;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;height:200px}
+.cce-wheels::before{content:'';position:absolute;left:0;right:0;top:80px;height:40px;border-radius:10px;background:rgba(14,165,233,.16);border:1px solid rgba(56,189,248,.35);pointer-events:none}
+.cce-colon{font-size:22px;font-weight:900;color:#7dd3fc;padding:0 2px;position:relative;top:-2px}
+.cce-wheel{height:200px;overflow-y:auto;scroll-snap-type:y mandatory;scrollbar-width:none;outline:0;position:relative;
+  -webkit-mask-image:linear-gradient(transparent,#000 30%,#000 70%,transparent);mask-image:linear-gradient(transparent,#000 30%,#000 70%,transparent)}
+.cce-wheel::-webkit-scrollbar{display:none}
+.cce-wheel div{height:40px;display:grid;place-items:center;scroll-snap-align:center;font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;color:rgba(203,213,225,.55);cursor:pointer;transition:color .15s,transform .2s cubic-bezier(.2,.8,.2,1),font-size .15s}
+.cce-wheel div.pad{cursor:default}
+.cce-wheel div.on{color:#f0f9ff;font-size:22px;font-weight:900;transform:scale(1.04)}
+.cce-wheel:focus-visible div.on{color:#7dd3fc}
+.cce-tquick{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(148,163,184,.12)}
+.cce-tquick button{flex:1;border:1px solid rgba(148,163,184,.2);background:rgba(30,41,59,.6);color:var(--k-tx);border-radius:8px;padding:5px 0;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;cursor:pointer;transition:border-color .12s,background .12s}
+.cce-tquick button:hover{border-color:#38bdf8;background:rgba(14,165,233,.14)}
+.cce-tdone{width:100%;margin-top:8px;border:0;border-radius:9px;padding:8px;background:#0ea5e9;color:#fff;font-weight:800;font-size:13px;cursor:pointer}
 .cce-row{display:grid;grid-template-columns:minmax(0,1fr) 180px;gap:10px}
 .cce-lb{display:block;font-size:12px;font-weight:700;color:var(--k-mute);margin:0 0 6px}
 .cce-box{border:1px solid rgba(148,163,184,.14);border-radius:12px;background:rgba(15,23,42,.45);max-height:220px;overflow-y:auto;padding:6px 10px 10px;margin-top:8px}
@@ -503,7 +527,7 @@
 .cce-seg button.on{background:rgba(14,165,233,.25);color:#e0f2fe}
 @media (max-width:520px){.cce-row{grid-template-columns:1fr}.cce-pop .swal2-title,.cce-pop .swal2-html-container,.cce-pop .swal2-actions{padding-left:16px;padding-right:16px}}
 @media (max-width:860px){.cce{grid-template-columns:1fr}.cce-main,.cce-side{max-height:none;overflow:visible}.cce-pop .swal2-html-container{max-height:72vh;overflow-y:auto}}
-@media (prefers-reduced-motion:reduce){.cce *{transition:none!important}}`;
+@media (prefers-reduced-motion:reduce){.cce *{transition:none!important}.cce-wheel{scroll-behavior:auto}}`;
         const st = document.createElement('style');
         st.id = 'cce-style';
         st.textContent = css;
@@ -561,7 +585,22 @@
                     <div class="cce-sh"><span class="cce-num">1</span><h4>ชื่อรอบและเวลา</h4><span class="cce-aside">ส่งทุกวัน · ถามทุกเว็บ</span></div>
                     <div class="cce-row">
                         <div><label class="cce-lb" for="ccName">ชื่อรอบ</label><input id="ccName" class="cce-in" value="${esc(s.name)}" placeholder="เช่น กะเช้า รอบที่ 1" oninput="window.ccPreview()"></div>
-                        <div><label class="cce-lb" for="ccTime">เวลา (ไทย)</label><input id="ccTime" type="time" class="cce-in cce-time" value="${esc(s.time)}" oninput="window.ccPreview()"></div>
+                        <div class="cce-tp"><label class="cce-lb" for="ccTimeBtn">เวลา (ไทย)</label>
+                            <input type="hidden" id="ccTime" value="${esc(s.time)}">
+                            <button type="button" id="ccTimeBtn" class="cce-tbtn" aria-haspopup="dialog" aria-expanded="false" onclick="window.ccTimeToggle()">
+                                <span id="ccTimeVal" class="cce-tval${s.time ? '' : ' empty'}">${s.time ? esc(s.time) : 'เลือกเวลา'}</span><span class="cce-tunit">${s.time ? 'น.' : ''}</span>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                            </button>
+                            <div id="ccTimePop" class="cce-tpop" role="dialog" aria-label="เลือกเวลา">
+                                <div class="cce-wheels">
+                                    <div class="cce-wheel" id="ccWheelH" tabindex="0" aria-label="ชั่วโมง"></div>
+                                    <span class="cce-colon">:</span>
+                                    <div class="cce-wheel" id="ccWheelM" tabindex="0" aria-label="นาที"></div>
+                                </div>
+                                <div class="cce-tquick">${['08:00', '12:00', '16:00', '20:00', '00:00'].map(t => `<button type="button" onclick="window.ccTimeSet('${t}', true)">${t}</button>`).join('')}</div>
+                                <button type="button" class="cce-tdone" onclick="window.ccTimeClose()">ตกลง</button>
+                            </div>
+                        </div>
                     </div>
                 </section>
 
@@ -611,6 +650,7 @@
               </aside>
             </div>`,
             didOpen: () => {
+                initTimeWheels();
                 window.ccEdSync();
                 // เลื่อนรายการกลุ่ม Telegram ไปให้เห็นกลุ่มที่เลือกไว้
                 const on = document.querySelector('.cc-tg:checked');
@@ -649,6 +689,101 @@
     };
 
     // อัปเดตส่วนที่ขึ้นกับการเลือก: ห้องที่เลือก (pill), จำนวน, ชื่อในตัวอย่าง
+    // ── ตัวเลือกเวลาแบบวงล้อ (24 ชม.) ──────────────────────────────────
+    const ROW = 40;   // ความสูงต่อแถว (ต้องตรงกับ CSS .cce-wheel div)
+    const pad2 = n => String(n).padStart(2, '0');
+    function buildWheel(el, count) {
+        el.innerHTML = '<div class="pad"></div><div class="pad"></div>'
+            + Array.from({ length: count }, (_, i) => `<div data-v="${i}">${pad2(i)}</div>`).join('')
+            + '<div class="pad"></div><div class="pad"></div>';
+        let t = null;
+        el.addEventListener('scroll', () => {
+            markWheel(el);
+            clearTimeout(t);
+            t = setTimeout(() => commitTime(), 90);   // หยุดเลื่อนแล้วค่อยบันทึกค่า
+        }, { passive: true });
+        el.addEventListener('click', e => {
+            const d = e.target.closest('div[data-v]');
+            if (d) scrollWheelTo(el, Number(d.dataset.v), true);
+        });
+        el.addEventListener('keydown', e => {
+            const max = el.querySelectorAll('div[data-v]').length - 1;
+            const cur = wheelIndex(el);
+            if (e.key === 'ArrowDown') { e.preventDefault(); scrollWheelTo(el, Math.min(max, cur + 1), true); }
+            if (e.key === 'ArrowUp') { e.preventDefault(); scrollWheelTo(el, Math.max(0, cur - 1), true); }
+            if (e.key === 'Enter') { e.preventDefault(); window.ccTimeClose(); }
+        });
+    }
+    const wheelIndex = el => Math.round(el.scrollTop / ROW);
+    function markWheel(el) {
+        const i = wheelIndex(el);
+        el.querySelectorAll('div[data-v]').forEach(d => d.classList.toggle('on', Number(d.dataset.v) === i));
+    }
+    function scrollWheelTo(el, i, smooth) {
+        const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        el.scrollTo({ top: i * ROW, behavior: smooth && !reduce ? 'smooth' : 'auto' });
+        markWheel(el);
+    }
+    function commitTime() {
+        const h = $('ccWheelH'), m = $('ccWheelM');
+        if (!h || !m) return;
+        setTimeDisplay(`${pad2(wheelIndex(h))}:${pad2(wheelIndex(m))}`);
+    }
+    function setTimeDisplay(v) {
+        const inp = $('ccTime'), val = $('ccTimeVal');
+        if (!inp || !val) return;
+        if (inp.value === v && !val.classList.contains('empty')) return;
+        inp.value = v;
+        val.textContent = v;
+        val.classList.remove('empty');
+        val.nextElementSibling.textContent = 'น.';
+        window.ccPreview();
+    }
+    function initTimeWheels() {
+        const h = $('ccWheelH'), m = $('ccWheelM');
+        if (!h || !m) return;
+        buildWheel(h, 24);
+        buildWheel(m, 60);
+    }
+    function onOutside(e) {
+        const tp = document.querySelector('.cce-tp');
+        if (tp && !tp.contains(e.target)) window.ccTimeClose();
+    }
+    function onEsc(e) {
+        if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); window.ccTimeClose(); $('ccTimeBtn')?.focus(); }
+    }
+    window.ccTimeToggle = function () {
+        const pop = $('ccTimePop');
+        if (!pop) return;
+        if (pop.classList.contains('open')) return window.ccTimeClose();
+        const cur = $('ccTime').value || '09:00';
+        const [hh, mm] = cur.split(':').map(Number);
+        pop.classList.add('open');
+        $('ccTimeBtn').setAttribute('aria-expanded', 'true');
+        // ตั้งตำแหน่งวงล้อทันที (ไม่ต้องเลื่อน) แล้วโฟกัสวงล้อชั่วโมง
+        scrollWheelTo($('ccWheelH'), hh || 0, false);
+        scrollWheelTo($('ccWheelM'), mm || 0, false);
+        if (!$('ccTime').value) setTimeDisplay(cur);
+        setTimeout(() => $('ccWheelH')?.focus({ preventScroll: true }), 30);
+        document.addEventListener('mousedown', onOutside, true);
+        document.addEventListener('keydown', onEsc, true);
+    };
+    window.ccTimeClose = function () {
+        const pop = $('ccTimePop');
+        if (!pop || !pop.classList.contains('open')) return;
+        commitTime();
+        pop.classList.remove('open');
+        $('ccTimeBtn')?.setAttribute('aria-expanded', 'false');
+        document.removeEventListener('mousedown', onOutside, true);
+        document.removeEventListener('keydown', onEsc, true);
+    };
+    window.ccTimeSet = function (v, smooth) {
+        const [hh, mm] = v.split(':').map(Number);
+        scrollWheelTo($('ccWheelH'), hh, smooth);
+        scrollWheelTo($('ccWheelM'), mm, smooth);
+        setTimeDisplay(v);
+    };
+
     window.ccEdSync = function () {
         const boxes = [...document.querySelectorAll('.cc-ch:checked')];
         const picked = $('ccChPicked');
