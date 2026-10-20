@@ -751,7 +751,7 @@ const PAGE_SCRIPTS = {
     leave:             ['leave/core', 'leave/table', 'leave/controls', 'swap/core', 'swap/view', 'swap/admin', 'swap/extras'],
     swap:              ['leave/core', 'leave/table', 'leave/controls', 'swap/core', 'swap/view', 'swap/admin', 'swap/extras'],
     duty:              ['duty/core', 'duty/dragdrop', 'duty/roles', 'duty/tools', 'duty/support', 'duty/rotation'],   // แยกจาก duty.js เดิม (5,478) — core ต้องมาก่อน
-    discord:           ['discord/core', 'discord/history', 'discord/message', 'discord/breaktrack', 'discord/tts'],   // ลำดับสำคัญ: core ต้องมาก่อนเสมอ
+    discord:           ['discord/core', 'discord/history', 'discord/message', 'discord/breaktrack', 'discord/tts', 'discord/chatcount'],   // ลำดับสำคัญ: core ต้องมาก่อนเสมอ
     summary:           ['summary/core', 'summary/export'],
     telegram:          ['telegram/Telegram'],
     password:          ['password/Password'],
