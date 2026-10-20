@@ -56,6 +56,54 @@ const OD_TPL_SAMPLE = {
     audit_edit:   { '{ผู้ส่ง}':'admin', '{เวลา}':'28 ส.ค. 2569 23:21', '{การเปลี่ยนแปลง}':'• ยูสเซอร์ : test1 → test2\n• จำนวนเงิน : 50,000 → 100,000', '{คนรับงาน}':'👉 สมชาย รายการที่รับไว้ถูกแก้ไข' },
     audit_delete: { '{ผู้ส่ง}':'admin', '{เวลา}':'28 ส.ค. 2569 23:21', '{ข้อความเดิม}':'💰 ยอดถอนใหญ่ 💰\nเว็บ : MK8\nยูสเซอร์ : test1', '{คนรับงาน}':'👉 สมชาย รายการที่รับไว้ถูกลบ' },
 };
+// ── ตัวช่วย ──
+const odCfg_h = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const odCfg_js = (v) => odCfg_h(String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));   // ใส่ใน onclick="f('...')"
+// มีการแก้ไขที่ยังไม่กดบันทึกไหม (กันข้อมูลที่กำลังแก้ถูกทับตอนมีคนอื่นบันทึก)
+window._odCfgDirty = false;
+function odCfg_markDirty() { window._odCfgDirty = true; odCfg_syncSaveBar(); }
+// แถบบันทึกล่างจอ: บอกว่ามีอะไรยังไม่ได้บันทึกไหม
+function odCfg_syncSaveBar() {
+    const bar = document.getElementById('ocSaveBar'); if (!bar) return;
+    bar.classList.toggle('dirty', !!window._odCfgDirty);
+    const t = document.getElementById('ocSaveBarText');
+    if (t) t.textContent = window._odCfgDirty ? 'มีการแก้ไขที่ยังไม่บันทึก' : 'ค่าทั้งหมดบันทึกแล้ว';
+}
+// เมนูซ้าย: เลื่อนไปหมวด + ติดสถานะหมวดที่กำลังดู
+window.odCfg_go = function(id) {
+    const el = document.getElementById(id); if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.querySelectorAll('#odConfigApp .oc-nav button').forEach(b => b.classList.toggle('on', b.dataset.sec === id));
+};
+function odCfg_bindNavSpy() {
+    const app = document.getElementById('odConfigApp');
+    if (!app || app.dataset.navSpy || typeof IntersectionObserver === 'undefined') return;
+    app.dataset.navSpy = '1';
+    const io = new IntersectionObserver(entries => {
+        entries.forEach(en => {
+            if (!en.isIntersecting) return;
+            document.querySelectorAll('#odConfigApp .oc-nav button').forEach(b => b.classList.toggle('on', b.dataset.sec === en.target.id));
+        });
+    }, { rootMargin: '-90px 0px -60% 0px', threshold: 0 });
+    app.querySelectorAll('.oc-sec').forEach(sec => io.observe(sec));
+}
+// รูปแบบข้อความ: เลือกทีละแบบจากแท็บ (เดิมโชว์ทุกแบบเรียงกันยาวมาก)
+window.odCfg_tplPick = function(k) {
+    const isAudit = k === 'audit_edit' || k === 'audit_delete';
+    if (typeof odCfg_tplView === 'function') odCfg_tplView(isAudit ? 'audit' : 'send');
+    document.querySelectorAll('#odConfigApp .oc-tpl').forEach(el => { el.style.display = el.dataset.tpl === k ? '' : 'none'; });
+    document.querySelectorAll('#ocTplTabs .oc-tab').forEach(b => b.classList.toggle('on', b.dataset.tpl === k));
+};
+function odCfg_bindDirtyOnce() {
+    const app = document.getElementById('odConfigApp');
+    if (!app || app.dataset.dirtyBound) return;
+    app.dataset.dirtyBound = '1';
+    const mark = (e) => { if (e.target && e.target.closest && !e.target.closest('#odCfgHistSection, #odCfgEditModal') && e.target.id !== 'odCfgAdminKey' && !String(e.target.id || '').startsWith('odCfgHist')) odCfg_markDirty(); };
+    app.addEventListener('input', mark); app.addEventListener('change', mark);
+}
+// ข้อความจาก Swal: ตัดช่องว่าง ไม่ให้ค่าว่าง
+const odCfg_clean = (v) => String(v == null ? '' : v).trim();
+
 function odCfg_renderTplVars() {
     OD_TPL_KEYS.forEach(k => {
         const box = document.getElementById('odCfgTplVars' + OD_TPL_SUF[k]);
@@ -107,7 +155,8 @@ window.odCfg_tplPreview = function() {
 };
 
 // ── โหลด config จาก Supabase ──────────────────────────────────────
-window.initOdConfig = async function() {
+// opts.fromRealtime = โหลดค่าใหม่เงียบ ๆ (มีคนอื่นบันทึก) — ไม่ผูกปุ่มซ้ำ ไม่โหลดประวัติซ้ำ
+window.initOdConfig = async function(opts = {}) {
     // เช็คสิทธิ์
     const isAdmin = canPerm('od_config');
     if (!isAdmin && !window.hasUserPerm('od_config')) {
@@ -120,7 +169,7 @@ window.initOdConfig = async function() {
         return;
     }
 
-    odCfg_showStatus('กำลังโหลดข้อมูล...', 'loading');
+    if (!opts.fromRealtime) odCfg_showStatus('กำลังโหลดข้อมูล...', 'loading');
 
     try {
         const { data, error } = await appDB
@@ -184,22 +233,22 @@ window.initOdConfig = async function() {
         }
 
         odCfg_renderAll();
+        window._odCfgDirty = false;   // เพิ่งโหลดค่าจากฐานข้อมูล = ยังไม่มีอะไรแก้
+        odCfg_bindDirtyOnce(); odCfg_syncSaveBar(); odCfg_bindNavSpy();
+        if (opts.fromRealtime) { odCfg_showStatus('🔄 มีการบันทึกการตั้งค่าจากเครื่องอื่น — อัปเดตค่าบนจอให้แล้ว', 'success'); setTimeout(() => odCfg_hideStatus(), 3000); return; }
 
         // 📜 ตั้งค่าเริ่มต้น + ผูกปุ่มของส่วนประวัติ/กู้ข้อความ
+        // [แก้] ผูกครั้งเดียวต่อปุ่ม — เดิมผูกซ้ำทุกครั้งที่หน้าโหลดค่าใหม่ (เช่นมีคนบันทึก) → กดค้นหา 1 ครั้งโหลด 2–3 รอบ
         odCfgHist_initDates();
-        const hLoad = document.getElementById('odCfgHistLoad');
-        if (hLoad) hLoad.addEventListener('click', odCfgHist_load);
-        const hAll = document.getElementById('odCfgHistResendAll');
-        if (hAll) hAll.addEventListener('click', odCfgHist_resendAll);
-        const hSearch = document.getElementById('odCfgHistSearch');
-        if (hSearch) hSearch.addEventListener('keydown', e => { if (e.key === 'Enter') odCfgHist_load(); });
-        const hStatus = document.getElementById('odCfgHistStatus');
-        if (hStatus) hStatus.addEventListener('change', odCfgHist_load);
-        const hForm = document.getElementById('odCfgHistForm');
-        if (hForm) hForm.addEventListener('change', odCfgHist_load);
+        const bindOnce = (id, ev, fn) => { const el = document.getElementById(id); if (el && !el.dataset.bound) { el.dataset.bound = '1'; el.addEventListener(ev, fn); } };
+        bindOnce('odCfgHistLoad', 'click', () => odCfgHist_load());
+        bindOnce('odCfgHistResendAll', 'click', () => odCfgHist_resendAll());
+        bindOnce('odCfgHistSearch', 'keydown', e => { if (e.key === 'Enter') odCfgHist_load(); });
+        bindOnce('odCfgHistStatus', 'change', () => odCfgHist_load());
+        bindOnce('odCfgHistForm', 'change', () => odCfgHist_load());
 
-        // เข้ามาแล้วโหลดรายการ "วันนี้" ให้เลย (ถ้ามี Admin Key)
-        odCfgHist_load();
+        // เข้ามาแล้วโหลดรายการ "วันนี้" ให้เลย (เฉพาะเมื่อมี Admin Key — ไม่มีก็ไม่ต้องขึ้น error แดง)
+        odCfgHist_load({ quietNoKey: true });
 
         odCfg_showStatus('โหลดข้อมูลสำเร็จ', 'success');
         setTimeout(() => odCfg_hideStatus(), 2000);
@@ -210,6 +259,7 @@ window.initOdConfig = async function() {
 };
 
 // ── บันทึก config ลง Supabase ─────────────────────────────────────
+// คืนค่า true = บันทึกสำเร็จ / false = ไม่สำเร็จ (ให้ปุ่มเปิด-ปิดบอทรู้ผล)
 window.odCfg_save = async function() {
     odCfg_showStatus('กำลังบันทึก...', 'loading');
     try {
@@ -239,9 +289,13 @@ window.odCfg_save = async function() {
         // template: ถ้าเหมือนค่าเดิม เก็บเป็นว่าง (ให้ extension ใช้ default)
         const tOd = document.getElementById('odCfgTplOd').value, tOdol = document.getElementById('odCfgTplOdol').value, tBig = document.getElementById('odCfgTplBig').value, tBigNa = document.getElementById('odCfgTplBigNa').value, tLock = (document.getElementById('odCfgTplLock') || { value: '' }).value;
         const badOd = odCfg_tplUnknown('od', tOd), badOdol = odCfg_tplUnknown('odol', tOdol), badBig = odCfg_tplUnknown('big', tBig), badBigNa = odCfg_tplUnknown('big_na', tBigNa), badLock = odCfg_tplUnknown('lock', tLock);
-        if (badOd.length || badOdol.length || badBig.length || badBigNa.length || badLock.length) {
-            odCfg_showStatus('❌ รูปแบบข้อความมีตัวแปรที่ไม่รู้จัก: ' + [...badOd, ...badOdol, ...badBig, ...badBigNa, ...badLock].join(' '), 'error');
-            return;
+        // [แก้] เดิมไม่ตรวจรูปแบบข้อความแก้ไข/ลบ (audit) → บันทึกตัวแปรพิมพ์ผิดเข้าไปได้
+        const badAE = odCfg_tplUnknown('audit_edit', (document.getElementById('odCfgTplAuditEdit') || { value: '' }).value);
+        const badAD = odCfg_tplUnknown('audit_delete', (document.getElementById('odCfgTplAuditDelete') || { value: '' }).value);
+        const allBad = [...badOd, ...badOdol, ...badBig, ...badBigNa, ...badLock, ...badAE, ...badAD];
+        if (allBad.length) {
+            odCfg_showStatus('❌ รูปแบบข้อความมีตัวแปรที่ไม่รู้จัก: ' + [...new Set(allBad)].join(' '), 'error');
+            return false;
         }
         odCfgData.templates = {
             od:     (tOd.trim()    && tOd    !== OD_TPL_DEFAULT.od)     ? tOd    : '',
@@ -254,25 +308,30 @@ window.odCfg_save = async function() {
             odCfgData.odol.default_note = odCfgData.odol.notes[0];
         }
 
+        window._odCfgSavedAt = Date.now();   // กันตัวเองโหลดซ้ำจากสัญญาณ realtime ของการบันทึกนี้
         const { error } = await appDB.from('settings').upsert([{
             key: OD_CFG_KEY,
             value: JSON.stringify(odCfgData)
         }]);
 
         if (error) throw error;
+        window._odCfgDirty = false; odCfg_syncSaveBar();
 
         odCfg_showStatus('✅ บันทึกสำเร็จ! ส่วนขยายจะดึงค่าใหม่เมื่อเปิดครั้งถัดไป', 'success');
         odCfg_refreshPreview();
         odCfg_adminFetch('/admin/reload', 'POST').catch(() => {}); // ให้ server อ่านค่าใหม่ทันที (ถ้ามี admin key)
         setTimeout(() => odCfg_hideStatus(), 4000);
+        return true;
 
     } catch(e) {
         odCfg_showStatus('❌ บันทึกไม่สำเร็จ: ' + e.message, 'error');
+        return false;
     }
 };
 
 // ── Render ทั้งหมด ─────────────────────────────────────────────────
 function odCfg_renderAll() {
+    window._odCfgRendering = true;   // ระหว่างวาดค่าที่โหลดมา ไม่นับเป็นการแก้ไข
     odCfg_renderWebs();
     odCfg_renderReasons();
     odCfg_renderPromoWebSel();
@@ -317,6 +376,7 @@ function odCfg_renderAll() {
     if (tae) tae.value = odCfgData.audit?.templates?.edit   || OD_TPL_DEFAULT.audit_edit;
     if (tad) tad.value = odCfgData.audit?.templates?.delete || OD_TPL_DEFAULT.audit_delete;
     odCfg_renderTplVars(); odCfg_tplPreview();
+    window._odCfgRendering = false;
 }
 
 // ── หมายเหตุ (ฟอร์มหลายยูส) ──────────────────────────────────────
@@ -329,23 +389,26 @@ function odCfg_renderNotes() {
         const isDef = n === odCfgData.odol.default_note;
         return `
         <div class="flex items-center gap-1.5 ${isDef ? 'bg-purple-100 dark:bg-purple-900/30 border-purple-400' : 'bg-gray-50 dark:bg-slate-900 border-gray-300 dark:border-slate-600'} border rounded-xl px-3 py-1.5">
-            <button onclick="odCfgData.odol.default_note='${n.replace(/'/g, "\\'")}'; odCfg_renderNotes(); odCfg_refreshPreview();" title="ตั้งเป็นค่าเริ่มต้น" class="${isDef ? 'text-purple-500' : 'text-gray-400 hover:text-purple-400'}">${isDef ? '★' : '☆'}</button>
-            <span class="font-bold text-sm text-slate-800 dark:text-white">${n}</span>
+            <button onclick="odCfg_setDefNote(${i})" title="ตั้งเป็นค่าเริ่มต้น" class="${isDef ? 'text-purple-500' : 'text-gray-400 hover:text-purple-400'}">${isDef ? '★' : '☆'}</button>
+            <span class="font-bold text-sm text-slate-800 dark:text-white">${odCfg_h(n)}</span>
             <button onclick="odCfg_editNote(${i})" class="text-xs text-sky-400 hover:text-sky-300 ml-1">✏️</button>
             <button onclick="odCfg_delNote(${i})" class="text-xs text-red-400 hover:text-red-300">🗑️</button>
         </div>`;
     }).join('');
 }
 
+// [แก้] เดิมใส่ข้อความหมายเหตุลงใน onclick ตรง ๆ → หมายเหตุที่มี " หรือ ' กดตั้งค่าเริ่มต้นไม่ได้
+window.odCfg_setDefNote = function(i) { odCfgData.odol.default_note = odCfgData.odol.notes[i]; odCfg_renderNotes(); odCfg_refreshPreview(); odCfg_markDirty(); };
 window.odCfg_addNote = async function() {
     const { value } = await Swal.fire({
         title: 'เพิ่มหมายเหตุ', input: 'text', inputPlaceholder: 'เช่น เก็งกำไร',
         showCancelButton: true, confirmButtonText: 'เพิ่ม',
         customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-2xl' }
     });
-    if (!value) return;
-    odCfgData.odol.notes.push(value.trim());
-    if (!odCfgData.odol.default_note) odCfgData.odol.default_note = value.trim();
+    const v = odCfg_clean(value); if (!v) return;
+    if (odCfgData.odol.notes.includes(v)) return Swal.fire('มีอยู่แล้ว', `หมายเหตุ "${v}" มีอยู่แล้ว`, 'info');
+    odCfgData.odol.notes.push(v);
+    if (!odCfgData.odol.default_note) odCfgData.odol.default_note = v;
     odCfg_renderNotes(); odCfg_refreshPreview();
 };
 window.odCfg_editNote = async function(i) {
@@ -354,9 +417,9 @@ window.odCfg_editNote = async function(i) {
         showCancelButton: true, confirmButtonText: 'บันทึก',
         customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-2xl' }
     });
-    if (!value) return;
-    if (odCfgData.odol.default_note === odCfgData.odol.notes[i]) odCfgData.odol.default_note = value.trim();
-    odCfgData.odol.notes[i] = value.trim();
+    const v = odCfg_clean(value); if (!v) return;
+    if (odCfgData.odol.default_note === odCfgData.odol.notes[i]) odCfgData.odol.default_note = v;
+    odCfgData.odol.notes[i] = v;
     odCfg_renderNotes(); odCfg_refreshPreview();
 };
 window.odCfg_delNote = async function(i) {
@@ -378,11 +441,19 @@ function odCfg_serverUrl() {
 async function odCfg_adminFetch(path, method = 'GET', body = null) {
     const key = (document.getElementById('odCfgAdminKey')?.value || localStorage.getItem('od_admin_key') || '').trim();
     if (!key) throw new Error('กรุณาใส่ Admin Key ก่อน');
-    const res = await fetch(odCfg_serverUrl() + path, {
-        method,
-        headers: { 'Content-Type': 'application/json', 'X-Admin-Key': key },
-        body: body ? JSON.stringify(body) : undefined,
-    });
+    // [แก้] เดิมไม่มีเวลาหมด → server ล่ม/ช้า หน้าจะค้าง "กำลัง..." ตลอด
+    const ctrl = new AbortController(); const tm = setTimeout(() => ctrl.abort(), 20000);
+    let res;
+    try {
+        res = await fetch(odCfg_serverUrl() + path, {
+            method,
+            headers: { 'Content-Type': 'application/json', 'X-Admin-Key': key },
+            body: body ? JSON.stringify(body) : undefined,
+            signal: ctrl.signal,
+        });
+    } catch (e) {
+        throw new Error(e.name === 'AbortError' ? 'เซิร์ฟเวอร์บอทไม่ตอบกลับ (เกิน 20 วินาที)' : 'ติดต่อเซิร์ฟเวอร์บอทไม่ได้');
+    } finally { clearTimeout(tm); }
     const data = await res.json().catch(() => ({}));
     if (!res.ok || data.ok === false) throw new Error(data.error || `HTTP ${res.status}`);
     return data;
@@ -445,8 +516,9 @@ window.odCfg_botToggle = async function() {
     });
     if (!isConfirmed) return;
     odCfgData.bot.enabled = next;
-    await odCfg_save();           // บันทึกลง Supabase + สั่ง server reload
-    odCfg_paintBotBadge(next, null);
+    const ok = await odCfg_save();           // บันทึกลง Supabase + สั่ง server reload
+    if (!ok) odCfgData.bot.enabled = !next;  // [แก้] บันทึกไม่สำเร็จ → คืนสถานะเดิม (เดิมป้ายบอกเปิด/ปิดทั้งที่ไม่ได้บันทึก)
+    odCfg_paintBotBadge(odCfgData.bot.enabled !== false, null);
     odCfg_refreshPreview();
 };
 
@@ -485,10 +557,10 @@ function odCfg_renderWebs() {
     }
     list.innerHTML = odCfgData.webs.map((w, i) => `
         <div class="flex items-center gap-2 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl px-3 py-2">
-            <span class="w-3 h-3 rounded-full shrink-0" style="background:${w.color}"></span>
+            <span class="w-3 h-3 rounded-full shrink-0" style="background:${odCfg_h(w.color)}"></span>
             <span class="flex-1 font-bold text-sm text-slate-800 dark:text-white">${window.escapeHtml(w.name)}</span>
-            <input type="color" value="${w.color}" title="เปลี่ยนสี"
-                onchange="odCfgData.webs[${i}].color=this.value; odCfg_renderWebs(); odCfg_renderPromoWebSel();"
+            <input type="color" value="${odCfg_h(w.color)}" title="เปลี่ยนสี"
+                onchange="odCfgData.webs[${i}].color=this.value; odCfg_renderWebs(); odCfg_renderPromoWebSel(); odCfg_markDirty();"
                 class="w-7 h-7 rounded border-none cursor-pointer p-0">
             <button onclick="odCfg_editWeb(${i})" class="text-sky-400 hover:text-sky-300 text-xs px-2 py-1 rounded border border-sky-500/30 hover:bg-sky-900/20 transition">✏️</button>
             <button onclick="odCfg_delWeb(${i})" class="text-red-400 hover:text-red-300 text-xs px-2 py-1 rounded border border-red-500/30 hover:bg-red-900/20 transition">🗑️</button>
@@ -501,9 +573,11 @@ window.odCfg_addWeb = async function() {
         showCancelButton: true, confirmButtonText: 'เพิ่ม', cancelButtonText: 'ยกเลิก',
         customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-2xl' }
     });
-    if (!name) return;
-    odCfgData.webs.push({ name: name.trim().toUpperCase(), color: '#2481cc' });
-    if (!odCfgData.promos[name]) odCfgData.promos[name] = [];
+    const nm = odCfg_clean(name).toUpperCase(); if (!nm) return;
+    if (odCfgData.webs.some(w => String(w.name).toUpperCase() === nm)) return Swal.fire('มีอยู่แล้ว', `เว็บ ${nm} มีอยู่แล้ว`, 'info');
+    odCfgData.webs.push({ name: nm, color: '#2481cc' });
+    // [แก้] เดิมสร้างช่องรหัสโปรด้วยชื่อที่ยังไม่แปลงตัวใหญ่ (เช่น kk789) ไม่ตรงกับชื่อเว็บ (KK789) → ค้างเป็นขยะใน config
+    if (!odCfgData.promos[nm]) odCfgData.promos[nm] = [];
     odCfg_renderWebs(); odCfg_renderPromoWebSel(); odCfg_refreshPreview();
 };
 
@@ -513,10 +587,11 @@ window.odCfg_editWeb = async function(i) {
         showCancelButton: true, confirmButtonText: 'บันทึก',
         customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-2xl' }
     });
-    if (!name) return;
+    const nm = odCfg_clean(name).toUpperCase(); if (!nm) return;
     const old = odCfgData.webs[i].name;
-    odCfgData.webs[i].name = name.trim().toUpperCase();
-    if (odCfgData.promos[old]) { odCfgData.promos[odCfgData.webs[i].name] = odCfgData.promos[old]; delete odCfgData.promos[old]; }
+    if (nm !== old && odCfgData.webs.some((w, j) => j !== i && String(w.name).toUpperCase() === nm)) return Swal.fire('ชื่อซ้ำ', `มีเว็บ ${nm} อยู่แล้ว`, 'warning');
+    odCfgData.webs[i].name = nm;
+    if (odCfgData.promos[old] && old !== nm) { odCfgData.promos[nm] = odCfgData.promos[old]; delete odCfgData.promos[old]; }
     odCfg_renderWebs(); odCfg_renderPromoWebSel(); odCfg_refreshPreview();
 };
 
@@ -553,9 +628,9 @@ window.odCfg_renderPromos = function() {
     if (promos.length === 0) { list.innerHTML = '<div class="text-gray-400 text-sm py-4">ยังไม่มีรหัสโปรสำหรับเว็บนี้</div>'; return; }
     list.innerHTML = promos.map((p, i) => `
         <div class="flex items-center gap-1.5 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-700/50 rounded-xl px-3 py-1.5">
-            <span class="text-yellow-600 dark:text-yellow-400 font-bold text-sm">⭐ ${p}</span>
-            <button onclick="odCfg_editPromo('${web}',${i})" class="text-xs text-sky-400 hover:text-sky-300 ml-1">✏️</button>
-            <button onclick="odCfg_delPromo('${web}',${i})" class="text-xs text-red-400 hover:text-red-300">🗑️</button>
+            <span class="text-yellow-600 dark:text-yellow-400 font-bold text-sm">⭐ ${odCfg_h(p)}</span>
+            <button onclick="odCfg_editPromo('${odCfg_js(web)}',${i})" class="text-xs text-sky-400 hover:text-sky-300 ml-1">✏️</button>
+            <button onclick="odCfg_delPromo('${odCfg_js(web)}',${i})" class="text-xs text-red-400 hover:text-red-300">🗑️</button>
         </div>`).join('');
 };
 
@@ -567,9 +642,10 @@ window.odCfg_addPromo = async function() {
         showCancelButton: true, confirmButtonText: 'เพิ่ม',
         customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-2xl' }
     });
-    if (!value) return;
+    const v = odCfg_clean(value).toUpperCase(); if (!v) return;
     if (!odCfgData.promos[web]) odCfgData.promos[web] = [];
-    odCfgData.promos[web].push(value.trim().toUpperCase());
+    if (odCfgData.promos[web].includes(v)) return Swal.fire('มีอยู่แล้ว', `รหัส ${v} มีในเว็บ ${web} แล้ว`, 'info');
+    odCfgData.promos[web].push(v);
     odCfg_renderPromos(); odCfg_refreshPreview();
 };
 
@@ -579,8 +655,8 @@ window.odCfg_editPromo = async function(web, i) {
         showCancelButton: true, confirmButtonText: 'บันทึก',
         customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-2xl' }
     });
-    if (!value) return;
-    odCfgData.promos[web][i] = value.trim().toUpperCase();
+    const v = odCfg_clean(value).toUpperCase(); if (!v) return;
+    odCfgData.promos[web][i] = v;
     odCfg_renderPromos(); odCfg_refreshPreview();
 };
 
@@ -605,7 +681,7 @@ function odCfg_renderReasons() {
     }
     list.innerHTML = odCfgData.reasons.map((r, i) => `
         <div class="flex items-center gap-2 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl px-3 py-2">
-            <span class="flex-1 text-sm text-slate-800 dark:text-white">${r}</span>
+            <span class="flex-1 text-sm text-slate-800 dark:text-white">${odCfg_h(r)}</span>
             <button onclick="odCfg_editReason(${i})" class="text-sky-400 text-xs px-2 py-1 rounded border border-sky-500/30 hover:bg-sky-900/20 transition">✏️</button>
             <button onclick="odCfg_delReason(${i})" class="text-red-400 text-xs px-2 py-1 rounded border border-red-500/30 hover:bg-red-900/20 transition">🗑️</button>
         </div>`).join('');
@@ -617,8 +693,9 @@ window.odCfg_addReason = async function() {
         showCancelButton: true, confirmButtonText: 'เพิ่ม',
         customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-2xl' }
     });
-    if (!value) return;
-    odCfgData.reasons.push(value.trim());
+    const v = odCfg_clean(value); if (!v) return;
+    if (odCfgData.reasons.includes(v)) return Swal.fire('มีอยู่แล้ว', 'สาเหตุนี้มีอยู่แล้ว', 'info');
+    odCfgData.reasons.push(v);
     odCfg_renderReasons(); odCfg_refreshPreview();
 };
 
@@ -628,8 +705,8 @@ window.odCfg_editReason = async function(i) {
         showCancelButton: true, confirmButtonText: 'บันทึก',
         customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-2xl' }
     });
-    if (!value) return;
-    odCfgData.reasons[i] = value.trim();
+    const v = odCfg_clean(value); if (!v) return;
+    odCfgData.reasons[i] = v;
     odCfg_renderReasons(); odCfg_refreshPreview();
 };
 
@@ -646,6 +723,7 @@ window.odCfg_delReason = async function(i) {
 
 // ── Preview JSON ───────────────────────────────────────────────────
 window.odCfg_refreshPreview = function() {
+    if (window._odCfgRendering === false) odCfg_markDirty();   // ถูกเรียกหลังเพิ่ม/แก้/ลบรายการ = มีการแก้ไข
     const el = document.getElementById('odCfgPreview');
     if (!el) return;
     const preview = {
@@ -838,7 +916,13 @@ window.subscribeOdConfigChanges = function() {
             if (window._currentPageName !== 'od_config') return;
             var key = (payload.new && payload.new.key) || (payload.old && payload.old.key);
             if (key !== 'od_form_config') return;
-            if (typeof initOdConfig === 'function') initOdConfig();
+            // [แก้] เดิมโหลดทั้งหน้าใหม่ทุกครั้ง: (1) บันทึกเองก็โดน (2) กำลังแก้อยู่ ค่าที่ยังไม่บันทึกโดนทับหาย (3) ผูกปุ่มประวัติซ้ำทุกรอบ
+            if (window._odCfgSavedAt && Date.now() - window._odCfgSavedAt < 8000) return;   // สัญญาณจากการบันทึกของเราเอง
+            if (window._odCfgDirty) {
+                odCfg_showStatus('⚠️ มีคนบันทึกการตั้งค่าจากเครื่องอื่น — ค่าที่คุณกำลังแก้ยังไม่ถูกทับ (ถ้าบันทึก จะทับของอีกคน · รีเฟรชหน้าเพื่อดูค่าล่าสุด)', 'error');
+                return;
+            }
+            if (typeof initOdConfig === 'function') initOdConfig({ fromRealtime: true });
         })
         .subscribe();
     if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(window._odCfgRtSub);

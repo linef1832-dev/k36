@@ -1,451 +1,431 @@
-<div id="odConfigApp" class="fade-in flex flex-col min-h-full bg-slate-50 dark:bg-slate-900 pb-10">
+<!-- ⚙️ ตั้งค่าส่วนขยาย OD Form Bot (ออกแบบใหม่) — id / onclick เดิมครบ ใช้กับ js/od_config/* ได้เหมือนเดิม -->
+<div id="odConfigApp" class="fade-in k-auto-light">
+<style>
+#odConfigApp{--a:42,171,238;--at:#2AABEE;background:var(--k-bg);color:var(--k-tx);min-height:100%;display:flex;flex-direction:column}
+#odConfigApp .material-icons{font-size:18px}
+#odConfigApp .oc-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 22px;background:var(--k-panel);border-bottom:1px solid var(--k-line);position:sticky;top:0;z-index:20}
+#odConfigApp .oc-logo{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:rgb(var(--a));color:#fff;flex:none;box-shadow:0 6px 18px rgba(var(--a),.3)}
+#odConfigApp .oc-logo .material-icons{font-size:23px}
+#odConfigApp .oc-title{font-size:19px;font-weight:900;color:var(--k-tx-strong);margin:0}
+#odConfigApp .oc-sub{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:var(--k-mute)}
+#odConfigApp #odCfgBotBadge{margin-left:0!important}
+#odConfigApp .oc-body{display:flex;gap:20px;padding:20px 22px 110px;max-width:1440px;width:100%;margin:0 auto;box-sizing:border-box;align-items:flex-start}
+#odConfigApp .oc-nav{flex:0 0 220px;position:sticky;top:90px;display:flex;flex-direction:column;gap:3px;padding:8px;border-radius:16px;background:var(--k-panel);border:1px solid var(--k-line)}
+#odConfigApp .oc-nav button{display:flex;align-items:center;gap:10px;height:42px;padding:0 12px;border-radius:11px;font-size:13.5px;font-weight:800;color:var(--k-tx3);text-align:left;transition:background .15s,color .15s}
+#odConfigApp .oc-nav button:hover{background:var(--k-btn-h);color:var(--k-tx-strong)}
+#odConfigApp .oc-nav button.on{background:rgba(var(--a),.14);color:var(--k-tx-strong);box-shadow:inset 3px 0 0 rgb(var(--a))}
+#odConfigApp .oc-nav button .material-icons{color:var(--k-mute)}
+#odConfigApp .oc-nav button.on .material-icons{color:var(--at)}
+#odConfigApp .oc-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:18px}
+#odConfigApp .oc-sec{scroll-margin-top:84px;background:var(--k-panel);border:1px solid var(--k-line);border-radius:18px;box-shadow:var(--k-shadow)}
+#odConfigApp .oc-sec-h{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:16px 20px;border-bottom:1px solid var(--k-line)}
+#odConfigApp .oc-sec-ic{width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex:none;background:color-mix(in srgb,var(--c,var(--at)) 16%,transparent);color:var(--c,var(--at))}
+#odConfigApp .oc-sec-t{font-size:16px;font-weight:900;color:var(--k-tx-strong);margin:0}
+#odConfigApp .oc-sec-d{font-size:12.5px;font-weight:600;color:var(--k-mute);margin-top:1px}
+#odConfigApp .oc-sec-a{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+#odConfigApp .oc-sec-b{padding:18px 20px}
+#odConfigApp .oc-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+#odConfigApp .oc-label{display:block;font-size:12.5px;font-weight:800;color:var(--k-tx3);margin-bottom:6px}
+#odConfigApp .oc-hint{font-size:12px;font-weight:600;color:var(--k-mute);margin-top:6px;line-height:1.55}
+#odConfigApp .oc-input{width:100%;box-sizing:border-box;background:var(--k-field);border:1px solid var(--k-line3);color:var(--k-tx-strong);border-radius:12px;padding:10px 12px;font-size:14px;font-weight:600;outline:none;transition:border-color .15s,box-shadow .15s}
+#odConfigApp .oc-input:focus{border-color:rgb(var(--a));box-shadow:0 0 0 3px rgba(var(--a),.18)}
+#odConfigApp .oc-mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;line-height:1.55;resize:vertical}
+#odConfigApp select.oc-input{cursor:pointer}
+#odConfigApp .oc-inline{display:flex;gap:8px}
+#odConfigApp .oc-row-between{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+#odConfigApp .oc-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:38px;padding:0 14px;border-radius:11px;font-size:13px;font-weight:800;white-space:nowrap;border:1px solid var(--k-line3);background:var(--k-btn);color:var(--k-tx2);cursor:pointer;transition:background .15s,border-color .15s,color .15s,transform .08s}
+#odConfigApp .oc-btn:hover{background:var(--k-btn-h);color:var(--k-tx-strong);border-color:var(--k-line4)}
+#odConfigApp .oc-btn:active{transform:scale(.97)}
+#odConfigApp .oc-btn:disabled{opacity:.5;cursor:not-allowed}
+#odConfigApp .oc-btn.sm{height:30px;padding:0 10px;font-size:12px;border-radius:9px}
+#odConfigApp .oc-btn.ghost{background:transparent}
+#odConfigApp .oc-btn.primary{background:rgb(var(--a));border-color:rgb(var(--a));color:#fff}
+#odConfigApp .oc-btn.primary:hover{filter:brightness(1.07)}
+#odConfigApp .oc-btn.save{background:#10b981;border-color:#10b981;color:#fff;height:42px;padding:0 18px;font-size:14px}
+#odConfigApp .oc-btn.save:hover{filter:brightness(1.07)}
+#odConfigApp .oc-btn .material-icons{font-size:17px}
+/* บอท */
+#odConfigApp .oc-bot{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+#odConfigApp .oc-tests{display:flex;flex-wrap:wrap;gap:8px;padding:14px 20px;border-top:1px dashed var(--k-line2);align-items:center}
+#odConfigApp .oc-tests .oc-label{margin:0 4px 0 0}
+#odConfigApp #odCfgBotInfo{margin:0 20px 18px;padding:12px 14px;border-radius:12px;background:var(--k-sunk);border:1px solid var(--k-line);color:var(--k-tx2);font-size:12.5px;font-family:ui-monospace,monospace;white-space:pre-wrap}
+#odConfigApp #odCfgBtnToggle{height:38px!important;padding:0 14px!important;border-radius:11px!important;font-size:13px!important}
+/* เว็บ + โปร */
+#odConfigApp .oc-webs{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:18px}
+#odConfigApp .oc-box{border:1px solid var(--k-line);border-radius:14px;background:var(--k-panel2);padding:12px;min-width:0}
+#odConfigApp .oc-box-h{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+#odConfigApp .oc-box-h .oc-label{margin:0 auto 0 0;font-size:13px;color:var(--k-tx-strong)}
+#odConfigApp #odCfgWebList{display:flex;flex-direction:column;gap:6px;max-height:420px;overflow-y:auto}
+#odConfigApp #odCfgPromoList{display:flex;flex-wrap:wrap;gap:8px;min-height:120px;align-content:flex-start}
+#odConfigApp #odCfgReasonList{display:flex;flex-direction:column;gap:6px}
+#odConfigApp #odCfgNoteList{display:flex;flex-wrap:wrap;gap:8px}
+/* ฟอร์ม */
+#odConfigApp .oc-forms{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+#odConfigApp .oc-form{border:1px solid var(--k-line);border-radius:16px;background:var(--k-panel2);padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+#odConfigApp .oc-form-h{display:flex;align-items:center;gap:10px}
+#odConfigApp .oc-form-h b{font-size:15px;font-weight:900;color:var(--k-tx-strong);margin-right:auto}
+#odConfigApp .oc-dot{width:10px;height:10px;border-radius:99px;background:var(--c);flex:none}
+#odConfigApp .oc-form.wide{grid-column:1/-1}
+/* รูปแบบข้อความ */
+#odConfigApp .oc-tabs{display:flex;flex-wrap:wrap;gap:6px;padding:14px 20px 0}
+#odConfigApp .oc-tab{height:36px;padding:0 14px;border-radius:999px;font-size:13px;font-weight:800;color:var(--k-tx3);background:var(--k-field);border:1px solid var(--k-line2);transition:background .15s,color .15s,border-color .15s}
+#odConfigApp .oc-tab:hover{color:var(--k-tx-strong);border-color:var(--k-line4)}
+#odConfigApp .oc-tab.on{background:rgb(var(--a));border-color:rgb(var(--a));color:#fff}
+#odConfigApp .oc-tab-sep{width:1px;background:var(--k-line2);margin:4px 4px}
+#odConfigApp .oc-tpl{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px}
+#odConfigApp .oc-tpl-ed,#odConfigApp .oc-tpl-pv{min-width:0;display:flex;flex-direction:column}
+#odConfigApp .oc-vars{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+#odConfigApp .oc-vars button{background:rgba(var(--a),.12)!important;color:var(--at)!important;border-color:rgba(var(--a),.35)!important;font-weight:700}
+#odConfigApp .oc-tg{flex:1;border-radius:14px;padding:16px;background:linear-gradient(160deg,#16293b,#0f1e2c);border:1px solid var(--k-line);min-height:180px}
+#odConfigApp .oc-tg-bubble{max-width:92%;border-radius:4px 14px 14px 14px;background:#182533;padding:9px 12px 10px;box-shadow:0 1px 2px rgba(0,0,0,.4)}
+#odConfigApp .oc-tg-name{font-size:12.5px;font-weight:800;color:#64b5ef;margin-bottom:3px}
+#odConfigApp .oc-tg pre{margin:0;white-space:pre-wrap;word-break:break-word;color:#f5f5f5;font-family:inherit;font-size:13.5px;line-height:1.5}
+#odConfigApp .oc-switch{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:800;color:var(--k-tx-strong);margin-bottom:12px;cursor:pointer}
+#odConfigApp .oc-switch input{position:absolute;opacity:0;width:1px;height:1px}
+#odConfigApp .oc-switch span{width:40px;height:22px;border-radius:99px;background:var(--k-line3);position:relative;flex:none;transition:background .15s}
+#odConfigApp .oc-switch span::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:99px;background:#fff;transition:transform .15s}
+#odConfigApp .oc-switch input:checked+span{background:#10b981}
+#odConfigApp .oc-switch input:checked+span::after{transform:translateX(18px)}
+#odConfigApp .oc-switch input:focus-visible+span{outline:2px solid rgb(var(--a));outline-offset:2px}
+/* แท็กกะ */
+#odConfigApp .oc-shift{border-radius:14px;padding:14px;border:1px solid var(--k-line);background:var(--k-panel2)}
+#odConfigApp .oc-shift-h{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:900;color:var(--k-tx-strong);margin-bottom:10px}
+#odConfigApp .oc-shift-h input{width:auto;padding:6px 10px;font-size:13px}
+/* ประวัติ */
+#odConfigApp .oc-filters{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:14px}
+#odConfigApp .oc-filters > div{display:flex;flex-direction:column}
+#odConfigApp .oc-filters .oc-input{padding:8px 10px;font-size:13px}
+#odConfigApp .oc-table{overflow-x:auto;border:1px solid var(--k-line);border-radius:14px}
+#odConfigApp .oc-table table{width:100%;border-collapse:collapse;min-width:760px}
+#odConfigApp .oc-table thead th{background:var(--k-panel2);font-size:12px;font-weight:800;color:var(--k-mute);padding:10px 12px;text-align:left;border-bottom:1px solid var(--k-line)}
+#odConfigApp .odCfgHist-row{border-color:var(--k-line)!important}
+#odConfigApp .odCfgHist-row:hover{background:var(--k-btn-h)}
+/* แถบบันทึกค้างล่างจอ */
+#odConfigApp .oc-savebar{position:sticky;bottom:0;z-index:30;margin-top:auto;background:color-mix(in srgb,var(--k-panel) 92%,transparent);backdrop-filter:blur(8px);border-top:1px solid var(--k-line)}
+#odConfigApp .oc-savebar-in{max-width:1440px;margin:0 auto;padding:12px 22px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+#odConfigApp .oc-savebar-msg{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:800;color:var(--k-mute);margin-right:auto}
+#odConfigApp .oc-savebar-msg i{width:9px;height:9px;border-radius:99px;background:var(--k-mute2)}
+#odConfigApp .oc-savebar.dirty .oc-savebar-msg{color:var(--k-amber-tx)}
+#odConfigApp .oc-savebar.dirty .oc-savebar-msg i{background:#f59e0b;box-shadow:0 0 0 4px rgba(245,158,11,.2)}
+/* ข้อความแจ้งสถานะ: ลอยด้านบน */
+#odConfigApp #odCfgStatus{position:fixed;top:84px;left:50%;transform:translateX(-50%);z-index:9000;width:min(620px,calc(100vw - 32px));margin:0!important;box-shadow:0 14px 36px rgba(0,0,0,.35);backdrop-filter:blur(6px)}
+@media (max-width:1100px){ #odConfigApp .oc-nav{display:none} #odConfigApp .oc-webs,#odConfigApp .oc-tpl{grid-template-columns:1fr} }
+@media (max-width:760px){ #odConfigApp .oc-grid,#odConfigApp .oc-bot,#odConfigApp .oc-forms{grid-template-columns:1fr} #odConfigApp .oc-body{padding:14px 12px 110px} #odConfigApp .oc-sec-a{margin-left:0} }
+@media (prefers-reduced-motion:reduce){ #odConfigApp *{transition:none!important} }
+</style>
 
-    <!-- Header -->
-    <div class="bg-gradient-to-r from-blue-700 to-indigo-700 text-white p-4 shadow-md shrink-0 flex justify-between items-center">
-        <div class="flex items-center gap-3">
-            <div class="bg-white/20 p-2 rounded-full"><span class="material-icons text-2xl">extension</span></div>
-            <div>
-                <h1 class="font-bold text-lg">ตั้งค่าส่วนขยาย OD Form Bot</h1>
-            </div>
+    <!-- หัวหน้า -->
+    <div class="oc-head">
+        <div class="oc-logo"><span class="material-icons">extension</span></div>
+        <div style="margin-right:auto;min-width:0">
+            <h1 class="oc-title">ตั้งค่าส่วนขยาย OD Form Bot</h1>
+            <div class="oc-sub">สถานะบอท <span id="odCfgBotBadge" class="text-xs px-2 py-0.5 rounded-full bg-gray-200 text-gray-600">ยังไม่เช็ค</span></div>
         </div>
-        <div class="flex gap-2">
-            <button onclick="odCfg_save()" class="bg-emerald-500 hover:bg-emerald-400 text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-1 transition shadow">
-                <span class="material-icons text-sm">save</span> บันทึกทั้งหมด
-            </button>
+        <button type="button" onclick="odCfg_botStatus()" class="oc-btn"><span class="material-icons">monitor_heart</span>เช็คสถานะบอท</button>
+    </div>
+
+    <div id="odCfgStatus" class="hidden mx-4 mt-3 p-3 rounded-xl text-sm font-bold text-center"></div>
+
+    <div class="oc-body">
+        <!-- เมนูซ้าย -->
+        <nav class="oc-nav" aria-label="หมวดการตั้งค่า">
+            <button type="button" data-sec="ocSecBot" onclick="odCfg_go('ocSecBot')" class="on"><span class="material-icons">smart_toy</span>การเชื่อมต่อบอท</button>
+            <button type="button" data-sec="ocSecWebs" onclick="odCfg_go('ocSecWebs')"><span class="material-icons">language</span>เว็บ &amp; รหัสโปร</button>
+            <button type="button" data-sec="ocSecForms" onclick="odCfg_go('ocSecForms')"><span class="material-icons">dynamic_form</span>ฟอร์ม &amp; ห้องส่ง</button>
+            <button type="button" data-sec="ocSecTpl" onclick="odCfg_go('ocSecTpl')"><span class="material-icons">chat</span>รูปแบบข้อความ</button>
+            <button type="button" data-sec="ocSecTags" onclick="odCfg_go('ocSecTags')"><span class="material-icons">alternate_email</span>แท็กคนตามกะ</button>
+            <button type="button" data-sec="ocSecHist" onclick="odCfg_go('ocSecHist')"><span class="material-icons">history</span>ประวัติข้อความ</button>
+            <button type="button" data-sec="ocSecAdv" onclick="odCfg_go('ocSecAdv')"><span class="material-icons">code</span>ขั้นสูง</button>
+        </nav>
+
+        <div class="oc-main">
+
+            <!-- ① การเชื่อมต่อบอท -->
+            <section id="ocSecBot" class="oc-sec">
+                <div class="oc-sec-h">
+                    <span class="oc-sec-ic"><span class="material-icons">smart_toy</span></span>
+                    <div><h2 class="oc-sec-t">การเชื่อมต่อบอท</h2><div class="oc-sec-d">เซิร์ฟเวอร์ Railway · ห้องหลัก · กุญแจผู้ดูแล</div></div>
+                    <div class="oc-sec-a">
+                        <button id="odCfgBtnToggle" type="button" onclick="odCfg_botToggle()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1"><span class="material-icons text-xs">power_settings_new</span> เปิด/ปิดบอท</button>
+                    </div>
+                </div>
+                <div class="oc-sec-b oc-bot">
+                    <div>
+                        <label class="oc-label" for="odCfgServerUrl">Railway API URL</label>
+                        <input type="text" id="odCfgServerUrl" placeholder="https://od-form-bot-production.up.railway.app" class="oc-input">
+                    </div>
+                    <div>
+                        <label class="oc-label" for="odCfgChatId">Group Chat ID ห้องหลัก (OD)</label>
+                        <input type="text" id="odCfgChatId" placeholder="-100XXXXXXXXXX" class="oc-input">
+                        <div class="oc-hint">ฟอร์มอื่นที่ไม่ได้ตั้งห้องของตัวเอง จะส่งมาห้องนี้</div>
+                    </div>
+                    <div>
+                        <label class="oc-label" for="odCfgAdminKey">Admin Key (ตรงกับ ADMIN_KEY ใน Railway)</label>
+                        <input type="password" id="odCfgAdminKey" placeholder="ใช้ยืนยันตัวตอนสั่งบอท" class="oc-input" onchange="localStorage.setItem('od_admin_key', this.value.trim())">
+                        <div class="oc-hint">เก็บเฉพาะในเครื่องนี้ ไม่ถูกบันทึกขึ้นระบบ</div>
+                    </div>
+                    <div>
+                        <label class="oc-label" for="odCfgBotToken">Bot Token (จาก @BotFather)</label>
+                        <div class="oc-inline">
+                            <input type="password" id="odCfgBotToken" placeholder="เว้นว่าง = ใช้ BOT_TOKEN ใน Railway (แนะนำ)" class="oc-input">
+                            <button type="button" onclick="const i=document.getElementById('odCfgBotToken'); i.type=i.type==='password'?'text':'password'" class="oc-btn" aria-label="แสดง/ซ่อน Token"><span class="material-icons">visibility</span></button>
+                        </div>
+                        <div class="oc-hint">เปลี่ยนบอทได้โดยไม่ต้อง redeploy · ปลอดภัยกว่าถ้าเว้นว่างแล้วตั้งใน Railway</div>
+                    </div>
+                </div>
+                <div class="oc-tests">
+                    <span class="oc-label">ยิงทดสอบ</span>
+                    <button type="button" onclick="odCfg_botTest('od')" class="oc-btn sm"><span class="oc-dot" style="--c:#ef4444"></span>OD</button>
+                    <button type="button" onclick="odCfg_botTest('odol')" class="oc-btn sm"><span class="oc-dot" style="--c:#a855f7"></span>ODOL</button>
+                    <button type="button" onclick="odCfg_botTest('big')" class="oc-btn sm"><span class="oc-dot" style="--c:#f59e0b"></span>ยอดถอนใหญ่</button>
+                    <button type="button" onclick="odCfg_botTest('lock')" class="oc-btn sm"><span class="oc-dot" style="--c:#06b6d4"></span>ล็อคบัญชี</button>
+                </div>
+                <div id="odCfgBotInfo" class="hidden"></div>
+            </section>
+
+            <!-- ② เว็บ & รหัสโปร -->
+            <section id="ocSecWebs" class="oc-sec" style="--c:#f59e0b">
+                <div class="oc-sec-h">
+                    <span class="oc-sec-ic"><span class="material-icons">language</span></span>
+                    <div><h2 class="oc-sec-t">เว็บ &amp; รหัสโปรโมชั่น</h2><div class="oc-sec-d">รายชื่อเว็บที่พนักงานเลือกในฟอร์ม และรหัสโปรของแต่ละเว็บ</div></div>
+                </div>
+                <div class="oc-sec-b oc-webs">
+                    <div class="oc-box">
+                        <div class="oc-box-h"><span class="oc-label">รายชื่อเว็บ</span><button type="button" onclick="odCfg_addWeb()" class="oc-btn sm primary"><span class="material-icons">add</span>เพิ่มเว็บ</button></div>
+                        <div id="odCfgWebList" class="custom-scrollbar"></div>
+                    </div>
+                    <div class="oc-box">
+                        <div class="oc-box-h">
+                            <span class="oc-label">รหัสโปรของเว็บ</span>
+                            <select id="odCfgPromoWebSel" onchange="odCfg_renderPromos()" class="oc-input" style="width:auto;padding:6px 10px;font-size:13px" aria-label="เลือกเว็บ"><option value="">-- เลือกเว็บ --</option></select>
+                            <button type="button" onclick="odCfg_addPromo()" class="oc-btn sm primary"><span class="material-icons">add</span>เพิ่มโปร</button>
+                        </div>
+                        <div id="odCfgPromoList"><div class="text-gray-400 text-sm m-auto">เลือกเว็บเพื่อดูรหัสโปร</div></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ③ ฟอร์ม & ห้องส่ง -->
+            <section id="ocSecForms" class="oc-sec" style="--c:#a855f7">
+                <div class="oc-sec-h">
+                    <span class="oc-sec-ic"><span class="material-icons">dynamic_form</span></span>
+                    <div><h2 class="oc-sec-t">ฟอร์ม &amp; ห้องส่ง</h2><div class="oc-sec-d">แต่ละฟอร์มส่งเข้าห้องไหน · ตัวเลือกในฟอร์ม · เว้นว่าง = ใช้ห้องหลัก</div></div>
+                </div>
+                <div class="oc-sec-b oc-forms">
+                    <div class="oc-form" style="--c:#ef4444">
+                        <div class="oc-form-h"><span class="oc-dot"></span><b>OD ตัดเครดิต</b><button type="button" onclick="odCfg_addReason()" class="oc-btn sm"><span class="material-icons">add</span>เพิ่มสาเหตุ</button></div>
+                        <div><span class="oc-label">สาเหตุให้พนักงานเลือก</span><div id="odCfgReasonList"></div></div>
+                        <div class="oc-hint" style="margin:0">ส่งเข้า "ห้องหลัก" ที่ตั้งในการเชื่อมต่อบอท</div>
+                    </div>
+                    <div class="oc-form" style="--c:#a855f7">
+                        <div class="oc-form-h"><span class="oc-dot"></span><b>ODOL หลายยูส</b><button type="button" onclick="odCfg_addNote()" class="oc-btn sm"><span class="material-icons">add</span>เพิ่มหมายเหตุ</button></div>
+                        <div><span class="oc-label">หมายเหตุ (กด ★ ตั้งเป็นค่าเริ่มต้น)</span><div id="odCfgNoteList"></div></div>
+                        <div><label class="oc-label" for="odCfgOdolChatId">Chat ID ห้อง ODOL</label><input type="text" id="odCfgOdolChatId" placeholder="เว้นว่าง = ห้องหลัก" class="oc-input"></div>
+                    </div>
+                    <div class="oc-form" style="--c:#f59e0b">
+                        <div class="oc-form-h"><span class="oc-dot"></span><b>ยอดถอนใหญ่</b></div>
+                        <div><label class="oc-label" for="odCfgBigChatId">Chat ID ห้องยอดถอนใหญ่</label><input type="text" id="odCfgBigChatId" placeholder="เว้นว่าง = ห้องหลัก" class="oc-input"></div>
+                    </div>
+                    <div class="oc-form" style="--c:#06b6d4">
+                        <div class="oc-form-h"><span class="oc-dot"></span><b>ล็อคบัญชีธนาคาร</b></div>
+                        <div><label class="oc-label" for="odCfgLockChatId">Chat ID ห้องล็อคบัญชี</label><input type="text" id="odCfgLockChatId" placeholder="เว้นว่าง = ห้องหลัก" class="oc-input"></div>
+                    </div>
+                    <div class="oc-form wide" style="--c:#64748b">
+                        <div class="oc-form-h"><span class="oc-dot"></span><b>แจ้งเตือนการแก้ไข / ลบ (Audit)</b></div>
+                        <div><label class="oc-label" for="odCfgAuditChatId">Chat ID ห้องแจ้ง "การลบ"</label><input type="text" id="odCfgAuditChatId" placeholder="เว้นว่าง = แจ้งการลบในกลุ่มเดิม" class="oc-input"></div>
+                        <div class="oc-hint" style="margin:0"><b>แก้ไข</b> → ต่อท้ายบันทึกในข้อความเดิม · <b>ลบ</b> → แจ้งเป็นข้อความใหม่ในห้องนี้ · เปิด/ปิดได้ที่ "รูปแบบข้อความ" แท็บแก้ไข/ลบ</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ④ รูปแบบข้อความ -->
+            <section id="ocSecTpl" class="oc-sec" style="--c:#10b981">
+                <div class="oc-sec-h">
+                    <span class="oc-sec-ic"><span class="material-icons">chat</span></span>
+                    <div><h2 class="oc-sec-t">รูปแบบข้อความ</h2><div class="oc-sec-d">แก้ด้านซ้าย เห็นตัวอย่างในกลุ่มด้านขวาทันที · ใส่ {แท็ก} เพื่อแท็กคนตามกะ</div></div>
+                </div>
+                <div class="oc-tabs" id="ocTplTabs"><button type="button" class="oc-tab on" data-tpl="od" onclick="odCfg_tplPick('od')">OD ตัดเครดิต</button><button type="button" class="oc-tab" data-tpl="odol" onclick="odCfg_tplPick('odol')">ODOL หลายยูส</button><button type="button" class="oc-tab" data-tpl="big" onclick="odCfg_tplPick('big')">ยอดถอนใหญ่ · มีจำนวนเงิน</button><button type="button" class="oc-tab" data-tpl="big_na" onclick="odCfg_tplPick('big_na')">ยอดถอนใหญ่ · ไม่มีจำนวนเงิน</button><button type="button" class="oc-tab" data-tpl="lock" onclick="odCfg_tplPick('lock')">ล็อคบัญชีธนาคาร</button><button type="button" class="oc-tab" data-tpl="audit_edit" onclick="odCfg_tplPick('audit_edit')">ตอนแก้ไขข้อความ</button><button type="button" class="oc-tab" data-tpl="audit_delete" onclick="odCfg_tplPick('audit_delete')">ตอนลบข้อความ</button></div>
+                <div class="oc-sec-b">
+                    <div id="odCfgTplSendView">
+                <div class="oc-tpl" data-tpl="od">
+                    <div class="oc-tpl-ed">
+                        
+                        <div class="oc-row-between"><span class="oc-label">ตัวแปร (กดเพื่อแทรก)</span><button type="button" onclick="odCfg_resetTpl('od')" class="oc-btn sm ghost">คืนค่าเดิม</button></div>
+                        <div class="oc-vars" id="odCfgTplVarsOd"></div>
+                        <textarea id="odCfgTplOd" rows="9" oninput="odCfg_tplPreview()" class="oc-input oc-mono" aria-label="รูปแบบข้อความ OD ตัดเครดิต"></textarea>
+                    </div>
+                    <div class="oc-tpl-pv">
+                        <span class="oc-label">ตัวอย่างในกลุ่ม Telegram</span>
+                        <div class="oc-tg"><div class="oc-tg-bubble"><div class="oc-tg-name">OD Form Bot</div><pre id="odCfgTplPrevOd"></pre></div></div>
+                    </div>
+                </div>
+                <div class="oc-tpl" data-tpl="odol" style="display:none">
+                    <div class="oc-tpl-ed">
+                        
+                        <div class="oc-row-between"><span class="oc-label">ตัวแปร (กดเพื่อแทรก)</span><button type="button" onclick="odCfg_resetTpl('odol')" class="oc-btn sm ghost">คืนค่าเดิม</button></div>
+                        <div class="oc-vars" id="odCfgTplVarsOdol"></div>
+                        <textarea id="odCfgTplOdol" rows="9" oninput="odCfg_tplPreview()" class="oc-input oc-mono" aria-label="รูปแบบข้อความ ODOL หลายยูส"></textarea>
+                    </div>
+                    <div class="oc-tpl-pv">
+                        <span class="oc-label">ตัวอย่างในกลุ่ม Telegram</span>
+                        <div class="oc-tg"><div class="oc-tg-bubble"><div class="oc-tg-name">OD Form Bot</div><pre id="odCfgTplPrevOdol"></pre></div></div>
+                    </div>
+                </div>
+                <div class="oc-tpl" data-tpl="big" style="display:none">
+                    <div class="oc-tpl-ed">
+                        
+                        <div class="oc-row-between"><span class="oc-label">ตัวแปร (กดเพื่อแทรก)</span><button type="button" onclick="odCfg_resetTpl('big')" class="oc-btn sm ghost">คืนค่าเดิม</button></div>
+                        <div class="oc-vars" id="odCfgTplVarsBig"></div>
+                        <textarea id="odCfgTplBig" rows="9" oninput="odCfg_tplPreview()" class="oc-input oc-mono" aria-label="รูปแบบข้อความ ยอดถอนใหญ่ · มีจำนวนเงิน"></textarea>
+                    </div>
+                    <div class="oc-tpl-pv">
+                        <span class="oc-label">ตัวอย่างในกลุ่ม Telegram</span>
+                        <div class="oc-tg"><div class="oc-tg-bubble"><div class="oc-tg-name">OD Form Bot</div><pre id="odCfgTplPrevBig"></pre></div></div>
+                    </div>
+                </div>
+                <div class="oc-tpl" data-tpl="big_na" style="display:none">
+                    <div class="oc-tpl-ed">
+                        
+                        <div class="oc-row-between"><span class="oc-label">ตัวแปร (กดเพื่อแทรก)</span><button type="button" onclick="odCfg_resetTpl('big_na')" class="oc-btn sm ghost">คืนค่าเดิม</button></div>
+                        <div class="oc-vars" id="odCfgTplVarsBigNa"></div>
+                        <textarea id="odCfgTplBigNa" rows="9" oninput="odCfg_tplPreview()" class="oc-input oc-mono" aria-label="รูปแบบข้อความ ยอดถอนใหญ่ · ไม่มีจำนวนเงิน"></textarea>
+                    </div>
+                    <div class="oc-tpl-pv">
+                        <span class="oc-label">ตัวอย่างในกลุ่ม Telegram</span>
+                        <div class="oc-tg"><div class="oc-tg-bubble"><div class="oc-tg-name">OD Form Bot</div><pre id="odCfgTplPrevBigNa"></pre></div></div>
+                    </div>
+                </div>
+                <div class="oc-tpl" data-tpl="lock" style="display:none">
+                    <div class="oc-tpl-ed">
+                        
+                        <div class="oc-row-between"><span class="oc-label">ตัวแปร (กดเพื่อแทรก)</span><button type="button" onclick="odCfg_resetTpl('lock')" class="oc-btn sm ghost">คืนค่าเดิม</button></div>
+                        <div class="oc-vars" id="odCfgTplVarsLock"></div>
+                        <textarea id="odCfgTplLock" rows="9" oninput="odCfg_tplPreview()" class="oc-input oc-mono" aria-label="รูปแบบข้อความ ล็อคบัญชีธนาคาร"></textarea>
+                    </div>
+                    <div class="oc-tpl-pv">
+                        <span class="oc-label">ตัวอย่างในกลุ่ม Telegram</span>
+                        <div class="oc-tg"><div class="oc-tg-bubble"><div class="oc-tg-name">OD Form Bot</div><pre id="odCfgTplPrevLock"></pre></div></div>
+                    </div>
+                </div>
+                    </div>
+                    <div id="odCfgTplAuditView" style="display:none">
+                <div class="oc-tpl" data-tpl="audit_edit" style="display:none">
+                    <div class="oc-tpl-ed">
+                        <label class="oc-switch"><input type="checkbox" id="odCfgAuditEditEnabled"><span></span>เปิดใช้: ต่อท้ายบันทึก "แก้ไขโดย" ในข้อความเดิม</label>
+                        <div class="oc-row-between"><span class="oc-label">ตัวแปร (กดเพื่อแทรก)</span><button type="button" onclick="odCfg_resetTpl('audit_edit')" class="oc-btn sm ghost">คืนค่าเดิม</button></div>
+                        <div class="oc-vars" id="odCfgTplVarsAuditEdit"></div>
+                        <textarea id="odCfgTplAuditEdit" rows="8" oninput="odCfg_tplPreview()" class="oc-input oc-mono" aria-label="รูปแบบข้อความ ตอนแก้ไขข้อความ"></textarea>
+                    </div>
+                    <div class="oc-tpl-pv">
+                        <span class="oc-label">ตัวอย่างในกลุ่ม Telegram</span>
+                        <div class="oc-tg"><div class="oc-tg-bubble"><div class="oc-tg-name">OD Form Bot</div><pre id="odCfgTplPrevAuditEdit"></pre></div></div>
+                    </div>
+                </div>
+                <div class="oc-tpl" data-tpl="audit_delete" style="display:none">
+                    <div class="oc-tpl-ed">
+                        <label class="oc-switch"><input type="checkbox" id="odCfgAuditDeleteEnabled"><span></span>เปิดใช้: แจ้งข้อความที่ถูกลบ</label>
+                        <div class="oc-row-between"><span class="oc-label">ตัวแปร (กดเพื่อแทรก)</span><button type="button" onclick="odCfg_resetTpl('audit_delete')" class="oc-btn sm ghost">คืนค่าเดิม</button></div>
+                        <div class="oc-vars" id="odCfgTplVarsAuditDelete"></div>
+                        <textarea id="odCfgTplAuditDelete" rows="8" oninput="odCfg_tplPreview()" class="oc-input oc-mono" aria-label="รูปแบบข้อความ ตอนลบข้อความ"></textarea>
+                    </div>
+                    <div class="oc-tpl-pv">
+                        <span class="oc-label">ตัวอย่างในกลุ่ม Telegram</span>
+                        <div class="oc-tg"><div class="oc-tg-bubble"><div class="oc-tg-name">OD Form Bot</div><pre id="odCfgTplPrevAuditDelete"></pre></div></div>
+                    </div>
+                </div>
+                        <p class="oc-hint"><b>{การเปลี่ยนแปลง}</b> = รายการที่แก้ (ก่อน→หลัง) · <b>{คนรับงาน}</b> = แท็กคนที่กดอิโมจิรับงาน (ไม่มีคน บรรทัดนี้หายเอง)</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ⑤ แท็กคนตามกะ -->
+            <section id="ocSecTags" class="oc-sec" style="--c:#f43f5e">
+                <div class="oc-sec-h">
+                    <span class="oc-sec-ic"><span class="material-icons">alternate_email</span></span>
+                    <div><h2 class="oc-sec-t">แท็กคนตามกะ</h2><div class="oc-sec-d">ระบบแท็ก @ ตามกะเวลาที่กดส่ง · ใช้ @username ของ Telegram (ต้องอยู่ในกลุ่ม)</div></div>
+                </div>
+                <div class="oc-sec-b" style="display:flex;flex-direction:column;gap:16px">
+                    <div class="oc-grid">
+                        <div class="oc-shift">
+                            <div class="oc-shift-h">☀️ กะเช้า <span id="odCfgShiftDayLabel" class="oc-sec-d">(08:00 – 20:00)</span><span style="margin-left:auto;font-size:12px;color:var(--k-mute)">เริ่ม</span><input type="time" id="odCfgTagDayStart" value="08:00" oninput="odCfg_updateShiftLabels()" class="oc-input" aria-label="เวลาเริ่มกะเช้า"></div>
+                            <textarea id="odCfgTagDay" rows="4" placeholder="@user1 @user2 (เว้นวรรคหรือขึ้นบรรทัดใหม่)" class="oc-input" aria-label="รายชื่อแท็กกะเช้า"></textarea>
+                        </div>
+                        <div class="oc-shift">
+                            <div class="oc-shift-h">🌙 กะดึก <span id="odCfgShiftNightLabel" class="oc-sec-d">(20:00 – 08:00)</span><span style="margin-left:auto;font-size:12px;color:var(--k-mute)">เริ่ม</span><input type="time" id="odCfgTagNightStart" value="20:00" oninput="odCfg_updateShiftLabels()" class="oc-input" aria-label="เวลาเริ่มกะดึก"></div>
+                            <textarea id="odCfgTagNight" rows="4" placeholder="@user4 @user5 (เว้นวรรคหรือขึ้นบรรทัดใหม่)" class="oc-input" aria-label="รายชื่อแท็กกะดึก"></textarea>
+                        </div>
+                    </div>
+                    <div class="oc-box">
+                        <div class="oc-box-h"><span class="oc-label">ผูก @username กับพนักงาน (ไม่แท็กคนที่ลา/หยุดวันนั้น)</span><button type="button" onclick="odCfg_addTagMapRow()" class="oc-btn sm primary"><span class="material-icons">add</span>เพิ่มแถว</button></div>
+                        <div id="odCfgTagMapList"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ⑥ ประวัติข้อความ -->
+            <section id="ocSecHist" class="oc-sec" style="--c:#6366f1">
+                <div class="oc-sec-h">
+                    <span class="oc-sec-ic"><span class="material-icons">history</span></span>
+                    <div><h2 class="oc-sec-t">ประวัติข้อความ</h2><div class="oc-sec-d">ทุกข้อความที่บอทส่งถูกสำรองที่ server · แก้ / ลบ / ส่งซ้ำ ข้อความจริงในกลุ่มได้</div></div>
+                    <div class="oc-sec-a"><span id="odCfgHistToday" class="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-500/15 text-indigo-500 dark:text-indigo-300">📤 วันนี้บอทส่งทั้งหมด - รายการ</span></div>
+                </div>
+                <div class="oc-sec-b">
+                    <div class="oc-filters">
+                        <div><label class="oc-label" for="odCfgHistFrom">ตั้งแต่</label><input type="date" id="odCfgHistFrom" class="oc-input"></div>
+                        <div><label class="oc-label" for="odCfgHistTo">ถึง</label><input type="date" id="odCfgHistTo" class="oc-input"></div>
+                        <div><label class="oc-label" for="odCfgHistForm">หัวข้อ</label>
+                            <select id="odCfgHistForm" class="oc-input"><option value="">ทั้งหมด</option><option value="od">OD ตัดเครดิต</option><option value="odol">OD หลายยูส</option><option value="big">ยอดถอนใหญ่</option><option value="lock">ล็อคบัญชี</option></select></div>
+                        <div><label class="oc-label" for="odCfgHistStatus">สถานะ</label>
+                            <select id="odCfgHistStatus" class="oc-input"><option value="">ทั้งหมด</option><option value="sent">ส่งแล้ว</option><option value="edited">แก้ไขแล้ว</option><option value="deleted">ลบแล้ว</option></select></div>
+                        <div style="flex:1;min-width:200px"><label class="oc-label" for="odCfgHistSearch">ค้นหา (ยูส / เนื้อหา / คนส่ง)</label><input type="text" id="odCfgHistSearch" placeholder="พิมพ์แล้วกด Enter" class="oc-input"></div>
+                        <button id="odCfgHistLoad" type="button" class="oc-btn primary"><span class="material-icons">search</span>ค้นหา</button>
+                    </div>
+                    <div class="oc-row-between" style="margin-bottom:10px">
+                        <span id="odCfgHistCount" class="text-sm font-bold text-slate-700 dark:text-white">0 รายการ</span>
+                        <button id="odCfgHistResendAll" type="button" class="oc-btn sm"><span class="material-icons">replay</span>ส่งซ้ำที่แสดงทั้งหมด</button>
+                    </div>
+                    <div class="oc-table">
+                        <table>
+                            <thead><tr><th>เวลา</th><th>ฟอร์ม</th><th>คนส่ง</th><th>สถานะ</th><th>เนื้อหา</th><th style="text-align:right">จัดการ</th></tr></thead>
+                            <tbody id="odCfgHistBody"><tr><td colspan="6" class="text-center py-6 text-gray-400 text-sm">กด "ค้นหา" เพื่อโหลดประวัติ</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ⑦ ขั้นสูง -->
+            <section id="ocSecAdv" class="oc-sec" style="--c:#64748b">
+                <div class="oc-sec-h">
+                    <span class="oc-sec-ic"><span class="material-icons">code</span></span>
+                    <div><h2 class="oc-sec-t">ขั้นสูง · ค่าที่ส่วนขยายจะดึงไป</h2><div class="oc-sec-d">ไว้ตรวจสอบ ไม่ต้องแก้ตรงนี้</div></div>
+                    <div class="oc-sec-a"><button type="button" onclick="odCfg_refreshPreview()" class="oc-btn sm"><span class="material-icons">refresh</span>รีเฟรช</button></div>
+                </div>
+                <pre id="odCfgPreview" class="custom-scrollbar" style="margin:0;padding:16px 20px;max-height:260px;overflow:auto;font-size:12px;color:var(--k-green-tx);background:var(--k-sunk);border-radius:0 0 18px 18px"></pre>
+            </section>
         </div>
     </div>
 
-    <!-- Status bar -->
-    <div id="odCfgStatus" class="hidden mx-4 mt-3 p-3 rounded-xl text-sm font-bold text-center"></div>
+    <!-- แถบบันทึกค้างล่างจอ -->
+    <div class="oc-savebar" id="ocSaveBar">
+        <div class="oc-savebar-in">
+            <span class="oc-savebar-msg"><i></i><span id="ocSaveBarText">ค่าทั้งหมดบันทึกแล้ว</span></span>
+            <button type="button" onclick="odCfg_save()" class="oc-btn save"><span class="material-icons">save</span>บันทึกทั้งหมด</button>
+        </div>
+    </div>
 
-    <div class="p-4 max-w-6xl mx-auto w-full">
-
-        <!-- แถว 1: เว็บ + สาเหตุ -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-
-            <!-- เว็บ -->
-            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
-                <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
-                    <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
-                        <span class="material-icons text-blue-500 text-sm">language</span> รายชื่อเว็บ
-                    </h2>
-                    <button onclick="odCfg_addWeb()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition">+ เพิ่มเว็บ</button>
-                </div>
-                <div class="p-3 space-y-2 max-h-72 overflow-y-auto custom-scrollbar" id="odCfgWebList"></div>
+    <!-- หน้าต่างแก้ไขข้อความ -->
+    <div id="odCfgEditModal" class="hidden fixed inset-0 z-[9999] items-center justify-center bg-black/60 p-4">
+        <div style="width:100%;max-width:560px;background:var(--k-panel);border:1px solid var(--k-line3);border-radius:18px;box-shadow:0 24px 60px rgba(0,0,0,.45)">
+            <div class="oc-sec-h" style="--c:#f59e0b"><span class="oc-sec-ic"><span class="material-icons">edit</span></span><h3 class="oc-sec-t" style="margin-right:auto">แก้ไขข้อความในกลุ่ม</h3><button type="button" onclick="odCfgHist_editClose()" class="oc-btn sm ghost" aria-label="ปิด"><span class="material-icons">close</span></button></div>
+            <div class="oc-sec-b">
+                <input type="hidden" id="odCfgEditId">
+                <textarea id="odCfgEditText" rows="10" class="oc-input oc-mono" aria-label="ข้อความ"></textarea>
+                <div class="oc-hint">กดบันทึกแล้วข้อความในกลุ่มจะถูกแก้ พร้อมต่อท้าย "แก้ไขโดย" ให้อัตโนมัติ</div>
             </div>
-
-            <!-- สาเหตุ -->
-            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
-                <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
-                    <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
-                        <span class="material-icons text-amber-500 text-sm">report_problem</span> สาเหตุการตัด OD
-                    </h2>
-                    <button onclick="odCfg_addReason()" class="bg-amber-500 hover:bg-amber-400 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition">+ เพิ่มสาเหตุ</button>
-                </div>
-                <div class="p-3 space-y-2 max-h-72 overflow-y-auto custom-scrollbar" id="odCfgReasonList"></div>
+            <div style="display:flex;justify-content:flex-end;gap:8px;padding:0 20px 18px">
+                <button type="button" onclick="odCfgHist_editClose()" class="oc-btn">ยกเลิก</button>
+                <button id="odCfgEditSaveBtn" type="button" onclick="odCfgHist_editSave()" class="oc-btn" style="background:#d97706;border-color:#d97706;color:#fff">บันทึกการแก้ไข</button>
             </div>
         </div>
-
-        <!-- แถว 2: รหัสโปรแยกตามเว็บ -->
-        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
-            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center flex-wrap gap-2">
-                <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
-                    <span class="material-icons text-yellow-500 text-sm">star</span> รหัสโปรโมชั่น แยกตามเว็บ
-                </h2>
-                <div class="flex items-center gap-2">
-                    <select id="odCfgPromoWebSel" onchange="odCfg_renderPromos()" class="bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-500">
-                        <option value="">-- เลือกเว็บ --</option>
-                    </select>
-                    <button onclick="odCfg_addPromo()" class="bg-yellow-500 hover:bg-yellow-400 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition">+ เพิ่มโปร</button>
-                </div>
-            </div>
-            <div class="p-3">
-                <div id="odCfgPromoList" class="flex flex-wrap gap-2 min-h-16">
-                    <div class="text-gray-400 text-sm m-auto">เลือกเว็บเพื่อดูรหัสโปร</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- แถว 2.5: ฟอร์มหลายยูส (ODOL) -->
-        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mt-4">
-            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center flex-wrap gap-2">
-                <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
-                    <span class="material-icons text-purple-500 text-sm">groups</span> ฟอร์มหลายยูส (ODOL)
-                </h2>
-                <button onclick="odCfg_addNote()" class="bg-purple-600 hover:bg-purple-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition">+ เพิ่มหมายเหตุ</button>
-            </div>
-            <div class="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="md:col-span-2">
-                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2">ตัวเลือกหมายเหตุ (คลิก ★ เพื่อตั้งเป็นค่าเริ่มต้น)</label>
-                    <div id="odCfgNoteList" class="flex flex-wrap gap-2 min-h-12"></div>
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Chat ID ห้องสำหรับฟอร์มหลายยูส</label>
-                    <input type="text" id="odCfgOdolChatId" placeholder="เว้นว่าง = ใช้ห้องเดียวกับ OD"
-                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500">
-                    <p class="text-xs text-gray-400 mt-1">ถ้าอยากให้ฟอร์มนี้ส่งไปอีกห้อง ใส่ -100… ที่นี่</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- แถว 2.6: ยอดถอนใหญ่ -->
-        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mt-4">
-            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center flex-wrap gap-2">
-                <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
-                    <span class="material-icons text-amber-500 text-sm">savings</span> ยอดถอนใหญ่
-                </h2>
-                <span class="text-xs text-gray-400">ฟอร์มเลือกเว็บ + ใส่ยูส แล้วส่งเข้ากลุ่ม</span>
-            </div>
-            <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Chat ID ห้องสำหรับยอดถอนใหญ่</label>
-                    <input type="text" id="odCfgBigChatId" placeholder="เว้นว่าง = ใช้ห้องเดียวกับ OD"
-                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500">
-                    <p class="text-xs text-gray-400 mt-1">ถ้าอยากให้ฟอร์มนี้ส่งไปอีกห้อง ใส่ -100… ที่นี่</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- แถว 2.65: ล็อคบัญชีธนาคาร -->
-        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mt-4">
-            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center flex-wrap gap-2">
-                <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
-                    <span class="material-icons text-cyan-500 text-sm">lock</span> ล็อคบัญชีธนาคาร
-                </h2>
-                <span class="text-xs text-gray-400">ฟอร์มเลือกเว็บ + ใส่ยูส + เลขบัญชีธนาคาร แล้วส่งเข้ากลุ่ม</span>
-            </div>
-            <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Chat ID ห้องสำหรับล็อคบัญชี</label>
-                    <input type="text" id="odCfgLockChatId" placeholder="เว้นว่าง = ใช้ห้องเดียวกับ OD"
-                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500">
-                    <p class="text-xs text-gray-400 mt-1">ถ้าอยากให้ฟอร์มนี้ส่งไปอีกห้อง ใส่ -100… ที่นี่</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- แถว 2.7: Template ข้อความ -->
-        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mt-4">
-            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center flex-wrap gap-2">
-                <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
-                    <span class="material-icons text-emerald-500 text-sm">description</span> รูปแบบข้อความที่ส่งเข้ากลุ่ม
-                </h2>
-                <div class="flex bg-gray-200 dark:bg-slate-700 rounded-xl p-1 text-xs font-bold">
-                    <button id="odCfgTplTabSend"  onclick="odCfg_tplView('send')"  class="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-white">📤 ฟอร์มส่งเข้ากลุ่ม</button>
-                    <button id="odCfgTplTabAudit" onclick="odCfg_tplView('audit')" class="px-3 py-1.5 rounded-lg text-gray-500 dark:text-gray-300">✏️ ฟอร์มแก้ไข/ลบ</button>
-                </div>
-            </div>
-            <div id="odCfgTplSendView" class="p-4 grid grid-cols-1 lg:grid-cols-2 gap-5">
-                <!-- OD -->
-                <div>
-                    <div class="flex justify-between items-center mb-1">
-                        <label class="text-xs font-bold text-gray-500 dark:text-gray-400">❌ ฟอร์ม OD ตัดเครดิต</label>
-                        <button onclick="odCfg_resetTpl('od')" class="text-xs text-gray-400 hover:text-white border border-gray-300 dark:border-slate-600 px-2 py-0.5 rounded-lg">คืนค่าเดิม</button>
-                    </div>
-                    <div class="flex flex-wrap gap-1 mb-2" id="odCfgTplVarsOd"></div>
-                    <textarea id="odCfgTplOd" rows="9" oninput="odCfg_tplPreview()"
-                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 font-mono"></textarea>
-                    <div class="text-xs text-gray-400 mt-2 mb-1">ตัวอย่างที่พนักงานจะเห็น</div>
-                    <pre id="odCfgTplPrevOd" class="bg-slate-950 text-emerald-300 text-xs rounded-xl p-3 whitespace-pre-wrap min-h-24"></pre>
-                </div>
-                <!-- ODOL -->
-                <div>
-                    <div class="flex justify-between items-center mb-1">
-                        <label class="text-xs font-bold text-gray-500 dark:text-gray-400">👥 ฟอร์มหลายยูส (ODOL)</label>
-                        <button onclick="odCfg_resetTpl('odol')" class="text-xs text-gray-400 hover:text-white border border-gray-300 dark:border-slate-600 px-2 py-0.5 rounded-lg">คืนค่าเดิม</button>
-                    </div>
-                    <div class="flex flex-wrap gap-1 mb-2" id="odCfgTplVarsOdol"></div>
-                    <textarea id="odCfgTplOdol" rows="9" oninput="odCfg_tplPreview()"
-                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 font-mono"></textarea>
-                    <div class="text-xs text-gray-400 mt-2 mb-1">ตัวอย่างที่พนักงานจะเห็น</div>
-                    <pre id="odCfgTplPrevOdol" class="bg-slate-950 text-emerald-300 text-xs rounded-xl p-3 whitespace-pre-wrap min-h-24"></pre>
-                </div>
-                <!-- ยอดถอนใหญ่ (มีจำนวนเงิน) -->
-                <div>
-                    <div class="flex justify-between items-center mb-1">
-                        <label class="text-xs font-bold text-gray-500 dark:text-gray-400">💰 ยอดถอนใหญ่ (มีจำนวนเงิน)</label>
-                        <button onclick="odCfg_resetTpl('big')" class="text-xs text-gray-400 hover:text-white border border-gray-300 dark:border-slate-600 px-2 py-0.5 rounded-lg">คืนค่าเดิม</button>
-                    </div>
-                    <div class="flex flex-wrap gap-1 mb-2" id="odCfgTplVarsBig"></div>
-                    <textarea id="odCfgTplBig" rows="9" oninput="odCfg_tplPreview()"
-                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 font-mono"></textarea>
-                    <div class="text-xs text-gray-400 mt-2 mb-1">ตัวอย่างที่พนักงานจะเห็น (พนักงานกรอกจำนวนเงิน)</div>
-                    <pre id="odCfgTplPrevBig" class="bg-slate-950 text-emerald-300 text-xs rounded-xl p-3 whitespace-pre-wrap min-h-24"></pre>
-                </div>
-                <!-- ยอดถอนใหญ่ (ไม่มีจำนวนเงิน) -->
-                <div>
-                    <div class="flex justify-between items-center mb-1">
-                        <label class="text-xs font-bold text-gray-500 dark:text-gray-400">💰 ยอดถอนใหญ่ (ไม่มีจำนวนเงิน)</label>
-                        <button onclick="odCfg_resetTpl('big_na')" class="text-xs text-gray-400 hover:text-white border border-gray-300 dark:border-slate-600 px-2 py-0.5 rounded-lg">คืนค่าเดิม</button>
-                    </div>
-                    <div class="flex flex-wrap gap-1 mb-2" id="odCfgTplVarsBigNa"></div>
-                    <textarea id="odCfgTplBigNa" rows="9" oninput="odCfg_tplPreview()"
-                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 font-mono"></textarea>
-                    <div class="text-xs text-gray-400 mt-2 mb-1">ตัวอย่างที่พนักงานจะเห็น (พนักงานไม่กรอกจำนวนเงิน)</div>
-                    <pre id="odCfgTplPrevBigNa" class="bg-slate-950 text-emerald-300 text-xs rounded-xl p-3 whitespace-pre-wrap min-h-24"></pre>
-                </div>
-                <!-- ล็อคบัญชีธนาคาร -->
-                <div>
-                    <div class="flex justify-between items-center mb-1">
-                        <label class="text-xs font-bold text-gray-500 dark:text-gray-400">🔒 ฟอร์มล็อคบัญชีธนาคาร</label>
-                        <button onclick="odCfg_resetTpl('lock')" class="text-xs text-gray-400 hover:text-white border border-gray-300 dark:border-slate-600 px-2 py-0.5 rounded-lg">คืนค่าเดิม</button>
-                    </div>
-                    <div class="flex flex-wrap gap-1 mb-2" id="odCfgTplVarsLock"></div>
-                    <textarea id="odCfgTplLock" rows="9" oninput="odCfg_tplPreview()"
-                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 font-mono"></textarea>
-                    <div class="text-xs text-gray-400 mt-2 mb-1">ตัวอย่างที่พนักงานจะเห็น</div>
-                    <pre id="odCfgTplPrevLock" class="bg-slate-950 text-emerald-300 text-xs rounded-xl p-3 whitespace-pre-wrap min-h-24"></pre>
-                </div>
-            </div>
-
-            <div id="odCfgTplAuditView" class="p-4 grid grid-cols-1 lg:grid-cols-2 gap-5" style="display:none">
-                <!-- ฟอร์มแก้ไข -->
-                <div>
-                    <div class="flex justify-between items-center mb-1">
-                        <label class="text-xs font-bold text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                            <input type="checkbox" id="odCfgAuditEditEnabled" class="w-4 h-4"> ✏️ ข้อความตอน "แก้ไข" (ต่อท้ายในข้อความเดิม)
-                        </label>
-                        <button onclick="odCfg_resetTpl('audit_edit')" class="text-xs text-gray-400 hover:text-white border border-gray-300 dark:border-slate-600 px-2 py-0.5 rounded-lg">คืนค่าเดิม</button>
-                    </div>
-                    <div class="flex flex-wrap gap-1 mb-2" id="odCfgTplVarsAuditEdit"></div>
-                    <textarea id="odCfgTplAuditEdit" rows="8" oninput="odCfg_tplPreview()"
-                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 font-mono"></textarea>
-                    <div class="text-xs text-gray-400 mt-2 mb-1">ตัวอย่าง</div>
-                    <pre id="odCfgTplPrevAuditEdit" class="bg-slate-950 text-emerald-300 text-xs rounded-xl p-3 whitespace-pre-wrap min-h-24"></pre>
-                </div>
-                <!-- ฟอร์มลบ -->
-                <div>
-                    <div class="flex justify-between items-center mb-1">
-                        <label class="text-xs font-bold text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                            <input type="checkbox" id="odCfgAuditDeleteEnabled" class="w-4 h-4"> 🗑️ ข้อความตอน "ลบ" (แจ้งในห้อง audit)
-                        </label>
-                        <button onclick="odCfg_resetTpl('audit_delete')" class="text-xs text-gray-400 hover:text-white border border-gray-300 dark:border-slate-600 px-2 py-0.5 rounded-lg">คืนค่าเดิม</button>
-                    </div>
-                    <div class="flex flex-wrap gap-1 mb-2" id="odCfgTplVarsAuditDelete"></div>
-                    <textarea id="odCfgTplAuditDelete" rows="8" oninput="odCfg_tplPreview()"
-                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 font-mono"></textarea>
-                    <div class="text-xs text-gray-400 mt-2 mb-1">ตัวอย่าง</div>
-                    <pre id="odCfgTplPrevAuditDelete" class="bg-slate-950 text-emerald-300 text-xs rounded-xl p-3 whitespace-pre-wrap min-h-24"></pre>
-                </div>
-                <p class="text-xs text-gray-400 lg:col-span-2"><b>{การเปลี่ยนแปลง}</b> = รายการที่แก้ (ก่อน→หลัง) · <b>{คนรับงาน}</b> = แท็กคนที่กดอิโมจิรับงาน (ถ้าไม่มีคน บรรทัดนี้จะหายไปเอง)</p>
-            </div>
-        </div>
-
-        <!-- แถว 2.8: แท็กคนตามกะ (Mention) -->
-        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-visible mt-4">
-            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 rounded-t-2xl flex justify-between items-center flex-wrap gap-2">
-                <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
-                    <span class="material-icons text-rose-500 text-sm">notifications_active</span> แท็กคนตามกะ (Mention)
-                </h2>
-                <span class="text-xs text-gray-400">ใส่ <code class="text-blue-400">{แท็ก}</code> ในรูปแบบข้อความด้านบน ระบบจะแท็กคนตามกะเวลาที่กดส่ง</span>
-            </div>
-            <div class="p-4">
-                <div class="flex flex-wrap items-end gap-4 mb-4">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">กะเช้าเริ่ม</label>
-                        <input type="time" id="odCfgTagDayStart" value="08:00" oninput="odCfg_updateShiftLabels()"
-                            class="bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">กะดึกเริ่ม</label>
-                        <input type="time" id="odCfgTagNightStart" value="20:00" oninput="odCfg_updateShiftLabels()"
-                            class="bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500">
-                    </div>
-                    <p class="text-xs text-gray-400 flex-1 min-w-[180px]">กะเช้า = ตั้งแต่ “กะเช้าเริ่ม” ถึง “กะดึกเริ่ม” · กะดึก = ที่เหลือ (ข้ามเที่ยงคืนได้)</p>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">☀️ รายชื่อแท็ก กะเช้า <span id="odCfgShiftDayLabel" class="text-gray-400 font-normal">(08:00 – 20:00)</span></label>
-                        <textarea id="odCfgTagDay" rows="4" placeholder="@user1 @user2 @user3 (เว้นวรรคหรือขึ้นบรรทัดใหม่ก็ได้ ใส่กี่คนก็ได้)"
-                            class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500"></textarea>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">🌙 รายชื่อแท็ก กะดึก <span id="odCfgShiftNightLabel" class="text-gray-400 font-normal">(20:00 – 08:00)</span></label>
-                        <textarea id="odCfgTagNight" rows="4" placeholder="@user4 @user5 (เว้นวรรคหรือขึ้นบรรทัดใหม่ก็ได้ ใส่กี่คนก็ได้)"
-                            class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500"></textarea>
-                    </div>
-                </div>
-                <p class="text-xs text-gray-400 mt-2">💡 ใช้ <b>@username</b> ของ Telegram (คนนั้นต้องอยู่ในกลุ่ม) ถึงจะเด้งเตือนได้</p>
-
-                <div class="mt-4 pt-4 border-t border-gray-200 dark:border-slate-700">
-                    <div class="flex justify-between items-center mb-2">
-                        <label class="text-xs font-bold text-gray-600 dark:text-gray-300 flex items-center gap-1"><span class="material-icons text-sm text-emerald-500">event_busy</span> ผูก @username กับพนักงาน (เช็ควันหยุด)</label>
-                        <button onclick="odCfg_addTagMapRow()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1"><span class="material-icons text-xs">add</span> เพิ่มแถว</button>
-                    </div>
-                    <p class="text-xs text-gray-400 mb-2">ผูก @ ไว้กับพนักงานในระบบ — ถ้าวันไหนพนักงานคนนั้น<b>ลา/หยุด</b> (ตามข้อมูลหน้าวันลา) ระบบจะ<b>ไม่แท็ก</b> @ นั้นให้อัตโนมัติ ส่วน @ ที่ไม่ได้ผูกไว้จะแท็กทุกวันตามปกติ</p>
-                    <div id="odCfgTagMapList"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- แถว 2.9: แจ้งเตือนการแก้ไข/ลบ (Audit) -->
-        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mt-4">
-            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center flex-wrap gap-2">
-                <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
-                    <span class="material-icons text-amber-500 text-sm">history_edu</span> แจ้งเตือนการแก้ไข/ลบ (Audit)
-                </h2>
-                <span class="text-xs text-gray-400">เปิด/ปิดแยก "แก้ไข" กับ "ลบ" ได้ที่ปุ่ม "✏️ ฟอร์มแก้ไข/ลบ" ด้านบน</span>
-            </div>
-            <div class="p-4">
-                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Chat ID ห้องแจ้ง "การลบ"</label>
-                <input type="text" id="odCfgAuditChatId" placeholder="เว้นว่าง = แจ้งการลบในกลุ่มเดิม"
-                    class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500">
-                <p class="text-xs text-gray-400 mt-2"><b>การแก้ไข</b> → บันทึกต่อท้าย<b>ในข้อความเดิม</b>เลย (ใคร · เมื่อไหร่ · แก้อะไร ก่อน→หลัง) &nbsp;·&nbsp; <b>การลบ</b> → ข้อความหายแล้ว จึงแจ้งเป็นข้อความใหม่ในห้องนี้ (หรือกลุ่มเดิมถ้าเว้นว่าง)</p>
-            </div>
-        </div>
-
-        <!-- แถว 3: ตั้งค่า + ควบคุม Telegram Bot -->
-        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mt-4">
-            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center flex-wrap gap-2">
-                <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
-                    <span class="material-icons text-sky-500 text-sm">smart_toy</span> Telegram Bot (Railway)
-                    <span id="odCfgBotBadge" class="ml-2 text-xs px-2 py-0.5 rounded-full bg-gray-200 text-gray-600">ยังไม่เช็ค</span>
-                </h2>
-                <div class="flex gap-2 flex-wrap">
-                    <button onclick="odCfg_botStatus()" class="bg-slate-600 hover:bg-slate-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1"><span class="material-icons text-xs">refresh</span> เช็คสถานะ</button>
-                    <button id="odCfgBtnToggle" onclick="odCfg_botToggle()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1"><span class="material-icons text-xs">power_settings_new</span> เปิด/ปิดบอท</button>
-                    <button onclick="odCfg_botTest('od')" class="bg-sky-600 hover:bg-sky-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1"><span class="material-icons text-xs">send</span> ยิงทดสอบ OD</button>
-                    <button onclick="odCfg_botTest('odol')" class="bg-purple-600 hover:bg-purple-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1"><span class="material-icons text-xs">send</span> ยิงทดสอบ ODOL</button>
-                    <button onclick="odCfg_botTest('big')" class="bg-amber-600 hover:bg-amber-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1"><span class="material-icons text-xs">send</span> ยิงทดสอบ ยอดใหญ่</button>
-                    <button onclick="odCfg_botTest('lock')" class="bg-cyan-600 hover:bg-cyan-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1"><span class="material-icons text-xs">send</span> ยิงทดสอบ ล็อคบัญชี</button>
-                </div>
-            </div>
-            <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Railway API URL</label>
-                    <input type="text" id="odCfgServerUrl" placeholder="https://od-form-bot-production.up.railway.app"
-                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Group Chat ID (ห้องหลัก สำหรับ OD)</label>
-                    <input type="text" id="odCfgChatId" placeholder="-100XXXXXXXXXX"
-                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Bot Token (จาก @BotFather)</label>
-                    <div class="flex gap-2">
-                        <input type="password" id="odCfgBotToken" placeholder="เว้นว่าง = ใช้ BOT_TOKEN ใน Railway"
-                            class="flex-1 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500">
-                        <button type="button" onclick="const i=document.getElementById('odCfgBotToken'); i.type=i.type==='password'?'text':'password'" class="px-3 rounded-xl border border-gray-300 dark:border-slate-600 text-gray-400 hover:text-white"><span class="material-icons text-sm">visibility</span></button>
-                    </div>
-                    <p class="text-xs text-gray-400 mt-1">เปลี่ยนบอทได้โดยไม่ต้อง redeploy — กดบันทึกแล้วเช็คสถานะ</p>
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Admin Key (ตรงกับ ADMIN_KEY ใน Railway)</label>
-                    <input type="password" id="odCfgAdminKey" placeholder="ใช้ยืนยันตัวตอนสั่งบอท — เก็บเฉพาะในเครื่องนี้"
-                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500"
-                        onchange="localStorage.setItem('od_admin_key', this.value.trim())">
-                    <p class="text-xs text-gray-400 mt-1">ไม่ถูกบันทึกลง Supabase</p>
-                </div>
-            </div>
-            <div id="odCfgBotInfo" class="mx-4 mb-4 p-3 rounded-xl bg-slate-950 text-xs text-slate-300 font-mono whitespace-pre-wrap hidden"></div>
-        </div>
-
-        <!-- Preview JSON -->
-        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mt-4">
-            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
-                <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
-                    <span class="material-icons text-gray-400 text-sm">code</span> Preview JSON (ที่ส่วนขยายจะดึงไป)
-                </h2>
-                <button onclick="odCfg_refreshPreview()" class="text-xs text-gray-400 hover:text-white border border-gray-300 dark:border-slate-600 px-3 py-1 rounded-lg transition">รีเฟรช</button>
-            </div>
-            <pre id="odCfgPreview" class="p-4 text-xs text-green-400 bg-slate-950 overflow-x-auto max-h-40 custom-scrollbar rounded-b-2xl"></pre>
-        </div>
-
-        <!-- แถว 5: ประวัติข้อความ / กู้ข้อความที่ถูกลบ -->
-        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mt-4">
-            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center flex-wrap gap-2">
-                <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
-                    <span class="material-icons text-indigo-500 text-sm">history</span> ประวัติข้อความ / กู้ข้อความที่ถูกลบ
-                </h2>
-                <span class="text-xs text-gray-400">ทุกข้อความที่บอทส่งถูกสำรองไว้ที่ server — เลือกวันที่ ค้นหา แล้วกดส่งซ้ำได้เลย</span>
-            </div>
-            <div class="p-4">
-                <div class="flex flex-wrap items-end gap-3 mb-4">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">ตั้งแต่วันที่</label>
-                        <input type="date" id="odCfgHistFrom" class="bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">ถึงวันที่</label>
-                        <input type="date" id="odCfgHistTo" class="bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">หัวข้อ</label>
-                        <select id="odCfgHistForm" class="bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500">
-                            <option value="">ทั้งหมด</option>
-                            <option value="od">OD ตัดเครดิต</option>
-                            <option value="odol">OD หลายยูส</option>
-                            <option value="big">ยอดถอนใหญ่</option>
-                            <option value="lock">ล็อคบัญชี</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">สถานะ</label>
-                        <select id="odCfgHistStatus" class="bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500">
-                            <option value="">ทั้งหมด</option>
-                            <option value="sent">ส่งแล้ว</option>
-                            <option value="edited">แก้ไขแล้ว</option>
-                            <option value="deleted">ลบแล้ว</option>
-                        </select>
-                    </div>
-                    <div class="flex-1 min-w-[180px]">
-                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">ค้นหา (ยูส / เนื้อหา / คนส่ง)</label>
-                        <input type="text" id="odCfgHistSearch" placeholder="🔍 พิมพ์แล้วกด Enter..." class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500">
-                    </div>
-                    <button id="odCfgHistLoad" class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm px-4 py-2 rounded-xl font-bold flex items-center gap-1"><span class="material-icons text-sm">search</span> ค้นหา</button>
-                </div>
-                <div class="flex justify-between items-center mb-2 flex-wrap gap-2">
-                    <div class="flex items-center gap-3 flex-wrap">
-                        <span id="odCfgHistCount" class="text-sm font-bold text-slate-700 dark:text-white">0 รายการ</span>
-                        <span id="odCfgHistToday" class="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-500/15 text-indigo-500 dark:text-indigo-300">📤 วันนี้บอทส่งทั้งหมด - รายการ</span>
-                    </div>
-                    <button id="odCfgHistResendAll" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold flex items-center gap-1"><span class="material-icons text-xs">replay</span> ส่งซ้ำที่แสดงทั้งหมด</button>
-                </div>
-                <div class="overflow-x-auto border border-gray-200 dark:border-slate-700 rounded-xl">
-                    <table class="w-full text-left">
-                        <thead class="bg-slate-50 dark:bg-slate-900 text-xs text-gray-500 dark:text-gray-400">
-                            <tr>
-                                <th class="px-3 py-2 font-bold">เวลา</th>
-                                <th class="px-3 py-2 font-bold">ฟอร์ม</th>
-                                <th class="px-3 py-2 font-bold">คนส่ง</th>
-                                <th class="px-3 py-2 font-bold">สถานะ</th>
-                                <th class="px-3 py-2 font-bold">เนื้อหา</th>
-                                <th class="px-3 py-2 font-bold text-right">จัดการ</th>
-                            </tr>
-                        </thead>
-                        <tbody id="odCfgHistBody">
-                            <tr><td colspan="6" class="text-center py-6 text-gray-400 text-sm">กด"ค้นหา" เพื่อโหลดประวัติ</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-                <p class="text-xs text-gray-400 mt-2">💡 "ส่งซ้ำ" = สร้างข้อความใหม่ที่มีเนื้อหาเหมือนเดิมเข้ากลุ่ม · "แก้/ลบ" สั่งจัดการข้อความจริงในกลุ่มได้เลย · ทำจาก server ไม่ต้องพึ่งเครื่องพนักงาน</p>
-            </div>
-        </div>
-
-        <style>
-            .odCfgHist-row:hover { background:#f1f5f9; }
-            .dark .odCfgHist-row:hover { background:color-mix(in srgb,var(--k-btn-h) 55.0%,transparent); }
-        </style>
-
-        <!-- Modal แก้ไขข้อความ -->
-        <div id="odCfgEditModal" class="hidden fixed inset-0 z-[9999] items-center justify-center bg-black/60 p-4">
-            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-2xl w-full max-w-lg">
-                <div class="px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
-                    <h3 class="font-bold text-slate-700 dark:text-white flex items-center gap-2"><span class="material-icons text-amber-500 text-sm">edit</span> แก้ไขข้อความในกลุ่ม</h3>
-                    <button onclick="odCfgHist_editClose()" class="text-gray-400 hover:text-white"><span class="material-icons">close</span></button>
-                </div>
-                <div class="p-4">
-                    <input type="hidden" id="odCfgEditId">
-                    <textarea id="odCfgEditText" rows="10" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 font-mono"></textarea>
-                    <p class="text-xs text-gray-400 mt-2">แก้ข้อความแล้วกดบันทึก — ข้อความในกลุ่มจะถูกแก้ พร้อมต่อท้ายบันทึก "แก้ไขโดย" ให้อัตโนมัติ</p>
-                </div>
-                <div class="px-4 py-3 border-t border-gray-200 dark:border-slate-700 flex justify-end gap-2">
-                    <button onclick="odCfgHist_editClose()" class="text-sm px-4 py-2 rounded-xl border border-gray-300 dark:border-slate-600 text-gray-500 dark:text-gray-300">ยกเลิก</button>
-                    <button id="odCfgEditSaveBtn" onclick="odCfgHist_editSave()" class="bg-amber-600 hover:bg-amber-500 text-white text-sm px-4 py-2 rounded-xl font-bold">บันทึกการแก้ไข</button>
-                </div>
-            </div>
-        </div>
-
     </div>
 </div>

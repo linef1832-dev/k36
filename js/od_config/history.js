@@ -22,9 +22,15 @@ function odCfgHist_initDates() {
     if (f && !f.value) f.value = today;   // เริ่มต้น = วันนี้
     if (t && !t.value) t.value = today;
 }
-window.odCfgHist_load = async function() {
+window.odCfgHist_load = async function(opts) {
     const body = document.getElementById('odCfgHistBody');
     if (!body) return;
+    // [แก้] ตอนเปิดหน้าโดยยังไม่ใส่ Admin Key เดิมขึ้น error แดงในตาราง → บอกวิธีใช้แทน
+    const hasKey = ((document.getElementById('odCfgAdminKey') || {}).value || localStorage.getItem('od_admin_key') || '').trim();
+    if (!hasKey && opts && opts.quietNoKey) {
+        body.innerHTML = '<tr><td colspan="6" class="text-center py-6 text-gray-400 text-sm">ใส่ Admin Key ในส่วนควบคุมบอท แล้วกด "ค้นหา" เพื่อดูประวัติข้อความ</td></tr>';
+        return;
+    }
     body.innerHTML = '<tr><td colspan="6" class="text-center py-6 text-gray-400 text-sm">กำลังโหลด...</td></tr>';
     try {
         const from = document.getElementById('odCfgHistFrom').value;
@@ -139,15 +145,19 @@ window.odCfgHist_resendAll = async function() {
         customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' },
     });
     if (!c.isConfirmed) return;
-    const btn = document.getElementById('odCfgHistResendAll'); btn.disabled = true;
+    const btn = document.getElementById('odCfgHistResendAll');
+    if (window._odCfgResendAllRunning) return;   // [แก้] กันกดซ้ำระหว่างกำลังส่ง → ส่งซ้ำ 2 ชุด
+    window._odCfgResendAllRunning = true;
+    if (btn) btn.disabled = true;
     const items = odCfgHistItems.slice().reverse(); // เก่า→ใหม่
     let done = 0, fail = 0;
     for (const it of items) {
-        btn.textContent = `🔁 กำลังส่ง ${done + fail + 1}/${items.length}...`;
+        if (btn) btn.textContent = `🔁 กำลังส่ง ${done + fail + 1}/${items.length}...`;
         try { await odCfg_adminFetch('/admin/resend', 'POST', { id: it.id, by: (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'admin' }); done++; } catch (e) { fail++; }
         await new Promise(r => setTimeout(r, 3000));
     }
-    btn.disabled = false; btn.textContent = '🔁 ส่งซ้ำที่แสดงทั้งหมด';
+    window._odCfgResendAllRunning = false;
+    if (btn) { btn.disabled = false; btn.textContent = '🔁 ส่งซ้ำที่แสดงทั้งหมด'; }
     odCfg_showStatus(`เสร็จแล้ว: ส่งซ้ำสำเร็จ ${done}${fail ? ` · ไม่สำเร็จ ${fail}` : ''}`, fail ? 'error' : 'success');
     odCfgHist_load();
 }
