@@ -128,7 +128,10 @@ window.exportSummaryToExcel = async function() {
             });
 
             const wb = new ExcelJS.Workbook();
+            // ชีตแรก = ตารางอ้างอิง (สร้างก่อนให้เป็นแท็บแรก แล้วค่อยเติมข้อมูลด้านล่าง) · ชีตที่สอง = สรุปยอดแยกเว็บ
+            const ws2 = wb.addWorksheet('ตารางอ้างอิง');
             const ws = wb.addWorksheet(`สรุปยอดแยกเว็บ`);
+            wb.views = [{ activeTab: 0, firstSheet: 0 }];   // เปิดไฟล์มาเจอตารางอ้างอิงก่อน
 
             // ── ตารางหลัก: ลำดับ | ชื่อ | กะ | (สำเร็จ/ปฏิเสธ/รวม ของแต่ละเว็บ) | รวมสำเร็จ | รวมปฏิเสธ | รวมทั้งสิ้น
             // [เปลี่ยน] ตารางอ้างอิง (ชื่อ / กะ / สรุปยอดแต่ละเว็บ) เดิมอยู่ขวาสุด ต้องเลื่อนขวาไกล → ย้ายลงไปอยู่ใต้ตารางหลัก เลื่อนขึ้น-ลงอย่างเดียว
@@ -198,7 +201,8 @@ window.exportSummaryToExcel = async function() {
             const SHIFT_ORDER = ['เช้า', 'กลาง', 'ดึก', 'อิสระ', 'all', 'UNKNOWN'];
             const shiftRank = (sh) => { const i = SHIFT_ORDER.indexOf(String(sh || 'UNKNOWN')); return i === -1 ? 99 : i; };
             const sortedEmps = Object.values(empGroups).sort((a, b) => shiftRank(a.shift) - shiftRank(b.shift) || b.totalApproved - a.totalApproved);
-            let rowIndex = 1;
+            // ลำดับนับใหม่ทุกกะ: เช้า 1,2,3… → ดึก 1,2,3…
+            const seqInShift = (() => { const c = {}; return (sh) => (c[sh] = (c[sh] || 0) + 1); })();
             sortedEmps.forEach((emp) => {
                 // 🌟 ต่อชื่อพนักงานด้วย (หลัก XXX) (รอง YYY) จาก duty assignment
                 let displayName = emp.name;
@@ -210,7 +214,7 @@ window.exportSummaryToExcel = async function() {
                     if (parts.length > 0) displayName = `${emp.name} (${parts.join(') (')})`;
                 }
 
-                let rowData = [ rowIndex++, displayName, emp.shift ];
+                let rowData = [ seqInShift(emp.shift), displayName, emp.shift ];
                 targetWebOrder.forEach(w => { rowData.push(emp.websData[w].approved); rowData.push(emp.websData[w].reject); rowData.push(emp.websData[w].total); });
                 rowData.push(emp.totalApproved); rowData.push(emp.totalReject); rowData.push(emp.grandTotal);
 
@@ -245,7 +249,6 @@ window.exportSummaryToExcel = async function() {
             // ── ตารางอ้างอิง (ย้ายมาไว้ใต้ตารางหลัก): ลำดับ | ชื่อพนักงาน | กะ | ยอดรวมของแต่ละเว็บ
             // [เปลี่ยน] ย้ายไปอยู่ชีตของตัวเอง "ตารางอ้างอิง" — เดิมอยู่ใต้ตารางหลักในชีตเดียวกัน
             //          เลื่อนลงไปถึงแล้วหัวตารางแรก (ที่ล็อคไว้) ยังค้างอยู่ด้านบน ทำให้งง · ชีตใหม่มีหัวตารางล็อคของตัวเอง
-            const ws2 = wb.addWorksheet('ตารางอ้างอิง');
             const refTitle = ws2.addRow(['ตารางอ้างอิง — ชื่อพนักงาน / กะ / ยอดรวมแต่ละเว็บ   ·   ' + titleDateStr]);
             const REF_TOT = 4 + targetWebOrder.length;   // คอลัมน์ "รวม" ท้ายตารางอ้างอิง
             ws2.mergeCells(refTitle.number, 1, refTitle.number, REF_TOT);
@@ -263,11 +266,12 @@ window.exportSummaryToExcel = async function() {
                 else { cell.fill = solid(headerColors[(colNumber - 4) % headerColors.length]); cell.font.color = { argb: 'FF0F172A' }; }
                 cell.border = { top: {style:'medium'}, bottom: {style:'medium'}, left: thin('FF94A3B8'), right: thin('FF94A3B8') };
             });
-            const refColTot = new Array(targetWebOrder.length).fill(0);   // ยอดรวมแต่ละเว็บ (แถวสรุปท้ายตาราง)
+            const refColTot = new Array(targetWebOrder.length).fill(0);
+            const refSeq = (() => { const c = {}; return (sh) => (c[sh] = (c[sh] || 0) + 1); })();   // ลำดับนับใหม่ทุกกะ   // ยอดรวมแต่ละเว็บ (แถวสรุปท้ายตาราง)
             sortedEmps.forEach((emp, i) => {
                 const webVals = targetWebOrder.map(w => emp.websData[w].total);
                 webVals.forEach((v, j) => { refColTot[j] += v; });
-                const r = ws2.addRow([i + 1, emp.name, emp.shift].concat(webVals, [webVals.reduce((a, b) => a + b, 0)]));
+                const r = ws2.addRow([refSeq(emp.shift), emp.name, emp.shift].concat(webVals, [webVals.reduce((a, b) => a + b, 0)]));
                 r.eachCell((cell, colNumber) => {
                     cell.alignment = { vertical: 'middle', horizontal: colNumber === 2 ? 'left' : 'center' };
                     cell.border = { top: thin('FFCBD5E1'), bottom: thin('FFCBD5E1'), left: thin('FFCBD5E1'), right: thin('FFCBD5E1') };
