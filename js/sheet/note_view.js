@@ -500,8 +500,97 @@ window.openNoteSheet = async function(sheet) {
   window.renderNoteTable();
 };
 
+window.NOTE_FONTS = [ {
+  id: '',
+  name: 'Sarabun',
+  tag: 'ค่าเริ่มต้น'
+}, {
+  id: 'Prompt',
+  name: 'Prompt'
+}, {
+  id: 'Kanit',
+  name: 'Kanit'
+}, {
+  id: 'Mitr',
+  name: 'Mitr'
+}, {
+  id: 'Noto Sans Thai',
+  name: 'Noto Sans Thai'
+}, {
+  id: 'IBM Plex Sans Thai',
+  name: 'IBM Plex Sans Thai'
+}, {
+  id: 'Anuphan',
+  name: 'Anuphan'
+}, {
+  id: 'Bai Jamjuree',
+  name: 'Bai Jamjuree'
+}, {
+  id: 'Chakra Petch',
+  name: 'Chakra Petch'
+}, {
+  id: 'Athiti',
+  name: 'Athiti'
+}, {
+  id: 'Krub',
+  name: 'Krub'
+}, {
+  id: 'Niramit',
+  name: 'Niramit'
+}, {
+  id: 'K2D',
+  name: 'K2D'
+}, {
+  id: 'Pridi',
+  name: 'Pridi',
+  tag: 'มีหัว'
+}, {
+  id: 'Taviraj',
+  name: 'Taviraj',
+  tag: 'มีหัว'
+}, {
+  id: 'Trirong',
+  name: 'Trirong',
+  tag: 'มีหัว'
+}, {
+  id: 'Itim',
+  name: 'Itim',
+  tag: 'ลายมือ'
+}, {
+  id: 'Mali',
+  name: 'Mali',
+  tag: 'ลายมือ'
+}, {
+  id: 'Sriracha',
+  name: 'Sriracha',
+  tag: 'ลายมือ'
+}, {
+  id: 'Charm',
+  name: 'Charm',
+  tag: 'ลายมือ'
+} ];
+
+window.noteFontOk = function(ff) {
+  return !!ff && window.NOTE_FONTS.some((f => f.id === ff));
+};
+
+window._noteFontsLoaded = window._noteFontsLoaded || {};
+
+window.noteEnsureFont = function(ff) {
+  if (!window.noteFontOk(ff) || window._noteFontsLoaded[ff]) return;
+  window._noteFontsLoaded[ff] = true;
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(ff).replace(/%20/g, '+')}:ital,wght@0,400;0,700;1,400;1,700&display=swap`;
+  document.head.appendChild(link);
+};
+
 window._noteCellStyle = function(c, editing) {
   const st = [ `background:${c.bg || '#ffffff'}`, `color:${c.fg || '#111827'}`, `font-size:${c.fs || window.NOTE_DEF_FS}px` ];
+  if (window.noteFontOk(c.ff)) {
+    window.noteEnsureFont(c.ff);
+    st.push(`font-family:'${c.ff}','Sarabun',system-ui,sans-serif`);
+  }
   if (c.i) st.push('font-style:italic');
   {
     const deco = [];

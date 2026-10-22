@@ -320,9 +320,56 @@ window.renderNoteEditor = function() {
     _nToast(isSingle ? 'วางข้อความหลายบรรทัดลงช่องเดียว เรียบร้อย' : `วางข้อมูล ${grid.length} แถว เรียบร้อย`);
   };
   window._noteUpdateSelInfo();
-  const fsSel = document.getElementById('noteFontSize');
+  window._noteSyncFontUI();
+};
+
+window._noteSyncFontUI = function() {
   const first = _nSelCells()[0];
-  if (fsSel) fsSel.value = String(first && first.c.fs || window.NOTE_DEF_FS);
+  const fsSel = document.getElementById('noteFontSize');
+  if (fsSel) {
+    const v = String(first && first.c.fs || window.NOTE_DEF_FS);
+    if (![ ...fsSel.options ].some((o => o.value === v))) {
+      const o = document.createElement('option');
+      o.value = v;
+      o.textContent = v;
+      o.dataset.extra = '1';
+      const nums = [ ...fsSel.options ].filter((x => /^\d+$/.test(x.value)));
+      const after = nums.find((x => +x.value > +v));
+      fsSel.insertBefore(o, after || fsSel.querySelector('option[value="custom"]'));
+    }
+    fsSel.value = v;
+  }
+  const ffSel = document.getElementById('noteFontFamily');
+  if (ffSel) ffSel.value = first && window.noteFontOk(first.c.ff) ? first.c.ff : '';
+};
+
+window.noteFontSizePick = async function(sel) {
+  if (sel.value !== 'custom') return window.noteCmd('fontSize', sel.value);
+  const cur = (_nSelCells()[0] || {}).c;
+  const {value: v} = await Swal.fire({
+    title: 'ขนาดตัวอักษร',
+    input: 'number',
+    inputValue: cur && cur.fs || window.NOTE_DEF_FS,
+    inputAttributes: {
+      min: 6,
+      max: 200,
+      step: 1
+    },
+    showCancelButton: true,
+    confirmButtonText: 'ใช้ขนาดนี้',
+    cancelButtonText: 'ยกเลิก',
+    inputValidator: x => {
+      const n = parseInt(x);
+      if (!n || n < 6 || n > 200) return 'ใส่ตัวเลข 6–200';
+    }
+  });
+  if (v) window.noteCmd('fontSize', String(parseInt(v)));
+  window._noteSyncFontUI();
+};
+
+window.noteFontFamilyPick = function(sel) {
+  if (sel.value) window.noteEnsureFont(sel.value);
+  window.noteCmd('fontFamily', sel.value);
 };
 
 window._noteUpdateSelInfo = function() {
@@ -341,9 +388,7 @@ window._notePaintSel = function() {
   const selSet = new Set(_nSelCells().map((o => `${o.r}:${o.x}`)));
   document.querySelectorAll('#noteTableWrap td[data-r]').forEach((td => td.classList.toggle('note-sel', selSet.has(`${td.dataset.r}:${td.dataset.x}`))));
   window._noteUpdateSelInfo();
-  const fsSel = document.getElementById('noteFontSize');
-  const first = _nSelCells()[0];
-  if (fsSel) fsSel.value = String(first && first.c.fs || window.NOTE_DEF_FS);
+  window._noteSyncFontUI();
 };
 
 const _tdRect = td => {
@@ -687,6 +732,7 @@ window.noteCmd = async function(cmd, val) {
       c.st = false;
       c.a = null;
       c.fs = null;
+      c.ff = null;
       c.bc = null;
       c.clip = false;
       c.bd = {
@@ -843,10 +889,14 @@ window.noteCmd = async function(cmd, val) {
 
    case 'fontSize':
     {
-      const n = parseInt(val);
-      each((c => c.fs = !n || n === window.NOTE_DEF_FS ? null : n));
+      const n = Math.max(6, Math.min(200, parseInt(val) || 0));
+      each((c => c.fs = !parseInt(val) || n === window.NOTE_DEF_FS ? null : n));
       break;
     }
+
+   case 'fontFamily':
+    each((c => c.ff = window.noteFontOk(val) ? val : null));
+    break;
 
    case 'border':
     {
@@ -931,6 +981,7 @@ window.noteCmd = async function(cmd, val) {
           st: c.st,
           a: c.a,
           fs: c.fs,
+          ff: c.ff,
           bd: {
             ...bdOf(c)
           },

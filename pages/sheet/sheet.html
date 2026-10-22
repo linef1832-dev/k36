@@ -140,6 +140,8 @@
     #noteToolbar .nt-btn .material-icons{font-size:19px}
     #noteToolbar .nt-lbl{font-size:12.5px;font-weight:800}
     #noteToolbar .nt-car{font-size:16px!important;margin-left:-2px;opacity:.7}
+    #noteToolbar .nt-ff{width:136px}
+    #noteToolbar #noteFontSize{width:66px}
     #noteToolbar .nt-sel{height:32px;padding:0 6px;border-radius:8px;background:var(--k-field);border:1px solid var(--k-line2);color:var(--k-tx-strong);font-size:12.5px;font-weight:800;outline:none;margin-right:2px}
     #noteToolbar .nt-col{flex-direction:column;gap:1px;padding-top:2px}
     #noteToolbar .nt-col .material-icons{font-size:17px}
@@ -158,7 +160,7 @@
     #noteToolbar .nt-mi.danger:hover{background:var(--k-red-bg)}
     #noteToolbar .nt-swb{width:24px;height:24px;border-radius:7px;border:1px solid var(--k-line3);cursor:pointer;display:inline-block}
     #noteToolbar .nt-swb:hover{outline:2px solid #E8C15A;outline-offset:1px}
-    #noteToolbar .nt-info{font-size:11.5px;font-weight:700;color:var(--k-mute);margin-left:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px}
+    #noteToolbar .nt-info{flex:1 1 0;min-width:0;font-size:11.5px;font-weight:700;color:var(--k-mute);margin-left:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right}
     #noteToolbar .nt-end{display:flex;gap:6px}
     #noteToolbar .nt-cancel{height:34px;padding:0 14px;border-radius:10px;font-size:13px;font-weight:800;background:var(--k-btn);border:1px solid var(--k-line3);color:var(--k-tx2)}
     #noteToolbar .nt-cancel:hover{background:var(--k-btn-h);color:var(--k-tx-strong)}
@@ -166,7 +168,8 @@
     #noteToolbar .nt-save:hover{filter:brightness(1.07)}
     #noteToolbar .nt-save .material-icons{font-size:17px}
     #noteToolbar .nt-palette{top:calc(100% + 6px)}
-    @media (max-width:900px){ #noteToolbar .nt-lbl{display:none} #noteToolbar .nt-info{display:none} #noteToolbar .nt-end{margin-left:auto} }
+    @media (max-width:1280px){ #noteToolbar .nt-lbl{display:none} }
+    @media (max-width:900px){ #noteToolbar .nt-info{display:none} #noteToolbar .nt-end{margin-left:auto} }
 </style>
 <div id="sheetApp" class="k-auto-light hidden fade-in flex flex-col h-full relative rounded-2xl overflow-hidden" style="height:calc(100vh - 2rem)">
     <div class="sh-head shrink-0">
@@ -308,9 +311,8 @@
                         <button onclick="noteCmd('redo')" title="ทำซ้ำ (Ctrl+Y)" class="nt-btn" aria-label="ทำซ้ำ"><span class="material-icons">redo</span></button>
                     </div>
                     <div class="nt-g">
-                        <select id="noteFontSize" onchange="noteCmd('fontSize', this.value)" title="ขนาดตัวอักษร" class="nt-sel" aria-label="ขนาดตัวอักษร">
-                            <option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14" selected>14</option><option value="16">16</option><option value="18">18</option><option value="20">20</option><option value="22">22</option><option value="24">24</option><option value="28">28</option><option value="32">32</option>
-                        </select>
+                        <select id="noteFontFamily" onchange="noteFontFamilyPick(this)" title="ฟอนต์" class="nt-sel nt-ff" aria-label="ฟอนต์"><optgroup label="ไม่มีหัว"><option value="">Sarabun</option><option value="Prompt">Prompt</option><option value="Kanit">Kanit</option><option value="Mitr">Mitr</option><option value="Noto Sans Thai">Noto Sans Thai</option><option value="IBM Plex Sans Thai">IBM Plex Sans Thai</option><option value="Anuphan">Anuphan</option><option value="Bai Jamjuree">Bai Jamjuree</option><option value="Chakra Petch">Chakra Petch</option><option value="Athiti">Athiti</option><option value="Krub">Krub</option><option value="Niramit">Niramit</option><option value="K2D">K2D</option></optgroup><optgroup label="มีหัว"><option value="Pridi">Pridi</option><option value="Taviraj">Taviraj</option><option value="Trirong">Trirong</option></optgroup><optgroup label="ลายมือ"><option value="Itim">Itim</option><option value="Mali">Mali</option><option value="Sriracha">Sriracha</option><option value="Charm">Charm</option></optgroup></select>
+                        <select id="noteFontSize" onchange="noteFontSizePick(this)" title="ขนาดตัวอักษร" class="nt-sel" aria-label="ขนาดตัวอักษร"><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14" selected>14</option><option value="15">15</option><option value="16">16</option><option value="18">18</option><option value="20">20</option><option value="22">22</option><option value="24">24</option><option value="26">26</option><option value="28">28</option><option value="30">30</option><option value="32">32</option><option value="36">36</option><option value="40">40</option><option value="44">44</option><option value="48">48</option><option value="54">54</option><option value="60">60</option><option value="72">72</option><option value="custom">อื่น ๆ…</option></select>
                         <button onclick="noteCmd('bold')" title="ตัวหนา (Ctrl+B)" class="nt-btn" style="font-weight:900">B</button>
                         <button onclick="noteCmd('italic')" title="ตัวเอียง (Ctrl+I)" class="nt-btn" style="font-style:italic;font-family:serif;font-weight:700">I</button>
                         <button onclick="noteCmd('underline')" title="ขีดเส้นใต้ (Ctrl+U)" class="nt-btn" style="text-decoration:underline;font-weight:700">U</button>
