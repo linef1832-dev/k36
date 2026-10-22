@@ -240,33 +240,54 @@ window.exportSummaryToExcel = async function() {
             // ── ตารางอ้างอิง (ย้ายมาไว้ใต้ตารางหลัก): ลำดับ | ชื่อพนักงาน | กะ | ยอดรวมของแต่ละเว็บ
             ws.addRow([]); ws.addRow([]);
             const refTitle = ws.addRow(['ตารางอ้างอิง — ชื่อพนักงาน / กะ / ยอดรวมแต่ละเว็บ']);
-            ws.mergeCells(refTitle.number, 1, refTitle.number, 3 + targetWebOrder.length);
+            const REF_TOT = 4 + targetWebOrder.length;   // คอลัมน์ "รวม" ท้ายตารางอ้างอิง
+            ws.mergeCells(refTitle.number, 1, refTitle.number, REF_TOT);
             refTitle.height = 24;
             refTitle.getCell(1).font = { size: 13, bold: true, color: { argb: 'FFFFFFFF' } };
             refTitle.getCell(1).fill = solid('FF1F2937');
             refTitle.getCell(1).alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
 
-            const refHead = ws.addRow(['ลำดับ', 'ชื่อพนักงาน (อ้างอิง)', 'กะ (อ้างอิง)'].concat(targetWebOrder.map(w => `${w} (สรุปยอด)`)));
+            const refHead = ws.addRow(['ลำดับ', 'ชื่อพนักงาน (อ้างอิง)', 'กะ (อ้างอิง)'].concat(targetWebOrder.map(w => `${w} (สรุปยอด)`), ['รวม (สรุปยอด)']));
             refHead.height = 25;
             refHead.eachCell((cell, colNumber) => {
                 cell.font = { bold: true }; cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
                 if (colNumber <= 3) { cell.fill = solid('FF1F2937'); cell.font.color = { argb: 'FFFFFFFF' }; }
+                else if (colNumber === REF_TOT) { cell.fill = solid('FFDC2626'); cell.font.color = { argb: 'FFFFFFFF' }; }   // หัวคอลัมน์รวม (แดงเหมือน "รวมทั้งสิ้น" ตารางบน)
                 else { cell.fill = solid(headerColors[(colNumber - 4) % headerColors.length]); cell.font.color = { argb: 'FF0F172A' }; }
                 cell.border = { top: {style:'medium'}, bottom: {style:'medium'}, left: thin('FF94A3B8'), right: thin('FF94A3B8') };
             });
+            const refColTot = new Array(targetWebOrder.length).fill(0);   // ยอดรวมแต่ละเว็บ (แถวสรุปท้ายตาราง)
             sortedEmps.forEach((emp, i) => {
-                const r = ws.addRow([i + 1, emp.name, emp.shift].concat(targetWebOrder.map(w => emp.websData[w].total)));
+                const webVals = targetWebOrder.map(w => emp.websData[w].total);
+                webVals.forEach((v, j) => { refColTot[j] += v; });
+                const r = ws.addRow([i + 1, emp.name, emp.shift].concat(webVals, [webVals.reduce((a, b) => a + b, 0)]));
                 r.eachCell((cell, colNumber) => {
                     cell.alignment = { vertical: 'middle', horizontal: colNumber === 2 ? 'left' : 'center' };
                     cell.border = { top: thin('FFCBD5E1'), bottom: thin('FFCBD5E1'), left: thin('FFCBD5E1'), right: thin('FFCBD5E1') };
                     if (colNumber === 2) cell.font = { bold: true };
                     else if (colNumber === 3) shiftCellStyle(cell);
+                    else if (colNumber === REF_TOT) { cell.fill = solid('FFFDE047'); cell.font = { bold: true, color: { argb: 'FF000000' } }; }   // รวมของคนนี้ (พื้นเหลืองเหมือนตารางบน)
                     else if (colNumber > 3) {
                         cell.fill = solid(dataBgColors[(colNumber - 4) % dataBgColors.length]);
                         cell.font = cell.value > 0 ? { color: { argb: 'FF2563EB' }, bold: true } : { color: { argb: 'FF94A3B8' } };
                     }
                 });
             });
+
+            // แถวสรุปท้ายตารางอ้างอิง: ยอดรวมแต่ละเว็บ + รวมทั้งหมด
+            {
+                const grand = refColTot.reduce((a, b) => a + b, 0);
+                const tr = ws.addRow(['', 'รวมทุกคน', ''].concat(refColTot, [grand]));
+                tr.height = 22;
+                tr.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+                    if (colNumber > REF_TOT) return;
+                    cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+                    cell.fill = solid('FF1F2937');
+                    cell.alignment = { vertical: 'middle', horizontal: colNumber === 2 ? 'left' : 'center' };
+                    cell.border = { top: {style:'medium'}, bottom: {style:'medium'}, left: thin('FF475569'), right: thin('FF475569') };
+                    if (colNumber === REF_TOT) { cell.fill = solid('FFDC2626'); }
+                });
+            }
 
             // ความกว้างคอลัมน์: ต้องพอทั้งตารางหลักและตารางอ้างอิงด้านล่าง
             for (let c = 1; c <= LASTCOL; c++) {
