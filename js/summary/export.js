@@ -200,18 +200,38 @@ window.exportSummaryToExcel = async function() {
             // [เปลี่ยน] เดิมเรียงตามยอดอย่างเดียว กะเลยสลับไปมาอ่านยาก
             const SHIFT_ORDER = ['เช้า', 'กลาง', 'ดึก', 'อิสระ', 'all', 'UNKNOWN'];
             const shiftRank = (sh) => { const i = SHIFT_ORDER.indexOf(String(sh || 'UNKNOWN')); return i === -1 ? 99 : i; };
-            const sortedEmps = Object.values(empGroups).sort((a, b) => shiftRank(a.shift) - shiftRank(b.shift) || b.totalApproved - a.totalApproved);
+            // แผนกจริงของแต่ละคน (จากรายชื่อพนักงาน) — แยกกลุ่ม OD / ODQL / ODTT / AM / AMQL ... ในกะเดียวกัน
+            const _uList = (typeof GLOBAL_USER_LIST !== 'undefined' && Array.isArray(GLOBAL_USER_LIST)) ? GLOBAL_USER_LIST : [];
+            const _uDept = {}; _uList.forEach(u => { if (u && u.username) _uDept[String(u.username).toLowerCase().trim()] = String(u.department || 'AM').toUpperCase().trim(); });
+            Object.values(empGroups).forEach(e => { e.dept = _uDept[String(e.name).toLowerCase().trim()] || 'ไม่ระบุแผนก'; });
+            // ลำดับแผนก: สาย AM ก่อน สาย OD · ในสายเดียวกัน แผนกหลัก (AM / OD) ก่อน แล้วค่อยแผนกย่อย (QL, TT ...) เรียงตามตัวอักษร
+            const deptRank = (d) => {
+                const pre = d.startsWith('AM') ? 0 : d.startsWith('OD') ? 1 : 2;
+                const base = (d === 'AM' || d === 'OD') ? 0 : 1;
+                return [pre, base, d];
+            };
+            const deptCmp = (a, b) => { const x = deptRank(a), y = deptRank(b); return x[0] - y[0] || x[1] - y[1] || x[2].localeCompare(y[2]); };
+            const sortedEmps = Object.values(empGroups).sort((a, b) => shiftRank(a.shift) - shiftRank(b.shift) || deptCmp(a.dept, b.dept) || b.totalApproved - a.totalApproved);
+            const groupKey = (e) => `${e.shift}|${e.dept}`;
+            const groupCount = {}; sortedEmps.forEach(e => { groupCount[groupKey(e)] = (groupCount[groupKey(e)] || 0) + 1; });
+            const shiftLabel = (sh) => sh === 'UNKNOWN' ? 'ไม่ระบุกะ' : (sh === 'all' || sh === 'อิสระ') ? 'กะอิสระ' : 'กะ' + sh;
             // ลำดับนับใหม่ทุกกะ: เช้า 1,2,3… → ดึก 1,2,3…
-            const seqInShift = (() => { const c = {}; return (sh) => (c[sh] = (c[sh] || 0) + 1); })();
+            const seqInShift = (() => { const c = {}; return (k) => (c[k] = (c[k] || 0) + 1); })();   // ลำดับนับใหม่ทุกกลุ่ม (กะ+แผนก)
             // แถบดำคั่นระหว่างกะ (เช้า | ดึก ...) แยกด้วยตาง่าย
-            const addShiftDivider = (sheet, lastCol) => {
-                const row = sheet.addRow([]); row.height = 7;
+            // แถบดำคั่นทุกกลุ่ม (เปลี่ยนกะ หรือเปลี่ยนแผนก) พร้อมป้ายเล็ก ๆ บอกว่ากลุ่มอะไร — แยกด้วยตาง่าย และตรวจได้ว่าแยกถูก
+            const addShiftDivider = (sheet, lastCol, emp) => {
+                const row = sheet.addRow([]); row.height = 15;
                 for (let c = 1; c <= lastCol; c++) row.getCell(c).fill = solid('FF000000');
+                const k = groupKey(emp);
+                const cell = row.getCell(2);
+                cell.value = `${shiftLabel(emp.shift)} · ${emp.dept} · ${groupCount[k]} คน`;
+                cell.font = { size: 9, bold: true, color: { argb: 'FFFDE047' } };
+                cell.alignment = { vertical: 'middle', horizontal: 'left' };
             };
             let prevShiftMain = null;
             sortedEmps.forEach((emp) => {
-                if (prevShiftMain !== null && prevShiftMain !== emp.shift) addShiftDivider(ws, LASTCOL);
-                prevShiftMain = emp.shift;
+                if (prevShiftMain !== groupKey(emp)) addShiftDivider(ws, LASTCOL, emp);
+                prevShiftMain = groupKey(emp);
                 // 🌟 ต่อชื่อพนักงานด้วย (หลัก XXX) (รอง YYY) จาก duty assignment
                 let displayName = emp.name;
                 const dutyInfo = dutyAssignmentMap[emp.name.toLowerCase()];
@@ -222,7 +242,7 @@ window.exportSummaryToExcel = async function() {
                     if (parts.length > 0) displayName = `${emp.name} (${parts.join(') (')})`;
                 }
 
-                let rowData = [ seqInShift(emp.shift), displayName, emp.shift ];
+                let rowData = [ seqInShift(groupKey(emp)), displayName, emp.shift ];
                 targetWebOrder.forEach(w => { rowData.push(emp.websData[w].approved); rowData.push(emp.websData[w].reject); rowData.push(emp.websData[w].total); });
                 rowData.push(emp.totalApproved); rowData.push(emp.totalReject); rowData.push(emp.grandTotal);
 
@@ -275,14 +295,14 @@ window.exportSummaryToExcel = async function() {
                 cell.border = { top: {style:'medium'}, bottom: {style:'medium'}, left: thin('FF94A3B8'), right: thin('FF94A3B8') };
             });
             const refColTot = new Array(targetWebOrder.length).fill(0);
-            const refSeq = (() => { const c = {}; return (sh) => (c[sh] = (c[sh] || 0) + 1); })();   // ลำดับนับใหม่ทุกกะ   // ยอดรวมแต่ละเว็บ (แถวสรุปท้ายตาราง)
+            const refSeq = (() => { const c = {}; return (k) => (c[k] = (c[k] || 0) + 1); })();   // ลำดับนับใหม่ทุกกะ   // ยอดรวมแต่ละเว็บ (แถวสรุปท้ายตาราง)
             let prevShiftRef = null;
             sortedEmps.forEach((emp, i) => {
-                if (prevShiftRef !== null && prevShiftRef !== emp.shift) addShiftDivider(ws2, REF_TOT);
-                prevShiftRef = emp.shift;
+                if (prevShiftRef !== groupKey(emp)) addShiftDivider(ws2, REF_TOT, emp);
+                prevShiftRef = groupKey(emp);
                 const webVals = targetWebOrder.map(w => emp.websData[w].total);
                 webVals.forEach((v, j) => { refColTot[j] += v; });
-                const r = ws2.addRow([refSeq(emp.shift), emp.name, emp.shift].concat(webVals, [webVals.reduce((a, b) => a + b, 0)]));
+                const r = ws2.addRow([refSeq(groupKey(emp)), emp.name, emp.shift].concat(webVals, [webVals.reduce((a, b) => a + b, 0)]));
                 r.eachCell((cell, colNumber) => {
                     cell.alignment = { vertical: 'middle', horizontal: colNumber === 2 ? 'left' : 'center' };
                     cell.border = { top: thin('FFCBD5E1'), bottom: thin('FFCBD5E1'), left: thin('FFCBD5E1'), right: thin('FFCBD5E1') };
