@@ -1,479 +1,425 @@
-// ════════════════════════════════════════════════════════════════════
-// 📦 withdrawal_report/stats.js — ส่วนที่ 1/2 ของสถิติเคส+บอทถอน (แยกจาก withdrawal_report.js เดิม 820 บรรทัด)
-// เนื้อหา: สถิติเคสพนักงาน: โหลด/วาดตาราง/กรอง
-// ⚠️ ลำดับโหลด: withdrawal_report/stats → withdrawal_report/bot (ห้ามสลับ — ตัวแปร top-level แชร์ scope เดียวกัน)
-// ════════════════════════════════════════════════════════════════════
-// ==========================================
-// 📊 สถิติเคสพนักงาน + บอท Telegram Settings
-// ==========================================
+let _caseData = [];
 
-let _caseData       = [];
-let _casePage       = 1;
+let _casePage = 1;
+
 const _casePageSize = 50;
-let _caseDate       = null;
-let _caseSite       = 'ALL';
-let _caseType       = 'ALL';
-let _caseTab        = 'stats';
 
-// ─── Init ─────────────────────────────────
+let _caseDate = null;
+
+let _caseSite = 'ALL';
+
+let _caseType = 'ALL';
+
+let _caseTab = 'stats';
+
 window.initWithdrawalReport = async function() {
-    _casePage = 1;
-    _activeTypeFilter  = 'ALL';
-    _activeShiftFilter = 'ALL';
-    _caseDate = null; // reset เป็นวันนี้เมื่อเข้าหน้าใหม่
-    _setDefaultDate();
-    await _loadShiftMap();
-    await _loadBotStatus();
-    await _loadCaseData();
-    _subscribeRealtimeCases();
+  _casePage = 1;
+  _activeTypeFilter = 'ALL';
+  _activeShiftFilter = 'ALL';
+  _caseDate = null;
+  _setDefaultDate();
+  await _loadShiftMap();
+  await _loadBotStatus();
+  await _loadCaseData();
+  _subscribeRealtimeCases();
 };
+
 window.initCaseReport = window.initWithdrawalReport;
 
-// ─── Realtime: รับข้อมูลใหม่อัตโนมัติ ────
 let _realtimeCaseSub = null;
-function _subscribeRealtimeCases() {
-    if (!appDB) return;
-    if (_realtimeCaseSub) {
-        try { appDB.removeChannel(_realtimeCaseSub); } catch(e) {}
-    }
-    _realtimeCaseSub = appDB.channel('tg-case-realtime')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tg_case_logs' }, () => {
-            _setDefaultDate(); // อัปเดตวันที่วันนี้ก่อน
-            _loadCaseData();
-            if (_caseTab === 'summary') loadSummary();
-        })
-        .subscribe();
 
-    if (typeof window.registerPageSubscription === 'function') {
-        window.registerPageSubscription(_realtimeCaseSub);
-    }
+function _subscribeRealtimeCases() {
+  if (!appDB) return;
+  if (_realtimeCaseSub) {
+    try {
+      appDB.removeChannel(_realtimeCaseSub);
+    } catch (e) {}
+  }
+  _realtimeCaseSub = appDB.channel('tg-case-realtime').on('postgres_changes', {
+    event: 'INSERT',
+    schema: 'public',
+    table: 'tg_case_logs'
+  }, (() => {
+    _setDefaultDate();
+    _loadCaseData();
+    if (_caseTab === 'summary') loadSummary();
+  })).subscribe();
+  if (typeof window.registerPageSubscription === 'function') {
+    window.registerPageSubscription(_realtimeCaseSub);
+  }
 }
 
-// ─── Tab Switch ───────────────────────────
 const _TAB_COLORS = {
-    stats:    { active: '#4f46e5', shadow: 'rgba(79,70,229,0.4)',   perm: 'withdrawal_report_stats'   },
-    summary:  { active: '#7c3aed', shadow: 'rgba(124,58,237,0.4)', perm: 'withdrawal_report_summary' },
-    log:      { active: '#0369a1', shadow: 'rgba(3,105,161,0.4)',   perm: 'withdrawal_report_log'     },
-    settings: { active: '#047857', shadow: 'rgba(4,120,87,0.4)',    perm: 'withdrawal_report_bot'     },
+  stats: {
+    active: '#4f46e5',
+    shadow: 'rgba(79,70,229,0.4)',
+    perm: 'withdrawal_report_stats'
+  },
+  summary: {
+    active: '#7c3aed',
+    shadow: 'rgba(124,58,237,0.4)',
+    perm: 'withdrawal_report_summary'
+  },
+  log: {
+    active: '#0369a1',
+    shadow: 'rgba(3,105,161,0.4)',
+    perm: 'withdrawal_report_log'
+  },
+  settings: {
+    active: '#047857',
+    shadow: 'rgba(4,120,87,0.4)',
+    perm: 'withdrawal_report_bot'
+  }
 };
 
 function _canViewTab(tab) {
-
-    // คุมด้วยสิทธิ์อย่างเดียว ไม่ดู role
-    const cfg = _TAB_COLORS[tab];
-    if (!cfg?.perm) return true;
-    if (typeof window.hasUserPerm === 'function') return window.hasUserPerm(cfg.perm);
-    return false;
+  const cfg = _TAB_COLORS[tab];
+  if (!cfg?.perm) return true;
+  if (typeof window.hasUserPerm === 'function') return window.hasUserPerm(cfg.perm);
+  return false;
 }
 
 window.switchCaseTab = function(tab) {
-    if (!_canViewTab(tab)) {
-        Swal.fire({ icon:'warning', title:'ไม่มีสิทธิ์', text:'คุณไม่มีสิทธิ์เข้าถึงแท็บนี้', timer:2000, showConfirmButton:false });
-        return;
-    }
-    _caseTab = tab;
-    ['stats','summary','log','settings'].forEach(t => {
-        const el  = document.getElementById(`caseTab-${t}`);
-        const btn = document.getElementById(`tab-${t}`);
-        if (!el || !btn) return;
-        el.classList.toggle('hidden', t !== tab);
-        const cfg = _TAB_COLORS[t] || {};
-        const canView = _canViewTab(t);
-        if (t === tab) {
-            btn.style.background  = cfg.active || '#4f46e5';
-            btn.style.color       = '#fff';
-            btn.style.boxShadow   = `0 2px 10px ${cfg.shadow||'rgba(79,70,229,0.4)'}`;
-            btn.style.opacity     = '1';
-        } else {
-            btn.style.background  = 'rgba(124,58,237,0.12)';
-            btn.style.color       = canView ? '#a78bfa' : '#4b5563';
-            btn.style.boxShadow   = 'none';
-            btn.style.opacity     = canView ? '1' : '0.4';
-            btn.title             = canView ? '' : 'ไม่มีสิทธิ์เข้าถึง';
-        }
+  if (!_canViewTab(tab)) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'ไม่มีสิทธิ์',
+      text: 'คุณไม่มีสิทธิ์เข้าถึงแท็บนี้',
+      timer: 2e3,
+      showConfirmButton: false
     });
-    if (tab === 'summary') loadSummary();
+    return;
+  }
+  _caseTab = tab;
+  [ 'stats', 'summary', 'log', 'settings' ].forEach((t => {
+    const el = document.getElementById(`caseTab-${t}`);
+    const btn = document.getElementById(`tab-${t}`);
+    if (!el || !btn) return;
+    el.classList.toggle('hidden', t !== tab);
+    const cfg = _TAB_COLORS[t] || {};
+    const canView = _canViewTab(t);
+    if (t === tab) {
+      btn.style.background = cfg.active || '#4f46e5';
+      btn.style.color = '#fff';
+      btn.style.boxShadow = `0 2px 10px ${cfg.shadow || 'rgba(79,70,229,0.4)'}`;
+      btn.style.opacity = '1';
+    } else {
+      btn.style.background = 'rgba(124,58,237,0.12)';
+      btn.style.color = canView ? '#a78bfa' : '#4b5563';
+      btn.style.boxShadow = 'none';
+      btn.style.opacity = canView ? '1' : '0.4';
+      btn.title = canView ? '' : 'ไม่มีสิทธิ์เข้าถึง';
+    }
+  }));
+  if (tab === 'summary') loadSummary();
 };
 
-// ─── Date helpers ─────────────────────────
 function _setDefaultDate() {
-    // วันที่ = วันนี้เสมอ (TH timezone)
-    const th  = new Date(Date.now() + 7*60*60*1000);
-    _caseDate = th.toISOString().slice(0,10);
-    // set hidden picker
-    const picker = document.getElementById('caseDatePicker');
-    if (picker) picker.value = _caseDate;
-    // แสดง label วันที่
-    const label = document.getElementById('caseTodayLabel');
-    if (label) {
-        const d = new Date(_caseDate);
-        label.textContent = `📅 วันที่ ${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()+543}`;
-    }
+  const th = new Date(Date.now() + 7 * 60 * 60 * 1e3);
+  _caseDate = th.toISOString().slice(0, 10);
+  const picker = document.getElementById('caseDatePicker');
+  if (picker) picker.value = _caseDate;
+  const label = document.getElementById('caseTodayLabel');
+  if (label) {
+    const d = new Date(_caseDate);
+    label.textContent = `📅 วันที่ ${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear() + 543}`;
+  }
 }
+
 window.setCaseDateToday = function() {
-    const th  = new Date(Date.now() + 7*60*60*1000);
-    _caseDate = th.toISOString().slice(0,10);
-    const picker = document.getElementById('caseDatePicker');
-    if (picker) picker.value = _caseDate;
-    _loadCaseData();
-};
-window.applyFilters = function() {
-    _caseSite = document.getElementById('caseSiteFilter').value;
-    _caseType = document.getElementById('caseTypeFilter').value;
-    _casePage = 1;
-    _loadCaseData();
+  const th = new Date(Date.now() + 7 * 60 * 60 * 1e3);
+  _caseDate = th.toISOString().slice(0, 10);
+  const picker = document.getElementById('caseDatePicker');
+  if (picker) picker.value = _caseDate;
+  _loadCaseData();
 };
 
-// ─── โหลดข้อมูลเคส ────────────────────────
+window.applyFilters = function() {
+  _caseSite = document.getElementById('caseSiteFilter').value;
+  _caseType = document.getElementById('caseTypeFilter').value;
+  _casePage = 1;
+  _loadCaseData();
+};
+
 async function _loadCaseData() {
-    const grid    = document.getElementById('caseStaffGrid');
-    const logBody = document.getElementById('caseLogBody');
-    if (grid)    grid.innerHTML    = `<div class="col-span-full text-center py-8"><span class="material-icons animate-spin text-violet-400 text-3xl">sync</span></div>`;
-    if (logBody) logBody.innerHTML = `<tr><td colspan="7" class="text-center py-8"><span class="material-icons animate-spin text-violet-400 text-2xl">sync</span></td></tr>`;
-    try {
-        let q = appDB.from('tg_case_logs').select('*')
-            .eq('msg_date', _caseDate)
-            .order('created_at', { ascending: false });
-        if (_caseSite !== 'ALL') q = q.eq('site', _caseSite);
-        if (_caseType !== 'ALL') q = q.eq('case_type', _caseType);
-        const { data, error } = await q;
-        if (error) throw error;
-        _caseData = data || [];
-        _renderSummary();
-        _renderStaffGrid();
-        _renderLogTable();
-    } catch(e) {
-        // ล้าง spinner เสมอ แม้จะ error
-        if (grid)    grid.innerHTML    = `<div class="col-span-full text-center py-8 text-red-400"><span class="material-icons text-3xl">error_outline</span><p class="mt-2 text-sm">โหลดข้อมูลไม่สำเร็จ: ${e.message}</p></div>`;
-        if (logBody) logBody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-red-400">Error: ${e.message}</td></tr>`;
-    }
+  const grid = document.getElementById('caseStaffGrid');
+  const logBody = document.getElementById('caseLogBody');
+  if (grid) grid.innerHTML = `<div class="col-span-full text-center py-8"><span class="material-icons animate-spin text-violet-400 text-3xl">sync</span></div>`;
+  if (logBody) logBody.innerHTML = `<tr><td colspan="7" class="text-center py-8"><span class="material-icons animate-spin text-violet-400 text-2xl">sync</span></td></tr>`;
+  try {
+    let q = appDB.from('tg_case_logs').select('*').eq('msg_date', _caseDate).order('created_at', {
+      ascending: false
+    });
+    if (_caseSite !== 'ALL') q = q.eq('site', _caseSite);
+    if (_caseType !== 'ALL') q = q.eq('case_type', _caseType);
+    const {data: data, error: error} = await q;
+    if (error) throw error;
+    _caseData = data || [];
+    _renderSummary();
+    _renderStaffGrid();
+    _renderLogTable();
+  } catch (e) {
+    if (grid) grid.innerHTML = `<div class="col-span-full text-center py-8 text-red-400"><span class="material-icons text-3xl">error_outline</span><p class="mt-2 text-sm">โหลดข้อมูลไม่สำเร็จ: ${e.message}</p></div>`;
+    if (logBody) logBody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-red-400">Error: ${e.message}</td></tr>`;
+  }
 }
 
-// ─── Summary Cards ─────────────────────────
-
-// ─── helper: จัดกลุ่มประเภทเคส ────────────
 function _caseGroup(d) {
-    const t   = (d.case_type || '').toLowerCase();
-    const msg = (d.message_text || '').toLowerCase();
-    const qt  = (d.quoted_text  || '').toLowerCase();
-    const combined = t + ' ' + msg + ' ' + qt;
-
-    // เช็คเทิร์น / ลบเทิร์น / ล้างเทิร์น
-    if (/เช็คเทิร์|เช็คเทิน|ลบเทิร์|ลบเทิน|ล้างเทิร์|ล้างเทิน|เช็คเทิร|ลบเทิร|ล้างเทิร/.test(combined)) return 'เช็ค';
-    // ปลดบล็อค
-    if (/ปลดบล็อค|ปลดบล็อก|ปลด/.test(combined)) return 'ปลด';
-    return 'other';
+  const t = (d.case_type || '').toLowerCase();
+  const msg = (d.message_text || '').toLowerCase();
+  const qt = (d.quoted_text || '').toLowerCase();
+  const combined = t + ' ' + msg + ' ' + qt;
+  if (/เช็คเทิร์|เช็คเทิน|ลบเทิร์|ลบเทิน|ล้างเทิร์|ล้างเทิน|เช็คเทิร|ลบเทิร|ล้างเทิร/.test(combined)) return 'เช็ค';
+  if (/ปลดบล็อค|ปลดบล็อก|ปลด/.test(combined)) return 'ปลด';
+  return 'other';
 }
 
 function _renderSummary() {
-    const total = _caseData.length;
-    const del   = 0;
-    const chk   = _caseData.filter(d => _caseGroup(d) === 'เช็ค').length;
-    const unb   = _caseData.filter(d => _caseGroup(d) === 'ปลด').length;
-    const other = _caseData.filter(d => _caseGroup(d) === 'other').length;
-    document.getElementById('caseTotal').textContent      = total.toLocaleString();
-    document.getElementById('caseDeleteTurn').textContent = del.toLocaleString();
-    document.getElementById('caseCheckTurn').textContent  = chk.toLocaleString();
-    document.getElementById('caseUnblock').textContent    = unb.toLocaleString();
-    const otherEl = document.getElementById('caseOther');
-    if (otherEl) otherEl.textContent = other.toLocaleString();
-    _updateCardActiveStyle();
+  const total = _caseData.length;
+  const del = 0;
+  const chk = _caseData.filter((d => _caseGroup(d) === 'เช็ค')).length;
+  const unb = _caseData.filter((d => _caseGroup(d) === 'ปลด')).length;
+  const other = _caseData.filter((d => _caseGroup(d) === 'other')).length;
+  document.getElementById('caseTotal').textContent = total.toLocaleString();
+  document.getElementById('caseDeleteTurn').textContent = del.toLocaleString();
+  document.getElementById('caseCheckTurn').textContent = chk.toLocaleString();
+  document.getElementById('caseUnblock').textContent = unb.toLocaleString();
+  const otherEl = document.getElementById('caseOther');
+  if (otherEl) otherEl.textContent = other.toLocaleString();
+  _updateCardActiveStyle();
 }
 
 let _activeTypeFilter = 'ALL';
 
 function _updateCardActiveStyle() {
-    [['cardAll','ALL'],['cardChk','เช็ค'],['cardUnb','ปลด'],['cardOther','other']].forEach(([id,k]) => {
-        const el = document.getElementById(id);
-        if (!el) return;
-        el.style.outline = (_activeTypeFilter === k) ? '2px solid #fff' : 'none';
-        el.style.opacity = (_activeTypeFilter === 'ALL' || _activeTypeFilter === k) ? '1' : '0.5';
-        el.style.cursor  = 'pointer';
-    });
+  [ [ 'cardAll', 'ALL' ], [ 'cardChk', 'เช็ค' ], [ 'cardUnb', 'ปลด' ], [ 'cardOther', 'other' ] ].forEach((([id, k]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.outline = _activeTypeFilter === k ? '2px solid #fff' : 'none';
+    el.style.opacity = _activeTypeFilter === 'ALL' || _activeTypeFilter === k ? '1' : '0.5';
+    el.style.cursor = 'pointer';
+  }));
 }
 
 window.filterByType = function(type) {
-    _activeTypeFilter = (_activeTypeFilter === type) ? 'ALL' : type;
-    _updateCardActiveStyle();
-    _renderStaffGrid();
+  _activeTypeFilter = _activeTypeFilter === type ? 'ALL' : type;
+  _updateCardActiveStyle();
+  _renderStaffGrid();
 };
 
-// ─── Staff Grid ─────────────────────────────
 function _getShift(name, fullName, shiftMap) {
-    // 1. ดึงจาก shiftMap (users table) ก่อน
-    if (shiftMap && shiftMap[name]) return shiftMap[name];
-    // 2. fallback ดึงจากชื่อเต็ม
-    const src = fullName || name || '';
-    if (/08.00-20.00|08:00-20:00/i.test(src)) return 'กะเช้า';
-    if (/20.00-08.00|20:00-08:00/i.test(src)) return 'กะดึก';
-    return 'ไม่ระบุ';
+  if (shiftMap && shiftMap[name]) return shiftMap[name];
+  const src = fullName || name || '';
+  if (/08.00-20.00|08:00-20:00/i.test(src)) return 'กะเช้า';
+  if (/20.00-08.00|20:00-08:00/i.test(src)) return 'กะดึก';
+  return 'ไม่ระบุ';
 }
 
-let _shiftMap = {}; // { sender_name: 'กะเช้า'|'กะดึก' }
+let _shiftMap = {};
 
 async function _loadShiftMap() {
-    try {
-        // 🗃️ ใช้รายชื่อจาก cache กลาง (มีครบทุก field อยู่แล้ว) แทนยิง query แยกอีกรอบ
-        const data = await window.getUsersCached();
-        _shiftMap = {};
-        (data||[]).forEach(u => {
-            if (u.username && u.allowed_shift) {
-                _shiftMap[u.username] = u.allowed_shift;
-            }
-        });
-    } catch(e) { console.warn('loadShiftMap:', e); }
+  try {
+    const data = await window.getUsersCached();
+    _shiftMap = {};
+    (data || []).forEach((u => {
+      if (u.username && u.allowed_shift) {
+        _shiftMap[u.username] = u.allowed_shift;
+      }
+    }));
+  } catch (e) {
+    console.warn('loadShiftMap:', e);
+  }
 }
 
 let _activeShiftFilter = 'ALL';
 
 window.filterByShift = function(shift) {
-    _activeShiftFilter = (_activeShiftFilter === shift) ? 'ALL' : shift;
-    // อัปเดต UI ปุ่มกะ
-    ['ALL','กะเช้า','กะดึก','ไม่ระบุ'].forEach(s => {
-        const el = document.getElementById('shiftBtn-'+s);
-        if (!el) return;
-        el.style.background  = (_activeShiftFilter === s) ? '#7c3aed' : 'rgba(124,58,237,0.15)';
-        el.style.color       = (_activeShiftFilter === s) ? '#fff' : 'light-dark(#6d28d9,#a78bfa)';   // โหมดสว่างใช้ม่วงเข้มให้อ่านออก
-        el.style.borderColor = (_activeShiftFilter === s) ? '#7c3aed' : 'rgba(124,58,237,0.3)';
-    });
-    _renderStaffGrid();
+  _activeShiftFilter = _activeShiftFilter === shift ? 'ALL' : shift;
+  [ 'ALL', 'กะเช้า', 'กะดึก', 'ไม่ระบุ' ].forEach((s => {
+    const el = document.getElementById('shiftBtn-' + s);
+    if (!el) return;
+    el.style.background = _activeShiftFilter === s ? '#7c3aed' : 'rgba(124,58,237,0.15)';
+    el.style.color = _activeShiftFilter === s ? '#fff' : 'light-dark(#6d28d9,#a78bfa)';
+    el.style.borderColor = _activeShiftFilter === s ? '#7c3aed' : 'rgba(124,58,237,0.3)';
+  }));
+  _renderStaffGrid();
 };
 
 function _renderStaffGrid() {
-    const counts = {};
-    _caseData.forEach(d => {
-        const k     = d.sender_name;
-        const t     = d.case_type||'';
-        const shift = _getShift(k, d.full_name, _shiftMap);
-
-        // กรองตามประเภท
-        const matchType =
-            _activeTypeFilter === 'ALL' ||
-            (_activeTypeFilter === 'ลบ'    && t.includes('ลบ')) ||
-            (_activeTypeFilter === 'เช็ค'  && _caseGroup(d) === 'เช็ค') ||
-            (_activeTypeFilter === 'ปลด'   && _caseGroup(d) === 'ปลด') ||
-            (_activeTypeFilter === 'other' && _caseGroup(d) === 'other');
-        // กรองตามกะ
-        const matchShift = _activeShiftFilter === 'ALL' || shift === _activeShiftFilter;
-
-        if (!matchType || !matchShift) return;
-
-        if (!counts[k]) counts[k] = { total:0, ลบ:0, เช็ค:0, ปลด:0, reply:0, sites:{}, shift, fullName: d.full_name||'' };
-        counts[k].total++;
-        const grp = _caseGroup(d);
-        if (grp === 'เช็ค') counts[k].เช็ค++;
-        else if (t.includes('ปลด'))  counts[k].ปลด++;
-        else                          counts[k].reply++;
-        const site = d.site||'OTHER';
-        counts[k].sites[site] = (counts[k].sites[site]||0) + 1;
-    });
-    window._staffCounts = counts;
-    _renderStaffCards(counts, document.querySelector('input[oninput*="searchStaff"]')?.value||'');
+  const counts = {};
+  _caseData.forEach((d => {
+    const k = d.sender_name;
+    const t = d.case_type || '';
+    const shift = _getShift(k, d.full_name, _shiftMap);
+    const matchType = _activeTypeFilter === 'ALL' || _activeTypeFilter === 'ลบ' && t.includes('ลบ') || _activeTypeFilter === 'เช็ค' && _caseGroup(d) === 'เช็ค' || _activeTypeFilter === 'ปลด' && _caseGroup(d) === 'ปลด' || _activeTypeFilter === 'other' && _caseGroup(d) === 'other';
+    const matchShift = _activeShiftFilter === 'ALL' || shift === _activeShiftFilter;
+    if (!matchType || !matchShift) return;
+    if (!counts[k]) counts[k] = {
+      total: 0,
+      "ลบ": 0,
+      "เช็ค": 0,
+      "ปลด": 0,
+      reply: 0,
+      sites: {},
+      shift: shift,
+      fullName: d.full_name || ''
+    };
+    counts[k].total++;
+    const grp = _caseGroup(d);
+    if (grp === 'เช็ค') counts[k].เช็ค++; else if (t.includes('ปลด')) counts[k].ปลด++; else counts[k].reply++;
+    const site = d.site || 'OTHER';
+    counts[k].sites[site] = (counts[k].sites[site] || 0) + 1;
+  }));
+  window._staffCounts = counts;
+  _renderStaffCards(counts, document.querySelector('input[oninput*="searchStaff"]')?.value || '');
 }
 
 function _renderStaffCards(counts, search) {
-    const grid   = document.getElementById('caseStaffGrid');
-    if (!grid) return;
-    const sorted = Object.entries(counts)
-        .filter(([name]) => !search || name.toLowerCase().includes(search.toLowerCase()))
-        .filter(([,c]) => c.total > 0)
-        .sort((a,b) => b[1].total - a[1].total);
-
-    if (sorted.length === 0) {
-        grid.innerHTML = `<div class="col-span-full text-center py-10 text-gray-400">
-            <span class="material-icons text-4xl">inbox</span>
-            <p class="mt-2 text-sm">${search ? 'ไม่พบชื่อที่ค้นหา' : 'ไม่พบข้อมูล'}</p></div>`;
-        return;
-    }
-    const max    = sorted[0][1].total || 1;
-    const medals = ['🥇','🥈','🥉'];
-
-    // 🛡️ [XSS] name/site มาจากข้อมูล Telegram (คนนอก) — escape ก่อน render
-    const esc = window.escapeHtml, escA = window.escapeAttr;
-    grid.innerHTML = sorted.map(([name, c], i) => {
-        const pct   = Math.round((c.total/max)*100);
-        const mdl   = medals[i] || `#${i+1}`;
-        const ring  = i===0 ? 'outline:2px solid #facc15;' : '';
-        const shift = c.shift || _getShift(name, c.fullName, _shiftMap);
-        const shiftColor = shift==='กะเช้า' ? '#fbbf24' : shift==='กะดึก' ? '#818cf8' : '#64748b';
-        const shiftIcon  = shift==='กะเช้า' ? '🌅' : shift==='กะดึก' ? '🌙' : '❓';
-
-        const typeTags = [
-            c.เช็ค  ? `<span style="background:rgba(16,185,129,0.2);color:var(--k-green-tx);padding:2px 7px;border-radius:999px;font-size:11px;font-weight:700;">เช็ค/ลบ/ล้าง ${c.เช็ค}</span>`:'',
-            c.ปลด   ? `<span style="background:rgba(245,158,11,0.2);color:var(--k-amber-tx);padding:2px 7px;border-radius:999px;font-size:11px;font-weight:700;">ปลด ${c.ปลด}</span>`:'',
-            c.reply ? `<span style="background:rgba(100,116,139,0.2);color:var(--k-tx3);padding:2px 7px;border-radius:999px;font-size:11px;font-weight:700;">อื่นๆ ${c.reply}</span>`:'',
-        ].filter(Boolean).join('');
-
-        const siteTags = Object.entries(c.sites).sort((a,b)=>b[1]-a[1])
-            .map(([s,n]) => `<span style="background:rgba(14,165,233,0.15);color:light-dark(#0676a8,#38bdf8);padding:2px 6px;border-radius:999px;font-size:10px;font-weight:700;">${esc(s)}×${n}</span>`)
-            .join('');
-
-        const displayName = (()=>{ const m = name.match(/^[^-]+-([^-]+)-/); return m ? m[1] : name; })();
-        return `
-        <div onclick="openStaffDetail(this.dataset.name)" data-name="${escA(name)}"
-             style="cursor:pointer;background:var(--k-card);border-radius:12px;padding:16px;border:1px solid var(--k-line2);transition:all .15s;${ring}"
-             onmouseover="this.style.background='#263548';this.style.borderColor='#7c3aed'"
-             onmouseout="this.style.background='#1e293b';this.style.borderColor='#334155'">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-                <div style="display:flex;align-items:center;gap:8px;min-width:0;">
-                    <span style="font-size:20px;flex-shrink:0;">${mdl}</span>
-                    <span style="font-weight:700;color:var(--k-tx);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escA(name)}">${esc(displayName)}</span>
-                </div>
-                <span style="font-size:24px;font-weight:900;color:light-dark(#2f07a6,#a78bfa);flex-shrink:0;">${c.total}</span>
-            </div>
-            <div style="margin-bottom:8px;">
-                <span style="font-size:11px;font-weight:700;color:${shiftColor};background:${shiftColor}22;padding:2px 8px;border-radius:999px;">
-                    ${shiftIcon} กะ${shift}
-                </span>
-            </div>
-            <div style="width:100%;background:var(--k-btn-h);border-radius:999px;height:5px;margin-bottom:8px;">
-                <div style="background:#7c3aed;height:5px;border-radius:999px;width:${pct}%;"></div>
-            </div>
-            <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:${siteTags?'5px':'0'};">${typeTags}</div>
-            ${siteTags?`<div style="display:flex;flex-wrap:wrap;gap:4px;">${siteTags}</div>`:''}
-        </div>`;
-    }).join('');
+  const grid = document.getElementById('caseStaffGrid');
+  if (!grid) return;
+  const sorted = Object.entries(counts).filter((([name]) => !search || name.toLowerCase().includes(search.toLowerCase()))).filter((([, c]) => c.total > 0)).sort(((a, b) => b[1].total - a[1].total));
+  if (sorted.length === 0) {
+    grid.innerHTML = `<div class="col-span-full text-center py-10 text-gray-400">\n            <span class="material-icons text-4xl">inbox</span>\n            <p class="mt-2 text-sm">${search ? 'ไม่พบชื่อที่ค้นหา' : 'ไม่พบข้อมูล'}</p></div>`;
+    return;
+  }
+  const max = sorted[0][1].total || 1;
+  const medals = [ '🥇', '🥈', '🥉' ];
+  const esc = window.escapeHtml, escA = window.escapeAttr;
+  grid.innerHTML = sorted.map((([name, c], i) => {
+    const pct = Math.round(c.total / max * 100);
+    const mdl = medals[i] || `#${i + 1}`;
+    const ring = i === 0 ? 'outline:2px solid #facc15;' : '';
+    const shift = c.shift || _getShift(name, c.fullName, _shiftMap);
+    const shiftColor = shift === 'กะเช้า' ? '#fbbf24' : shift === 'กะดึก' ? '#818cf8' : '#64748b';
+    const shiftIcon = shift === 'กะเช้า' ? '🌅' : shift === 'กะดึก' ? '🌙' : '❓';
+    const typeTags = [ c.เช็ค ? `<span style="background:rgba(16,185,129,0.2);color:var(--k-green-tx);padding:2px 7px;border-radius:999px;font-size:11px;font-weight:700;">เช็ค/ลบ/ล้าง ${c.เช็ค}</span>` : '', c.ปลด ? `<span style="background:rgba(245,158,11,0.2);color:var(--k-amber-tx);padding:2px 7px;border-radius:999px;font-size:11px;font-weight:700;">ปลด ${c.ปลด}</span>` : '', c.reply ? `<span style="background:rgba(100,116,139,0.2);color:var(--k-tx3);padding:2px 7px;border-radius:999px;font-size:11px;font-weight:700;">อื่นๆ ${c.reply}</span>` : '' ].filter(Boolean).join('');
+    const siteTags = Object.entries(c.sites).sort(((a, b) => b[1] - a[1])).map((([s, n]) => `<span style="background:rgba(14,165,233,0.15);color:light-dark(#0676a8,#38bdf8);padding:2px 6px;border-radius:999px;font-size:10px;font-weight:700;">${esc(s)}×${n}</span>`)).join('');
+    const displayName = (() => {
+      const m = name.match(/^[^-]+-([^-]+)-/);
+      return m ? m[1] : name;
+    })();
+    return `\n        <div onclick="openStaffDetail(this.dataset.name)" data-name="${escA(name)}"\n             style="cursor:pointer;background:var(--k-card);border-radius:12px;padding:16px;border:1px solid var(--k-line2);transition:all .15s;${ring}"\n             onmouseover="this.style.background='#263548';this.style.borderColor='#7c3aed'"\n             onmouseout="this.style.background='#1e293b';this.style.borderColor='#334155'">\n            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">\n                <div style="display:flex;align-items:center;gap:8px;min-width:0;">\n                    <span style="font-size:20px;flex-shrink:0;">${mdl}</span>\n                    <span style="font-weight:700;color:var(--k-tx);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escA(name)}">${esc(displayName)}</span>\n                </div>\n                <span style="font-size:24px;font-weight:900;color:light-dark(#2f07a6,#a78bfa);flex-shrink:0;">${c.total}</span>\n            </div>\n            <div style="margin-bottom:8px;">\n                <span style="font-size:11px;font-weight:700;color:${shiftColor};background:${shiftColor}22;padding:2px 8px;border-radius:999px;">\n                    ${shiftIcon} กะ${shift}\n                </span>\n            </div>\n            <div style="width:100%;background:var(--k-btn-h);border-radius:999px;height:5px;margin-bottom:8px;">\n                <div style="background:#7c3aed;height:5px;border-radius:999px;width:${pct}%;"></div>\n            </div>\n            <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:${siteTags ? '5px' : '0'};">${typeTags}</div>\n            ${siteTags ? `<div style="display:flex;flex-wrap:wrap;gap:4px;">${siteTags}</div>` : ''}\n        </div>`;
+  })).join('');
 }
 
-// ─── ค้นหาชื่อพนักงาน ────────────────────
 window.searchStaff = function(val) {
-    _renderStaffCards(window._staffCounts || {}, val);
+  _renderStaffCards(window._staffCounts || {}, val);
 };
 
-// ─── ปุ่ม "ของฉัน" ───────────────────────
 let _myCaseOnly = false;
+
 window.toggleMyCase = function() {
-    _myCaseOnly = !_myCaseOnly;
-    const btn = document.getElementById('btnMyCase');
-    if (btn) {
-        btn.style.background   = _myCaseOnly ? '#059669' : 'rgba(16,185,129,0.15)';
-        btn.style.color        = _myCaseOnly ? '#fff' : '#34d399';
-        btn.style.borderColor  = _myCaseOnly ? '#059669' : 'rgba(16,185,129,0.3)';
-    }
-    if (_myCaseOnly) {
-        const myName = (window.currentUser||{}).username || '';
-        // ค้นหาชื่อตัวเองในแผนที่
-        const counts = window._staffCounts || {};
-        // ลอง match กับ sender_name โดยตรง หรือ match กับชื่อกลาง
-        const matched = Object.keys(counts).find(k => {
-            if (k === myName) return true;
-            const m = k.match(/^[^-]+-([^-]+)-/);
-            return m && m[1].toLowerCase() === myName.toLowerCase();
-        });
-        const inp = document.getElementById('staffSearchInput');
-        if (inp) inp.value = matched || myName;
-        _renderStaffCards(counts, matched || myName);
-    } else {
-        const inp = document.getElementById('staffSearchInput');
-        if (inp) inp.value = '';
-        _renderStaffCards(window._staffCounts || {}, '');
-    }
+  _myCaseOnly = !_myCaseOnly;
+  const btn = document.getElementById('btnMyCase');
+  if (btn) {
+    btn.style.background = _myCaseOnly ? '#059669' : 'rgba(16,185,129,0.15)';
+    btn.style.color = _myCaseOnly ? '#fff' : '#34d399';
+    btn.style.borderColor = _myCaseOnly ? '#059669' : 'rgba(16,185,129,0.3)';
+  }
+  if (_myCaseOnly) {
+    const myName = (window.currentUser || {}).username || '';
+    const counts = window._staffCounts || {};
+    const matched = Object.keys(counts).find((k => {
+      if (k === myName) return true;
+      const m = k.match(/^[^-]+-([^-]+)-/);
+      return m && m[1].toLowerCase() === myName.toLowerCase();
+    }));
+    const inp = document.getElementById('staffSearchInput');
+    if (inp) inp.value = matched || myName;
+    _renderStaffCards(counts, matched || myName);
+  } else {
+    const inp = document.getElementById('staffSearchInput');
+    if (inp) inp.value = '';
+    _renderStaffCards(window._staffCounts || {}, '');
+  }
 };
 
-// ─── Popup รายละเอียดพนักงาน ─────────────
 window.openStaffDetail = function(name) {
-    const rows = _caseData.filter(d => d.sender_name === name)
-        .sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
-
-    // 🛡️ [XSS] ข้อมูลด้านล่างมาจาก Telegram (คนนอกทีมพิมพ์เข้ามา) — ต้อง escape ก่อน render
-    const esc = window.escapeHtml;
-    const badge = t => {
-        if ((t||'').includes('ลบ'))   return `<span style="background:rgba(59,130,246,0.25);color:light-dark(#0352aa,#93c5fd);padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">${esc(t)}</span>`;
-        if ((t||'').includes('เช็ค')) return `<span style="background:rgba(16,185,129,0.25);color:light-dark(#199564,#6ee7b7);padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">${esc(t)}</span>`;
-        if ((t||'').includes('ปลด'))  return `<span style="background:rgba(245,158,11,0.25);color:light-dark(#aa8903,#fde68a);padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">${esc(t)}</span>`;
-        return `<span style="background:rgba(100,116,139,0.25);color:var(--k-tx2);padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">${esc(t||'reply')}</span>`;
-    };
-
-    const html = rows.map((d,i) => {
-        const t          = new Date(d.created_at).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Bangkok'});
-        // กรอง message_text ที่เป็น timestamp ออก
-        const rawMsg     = d.message_text || '';
-        const isTimestamp = /^\d{4}-\d{2}-\d{2}/.test(rawMsg.trim());
-        const myMsg      = esc(isTimestamp ? '—' : (rawMsg || '—'));
-        const quotedMsg  = esc(d.quoted_text  || '');
-        const qf         = esc(d.quoted_from  || '—');
-        return `
-        <div style="background:var(--k-panel2);border-radius:10px;padding:12px 14px;border:1px solid var(--k-line);">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-                <span style="font-size:11px;color:var(--k-mute);font-weight:700;font-family:monospace;">${i+1}. ${t}</span>
-                ${badge(d.case_type)}
-                <span style="font-size:11px;color:light-dark(#0676a8,#38bdf8);font-weight:700;">${esc(d.site||'')}</span>
-            </div>
-            ${quotedMsg ? `
-            <div style="background:var(--k-card);border-left:3px solid var(--k-line3);border-radius:6px;padding:8px 10px;margin-bottom:8px;">
-                <div style="font-size:10px;color:var(--k-mute);font-weight:700;margin-bottom:3px;">📌 ข้อความต้นทาง (จาก ${qf})</div>
-                <div style="font-size:12px;color:var(--k-tx3);line-height:1.5;">${quotedMsg}</div>
-            </div>` : ''}
-            <div style="display:flex;align-items:flex-start;gap:8px;">
-                <span style="font-size:11px;color:#7c3aed;font-weight:700;flex-shrink:0;">↩ ตอบ:</span>
-                <div style="font-size:13px;color:var(--k-tx);line-height:1.5;">${myMsg}</div>
-            </div>
-        </div>`;
-    }).join('');
-
-    Swal.fire({
-        title: `<span style="font-size:16px;">📋 ${esc(name)} — ${rows.length} เคส</span>`,
-        html:  `<div style="display:flex;flex-direction:column;gap:8px;max-height:420px;overflow-y:auto;text-align:left;">${html}</div>`,
-        background:      '#1e293b',
-        color:           '#e2e8f0',
-        confirmButtonText: 'ปิด',
-        confirmButtonColor: '#7c3aed',
-        width:           '600px',
+  const rows = _caseData.filter((d => d.sender_name === name)).sort(((a, b) => new Date(a.created_at) - new Date(b.created_at)));
+  const esc = window.escapeHtml;
+  const badge = t => {
+    if ((t || '').includes('ลบ')) return `<span style="background:rgba(59,130,246,0.25);color:light-dark(#0352aa,#93c5fd);padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">${esc(t)}</span>`;
+    if ((t || '').includes('เช็ค')) return `<span style="background:rgba(16,185,129,0.25);color:light-dark(#199564,#6ee7b7);padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">${esc(t)}</span>`;
+    if ((t || '').includes('ปลด')) return `<span style="background:rgba(245,158,11,0.25);color:light-dark(#aa8903,#fde68a);padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">${esc(t)}</span>`;
+    return `<span style="background:rgba(100,116,139,0.25);color:var(--k-tx2);padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">${esc(t || 'reply')}</span>`;
+  };
+  const html = rows.map(((d, i) => {
+    const t = new Date(d.created_at).toLocaleTimeString('th-TH', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Asia/Bangkok'
     });
+    const rawMsg = d.message_text || '';
+    const isTimestamp = /^\d{4}-\d{2}-\d{2}/.test(rawMsg.trim());
+    const myMsg = esc(isTimestamp ? '—' : rawMsg || '—');
+    const quotedMsg = esc(d.quoted_text || '');
+    const qf = esc(d.quoted_from || '—');
+    return `\n        <div style="background:var(--k-panel2);border-radius:10px;padding:12px 14px;border:1px solid var(--k-line);">\n            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">\n                <span style="font-size:11px;color:var(--k-mute);font-weight:700;font-family:monospace;">${i + 1}. ${t}</span>\n                ${badge(d.case_type)}\n                <span style="font-size:11px;color:light-dark(#0676a8,#38bdf8);font-weight:700;">${esc(d.site || '')}</span>\n            </div>\n            ${quotedMsg ? `\n            <div style="background:var(--k-card);border-left:3px solid var(--k-line3);border-radius:6px;padding:8px 10px;margin-bottom:8px;">\n                <div style="font-size:10px;color:var(--k-mute);font-weight:700;margin-bottom:3px;">📌 ข้อความต้นทาง (จาก ${qf})</div>\n                <div style="font-size:12px;color:var(--k-tx3);line-height:1.5;">${quotedMsg}</div>\n            </div>` : ''}\n            <div style="display:flex;align-items:flex-start;gap:8px;">\n                <span style="font-size:11px;color:#7c3aed;font-weight:700;flex-shrink:0;">↩ ตอบ:</span>\n                <div style="font-size:13px;color:var(--k-tx);line-height:1.5;">${myMsg}</div>\n            </div>\n        </div>`;
+  })).join('');
+  Swal.fire({
+    title: `<span style="font-size:16px;">📋 ${esc(name)} — ${rows.length} เคส</span>`,
+    html: `<div style="display:flex;flex-direction:column;gap:8px;max-height:420px;overflow-y:auto;text-align:left;">${html}</div>`,
+    background: '#1e293b',
+    color: '#e2e8f0',
+    confirmButtonText: 'ปิด',
+    confirmButtonColor: '#7c3aed',
+    width: '600px'
+  });
 };
 
-// ─── Log Table ────────────────────────────
 function _renderLogTable() {
-    const tbody = document.getElementById('caseLogBody');
-    const total = _caseData.length;
-    const el    = document.getElementById('caseLogCount');
-    if (el) el.textContent = `ทั้งหมด ${total.toLocaleString()} รายการ`;
-    const start = (_casePage-1)*_casePageSize;
-    const page  = _caseData.slice(start, start+_casePageSize);
-    if (page.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-gray-400">ไม่มีข้อมูล</td></tr>`;
-        _renderPagination(0); return;
-    }
-    // 🛡️ [XSS] ข้อมูลด้านล่างมาจาก Telegram (คนนอก) — escape ก่อน render
-    const esc = window.escapeHtml, escA = window.escapeAttr;
-    const badge = t => {
-        if ((t||'').includes('ลบ'))   return `<span class="bg-blue-900/50 text-blue-300 text-[10px] font-bold px-2 py-0.5 rounded-full">${esc(t)}</span>`;
-        if ((t||'').includes('เช็ค')) return `<span class="bg-emerald-900/50 text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full">${esc(t)}</span>`;
-        if ((t||'').includes('ปลด'))  return `<span class="bg-amber-900/50 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-full">${esc(t)}</span>`;
-        return `<span class="bg-slate-700 text-gray-300 text-[10px] font-bold px-2 py-0.5 rounded-full">${esc(t||'reply')}</span>`;
-    };
-    tbody.innerHTML = page.map((d,i) => {
-        const ts   = new Date(d.created_at);
-        const t    = ts.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:'Asia/Bangkok'});
-        const rawMsg2 = d.message_text || '';
-        const msg  = /^\d{4}-\d{2}-\d{2}/.test(rawMsg2.trim()) ? '—' : rawMsg2.slice(0,60) + (rawMsg2.length>60?'…':'');
-        return `<tr class="hover:bg-slate-800/30 transition">
-            <td class="p-3 text-center text-gray-500 text-xs">${start+i+1}</td>
-            <td class="p-3 text-xs text-gray-400 font-mono">${t}</td>
-            <td class="p-3 font-bold text-sm text-violet-300">${esc(d.sender_name)}</td>
-            <td class="p-3">${badge(d.case_type)}</td>
-            <td class="p-3 text-xs font-bold text-sky-400">${esc(d.site||'—')}</td>
-            <td class="p-3 text-xs text-gray-500 font-mono">${esc(d.quoted_from||'—')}</td>
-            <td class="p-3 text-xs text-gray-400 max-w-[200px] truncate" title="${escA(d.message_text||'')}">${esc(msg||'—')}</td>
-        </tr>`;
-    }).join('');
-    _renderPagination(total);
+  const tbody = document.getElementById('caseLogBody');
+  const total = _caseData.length;
+  const el = document.getElementById('caseLogCount');
+  if (el) el.textContent = `ทั้งหมด ${total.toLocaleString()} รายการ`;
+  const start = (_casePage - 1) * _casePageSize;
+  const page = _caseData.slice(start, start + _casePageSize);
+  if (page.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-gray-400">ไม่มีข้อมูล</td></tr>`;
+    _renderPagination(0);
+    return;
+  }
+  const esc = window.escapeHtml, escA = window.escapeAttr;
+  const badge = t => {
+    if ((t || '').includes('ลบ')) return `<span class="bg-blue-900/50 text-blue-300 text-[10px] font-bold px-2 py-0.5 rounded-full">${esc(t)}</span>`;
+    if ((t || '').includes('เช็ค')) return `<span class="bg-emerald-900/50 text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full">${esc(t)}</span>`;
+    if ((t || '').includes('ปลด')) return `<span class="bg-amber-900/50 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-full">${esc(t)}</span>`;
+    return `<span class="bg-slate-700 text-gray-300 text-[10px] font-bold px-2 py-0.5 rounded-full">${esc(t || 'reply')}</span>`;
+  };
+  tbody.innerHTML = page.map(((d, i) => {
+    const ts = new Date(d.created_at);
+    const t = ts.toLocaleTimeString('th-TH', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      timeZone: 'Asia/Bangkok'
+    });
+    const rawMsg2 = d.message_text || '';
+    const msg = /^\d{4}-\d{2}-\d{2}/.test(rawMsg2.trim()) ? '—' : rawMsg2.slice(0, 60) + (rawMsg2.length > 60 ? '…' : '');
+    return `<tr class="hover:bg-slate-800/30 transition">\n            <td class="p-3 text-center text-gray-500 text-xs">${start + i + 1}</td>\n            <td class="p-3 text-xs text-gray-400 font-mono">${t}</td>\n            <td class="p-3 font-bold text-sm text-violet-300">${esc(d.sender_name)}</td>\n            <td class="p-3">${badge(d.case_type)}</td>\n            <td class="p-3 text-xs font-bold text-sky-400">${esc(d.site || '—')}</td>\n            <td class="p-3 text-xs text-gray-500 font-mono">${esc(d.quoted_from || '—')}</td>\n            <td class="p-3 text-xs text-gray-400 max-w-[200px] truncate" title="${escA(d.message_text || '')}">${esc(msg || '—')}</td>\n        </tr>`;
+  })).join('');
+  _renderPagination(total);
 }
-function _renderPagination(total) {
-    const pages = Math.ceil(total/_casePageSize);
-    const el    = document.getElementById('casePagination');
-    if (!el) return;
-    if (pages <= 1) { el.innerHTML=''; return; }
-    const from = (_casePage-1)*_casePageSize+1;
-    const to   = Math.min(_casePage*_casePageSize, total);
-    el.innerHTML = `
-        <span>${from}–${to} จาก ${total.toLocaleString()}</span>
-        <div class="flex gap-2">
-            ${_casePage>1 ? `<button onclick="window._casePrev()" class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg font-bold">‹ ก่อนหน้า</button>` :''}
-            ${_casePage<pages ? `<button onclick="window._caseNext()" class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg font-bold">ถัดไป ›</button>` : ''}
-        </div>`;
-}
-window._casePrev = () => { _casePage--; _renderLogTable(); };
-window._caseNext = () => { _casePage++; _renderLogTable(); };
 
-// ==========================================
+function _renderPagination(total) {
+  const pages = Math.ceil(total / _casePageSize);
+  const el = document.getElementById('casePagination');
+  if (!el) return;
+  if (pages <= 1) {
+    el.innerHTML = '';
+    return;
+  }
+  const from = (_casePage - 1) * _casePageSize + 1;
+  const to = Math.min(_casePage * _casePageSize, total);
+  el.innerHTML = `\n        <span>${from}–${to} จาก ${total.toLocaleString()}</span>\n        <div class="flex gap-2">\n            ${_casePage > 1 ? `<button onclick="window._casePrev()" class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg font-bold">‹ ก่อนหน้า</button>` : ''}\n            ${_casePage < pages ? `<button onclick="window._caseNext()" class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg font-bold">ถัดไป ›</button>` : ''}\n        </div>`;
+}
+
+window._casePrev = () => {
+  _casePage--;
+  _renderLogTable();
+};
+
+window._caseNext = () => {
+  _casePage++;
+  _renderLogTable();
+};

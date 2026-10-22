@@ -1,14 +1,7 @@
-<!-- ==========================================
-     🌐 หน้าตรวจสอบ IP + FP พนักงาน — Premium Redesign
-     โครง id / onclick / .ip-tab-btn เดิมครบทุกตัว
-     ========================================== -->
+
 <div class="ipx-page p-4 md:p-6 max-w-[1600px] mx-auto">
 <style>
-/* ════════════════════════════════════════════════════
-   🎩 IP & FP Monitor — กราไฟต์ดำ × ทองแชมเปญ
-   ════════════════════════════════════════════════════ */
 
-/* ── Header ── */
 .ipx-header{
     border-radius:20px; padding:18px 22px; margin-bottom:16px;
     display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;
@@ -48,7 +41,6 @@ html.dark .ipx-sub{ color:var(--k-mute); }
 html.dark .ipx-hbtn-clean{ color:var(--k-tx2); border:1px solid color-mix(in srgb,var(--k-tx-strong) 16.0%,transparent); }
 html.dark .ipx-hbtn-clean:hover{ color:light-dark(#aa0418,#fda4af); border-color:rgba(244,63,94,0.5); background:rgba(244,63,94,0.07); }
 
-/* ── การ์ดสถิติ 6 ใบ ── */
 .ipx-stats{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:16px; }
 @media(min-width:768px){ .ipx-stats{ grid-template-columns:repeat(3,1fr); } }
 @media(min-width:1100px){ .ipx-stats{ grid-template-columns:repeat(6,1fr); } }
@@ -81,7 +73,6 @@ html.dark .ipx-stat-label{ color:var(--k-mute); }
 }
 html.dark .ipx-stat-num{ color:var(--k-tx); text-shadow:0 0 22px color-mix(in srgb, var(--acc,#E8C15A) 35%, transparent); }
 
-/* ── กล่องหมวดแท็บ + ค้นหา ── */
 .ipx-panel{
     border-radius:18px; padding:14px 16px; margin-bottom:14px;
     background:#ffffff; border:1px solid #e2e8f0;
@@ -103,7 +94,6 @@ html.dark .ipx-group + .ipx-group{ border-top:1px dashed rgba(232,193,90,0.16); 
 html.dark .ipx-group-label{ color:var(--k-gold-tx); }
 .ipx-group-label .material-icons{ font-size:14px; }
 
-/* แท็บ — คงคลาส .ip-tab-btn ให้ JS สลับสีพื้นได้ตามเดิม แต่งเฉพาะทรง */
 .ip-tab-btn{
     border-radius:10px !important;
     padding:7px 13px !important;
@@ -115,7 +105,6 @@ html.dark .ipx-group-label{ color:var(--k-gold-tx); }
 .ip-tab-btn:active{ transform:scale(0.97); }
 html.dark .ip-tab-btn{ border-color:color-mix(in srgb,var(--k-tx-strong) 10.0%,transparent) !important; }
 
-/* แถวค้นหา/กรอง */
 .ipx-filter-row{
     display:flex; align-items:center; flex-wrap:wrap; gap:8px;
     margin-top:10px; padding-top:11px;
@@ -149,8 +138,7 @@ html.dark .ipx-input, html.dark .ipx-select{
 .ipx-refresh:hover{ transform:translateY(-1px) rotate(90deg); filter:brightness(1.05); }
 .ipx-refresh .material-icons{ font-size:18px; }
 </style>
-
-    <!-- ═══════ 🥇 Header ═══════ -->
+    
     <div class="ipx-header">
         <div class="ipx-header-left">
             <div class="ipx-header-icon"><span class="material-icons">travel_explore</span></div>
@@ -167,11 +155,9 @@ html.dark .ipx-input, html.dark .ipx-select{
             </button>
         </div>
     </div>
-
-    <!-- 🚨 Live Alert Banner -->
+    
     <div id="ipAlertBanner" style="display:none" class="mb-5"></div>
-
-    <!-- ═══════ 📊 การ์ดสรุป 6 ใบ ═══════ -->
+    
     <div class="ipx-stats">
         <div class="ipx-stat" style="--acc:#38bdf8">
             <div class="ipx-stat-label"><span class="material-icons">list_alt</span> รายการทั้งหมด</div>
@@ -198,11 +184,9 @@ html.dark .ipx-input, html.dark .ipx-select{
             <div id="ipStatFpChanges" class="ipx-stat-num">0</div>
         </div>
     </div>
-
-    <!-- ═══════ 🗂️ หมวดมุมมอง (จัดกลุ่ม 3 หมวด) + ค้นหา ═══════ -->
+    
     <div class="ipx-panel">
-
-        <!-- หมวด 1: ข้อมูลหลัก -->
+        
         <div class="ipx-group">
             <span class="ipx-group-label"><span class="material-icons">folder_open</span> ข้อมูล</span>
             <button id="ipTab_all" onclick="switchIpTab('all')" class="ip-tab-btn bg-sky-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition">
@@ -215,8 +199,7 @@ html.dark .ipx-input, html.dark .ipx-select{
                 <span class="material-icons text-base">timeline</span> Timeline รายคน
             </button>
         </div>
-
-        <!-- หมวด 2: เหตุการณ์ผิดปกติ -->
+        
         <div class="ipx-group">
             <span class="ipx-group-label"><span class="material-icons">notification_important</span> แจ้งเตือน</span>
             <button id="ipTab_changes" onclick="switchIpTab('changes')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-rose-50">
@@ -235,8 +218,7 @@ html.dark .ipx-input, html.dark .ipx-select{
                 <span class="material-icons text-base">supervisor_account</span> Session Overlap
             </button>
         </div>
-
-        <!-- หมวด 3: เครื่องมือวิเคราะห์ -->
+        
         <div class="ipx-group">
             <span class="ipx-group-label"><span class="material-icons">insights</span> วิเคราะห์</span>
             <button id="ipTab_risk" onclick="switchIpTab('risk')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-slate-100">
@@ -255,8 +237,7 @@ html.dark .ipx-input, html.dark .ipx-select{
                 <span class="material-icons text-base">grid_on</span> Heatmap
             </button>
         </div>
-
-        <!-- แถวค้นหา / กรอง / รีเฟรช -->
+        
         <div class="ipx-filter-row">
             <select id="ipUserFilter" onchange="filterIpLogs()" class="ipx-select">
                 <option value="all">-- ดูทั้งหมด --</option>
@@ -270,8 +251,7 @@ html.dark .ipx-input, html.dark .ipx-select{
             </button>
         </div>
     </div>
-
-    <!-- ═══════ 📄 พื้นที่แสดงข้อมูล ═══════ -->
+    
     <div id="ipLogsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         <div class="col-span-full text-center py-10">
             <span class="material-icons animate-spin text-sky-500 text-4xl">sync</span>

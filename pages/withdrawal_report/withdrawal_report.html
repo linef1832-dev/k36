@@ -1,6 +1,5 @@
 <div class="fade-in flex flex-col h-full bg-slate-100 dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden pb-10">
-
-    <!-- Header -->
+    
     <div class="bg-gradient-to-r from-violet-600 to-indigo-700 text-white p-4 shadow-md shrink-0 z-10">
         <div class="flex items-center justify-between flex-wrap gap-3">
             <div class="flex items-center gap-3">
@@ -25,8 +24,7 @@
                 </button>
             </div>
         </div>
-
-        <!-- Tabs -->
+        
         <div class="flex gap-1 mt-4">
             <button onclick="switchCaseTab('stats')" id="tab-stats"
                 style="padding:8px 16px;border-radius:10px;font-size:13px;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .2s;background:#4f46e5;color:#fff;box-shadow:0 2px 8px rgba(79,70,229,0.4);">
@@ -46,9 +44,7 @@
             </button>
         </div>
     </div>
-
-    <!-- Filter Bar — เว็บ + ประเภท เท่านั้น (วันที่ = วันนี้เสมอ) -->
-    <!-- hidden date picker สำหรับ JS ใช้งาน -->
+    
     <input type="date" id="caseDatePicker" style="display:none;">
     <div class="bg-white dark:bg-slate-800 px-4 py-3 border-b dark:border-slate-700 flex flex-wrap gap-3 items-center shadow-sm">
         <div class="flex items-center gap-2">
@@ -80,14 +76,11 @@
             </select>
         </div>
     </div>
-
-    <!-- Content Area -->
+    
     <div class="flex-1 overflow-y-auto custom-scrollbar">
-
-        <!-- ===== TAB: สถิติ ===== -->
+        
         <div id="caseTab-stats" class="p-4 sm:p-5 space-y-5">
-
-            <!-- Summary Cards -->
+            
             <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <div id="cardAll" onclick="filterByType('ALL')" class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-4 shadow-lg border border-slate-700" style="transition:all .2s;cursor:pointer;" onmouseover="this.style.borderColor='#7c3aed'" onmouseout="this.style.borderColor=''">
                     <p class="text-gray-400 text-xs font-bold mb-1">เคสรวมทั้งหมด</p>
@@ -110,14 +103,13 @@
                     <h3 class="text-3xl font-black text-slate-100" id="caseOther">—</h3>
                 </div>
             </div>
-
-            <!-- Staff Ranking -->
+            
             <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-5">
                 <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--k-line);">
                     <h3 style="font-size:14px;font-weight:700;color:var(--k-tx2);display:flex;align-items:center;gap:8px;">
                         <span class="material-icons" style="color:#7c3aed;">leaderboard</span> จำนวนเคสแต่ละคน (เรียงมากสุด)
                     </h3>
-                    <!-- ปุ่มกรองกะ -->
+                    
                     <div style="display:flex;gap:6px;flex-wrap:wrap;">
                         <button id="shiftBtn-ALL" onclick="filterByShift('ALL')"
                             style="background:#7c3aed;color:#fff;border:1px solid #7c3aed;border-radius:8px;padding:4px 12px;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;">
@@ -137,12 +129,12 @@
                         </button>
                     </div>
                     <div style="display:flex;align-items:center;gap:8px;">
-                        <!-- ปุ่มของฉัน -->
+                        
                         <button id="btnMyCase" onclick="toggleMyCase()"
                             style="background:rgba(16,185,129,0.15);color:var(--k-green-tx);border:1px solid rgba(16,185,129,0.3);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap;display:flex;align-items:center;gap:5px;">
                             <span class="material-icons" style="font-size:15px;">person</span> ของฉัน
                         </button>
-                        <!-- ช่องค้นหา -->
+                        
                         <div style="position:relative;">
                             <span class="material-icons" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--k-mute);font-size:17px;">search</span>
                             <input type="text" id="staffSearchInput" placeholder="ค้นหาชื่อพนักงาน..." oninput="searchStaff(this.value)"
@@ -158,12 +150,9 @@
                 </div>
             </div>
         </div>
-
-        <!-- ===== TAB: Log ===== -->
-        <!-- ===== TAB: สรุปรวม ===== -->
+        
         <div id="caseTab-summary" class="hidden p-4 sm:p-5 space-y-5">
-
-            <!-- Filter -->
+            
             <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-4 flex flex-wrap gap-3 items-center">
                 <span class="material-icons text-violet-500">date_range</span>
                 <span class="text-sm font-bold text-gray-400">ดูสถิติ:</span>
@@ -182,7 +171,7 @@
                     <input type="date" id="summaryTo" class="bg-slate-100 dark:bg-slate-900 border border-slate-600 text-white text-xs font-bold rounded-lg px-2 py-1.5 outline-none focus:border-violet-500">
                     <button onclick="loadSummary()" class="bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition">ค้นหา</button>
                 </div>
-                <!-- ตัวกรองกะ -->
+                
                 <div class="flex items-center gap-2 ml-2">
                     <span class="material-icons text-violet-500 text-sm">schedule</span>
                     <span class="text-sm font-bold text-gray-400">กะ:</span>
@@ -195,7 +184,7 @@
                     </select>
                 </div>
                 <span id="summaryDateRange" class="text-xs text-gray-500 ml-2"></span>
-                <!-- Realtime indicator -->
+                
                 <div class="ml-auto flex items-center gap-2">
                     <span class="relative flex h-2 w-2">
                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
@@ -204,8 +193,7 @@
                     <span class="text-xs text-green-400 font-bold">Realtime</span>
                 </div>
             </div>
-
-            <!-- Summary total cards -->
+            
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="summaryCards">
                 <div class="bg-slate-800 rounded-2xl p-4 border border-slate-700">
                     <p class="text-gray-400 text-xs font-bold mb-1">เคสรวม</p>
@@ -224,8 +212,7 @@
                     <h3 class="text-3xl font-black text-slate-100" id="sumOther">—</h3>
                 </div>
             </div>
-
-            <!-- Ranking -->
+            
             <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-5">
                 <h3 class="text-sm font-bold text-gray-300 flex items-center gap-2 mb-4 pb-3 border-b border-slate-700">
                     <span class="material-icons text-violet-500">emoji_events</span> Ranking พนักงาน (เรียงเคสมากสุด)
@@ -268,17 +255,14 @@
                 <div id="casePagination" class="px-4 py-3 border-t border-slate-700 flex items-center justify-between text-xs text-gray-400"></div>
             </div>
         </div>
-
-        <!-- ===== TAB: บอท ===== -->
+        
         <div id="caseTab-settings" class="hidden p-4 sm:p-5 space-y-5 max-w-2xl mx-auto">
-
-            <!-- สถานะการเชื่อมต่อ -->
+            
             <div id="botConnectCard" class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-6">
                 <h3 class="font-black text-slate-700 dark:text-white text-base flex items-center gap-2 mb-5">
                     <span class="material-icons text-violet-500">smart_toy</span> เชื่อมต่อบอท Telegram
                 </h3>
-
-                <!-- Token Input -->
+                
                 <div class="mb-4">
                     <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Bot Token (จาก BotFather)</label>
                     <div class="flex gap-2">
@@ -290,8 +274,7 @@
                     </div>
                     <p class="text-xs text-gray-400 mt-1.5">หาได้จาก <span class="text-blue-400 font-bold">@BotFather</span> → /newbot → copy token</p>
                 </div>
-
-                <!-- Chat ID -->
+                
                 <div class="mb-5">
                     <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Chat ID ของกลุ่ม</label>
                     <div class="flex gap-2">
@@ -312,12 +295,10 @@
                         <span class="material-icons text-sm">save</span> บันทึกและเชื่อมต่อ
                     </button>
                 </div>
-
-                <!-- Test Result -->
+                
                 <div id="botTestResult" class="hidden mt-4 p-4 rounded-xl text-sm font-bold"></div>
             </div>
-
-            <!-- สถานะบอทปัจจุบัน -->
+            
             <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-5">
                 <h3 class="font-bold text-slate-700 dark:text-white text-sm flex items-center gap-2 mb-4">
                     <span class="material-icons text-emerald-500">info</span> สถานะบอทปัจจุบัน
@@ -348,8 +329,7 @@
                     <span class="material-icons text-sm">link_off</span> ยกเลิกการเชื่อมต่อ
                 </button>
             </div>
-
-            <!-- คำแนะนำ -->
+            
             <div class="bg-indigo-500/10 border border-indigo-500/30 rounded-2xl p-5 text-sm space-y-3">
                 <h3 class="font-bold text-indigo-300 flex items-center gap-2">
                     <span class="material-icons text-sm">help_outline</span> วิธีตั้งค่าบอท

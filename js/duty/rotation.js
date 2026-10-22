@@ -1,258 +1,193 @@
-// ════════════════════════════════════════════════════════════════════
-// 📦 duty/rotation.js — ส่วนที่ 6/6 ของหน้าจัดหน้าที่/เวร (แยกจาก duty.js เดิม 5,478 บรรทัด)
-// เนื้อหา: ระบบหมุนเวียนเว็บ (วนครบก่อนซ้ำ) + แพตช์ชื่อเต็ม/toast ท้ายไฟล์
-// ⚠️ ลำดับโหลด (PAGE_SCRIPTS ใน global.js): duty/core → duty/dragdrop → duty/roles → duty/tools → duty/support → duty/rotation
-// ตัวแปร top-level (currentDutyDept, sortedTeams ฯลฯ) แชร์ข้ามไฟล์กันอัตโนมัติ — scope เดียวกัน
-// ════════════════════════════════════════════════════════════════════
-// 🔄 ระบบหมุนเวียนเว็บ — ให้แต่ละคนวนครบทุกเว็บก่อนกลับมาซ้ำ
-// ============================================================
-// ของเดิมดูแค่ "เมื่อวานอยู่เว็บไหน" ซึ่งกันได้แค่ซ้ำติดกัน
-// คนจึงเด้ง A→B→A→B ได้ตลอดโดยไม่เคยไปเว็บ C D E เลย
-//
-// ตัวนี้อ่านตารางย้อนหลังหลายวัน แล้วเลือกจาก "ห่างจากเว็บนี้นานสุด"
-// (แนวคิดเดียวกับ LRU) คนที่ไม่เคยทำเว็บนั้นเลยจะถูกหยิบก่อนเสมอ
-// ผลคือทุกคนไล่ครบทุกเว็บที่ตัวเองมีสิทธิ์ ก่อนจะวนกลับมาเว็บแรก
-// ============================================================
-
-// อ่านตารางย้อนหลังมาสรุปว่า "ใครเคยอยู่เว็บไหน เมื่อกี่วันก่อน"
 window.loadDutyRotationHistory = async function(targetDate, shiftFilter, lookbackDays) {
-    // ย้อนให้ยาวกว่าจำนวนเว็บนิดหน่อย จะได้เห็นครบ 1 รอบเต็มของทุกคน
-    const _gap = (typeof window.getRotationGapDays === 'function') ? window.getRotationGapDays() : 3;
-    const lookback = lookbackDays || Math.min(30, Math.max(10, sortedTeams.length + 4, _gap + 2));   // ต้องมองย้อนให้ไกลกว่าวันที่เว้น
-
-    const keys = [];
-    const agoOfKey = {};
-    for (let i = 1; i <= lookback; i++) {
-        const d = window.dutyAddDays(targetDate, -i);
-        const k = `duty_roster_${currentDutyDept}_${d}_${shiftFilter}`;
-        keys.push(k);
-        agoOfKey[k] = i;                 // i = ย้อนหลังกี่วัน (1 = เมื่อวาน)
-    }
-
-    const lastSeen = {};   // uid -> { team: ทำล่าสุดเมื่อกี่วันก่อน } (งานหลัก)
-    const counts   = {};   // uid -> { team: ทำไปกี่ครั้งในช่วงนี้ }
-    const lastTeam = {};   // uid -> { team, ago } ของวันล่าสุดที่มีตาราง
-    const lastSec  = {};   // uid -> { team: เคยเป็น "งานรอง" ล่าสุดเมื่อกี่วันก่อน }
-    const lastSecTeam = {};// uid -> { team, ago } งานรองของวันล่าสุดที่มีตาราง
-    let daysFound = 0;
-
-    try {
-        const { data } = await appDB.from('settings').select('key, value').in('key', keys);
-        (data || []).forEach(row => {
-            if (!row.value) return;
-            let roster;
-            try { roster = JSON.parse(row.value); } catch (e) { return; }
-            const ago = agoOfKey[row.key];
-            daysFound++;
-
-            Object.entries(roster).forEach(([team, list]) => {
-                (list || []).forEach(u => {
-                    if (!u || !u.id) return;
-                    if (String(u.username || '').includes('ขาดคน')) return;
-                    const uid = String(u.id);
-
-                    lastSeen[uid] = lastSeen[uid] || {};
-                    counts[uid]   = counts[uid]   || {};
-
-                    // เก็บ "ครั้งล่าสุด" = ค่า ago ที่น้อยที่สุด
-                    if (lastSeen[uid][team] === undefined || ago < lastSeen[uid][team]) {
-                        lastSeen[uid][team] = ago;
-                    }
-                    counts[uid][team] = (counts[uid][team] || 0) + 1;
-
-                    // วันล่าสุดที่เขามีตาราง — ใช้แทน "เมื่อวาน" แบบเดิม
-                    // ดีกว่าตรงที่ถ้าเว้นวัน (ไม่ได้จัดเวร/ลาหยุด) ก็ยังหาเจอ
-                    if (lastTeam[uid] === undefined || ago < lastTeam[uid].ago) {
-                        lastTeam[uid] = { team, ago };
-                    }
-
-                    // 🆕 เก็บประวัติ "งานรอง" (สแตนด์บายช่วย) ด้วย
-                    // เพื่อไม่ให้วันถัดไปได้งานรอง (หรืองานหลัก) ซ้ำเว็บเดิม
-                    const st = u.secondary_team;
-                    if (st) {
-                        lastSec[uid] = lastSec[uid] || {};
-                        if (lastSec[uid][st] === undefined || ago < lastSec[uid][st]) {
-                            lastSec[uid][st] = ago;
-                        }
-                        if (lastSecTeam[uid] === undefined || ago < lastSecTeam[uid].ago) {
-                            lastSecTeam[uid] = { team: st, ago };
-                        }
-                    }
-                });
-            });
-        });
-    } catch (e) {
-        console.warn('[rotation] โหลดประวัติไม่สำเร็จ ใช้การสุ่มแบบไม่มีประวัติแทน', e);
-    }
-
-    return { lastSeen, counts, lastTeam, lastSec, lastSecTeam, daysFound, lookback };
-};
-
-// 🆕 เว็บนี้ "เพิ่งเป็นงานรองไปเมื่อกี่วันก่อน"
-window.dutyDaysAgoOnSecTeam = function(rotation, uid, team) {
-    const m = rotation && rotation.lastSec ? rotation.lastSec[String(uid)] : null;
-    if (!m || m[team] === undefined) return Infinity;
-    return m[team];
-};
-
-
-// เว็บนี้ "เพิ่งทำไปเมื่อกี่วันก่อน" — ไม่เคยทำเลยคืน Infinity (ดีที่สุด ควรได้ก่อน)
-window.dutyDaysAgoOnTeam = function(rotation, uid, team) {
-    // [FIX] นับทั้ง "งานหลัก" และ "งานรอง" — เคยเป็นรองเว็บไหน ก็ถือว่าแตะเว็บนั้นแล้ว
-    //       (เดิมดูแค่งานหลัก → เมื่อวานเป็นรอง Jun88 วันนี้กลับได้หลัก Jun88 ซ้ำ)
-    const m = rotation && rotation.lastSeen ? rotation.lastSeen[String(uid)] : null;
-    const mainAgo = (!m || m[team] === undefined) ? Infinity : m[team];
-    const secAgo = (typeof window.dutyDaysAgoOnSecTeam === 'function') ? window.dutyDaysAgoOnSecTeam(rotation, uid, team) : Infinity;
-    return Math.min(mainAgo, secAgo);
-};
-
-// 🔁 จำนวนวันที่ต้องเว้นก่อนกลับมาเว็บเดิม — ⚠️ แยกค่าตามแผนก (AM / OD / ผู้สอน) ไม่ปนกัน
-//    เช่น AM ตั้ง 3 วัน · OD ตั้ง 2 วัน ต่างคนต่างใช้ค่าของตัวเอง · ค่าเริ่มต้น 3 วัน
-window.getRotationGapDays = function(dept) {
-    const S = (typeof SETTINGS !== 'undefined' && SETTINGS) ? SETTINGS : {};
-    const d = dept || (typeof currentDutyDept !== 'undefined' ? currentDutyDept : 'AM');
-    let cfg = {};
-    try { cfg = S.duty_rotation_gap ? (typeof S.duty_rotation_gap === 'string' ? JSON.parse(S.duty_rotation_gap) : S.duty_rotation_gap) : {}; }
-    catch (e) { cfg = {}; }
-    // รองรับค่าเก่าที่เคยเก็บเป็นตัวเลขเดี่ยว (ใช้เป็นค่าตั้งต้นของทุกแผนก)
-    if (typeof cfg === 'number' || (typeof cfg !== 'object' || cfg === null)) {
-        const legacy = parseInt(cfg);
-        return (isNaN(legacy) || legacy < 0) ? 3 : Math.min(30, legacy);
-    }
-    const v = parseInt(cfg[d]);
-    return (isNaN(v) || v < 0) ? 3 : Math.min(30, v);
-};
-
-// คะแนนความ "ไม่ควร" ของการเอาคนนี้ลงเว็บนี้ — ยิ่งมากยิ่งแย่
-window.dutyRotationPenalty = function(rotation, uid, team) {
-    const ago = window.dutyDaysAgoOnTeam(rotation, uid, team);
-    const gap = window.getRotationGapDays();
-
-    // 🚫 อยู่ในช่วงต้องเว้น → โทษหนักแบบไล่ระดับ (เพิ่งทำเมื่อวาน = หนักสุด)
-    if (gap > 0 && ago <= gap) return 100 + (gap - ago + 1) * 10;
-
-    if (ago === 1) return 3;                                        // (กรณีปิดการเว้นวัน) ซ้ำกับวันล่าสุด
-    const cycleLen = (dutyAccessMatrix[String(uid)] || []).length;
-    if (ago >= cycleLen) return 0;                                  // วนครบรอบแล้ว — ดี
-    return 1;                                                       // ซ้ำก่อนครบรอบ — พอรับได้
-};
-
-// 🔧 รอบซ่อมท้าย — สลับคู่ที่สลับแล้วดีขึ้นทั้งคู่
-// ลูปสุ่มเป็น greedy ทีละเว็บ พอถึงเว็บท้ายๆ คนในกองมักเหลือแต่ตัวเลือกแย่
-// การไล่สลับคู่หลังจัดเสร็จช่วยเก็บกวาดเคสซ้ำติดกันที่หลุดมาได้เกือบหมด
-// (วัดจากการจำลอง 30 วัน: ซ้ำติดกัน 22 ครั้ง → เหลือ 0-2 ครั้ง)
-window.repairRosterRotation = function(rosterResult, rotation, lockedIds) {
-    const slots = [];
-    Object.entries(rosterResult).forEach(([team, list]) => {
-        (list || []).forEach((u, idx) => {
-            if (!u || !u.id) return;
-            if (lockedIds && lockedIds.has(String(u.id))) return;   // คนที่ถูกล็อก "อยู่ต่อ" ห้ามสลับ
-            slots.push({ u, team, idx });
-        });
-    });
-
-    let swaps = 0;
-    for (let pass = 0; pass < 3; pass++) {
-        let changed = false;
-        for (let i = 0; i < slots.length; i++) {
-            for (let j = i + 1; j < slots.length; j++) {
-                const A = slots[i], B = slots[j];
-                if (A.team === B.team) continue;
-
-                const accA = dutyAccessMatrix[String(A.u.id)] || [];
-                const accB = dutyAccessMatrix[String(B.u.id)] || [];
-                if (!accA.includes(B.team) || !accB.includes(A.team)) continue;
-
-                const before = window.dutyRotationPenalty(rotation, A.u.id, A.team)
-                             + window.dutyRotationPenalty(rotation, B.u.id, B.team);
-                const after  = window.dutyRotationPenalty(rotation, A.u.id, B.team)
-                             + window.dutyRotationPenalty(rotation, B.u.id, A.team);
-                if (after >= before) continue;
-
-                // ช่อง (team, idx) อยู่ที่เดิม เปลี่ยนแค่ "คน" ที่นั่งอยู่ในช่องนั้น
-                // จึงสลับเฉพาะ .u — ถ้าสลับ .team ด้วยจะหักล้างกันเองแล้วข้อมูลเพี้ยน
-                rosterResult[A.team][A.idx] = B.u;
-                rosterResult[B.team][B.idx] = A.u;
-                const tmp = A.u; A.u = B.u; B.u = tmp;
-                swaps++; changed = true;
+  const _gap = typeof window.getRotationGapDays === 'function' ? window.getRotationGapDays() : 3;
+  const lookback = lookbackDays || Math.min(30, Math.max(10, sortedTeams.length + 4, _gap + 2));
+  const keys = [];
+  const agoOfKey = {};
+  for (let i = 1; i <= lookback; i++) {
+    const d = window.dutyAddDays(targetDate, -i);
+    const k = `duty_roster_${currentDutyDept}_${d}_${shiftFilter}`;
+    keys.push(k);
+    agoOfKey[k] = i;
+  }
+  const lastSeen = {};
+  const counts = {};
+  const lastTeam = {};
+  const lastSec = {};
+  const lastSecTeam = {};
+  let daysFound = 0;
+  try {
+    const {data: data} = await appDB.from('settings').select('key, value').in('key', keys);
+    (data || []).forEach((row => {
+      if (!row.value) return;
+      let roster;
+      try {
+        roster = JSON.parse(row.value);
+      } catch (e) {
+        return;
+      }
+      const ago = agoOfKey[row.key];
+      daysFound++;
+      Object.entries(roster).forEach((([team, list]) => {
+        (list || []).forEach((u => {
+          if (!u || !u.id) return;
+          if (String(u.username || '').includes('ขาดคน')) return;
+          const uid = String(u.id);
+          lastSeen[uid] = lastSeen[uid] || {};
+          counts[uid] = counts[uid] || {};
+          if (lastSeen[uid][team] === undefined || ago < lastSeen[uid][team]) {
+            lastSeen[uid][team] = ago;
+          }
+          counts[uid][team] = (counts[uid][team] || 0) + 1;
+          if (lastTeam[uid] === undefined || ago < lastTeam[uid].ago) {
+            lastTeam[uid] = {
+              team: team,
+              ago: ago
+            };
+          }
+          const st = u.secondary_team;
+          if (st) {
+            lastSec[uid] = lastSec[uid] || {};
+            if (lastSec[uid][st] === undefined || ago < lastSec[uid][st]) {
+              lastSec[uid][st] = ago;
             }
-        }
-        if (!changed) break;
+            if (lastSecTeam[uid] === undefined || ago < lastSecTeam[uid].ago) {
+              lastSecTeam[uid] = {
+                team: st,
+                ago: ago
+              };
+            }
+          }
+        }));
+      }));
+    }));
+  } catch (e) {
+    console.warn('[rotation] โหลดประวัติไม่สำเร็จ ใช้การสุ่มแบบไม่มีประวัติแทน', e);
+  }
+  return {
+    lastSeen: lastSeen,
+    counts: counts,
+    lastTeam: lastTeam,
+    lastSec: lastSec,
+    lastSecTeam: lastSecTeam,
+    daysFound: daysFound,
+    lookback: lookback
+  };
+};
+
+window.dutyDaysAgoOnSecTeam = function(rotation, uid, team) {
+  const m = rotation && rotation.lastSec ? rotation.lastSec[String(uid)] : null;
+  if (!m || m[team] === undefined) return Infinity;
+  return m[team];
+};
+
+window.dutyDaysAgoOnTeam = function(rotation, uid, team) {
+  const m = rotation && rotation.lastSeen ? rotation.lastSeen[String(uid)] : null;
+  const mainAgo = !m || m[team] === undefined ? Infinity : m[team];
+  const secAgo = typeof window.dutyDaysAgoOnSecTeam === 'function' ? window.dutyDaysAgoOnSecTeam(rotation, uid, team) : Infinity;
+  return Math.min(mainAgo, secAgo);
+};
+
+window.getRotationGapDays = function(dept) {
+  const S = typeof SETTINGS !== 'undefined' && SETTINGS ? SETTINGS : {};
+  const d = dept || (typeof currentDutyDept !== 'undefined' ? currentDutyDept : 'AM');
+  let cfg = {};
+  try {
+    cfg = S.duty_rotation_gap ? typeof S.duty_rotation_gap === 'string' ? JSON.parse(S.duty_rotation_gap) : S.duty_rotation_gap : {};
+  } catch (e) {
+    cfg = {};
+  }
+  if (typeof cfg === 'number' || (typeof cfg !== 'object' || cfg === null)) {
+    const legacy = parseInt(cfg);
+    return isNaN(legacy) || legacy < 0 ? 3 : Math.min(30, legacy);
+  }
+  const v = parseInt(cfg[d]);
+  return isNaN(v) || v < 0 ? 3 : Math.min(30, v);
+};
+
+window.dutyRotationPenalty = function(rotation, uid, team) {
+  const ago = window.dutyDaysAgoOnTeam(rotation, uid, team);
+  const gap = window.getRotationGapDays();
+  if (gap > 0 && ago <= gap) return 100 + (gap - ago + 1) * 10;
+  if (ago === 1) return 3;
+  const cycleLen = (dutyAccessMatrix[String(uid)] || []).length;
+  if (ago >= cycleLen) return 0;
+  return 1;
+};
+
+window.repairRosterRotation = function(rosterResult, rotation, lockedIds) {
+  const slots = [];
+  Object.entries(rosterResult).forEach((([team, list]) => {
+    (list || []).forEach(((u, idx) => {
+      if (!u || !u.id) return;
+      if (lockedIds && lockedIds.has(String(u.id))) return;
+      slots.push({
+        u: u,
+        team: team,
+        idx: idx
+      });
+    }));
+  }));
+  let swaps = 0;
+  for (let pass = 0; pass < 3; pass++) {
+    let changed = false;
+    for (let i = 0; i < slots.length; i++) {
+      for (let j = i + 1; j < slots.length; j++) {
+        const A = slots[i], B = slots[j];
+        if (A.team === B.team) continue;
+        const accA = dutyAccessMatrix[String(A.u.id)] || [];
+        const accB = dutyAccessMatrix[String(B.u.id)] || [];
+        if (!accA.includes(B.team) || !accB.includes(A.team)) continue;
+        const before = window.dutyRotationPenalty(rotation, A.u.id, A.team) + window.dutyRotationPenalty(rotation, B.u.id, B.team);
+        const after = window.dutyRotationPenalty(rotation, A.u.id, B.team) + window.dutyRotationPenalty(rotation, B.u.id, A.team);
+        if (after >= before) continue;
+        rosterResult[A.team][A.idx] = B.u;
+        rosterResult[B.team][B.idx] = A.u;
+        const tmp = A.u;
+        A.u = B.u;
+        B.u = tmp;
+        swaps++;
+        changed = true;
+      }
     }
-    return swaps;
+    if (!changed) break;
+  }
+  return swaps;
 };
 
 window.openStayPinListModal = async function() {
-    const today = window.dutyTodayStr();
-    const shift = document.getElementById('dutyShiftSelect') ? document.getElementById('dutyShiftSelect').value : '';
-    const rows = Object.entries(window.dutyStayPins || {})
-        .filter(([, p]) => p && p.until >= today)
-        .sort((a, b) => a[1].until.localeCompare(b[1].until));
-
-    if (rows.length === 0) {
-        return Swal.fire({
-            icon: 'info',
-            title: 'ยังไม่มีใครถูกล็อก',
-            html: `<div style="font-size:13px;color:var(--k-tx3)">กดปุ่ม <b>📌 อยู่ต่อ...</b> บนการ์ดพนักงานในตาราง เพื่อล็อกให้เขาอยู่เว็บเดิมข้ามวัน</div>`,
-            background: '#0b1120',
-            confirmButtonColor: '#6366f1',
-            customClass: { popup: 'rounded-3xl border border-slate-700 dark:text-white' }
-        });
-    }
-
-    const isAdmin = window.canManageStayPin();
-    const body = rows.map(([uid, p]) => {
-        const left  = Math.max(0, window.dutyDiffDays(today, p.until));
-        // ไม่ทำให้จางตามกะที่บันทึกไว้แล้ว — กะที่ใช้จริงคือกะของคนนั้นในวันนั้น
-        // ทำจางตาม p.shift เคยทำให้เข้าใจผิดว่ารายการนั้นใช้ไม่ได้
-        const dim   = '';
-        const safe  = String(p.username || '').replace(/'/g, "\\'");
-        // วันที่กำลังดูอยู่ เขาลาหยุดไหม — ถ้าลา ระบบจะข้ามเขาแล้วดึงคนอื่นมาแทน
-        // โชว์ไว้ให้แอดมินเห็นตั้งแต่ยังไม่กดสุ่ม จะได้ไม่งงว่าทำไมชื่อไม่ขึ้น
-        const onLeave = currentDutyLeaves && currentDutyLeaves.has(String(uid));
-        const leaveTag = onLeave
-            ? `<span style="font-size:9px;font-weight:900;background:rgba(239,68,68,.15);color:var(--k-red-tx);border:1px solid rgba(239,68,68,.35);padding:2px 6px;border-radius:999px;white-space:nowrap;margin-left:6px">ลาหยุดวันนี้</span>`
-            : '';
-        return `
-        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:var(--k-panel2);border:1px solid var(--k-line);margin-bottom:8px;${dim}">
-            <span class="material-icons" style="font-size:16px;color:var(--k-amber-tx)">push_pin</span>
-            <div style="flex:1;min-width:0;text-align:left">
-                <div style="font-weight:800;font-size:13px;color:var(--k-tx);display:flex;align-items:center;flex-wrap:wrap">${window.escapeHtml(p.username)}${leaveTag}</div>
-                <div style="font-size:10.5px;color:var(--k-mute);margin-top:2px">
-                    เว็บ <b style="color:light-dark(#0622a8,#a5b4fc)">${p.team}</b> • ${p.shift || '-'} • ถึง ${window.dutyFmtShortDate(p.until)}
-                    ${p.by ? ` • ตั้งโดย ${p.by}` : ''}
-                </div>
-                ${onLeave ? `<div style="font-size:10px;color:var(--k-red-tx);margin-top:3px">↳ วันนี้ระบบจะข้ามเขา แล้วดึงคนอื่นมาลง ${p.team} แทน — การล็อกยังอยู่ ใช้ต่อวันถัดไป</div>` : ''}
-            </div>
-            <span style="font-size:10px;font-weight:900;background:${left > 0 ? 'rgba(251,191,36,.15)' : 'rgba(148,163,184,.15)'};color:${left > 0 ? 'var(--k-amber-tx)' : 'var(--k-tx3)'};border:1px solid ${left > 0 ? 'rgba(251,191,36,.35)' : 'rgba(148,163,184,.3)'};padding:3px 8px;border-radius:999px;white-space:nowrap">
-                ${left > 0 ? `เหลือ ${left} วัน` : 'วันสุดท้าย'}
-            </span>
-            ${isAdmin ? `<button onclick="removeStayPin('${uid}', '${safe}')" title="ยกเลิก"
-                style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);color:var(--k-red-tx);border-radius:9px;padding:5px 7px;cursor:pointer;display:flex;align-items:center">
-                <span class="material-icons" style="font-size:15px">delete</span></button>` : ''}
-        </div>`;
-    }).join('');
-
-    Swal.fire({
-        title: `<div style="font-size:16px;font-weight:900">📌 คนที่ถูกล็อกอยู่ต่อ (${rows.length})</div>`,
-        html: `<div style="max-height:55vh;overflow-y:auto;padding-right:4px">${body}</div>
-               <div style="font-size:10.5px;color:var(--k-mute);margin-top:6px;text-align:left">กะที่แสดงคือกะตอนกดล็อก • เวลาจัดจริงระบบยึดกะของคนนั้นในวันนั้น • หมดอายุแล้วลบให้เอง</div>`,
-        background: '#0b1120',
-        width: 560,
-        confirmButtonText: 'ปิด',
-        confirmButtonColor: '#6366f1',
-        customClass: { popup: 'rounded-3xl border border-slate-700 dark:text-white' }
+  const today = window.dutyTodayStr();
+  const shift = document.getElementById('dutyShiftSelect') ? document.getElementById('dutyShiftSelect').value : '';
+  const rows = Object.entries(window.dutyStayPins || {}).filter((([, p]) => p && p.until >= today)).sort(((a, b) => a[1].until.localeCompare(b[1].until)));
+  if (rows.length === 0) {
+    return Swal.fire({
+      icon: 'info',
+      title: 'ยังไม่มีใครถูกล็อก',
+      html: `<div style="font-size:13px;color:var(--k-tx3)">กดปุ่ม <b>📌 อยู่ต่อ...</b> บนการ์ดพนักงานในตาราง เพื่อล็อกให้เขาอยู่เว็บเดิมข้ามวัน</div>`,
+      background: '#0b1120',
+      confirmButtonColor: '#6366f1',
+      customClass: {
+        popup: 'rounded-3xl border border-slate-700 dark:text-white'
+      }
     });
+  }
+  const isAdmin = window.canManageStayPin();
+  const body = rows.map((([uid, p]) => {
+    const left = Math.max(0, window.dutyDiffDays(today, p.until));
+    const dim = '';
+    const safe = String(p.username || '').replace(/'/g, "\\'");
+    const onLeave = currentDutyLeaves && currentDutyLeaves.has(String(uid));
+    const leaveTag = onLeave ? `<span style="font-size:9px;font-weight:900;background:rgba(239,68,68,.15);color:var(--k-red-tx);border:1px solid rgba(239,68,68,.35);padding:2px 6px;border-radius:999px;white-space:nowrap;margin-left:6px">ลาหยุดวันนี้</span>` : '';
+    return `\n        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:var(--k-panel2);border:1px solid var(--k-line);margin-bottom:8px;${dim}">\n            <span class="material-icons" style="font-size:16px;color:var(--k-amber-tx)">push_pin</span>\n            <div style="flex:1;min-width:0;text-align:left">\n                <div style="font-weight:800;font-size:13px;color:var(--k-tx);display:flex;align-items:center;flex-wrap:wrap">${window.escapeHtml(p.username)}${leaveTag}</div>\n                <div style="font-size:10.5px;color:var(--k-mute);margin-top:2px">\n                    เว็บ <b style="color:light-dark(#0622a8,#a5b4fc)">${p.team}</b> • ${p.shift || '-'} • ถึง ${window.dutyFmtShortDate(p.until)}\n                    ${p.by ? ` • ตั้งโดย ${p.by}` : ''}\n                </div>\n                ${onLeave ? `<div style="font-size:10px;color:var(--k-red-tx);margin-top:3px">↳ วันนี้ระบบจะข้ามเขา แล้วดึงคนอื่นมาลง ${p.team} แทน — การล็อกยังอยู่ ใช้ต่อวันถัดไป</div>` : ''}\n            </div>\n            <span style="font-size:10px;font-weight:900;background:${left > 0 ? 'rgba(251,191,36,.15)' : 'rgba(148,163,184,.15)'};color:${left > 0 ? 'var(--k-amber-tx)' : 'var(--k-tx3)'};border:1px solid ${left > 0 ? 'rgba(251,191,36,.35)' : 'rgba(148,163,184,.3)'};padding:3px 8px;border-radius:999px;white-space:nowrap">\n                ${left > 0 ? `เหลือ ${left} วัน` : 'วันสุดท้าย'}\n            </span>\n            ${isAdmin ? `<button onclick="removeStayPin('${uid}', '${safe}')" title="ยกเลิก"\n                style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);color:var(--k-red-tx);border-radius:9px;padding:5px 7px;cursor:pointer;display:flex;align-items:center">\n                <span class="material-icons" style="font-size:15px">delete</span></button>` : ''}\n        </div>`;
+  })).join('');
+  Swal.fire({
+    title: `<div style="font-size:16px;font-weight:900">📌 คนที่ถูกล็อกอยู่ต่อ (${rows.length})</div>`,
+    html: `<div style="max-height:55vh;overflow-y:auto;padding-right:4px">${body}</div>\n               <div style="font-size:10.5px;color:var(--k-mute);margin-top:6px;text-align:left">กะที่แสดงคือกะตอนกดล็อก • เวลาจัดจริงระบบยึดกะของคนนั้นในวันนั้น • หมดอายุแล้วลบให้เอง</div>`,
+    background: '#0b1120',
+    width: 560,
+    confirmButtonText: 'ปิด',
+    confirmButtonColor: '#6366f1',
+    customClass: {
+      popup: 'rounded-3xl border border-slate-700 dark:text-white'
+    }
+  });
 };
-// ============================================================
-// 🩹 แพตช์ระบบจัดหน้าที่ — วางต่อท้าย duty.js (บรรทัดล่างสุด) แล้วเซฟ
-//   1) ชื่อพนักงานในการ์ดโชว์เต็ม ไม่โดนตัด (…)  — ทำผ่าน CSS
-//   2) เพิ่ม/ลดคนต่อเว็บ → เด้ง toast บอกว่าดึง/คืนคนจากเว็บไหน — override manualAdjustReq
-// * ใช้ตัวแปร sortedTeams / currentDutyDept ได้ปกติ — ทุกไฟล์ duty/* โหลดเป็น scope เดียวกัน (ต้องโหลดหลัง core เสมอ)
-// ============================================================
-// (แพตช์ 1 เดิม: CSS ให้ชื่อเต็มในการ์ดแบบเก่า — การ์ดแบบใหม่ไม่ใช้คลาสเหล่านั้นแล้ว จึงลบออก)
-
-// ── แพตช์ 2: ปรับยอดคนต่อเว็บ แล้วบอกว่าระบบดึง/คืนคนจากเว็บไหน ──
-// 🗑️ [ลบตัวซ้ำ] เดิมไฟล์นี้มี manualAdjustReq เวอร์ชันเก่า (โยกอัตโนมัติ+toast) ประกาศซ้ำ
-// และไฟล์นี้โหลดทีหลัง dragdrop.js เลย "เขียนทับ" ระบบกองกลางตัวจริงทุกครั้งที่เปิดหน้า
-// → ถอนออกแล้ว ตัวจริงอยู่ที่ duty/dragdrop.js ที่เดียว (08/09/2026)

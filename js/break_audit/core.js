@@ -1,856 +1,1190 @@
-// ════════════════════════════════════════════════════════════════════
-// ⏱️ break_audit/core.js — ตรวจเวลาลุกจากที่นั่ง (ข้อมูลสด)
-//   อ่านตาราง break_punches ที่ tg-listener เขียนไว้ (ดูโฟลเดอร์ tg-listener/)
-//   จับคู่กับพนักงานด้วย users.telegram_id → ไม่ใช่คนของเรา ตัดทิ้ง
-//   realtime: บอทในกลุ่มพิมพ์เมื่อไหร่ ตารางนี้ขยับทันที ไม่ต้องกดรีเฟรช
-//   ⚠️ อ่านอย่างเดียว ไม่เขียนอะไรลงฐานข้อมูล
-// ════════════════════════════════════════════════════════════════════
-(function () {
-    const $ = id => document.getElementById(id);
-    const esc = v => (window.escapeHtml ? window.escapeHtml(v) : String(v == null ? '' : v));
-    const pad = n => (n < 10 ? '0' + n : '' + n);
-
-    let _rows    = [];     // แถวดิบของวันที่เลือก
-    let _people  = [];     // ผลคำนวณ
-    let _unknown = [];     // คนที่กดแต่ไม่มีในระบบ
-    let _users   = [];
-    let _filter  = 'all';
-    let _sub     = null;
-    let _lastRowAt = null; // created_at ล่าสุด — ใช้ดูว่าตัวดักฟังยังทำงานอยู่ไหม
-    let _booked  = {};     // ชื่อพนักงาน → [รอบพักที่จองไว้วันนี้]
-    let _duty    = {};     // 'แผนก|กะ|เว็บ' → Set(ชื่อ) รวมหลัก+รอง — จากหน้าจัดหน้าที่ของวันนั้น
-    let _dutyMain = {};    // เฉพาะคนที่เป็น "หลัก" ของเว็บนั้น
-    let _dutySec  = {};    // เฉพาะคนที่เป็น "รอง" ของเว็บนั้น
-    let _dutyOf  = {};     // ชื่อ(normalized) → [{dept, shift, team}]
-    let _skipDepts   = [];  // แผนกที่ไม่ต้องตรวจเลย
-    let _noSlotDepts = [];  // แผนกที่ไม่ต้องเทียบรอบจองพัก
-
-    // ── เวลา ─────────────────────────────────────────────
-    const toSec = t => { const m = /^(\d{1,2}):(\d{2})(?::(\d{2}))?/.exec(String(t || '')); return m ? (+m[1]) * 3600 + (+m[2]) * 60 + (+(m[3] || 0)) : null; };
-    const hms   = s => { s = Math.max(0, Math.round(s)); return Math.floor(s / 3600) + ':' + pad(Math.floor(s % 3600 / 60)) + ':' + pad(s % 60); };
-    const clock = s => {
-        s = ((s % 86400) + 86400) % 86400;   // หลังเที่ยงคืนโชว์เวลาตรงๆ ไม่ต้องติด ⁺¹
-        return pad(Math.floor(s / 3600)) + ':' + pad(Math.floor(s % 3600 / 60));
+(function() {
+  const $ = id => document.getElementById(id);
+  const esc = v => window.escapeHtml ? window.escapeHtml(v) : String(v == null ? '' : v);
+  const pad = n => n < 10 ? '0' + n : '' + n;
+  let _rows = [];
+  let _people = [];
+  let _unknown = [];
+  let _users = [];
+  let _filter = 'all';
+  let _sub = null;
+  let _lastRowAt = null;
+  let _booked = {};
+  let _duty = {};
+  let _dutyMain = {};
+  let _dutySec = {};
+  let _dutyOf = {};
+  let _skipDepts = [];
+  let _noSlotDepts = [];
+  const toSec = t => {
+    const m = /^(\d{1,2}):(\d{2})(?::(\d{2}))?/.exec(String(t || ''));
+    return m ? +m[1] * 3600 + +m[2] * 60 + +(m[3] || 0) : null;
+  };
+  const hms = s => {
+    s = Math.max(0, Math.round(s));
+    return Math.floor(s / 3600) + ':' + pad(Math.floor(s % 3600 / 60)) + ':' + pad(s % 60);
+  };
+  const clock = s => {
+    s = (s % 86400 + 86400) % 86400;
+    return pad(Math.floor(s / 3600)) + ':' + pad(Math.floor(s % 3600 / 60));
+  };
+  const nowSec = () => {
+    const d = new Date;
+    return d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds();
+  };
+  const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const addDays = (ds, n) => {
+    const d = new Date(ds + 'T12:00:00');
+    d.setDate(d.getDate() + n);
+    return iso(d);
+  };
+  function workDateNow(dayStart) {
+    const d = new Date;
+    return nowSec() < dayStart ? addDays(iso(d), -1) : iso(d);
+  }
+  const norm = s => String(s || '').toLowerCase().replace(/[\s\-_.()]/g, '');
+  function shiftOf(u, fallbackName) {
+    if (u && u.allowed_shift) return u.allowed_shift;
+    const d = _dutyOf[norm(u && u.username || fallbackName)] || [];
+    return d.length ? d[0].shift : '';
+  }
+  function shiftHours(shift) {
+    const suf = String(shift || '').replace('กะ', '');
+    const def = {
+      'เช้า': [ '08:00', '20:00' ],
+      'กลาง': [ '11:00', '23:00' ],
+      'ดึก': [ '20:00', '08:00' ]
+    }[suf] || [ null, null ];
+    const S = typeof SETTINGS !== 'undefined' && SETTINGS ? SETTINGS : {};
+    return {
+      open: toSec(S[`open_time_${suf}`] || def[0]),
+      close: toSec(S[`close_time_${suf}`] || def[1])
     };
-    const nowSec = () => { const d = new Date(); return d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds(); };
-    const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-    const addDays = (ds, n) => { const d = new Date(ds + 'T12:00:00'); d.setDate(d.getDate() + n); return iso(d); };
-    // วันทำงานปัจจุบัน — ก่อนเวลาเริ่มวัน ยังถือเป็นของเมื่อวาน (กะดึก)
-    function workDateNow(dayStart) {
-        const d = new Date();
-        return nowSec() < dayStart ? addDays(iso(d), -1) : iso(d);
+  }
+  function dayStartFor(u, fallbackName, globalDs) {
+    const h = shiftHours(shiftOf(u, fallbackName));
+    if (h.open !== null && h.close !== null && h.open > h.close) return h.open;
+    return globalDs;
+  }
+  function cfg() {
+    return {
+      cap: (+$('baCap').value || 120) * 60,
+      mealMax: +$('baMealMax').value || 2,
+      gap: (+$('baGap').value || 0) * ($('baGapUnit') && $('baGapUnit').value === 'sec' ? 1 : 60),
+      late: (+($('baLate') && $('baLate').value) || 0) * 60,
+      dayStart: toSec($('baDayStart') && $('baDayStart').value) || 0,
+      botReset: toSec($('baBotReset') && $('baBotReset').value)
+    };
+  }
+  function kindOf(name) {
+    const t = String(name || '');
+    if (/กินข้าว|ทานข้าว|吃饭|用餐/.test(t)) return 'meal';
+    if (/ปวดหนัก|大便|厕所大/.test(t)) return 'heavy';
+    if (/ปวดน้อย|สูบ|บุหรี่|小便|抽烟/.test(t)) return 'light';
+    return 'other';
+  }
+  const dateVal = () => $('baDate') && $('baDate').value || iso(new Date);
+  const RULE_KEY = 'break_audit_rules';
+  const RULE_FIELDS = [ 'baCap', 'baMealMax', 'baGap', 'baGapUnit', 'baLate', 'baDayStart', 'baBotReset' ];
+  async function loadRules() {
+    let raw = null;
+    try {
+      if (typeof window.getSettingCached === 'function') raw = await window.getSettingCached(RULE_KEY); else if (typeof appDB !== 'undefined') {
+        const {data: data} = await appDB.from('settings').select('value').eq('key', RULE_KEY).maybeSingle();
+        raw = data ? data.value : null;
+      }
+    } catch (e) {
+      console.warn('[break_audit] โหลดเกณฑ์ไม่ได้', e);
     }
-    const norm = s => String(s || '').toLowerCase().replace(/[\s\-_.()]/g, '');
-
-    // ── 🌙 วันทำงาน "ต่อคน" ตามกะ ───────────────────────────
-    //   กะดึก (เข้า 20:00 เลิก 08:00) → วันทำงานเริ่มนับตอนเข้ากะ (20:00) และวนไปจนถึง 20:00 ของวันถัดไป
-    //   → ทุกรอบที่กดหลังเที่ยงคืน (02:00, 08:00, แม้ 12:00 ของวันที่ 23) ยังเป็น "วันที่ 22" ทั้งหมด
-    //   กะอื่นที่ไม่ข้ามเที่ยงคืน → ใช้ค่าจากช่อง "วันทำงานเริ่มนับตอน" เหมือนเดิม
-    function shiftOf(u, fallbackName) {
-        if (u && u.allowed_shift) return u.allowed_shift;
-        const d = _dutyOf[norm((u && u.username) || fallbackName)] || [];
-        return d.length ? d[0].shift : '';
+    if (!raw) {
+      try {
+        raw = localStorage.getItem(RULE_KEY);
+      } catch (e) {}
     }
-    function shiftHours(shift) {
-        const suf = String(shift || '').replace('กะ', '');
-        const def = { 'เช้า': ['08:00', '20:00'], 'กลาง': ['11:00', '23:00'], 'ดึก': ['20:00', '08:00'] }[suf] || [null, null];
-        const S = (typeof SETTINGS !== 'undefined' && SETTINGS) ? SETTINGS : {};
-        return { open: toSec(S[`open_time_${suf}`] || def[0]), close: toSec(S[`close_time_${suf}`] || def[1]) };
+    if (!raw) return;
+    try {
+      const v = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      RULE_FIELDS.forEach((id => {
+        if (v[id] !== undefined && $(id)) $(id).value = v[id];
+      }));
+      _skipDepts = Array.isArray(v._skipDepts) ? v._skipDepts : [];
+      _noSlotDepts = Array.isArray(v._noSlotDepts) ? v._noSlotDepts : [];
+      if ($('baRulesNote')) $('baRulesNote').textContent = v._by ? `เกณฑ์ที่ใช้อยู่ ตั้งโดย ${v._by}` : '';
+    } catch (e) {
+      console.warn('[break_audit] เกณฑ์ที่เก็บไว้อ่านไม่ออก', e);
     }
-    function dayStartFor(u, fallbackName, globalDs) {
-        const h = shiftHours(shiftOf(u, fallbackName));
-        // กะที่เข้าค่ำเลิกเช้า (open > close) = ข้ามเที่ยงคืน → นับวันจากเวลาเข้ากะ
-        if (h.open !== null && h.close !== null && h.open > h.close) return h.open;
-        return globalDs;
+  }
+  window.baSaveRules = async function() {
+    const v = {};
+    RULE_FIELDS.forEach((id => {
+      if ($(id)) v[id] = $(id).value;
+    }));
+    _skipDepts = [].slice.call(document.querySelectorAll('#baSkipDepts input:checked')).map((x => x.value));
+    _noSlotDepts = [].slice.call(document.querySelectorAll('#baNoSlotDepts input:checked')).map((x => x.value));
+    v._skipDepts = _skipDepts;
+    v._noSlotDepts = _noSlotDepts;
+    v._by = window.currentUser && window.currentUser.username || '';
+    v._at = (new Date).toISOString();
+    const json = JSON.stringify(v);
+    try {
+      localStorage.setItem(RULE_KEY, json);
+    } catch (e) {}
+    try {
+      if (typeof appDB === 'undefined') throw new Error('ไม่ได้เชื่อมฐานข้อมูล');
+      const {error: error} = await appDB.from('settings').upsert([ {
+        key: RULE_KEY,
+        value: json
+      } ]);
+      if (error) throw error;
+      if (typeof window.clearSettingCache === 'function') window.clearSettingCache(RULE_KEY);
+      if ($('baRulesNote')) $('baRulesNote').textContent = `บันทึกแล้ว ${(new Date).toLocaleTimeString('th-TH', {
+        hour: '2-digit',
+        minute: '2-digit'
+      })}`;
+      if (typeof Swal !== 'undefined') Swal.fire({
+        icon: 'success',
+        title: 'บันทึกเกณฑ์แล้ว',
+        text: 'ทุกคนที่เปิดหน้านี้จะใช้เกณฑ์เดียวกัน',
+        timer: 1600,
+        showConfirmButton: false
+      });
+    } catch (e) {
+      if ($('baRulesNote')) $('baRulesNote').textContent = 'บันทึกในเครื่องนี้เท่านั้น';
+      if (typeof Swal !== 'undefined') Swal.fire('บันทึกขึ้นระบบไม่สำเร็จ', 'ค่าถูกเก็บไว้ในเครื่องนี้แล้ว แต่เครื่องอื่นจะยังใช้ค่าเดิม (' + e.message + ')', 'warning');
     }
-
-    function cfg() {
-        return {
-            cap:     (+$('baCap').value     || 120) * 60,
-            mealMax: (+$('baMealMax').value || 2),
-            gap:     (+$('baGap').value || 0) * (($('baGapUnit') && $('baGapUnit').value === 'sec') ? 1 : 60),
-            late:    (+($('baLate') && $('baLate').value) || 0) * 60,
-            dayStart: toSec($('baDayStart') && $('baDayStart').value) || 0,
-            botReset: toSec($('baBotReset') && $('baBotReset').value)
-        };
+    window.baCompute();
+  };
+  async function loadUsers() {
+    try {
+      if (typeof window.getUsersCached === 'function') _users = await window.getUsersCached(); else if (window.GLOBAL_USER_LIST && window.GLOBAL_USER_LIST.length) _users = window.GLOBAL_USER_LIST; else if (typeof appDB !== 'undefined') {
+        const {data: data} = await appDB.from('users').select('id, username, department, team, role, telegram_id, allowed_shift');
+        _users = data || [];
+      }
+    } catch (e) {
+      console.warn('[break_audit] โหลดรายชื่อพนักงานไม่สำเร็จ', e);
+      _users = [];
     }
-    function kindOf(name) {
-        const t = String(name || '');
-        if (/กินข้าว|ทานข้าว|吃饭|用餐/.test(t)) return 'meal';
-        if (/ปวดหนัก|大便|厕所大/.test(t))       return 'heavy';
-        if (/ปวดน้อย|สูบ|บุหรี่|小便|抽烟/.test(t)) return 'light';
-        return 'other';
+    const fill = (el, arr, allLabel) => {
+      if (el) el.innerHTML = `<option value="all">${allLabel}</option>` + arr.map((v => `<option value="${esc(v)}">${esc(v)}</option>`)).join('');
+    };
+    const SHIFTS = [ 'กะเช้า', 'กะกลาง', 'กะดึก' ];
+    const extra = [ ...new Set(_users.map((u => u.allowed_shift)).filter(Boolean)) ].filter((x => SHIFTS.indexOf(x) < 0));
+    const sSel = $('baShift');
+    if (sSel) {
+      const keep = sSel.value;
+      sSel.innerHTML = '<option value="all">ทุกกะ</option>' + SHIFTS.concat(extra).map((v => `<option value="${esc(v)}">${esc(v)}</option>`)).join('');
+      if (keep) sSel.value = keep;
     }
-    const dateVal = () => ($('baDate') && $('baDate').value) || iso(new Date());
-
-    // ── เกณฑ์: โหลด/บันทึก (เก็บในตาราง settings ใช้ร่วมกันทั้งทีม) ──
-    const RULE_KEY = 'break_audit_rules';
-    const RULE_FIELDS = ['baCap', 'baMealMax', 'baGap', 'baGapUnit', 'baLate', 'baDayStart', 'baBotReset'];
-
-    async function loadRules() {
-        let raw = null;
+    const depts = [ ...new Set(_users.map((u => u.department)).filter(Boolean)) ].sort();
+    fill($('baDept'), depts, 'ทุกแผนก');
+    renderDeptBoxes(depts);
+    fill($('baTeam'), [ ...new Set(_users.map((u => u.team)).filter(Boolean)) ].sort(), 'ทุกเว็บ');
+  }
+  function renderDeptBoxes(depts) {
+    const mk = (host, picked) => {
+      if (!$(host)) return;
+      $(host).innerHTML = depts.map((d => {
+        const on = picked.indexOf(d) > -1;
+        return `<label class="ba-dept ${on ? 'on' : ''}">\n                    <input type="checkbox" value="${esc(d)}" ${on ? 'checked' : ''}\n                        onchange="this.parentNode.classList.toggle('on', this.checked); baApplyDepts();">\n                    ${esc(d)}</label>`;
+      })).join('') || '<span class="text-[11px] text-gray-500">ยังไม่มีข้อมูลแผนก</span>';
+    };
+    mk('baSkipDepts', _skipDepts);
+    mk('baNoSlotDepts', _noSlotDepts);
+    updateSettingsNote();
+  }
+  function updateSettingsNote() {
+    const n = $('baSettingsNote');
+    if (!n) return;
+    const a = _skipDepts.length ? `ไม่ตรวจ ${_skipDepts.join(', ')}` : '';
+    const b = _noSlotDepts.length ? `ไม่เทียบรอบจอง ${_noSlotDepts.join(', ')}` : '';
+    n.textContent = [ a, b ].filter(Boolean).join(' · ') || 'ตรวจทุกแผนก';
+  }
+  window.baApplyDepts = function() {
+    _skipDepts = [].slice.call(document.querySelectorAll('#baSkipDepts input:checked')).map((x => x.value));
+    _noSlotDepts = [].slice.call(document.querySelectorAll('#baNoSlotDepts input:checked')).map((x => x.value));
+    updateSettingsNote();
+    window.baCompute();
+  };
+  function findUser(tgId, tgName) {
+    const id = String(tgId || '').trim();
+    let u = _users.find((x => x.telegram_id && String(x.telegram_id).trim() === id));
+    if (u) return u;
+    const n = norm(tgName);
+    if (!n) return null;
+    return _users.find((x => x.username && norm(x.username).length >= 2 && n.indexOf(norm(x.username)) > -1)) || null;
+  }
+  async function load() {
+    if (typeof appDB === 'undefined') {
+      _rows = [];
+      return;
+    }
+    const d = dateVal();
+    const {data: data, error: error} = await appDB.from('break_punches').select('punch_date, tg_user_id, tg_name, category, started_at, ended_at, duration_sec, limit_min, is_open, created_at').in('punch_date', [ d, addDays(d, 1) ]).order('started_at', {
+      ascending: true
+    });
+    if (error) {
+      console.error('[break_audit]', error);
+      _rows = [];
+      $('baList').innerHTML = `<div class="text-center text-red-400 py-10 text-sm px-4">\n                อ่านตาราง break_punches ไม่ได้<br>\n                <span class="text-gray-500 text-[12px]">${esc(error.message)} — ถ้ายังไม่ได้สร้างตาราง ให้รันไฟล์ sql/break_punches.sql ใน Supabase ก่อน</span></div>`;
+      return;
+    }
+    _rows = data || [];
+    _lastRowAt = _rows.reduce(((mx, r) => !mx || r.created_at > mx ? r.created_at : mx), null);
+  }
+  const slotRange = sl => {
+    const m = /^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/.exec(String(sl || ''));
+    if (!m) return null;
+    let a = +m[1] * 3600 + +m[2] * 60, b = +m[3] * 3600 + +m[4] * 60;
+    if (b <= a) b += 86400;
+    return {
+      a: a,
+      b: b,
+      text: `${m[1].padStart(2, '0')}:${m[2]}-${m[3].padStart(2, '0')}:${m[4]}`
+    };
+  };
+  async function loadBooked() {
+    _booked = {};
+    if (typeof appDB === 'undefined') return;
+    try {
+      const {data: data} = await appDB.from('schedules').select('staff_name, time_slot, shift_name, department, team').eq('work_date', dateVal());
+      (data || []).forEach((r => {
+        const k = norm(r.staff_name);
+        if (!k || !r.time_slot) return;
+        const rg = slotRange(r.time_slot);
+        if (rg) (_booked[k] = _booked[k] || []).push(rg);
+      }));
+      Object.keys(_booked).forEach((k => _booked[k].sort(((x, y) => x.a - y.a))));
+    } catch (e) {
+      console.warn('[break_audit] โหลดตารางจองพักไม่ได้', e);
+    }
+  }
+  async function loadDuty() {
+    _duty = {};
+    _dutyOf = {};
+    _dutyMain = {};
+    _dutySec = {};
+    if (typeof appDB === 'undefined') return;
+    try {
+      const {data: data} = await appDB.from('settings').select('key, value').like('key', `duty_roster_%_${dateVal()}_%`);
+      (data || []).forEach((row => {
+        const parts = String(row.key).split('_');
+        if (parts.length < 5) return;
+        const dept = parts[2], shift = parts[parts.length - 1];
+        let roster;
         try {
-            if (typeof window.getSettingCached === 'function') raw = await window.getSettingCached(RULE_KEY);
-            else if (typeof appDB !== 'undefined') {
-                const { data } = await appDB.from('settings').select('value').eq('key', RULE_KEY).maybeSingle();
-                raw = data ? data.value : null;
-            }
-        } catch (e) { console.warn('[break_audit] โหลดเกณฑ์ไม่ได้', e); }
-        if (!raw) { try { raw = localStorage.getItem(RULE_KEY); } catch (e) {} }
-        if (!raw) return;
-        try {
-            const v = typeof raw === 'string' ? JSON.parse(raw) : raw;
-            RULE_FIELDS.forEach(id => { if (v[id] !== undefined && $(id)) $(id).value = v[id]; });
-            _skipDepts   = Array.isArray(v._skipDepts)   ? v._skipDepts   : [];
-            _noSlotDepts = Array.isArray(v._noSlotDepts) ? v._noSlotDepts : [];
-            if ($('baRulesNote')) $('baRulesNote').textContent = v._by ? `เกณฑ์ที่ใช้อยู่ ตั้งโดย ${v._by}` : '';
-        } catch (e) { console.warn('[break_audit] เกณฑ์ที่เก็บไว้อ่านไม่ออก', e); }
-    }
-
-    window.baSaveRules = async function () {
-        const v = {};
-        RULE_FIELDS.forEach(id => { if ($(id)) v[id] = $(id).value; });
-        _skipDepts   = [].slice.call(document.querySelectorAll('#baSkipDepts input:checked')).map(x => x.value);
-        _noSlotDepts = [].slice.call(document.querySelectorAll('#baNoSlotDepts input:checked')).map(x => x.value);
-        v._skipDepts = _skipDepts;
-        v._noSlotDepts = _noSlotDepts;
-        v._by = (window.currentUser && window.currentUser.username) || '';
-        v._at = new Date().toISOString();
-        const json = JSON.stringify(v);
-        try { localStorage.setItem(RULE_KEY, json); } catch (e) {}
-        try {
-            if (typeof appDB === 'undefined') throw new Error('ไม่ได้เชื่อมฐานข้อมูล');
-            const { error } = await appDB.from('settings').upsert([{ key: RULE_KEY, value: json }]);
-            if (error) throw error;
-            if (typeof window.clearSettingCache === 'function') window.clearSettingCache(RULE_KEY);
-            if ($('baRulesNote')) $('baRulesNote').textContent = `บันทึกแล้ว ${new Date().toLocaleTimeString('th-TH', {hour:'2-digit',minute:'2-digit'})}`;
-            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'บันทึกเกณฑ์แล้ว', text: 'ทุกคนที่เปิดหน้านี้จะใช้เกณฑ์เดียวกัน', timer: 1600, showConfirmButton: false });
+          roster = typeof row.value === 'string' ? JSON.parse(row.value) : row.value;
         } catch (e) {
-            if ($('baRulesNote')) $('baRulesNote').textContent = 'บันทึกในเครื่องนี้เท่านั้น';
-            if (typeof Swal !== 'undefined') Swal.fire('บันทึกขึ้นระบบไม่สำเร็จ', 'ค่าถูกเก็บไว้ในเครื่องนี้แล้ว แต่เครื่องอื่นจะยังใช้ค่าเดิม (' + e.message + ')', 'warning');
+          return;
         }
-        window.baCompute();
-    };
-
-    // ── พนักงานในระบบ ────────────────────────────────────
-    async function loadUsers() {
-        try {
-            if (typeof window.getUsersCached === 'function') _users = await window.getUsersCached();
-            else if (window.GLOBAL_USER_LIST && window.GLOBAL_USER_LIST.length) _users = window.GLOBAL_USER_LIST;
-            else if (typeof appDB !== 'undefined') {
-                const { data } = await appDB.from('users').select('id, username, department, team, role, telegram_id, allowed_shift');
-                _users = data || [];
-            }
-        } catch (e) { console.warn('[break_audit] โหลดรายชื่อพนักงานไม่สำเร็จ', e); _users = []; }
-
-        const fill = (el, arr, allLabel) => { if (el) el.innerHTML = `<option value="all">${allLabel}</option>` + arr.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join(''); };
-        // กะ: ใช้ชุดมาตรฐานของระบบเสมอ + กะแปลกๆ ที่เจอในข้อมูลจริง
-        const SHIFTS = ['กะเช้า', 'กะกลาง', 'กะดึก'];
-        const extra = [...new Set(_users.map(u => u.allowed_shift).filter(Boolean))].filter(x => SHIFTS.indexOf(x) < 0);
-        const sSel = $('baShift');
-        if (sSel) {
-            const keep = sSel.value;
-            sSel.innerHTML = '<option value="all">ทุกกะ</option>' +
-                SHIFTS.concat(extra).map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
-            if (keep) sSel.value = keep;
-        }
-
-        const depts = [...new Set(_users.map(u => u.department).filter(Boolean))].sort();
-        fill($('baDept'), depts, 'ทุกแผนก');
-        renderDeptBoxes(depts);
-        fill($('baTeam'), [...new Set(_users.map(u => u.team).filter(Boolean))].sort(), 'ทุกเว็บ');
-    }
-    function renderDeptBoxes(depts) {
-        const mk = (host, picked) => {
-            if (!$(host)) return;
-            $(host).innerHTML = depts.map(d => {
-                const on = picked.indexOf(d) > -1;
-                return `<label class="ba-dept ${on ? 'on' : ''}">
-                    <input type="checkbox" value="${esc(d)}" ${on ? 'checked' : ''}
-                        onchange="this.parentNode.classList.toggle('on', this.checked); baApplyDepts();">
-                    ${esc(d)}</label>`;
-            }).join('') || '<span class="text-[11px] text-gray-500">ยังไม่มีข้อมูลแผนก</span>';
+        const add = (team, name, role) => {
+          if (!team || !name || String(name).includes('ขาดคน')) return;
+          const k = dept + '|' + shift + '|' + team;
+          (_duty[k] = _duty[k] || new Set).add(name);
+          const bucket = role === 'sec' ? _dutySec : _dutyMain;
+          (bucket[k] = bucket[k] || new Set).add(name);
+          const nk = norm(name);
+          _dutyOf[nk] = _dutyOf[nk] || [];
+          if (!_dutyOf[nk].some((x => x.dept === dept && x.shift === shift && x.team === team))) {
+            _dutyOf[nk].push({
+              dept: dept,
+              shift: shift,
+              team: team
+            });
+          }
         };
-        mk('baSkipDepts', _skipDepts);
-        mk('baNoSlotDepts', _noSlotDepts);
-        updateSettingsNote();
+        Object.keys(roster || {}).forEach((team => {
+          (roster[team] || []).forEach((u => {
+            if (!u || !u.username) return;
+            add(team, u.username, 'main');
+            if (u.secondary_team) add(u.secondary_team, u.username, 'sec');
+          }));
+        }));
+      }));
+    } catch (e) {
+      console.warn('[break_audit] โหลดตารางจัดหน้าที่ไม่ได้', e);
     }
-
-    function updateSettingsNote() {
-        const n = $('baSettingsNote');
-        if (!n) return;
-        const a = _skipDepts.length ? `ไม่ตรวจ ${_skipDepts.join(', ')}` : '';
-        const b = _noSlotDepts.length ? `ไม่เทียบรอบจอง ${_noSlotDepts.join(', ')}` : '';
-        n.textContent = [a, b].filter(Boolean).join(' · ') || 'ตรวจทุกแผนก';
-    }
-
-    // ติ๊กแล้วเห็นผลทันที (ยังไม่บันทึกจนกว่าจะกดปุ่ม)
-    window.baApplyDepts = function () {
-        _skipDepts   = [].slice.call(document.querySelectorAll('#baSkipDepts input:checked')).map(x => x.value);
-        _noSlotDepts = [].slice.call(document.querySelectorAll('#baNoSlotDepts input:checked')).map(x => x.value);
-        updateSettingsNote();
-        window.baCompute();
-    };
-
-    function findUser(tgId, tgName) {
-        const id = String(tgId || '').trim();
-        let u = _users.find(x => x.telegram_id && String(x.telegram_id).trim() === id);
-        if (u) return u;
-        const n = norm(tgName);
-        if (!n) return null;
-        return _users.find(x => x.username && norm(x.username).length >= 2 && n.indexOf(norm(x.username)) > -1) || null;
-    }
-
-    // ── ดึงข้อมูลของวันที่เลือก ───────────────────────────
-    async function load() {
-        if (typeof appDB === 'undefined') { _rows = []; return; }
-        const d = dateVal();
-        const { data, error } = await appDB.from('break_punches')
-            .select('punch_date, tg_user_id, tg_name, category, started_at, ended_at, duration_sec, limit_min, is_open, created_at')
-            .in('punch_date', [d, addDays(d, 1)])      // กะดึกข้ามเที่ยงคืน ต้องดึงวันถัดไปมาด้วย
-            .order('started_at', { ascending: true });
-        if (error) {
-            console.error('[break_audit]', error);
-            _rows = [];
-            $('baList').innerHTML = `<div class="text-center text-red-400 py-10 text-sm px-4">
-                อ่านตาราง break_punches ไม่ได้<br>
-                <span class="text-gray-500 text-[12px]">${esc(error.message)} — ถ้ายังไม่ได้สร้างตาราง ให้รันไฟล์ sql/break_punches.sql ใน Supabase ก่อน</span></div>`;
-            return;
+  }
+  function inShift(u, fallbackName) {
+    const want = $('baShift') && $('baShift').value || 'all';
+    if (want === 'all') return true;
+    if (u && u.allowed_shift) return u.allowed_shift === want;
+    return (_dutyOf[norm(u && u.username || fallbackName)] || []).some((x => x.shift === want));
+  }
+  function build(records, c) {
+    const now = nowSec(), by = {};
+    records.forEach((r => {
+      if (!by[r.uid]) by[r.uid] = {
+        uid: r.uid,
+        id: r.id,
+        name: r.name,
+        dept: r.dept,
+        team: r.team,
+        ds: r.ds != null ? r.ds : c.dayStart,
+        unknown: !!r.unknown,
+        sessions: []
+      };
+      const live = r.end === null;
+      const dsR = r.ds != null ? r.ds : c.dayStart;
+      const nowT = nowSec() + (nowSec() < dsR ? 86400 : 0);
+      let dur = live ? Math.max(0, nowT - r.start) : r.dur != null ? r.dur : Math.max(0, r.end - r.start);
+      by[r.uid].sessions.push({
+        cat: r.cat,
+        kind: kindOf(r.cat),
+        start: r.start,
+        end: r.start + dur,
+        dur: dur,
+        live: live,
+        botReset: r.botReset,
+        noBack: r.noBack,
+        limit: r.limit,
+        overLimit: r.limit ? dur > r.limit * 60 : false
+      });
+      if (!by[r.uid].booked) by[r.uid].booked = _booked[norm(r.name)] || [];
+    }));
+    return Object.keys(by).map((k => {
+      const p = by[k];
+      p.sessions.sort(((a, b) => a.start - b.start));
+      p.total = 0;
+      p.meal = 0;
+      p.live = false;
+      p.overLimit = 0;
+      p.botReset = 0;
+      p.noBack = 0;
+      p.byKind = {
+        meal: {
+          n: 0,
+          sec: 0
+        },
+        heavy: {
+          n: 0,
+          sec: 0
+        },
+        light: {
+          n: 0,
+          sec: 0
+        },
+        other: {
+          n: 0,
+          sec: 0
         }
-        _rows = data || [];
-        _lastRowAt = _rows.reduce((mx, r) => (!mx || r.created_at > mx ? r.created_at : mx), null);
-    }
-
-    // ── ตารางจองพัก (ตาราง schedules ของหน้า "ลงเวลากินข้าว") ──
-    const slotRange = sl => {
-        const m = /^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/.exec(String(sl || ''));
-        if (!m) return null;
-        let a = (+m[1]) * 3600 + (+m[2]) * 60, b = (+m[3]) * 3600 + (+m[4]) * 60;
-        if (b <= a) b += 86400;                       // รอบคร่อมเที่ยงคืน
-        return { a, b, text: `${m[1].padStart(2,'0')}:${m[2]}-${m[3].padStart(2,'0')}:${m[4]}` };
-    };
-
-    async function loadBooked() {
-        _booked = {};
-        if (typeof appDB === 'undefined') return;
-        try {
-            const { data } = await appDB.from('schedules')
-                .select('staff_name, time_slot, shift_name, department, team')
-                .eq('work_date', dateVal());
-            (data || []).forEach(r => {
-                const k = norm(r.staff_name);
-                if (!k || !r.time_slot) return;
-                const rg = slotRange(r.time_slot);
-                if (rg) (_booked[k] = _booked[k] || []).push(rg);
-            });
-            Object.keys(_booked).forEach(k => _booked[k].sort((x, y) => x.a - y.a));
-        } catch (e) { console.warn('[break_audit] โหลดตารางจองพักไม่ได้', e); }
-    }
-
-    // ── ตารางจัดหน้าที่ของวันนั้น (settings: duty_roster_แผนก_วันที่_กะ) ──
-    //    เว็บที่แต่ละคนเฝ้า เปลี่ยนทุกวัน จึงต้องอ่านจากตรงนี้ ไม่ใช่ users.team
-    async function loadDuty() {
-        _duty = {}; _dutyOf = {}; _dutyMain = {}; _dutySec = {};
-        if (typeof appDB === 'undefined') return;
-        try {
-            const { data } = await appDB.from('settings')
-                .select('key, value')
-                .like('key', `duty_roster_%_${dateVal()}_%`);
-            (data || []).forEach(row => {
-                const parts = String(row.key).split('_');       // duty_roster_{dept}_{date}_{shift}
-                if (parts.length < 5) return;
-                const dept = parts[2], shift = parts[parts.length - 1];
-                let roster;
-                try { roster = typeof row.value === 'string' ? JSON.parse(row.value) : row.value; } catch (e) { return; }
-                const add = (team, name, role) => {
-                    if (!team || !name || String(name).includes('ขาดคน')) return;
-                    const k = dept + '|' + shift + '|' + team;
-                    (_duty[k] = _duty[k] || new Set()).add(name);
-                    const bucket = role === 'sec' ? _dutySec : _dutyMain;
-                    (bucket[k] = bucket[k] || new Set()).add(name);
-                    const nk = norm(name);
-                    _dutyOf[nk] = _dutyOf[nk] || [];
-                    if (!_dutyOf[nk].some(x => x.dept === dept && x.shift === shift && x.team === team)) {
-                        _dutyOf[nk].push({ dept, shift, team });
-                    }
-                };
-                Object.keys(roster || {}).forEach(team => {
-                    (roster[team] || []).forEach(u => {
-                        if (!u || !u.username) return;
-                        add(team, u.username, 'main');                                    // เว็บหลัก
-                        if (u.secondary_team) add(u.secondary_team, u.username, 'sec');    // เว็บรอง ก็ต้องเฝ้าเหมือนกัน
-                    });
-                });
-            });
-        } catch (e) { console.warn('[break_audit] โหลดตารางจัดหน้าที่ไม่ได้', e); }
-
-    }
-
-    // คนนี้อยู่กะที่เลือกไว้ไหม — ดูจากกะประจำของพนักงานก่อน ถ้าไม่มีค่อยดูตารางเวรวันนั้น
-    function inShift(u, fallbackName) {
-        const want = ($('baShift') && $('baShift').value) || 'all';
-        if (want === 'all') return true;
-        if (u && u.allowed_shift) return u.allowed_shift === want;
-        return (_dutyOf[norm((u && u.username) || fallbackName)] || []).some(x => x.shift === want);
-    }
-
-    // ── คำนวณ ────────────────────────────────────────────
-    function build(records, c) {
-        const now = nowSec(), by = {};
-        records.forEach(r => {
-            if (!by[r.uid]) by[r.uid] = { uid: r.uid, id: r.id, name: r.name, dept: r.dept, team: r.team, ds: (r.ds != null ? r.ds : c.dayStart), unknown: !!r.unknown, sessions: [] };
-            const live = r.end === null;
-            const dsR = (r.ds != null ? r.ds : c.dayStart);
-            const nowT = nowSec() + (nowSec() < dsR ? 86400 : 0);
-            let dur = live ? Math.max(0, nowT - r.start) : (r.dur != null ? r.dur : Math.max(0, r.end - r.start));
-            by[r.uid].sessions.push({ cat: r.cat, kind: kindOf(r.cat), start: r.start, end: r.start + dur, dur, live,
-                                      botReset: r.botReset, noBack: r.noBack,
-                                      limit: r.limit, overLimit: r.limit ? dur > r.limit * 60 : false });
-            if (!by[r.uid].booked) by[r.uid].booked = _booked[norm(r.name)] || [];
-        });
-
-        return Object.keys(by).map(k => {
-            const p = by[k];
-            p.sessions.sort((a, b) => a.start - b.start);
-            p.total = 0; p.meal = 0; p.live = false;
-            p.overLimit = 0; p.botReset = 0; p.noBack = 0;
-            p.byKind = { meal: {n:0,sec:0}, heavy: {n:0,sec:0}, light: {n:0,sec:0}, other: {n:0,sec:0} };
-            p.sessions.forEach(s => {
-                p.total += s.dur;
-                if (s.kind === 'meal') p.meal++;
-                if (s.live) p.live = true;
-                if (s.overLimit) p.overLimit++;
-                if (s.botReset) p.botReset++;
-                if (s.noBack) p.noBack++;
-                p.byKind[s.kind].n++; p.byKind[s.kind].sec += s.dur;
-            });
-            p.firstOut = p.sessions.length ? p.sessions[0].start : null;
-            p.lastBack = p.sessions.length ? p.sessions[p.sessions.length - 1].end : null;
-
-            // เทียบกับรอบที่จองไว้ (เช็คเฉพาะหมวดกินข้าว)
-            p.booked = p.booked || [];
-            p.offSlot = 0;
-            p.checkSlot = !p.unknown && _noSlotDepts.indexOf(p.dept || '') < 0;   // คนไม่อยู่ในระบบไม่มีการจอง → ไม่ตำหนิเรื่องรอบ
-            p.lateSlot = 0;
-            p.sessions.forEach(s => {
-                if (!p.checkSlot || s.kind !== 'meal') return;
-                if (!p.booked.length) { s.slotNote = 'ไม่ได้จองรอบพัก'; s.offSlot = true; p.offSlot++; return; }
-                // รอบที่จองต้องเลื่อนเข้าเส้นเวลาเดียวกับรอบที่กดจริง (กะดึกข้ามเที่ยงคืน)
-                const slots = p.booked.map(b => {
-                    const off = b.a < p.ds ? 86400 : 0;
-                    return { a: b.a + off, b: b.b + off, text: b.text };
-                });
-                let best = slots[0], bestDiff = Math.abs(s.start - best.a);
-                slots.forEach(b => { const d = Math.abs(s.start - b.a); if (d < bestDiff) { best = b; bestDiff = d; } });
-                const diff = s.start - best.a;                       // + = ออกช้ากว่าที่จอง
-                const mins = Math.round(Math.abs(diff) / 60);
-                if (Math.abs(diff) <= c.late) { s.slotNote = 'ตรงรอบ ' + best.text; s.offSlot = false; }
-                else {
-                    s.offSlot = true; s.lateSlot = true; p.offSlot++; p.lateSlot++;
-                    s.slotNote = (diff > 0 ? 'ออกช้ากว่ารอบที่จอง ' : 'ออกก่อนรอบที่จอง ') + mins + ' นาที (จอง ' + best.text + ')';
-                }
-            });
-
-            p.chains = []; p.inChain = {}; p.chainMax = 0;
-            let g = [0];
-            for (let i = 1; i < p.sessions.length; i++) {
-                if (p.sessions[i].start - p.sessions[i - 1].end <= c.gap) g.push(i);
-                else { if (g.length > 1) p.chains.push(g); g = [i]; }
+      };
+      p.sessions.forEach((s => {
+        p.total += s.dur;
+        if (s.kind === 'meal') p.meal++;
+        if (s.live) p.live = true;
+        if (s.overLimit) p.overLimit++;
+        if (s.botReset) p.botReset++;
+        if (s.noBack) p.noBack++;
+        p.byKind[s.kind].n++;
+        p.byKind[s.kind].sec += s.dur;
+      }));
+      p.firstOut = p.sessions.length ? p.sessions[0].start : null;
+      p.lastBack = p.sessions.length ? p.sessions[p.sessions.length - 1].end : null;
+      p.booked = p.booked || [];
+      p.offSlot = 0;
+      p.checkSlot = !p.unknown && _noSlotDepts.indexOf(p.dept || '') < 0;
+      p.lateSlot = 0;
+      p.sessions.forEach((s => {
+        if (!p.checkSlot || s.kind !== 'meal') return;
+        if (!p.booked.length) {
+          s.slotNote = 'ไม่ได้จองรอบพัก';
+          s.offSlot = true;
+          p.offSlot++;
+          return;
+        }
+        const slots = p.booked.map((b => {
+          const off = b.a < p.ds ? 86400 : 0;
+          return {
+            a: b.a + off,
+            b: b.b + off,
+            text: b.text
+          };
+        }));
+        let best = slots[0], bestDiff = Math.abs(s.start - best.a);
+        slots.forEach((b => {
+          const d = Math.abs(s.start - b.a);
+          if (d < bestDiff) {
+            best = b;
+            bestDiff = d;
+          }
+        }));
+        const diff = s.start - best.a;
+        const mins = Math.round(Math.abs(diff) / 60);
+        if (Math.abs(diff) <= c.late) {
+          s.slotNote = 'ตรงรอบ ' + best.text;
+          s.offSlot = false;
+        } else {
+          s.offSlot = true;
+          s.lateSlot = true;
+          p.offSlot++;
+          p.lateSlot++;
+          s.slotNote = (diff > 0 ? 'ออกช้ากว่ารอบที่จอง ' : 'ออกก่อนรอบที่จอง ') + mins + ' นาที (จอง ' + best.text + ')';
+        }
+      }));
+      p.chains = [];
+      p.inChain = {};
+      p.chainMax = 0;
+      let g = [ 0 ];
+      for (let i = 1; i < p.sessions.length; i++) {
+        if (p.sessions[i].start - p.sessions[i - 1].end <= c.gap) g.push(i); else {
+          if (g.length > 1) p.chains.push(g);
+          g = [ i ];
+        }
+      }
+      if (g.length > 1) p.chains.push(g);
+      p.chains.forEach((ix => {
+        const span = p.sessions[ix[ix.length - 1]].end - p.sessions[ix[0]].start;
+        if (span > p.chainMax) p.chainMax = span;
+        ix.forEach(((i, j) => {
+          if (j > 0) p.inChain[i] = true;
+        }));
+      }));
+      p.overCap = p.total > c.cap && !p.botReset;
+      p.overMeal = p.meal > c.mealMax;
+      p.state = p.overCap || p.overMeal || p.lateSlot ? 'over' : p.chains.length ? 'near' : 'ok';
+      return p;
+    })).sort(((a, b) => {
+      const rank = {
+        over: 0,
+        near: 1,
+        ok: 2
+      };
+      return rank[a.state] !== rank[b.state] ? rank[a.state] - rank[b.state] : b.total - a.total;
+    }));
+  }
+  window.baCompute = function() {
+    const c = cfg(), dept = $('baDept').value, team = $('baTeam').value;
+    const unknown = {}, hit = {};
+    let use = [];
+    const d0 = dateVal(), d1 = addDays(d0, 1);
+    _rows.forEach((r => {
+      const t = toSec(r.started_at);
+      if (t === null) return;
+      const u = findUser(r.tg_user_id, r.tg_name);
+      const ds = dayStartFor(u, r.tg_name, c.dayStart);
+      const resetTs = c.botReset === null ? null : c.botReset + (c.botReset < ds ? 86400 : 0);
+      const isToday = d0 === workDateNow(ds);
+      const nowTs = nowSec() + (nowSec() < ds ? 86400 : 0);
+      const eRaw = r.is_open ? null : toSec(r.ended_at);
+      const crossed = eRaw !== null && eRaw < t && t >= ds;
+      let off = null;
+      if (r.punch_date === d0 && t >= ds && !crossed) off = 0; else if (r.punch_date === d1 && t < ds) off = 86400; else if (r.punch_date === d1 && crossed) off = 0;
+      if (off === null) return;
+      if (!u) {
+        (unknown[r.tg_user_id] = unknown[r.tg_user_id] || {
+          id: r.tg_user_id,
+          name: r.tg_name,
+          n: 0
+        }).n++;
+        if (dept !== 'all' || team !== 'all') return;
+      } else {
+        if (_skipDepts.indexOf(u.department || '') > -1) return;
+        if (dept !== 'all' && (u.department || '') !== dept) return;
+        if (team !== 'all' && (u.team || '') !== team) return;
+        if (!inShift(u, r.tg_name)) return;
+      }
+      const start = t + off;
+      let end = null, dur = null, botReset = false, noBack = false;
+      if (!r.is_open) {
+        let e = toSec(r.ended_at);
+        if (e !== null) {
+          e += off;
+          if (e < start) e += 86400;
+        }
+        end = e;
+        dur = r.duration_sec;
+      } else if (isToday && (resetTs === null || nowTs <= resetTs)) {
+        end = null;
+      } else if (resetTs !== null && start < resetTs) {
+        end = resetTs;
+        dur = resetTs - start;
+        botReset = true;
+      } else {
+        end = start;
+        dur = 0;
+        noBack = true;
+      }
+      if (u) hit[u.id] = true;
+      use.push(u ? {
+        uid: u.id,
+        id: String(u.telegram_id || r.tg_user_id),
+        name: u.username || r.tg_name,
+        dept: u.department || '',
+        team: u.team || '',
+        cat: r.category || 'อื่นๆ',
+        start: start,
+        end: end,
+        dur: dur,
+        limit: r.limit_min,
+        botReset: botReset,
+        noBack: noBack,
+        ds: ds
+      } : {
+        uid: 'tg:' + r.tg_user_id,
+        id: String(r.tg_user_id),
+        name: r.tg_name || 'TG ' + r.tg_user_id,
+        dept: '',
+        team: '',
+        cat: r.category || 'อื่นๆ',
+        start: start,
+        end: end,
+        dur: dur,
+        limit: r.limit_min,
+        botReset: botReset,
+        noBack: noBack,
+        ds: ds,
+        unknown: true
+      });
+    }));
+    const seen = {};
+    use = use.filter((x => {
+      const k = x.uid + '|' + x.start + '|' + x.end;
+      if (seen[k]) return false;
+      seen[k] = true;
+      return true;
+    }));
+    const closedStarts = {};
+    use.forEach((x => {
+      if (x.end !== null && !x.botReset && !x.noBack) (closedStarts[x.uid] = closedStarts[x.uid] || []).push(x.start);
+    }));
+    use = use.filter((x => {
+      if (x.end !== null && !x.botReset && !x.noBack) return true;
+      return !(closedStarts[x.uid] || []).some((st => Math.abs(st - x.start) <= 120));
+    }));
+    _people = build(use, c);
+    _unknown = Object.values(unknown).sort(((a, b) => b.n - a.n));
+    if ($('baAbsent').checked) {
+      _users.forEach((u => {
+        if (hit[u.id] || !u.telegram_id) return;
+        if (_skipDepts.indexOf(u.department || '') > -1) return;
+        if (!inShift(u)) return;
+        if (dept !== 'all' && (u.department || '') !== dept) return;
+        if (team !== 'all' && (u.team || '') !== team) return;
+        _people.push({
+          uid: u.id,
+          id: String(u.telegram_id),
+          name: u.username || '-',
+          dept: u.department || '',
+          team: u.team || '',
+          sessions: [],
+          total: 0,
+          meal: 0,
+          live: false,
+          chains: [],
+          inChain: {},
+          chainMax: 0,
+          byKind: {
+            meal: {
+              n: 0,
+              sec: 0
+            },
+            heavy: {
+              n: 0,
+              sec: 0
+            },
+            light: {
+              n: 0,
+              sec: 0
+            },
+            other: {
+              n: 0,
+              sec: 0
             }
-            if (g.length > 1) p.chains.push(g);
-            p.chains.forEach(ix => {
-                const span = p.sessions[ix[ix.length - 1]].end - p.sessions[ix[0]].start;
-                if (span > p.chainMax) p.chainMax = span;
-                ix.forEach((i, j) => { if (j > 0) p.inChain[i] = true; });   // รอบแรกของชุดไม่ใช่ "ต่อจากรอบก่อน"
-            });
-
-            p.overCap  = p.total > c.cap && !p.botReset;   // ถ้ามีรอบที่ค้างเพราะบอทรีเซ็ต เวลาไม่แม่น ไม่ฟันธงว่าเกิน
-            p.overMeal = p.meal > c.mealMax;
-            // เหลือง = กดกลับที่นั่งแล้วกดออกต่อทันที (ไม่ว่าหมวดอะไร) อย่างเดียวเท่านั้น
-            p.state = (p.overCap || p.overMeal || p.lateSlot) ? 'over'
-                    : p.chains.length ? 'near' : 'ok';
-            return p;
-        }).sort((a, b) => {
-            const rank = { over: 0, near: 1, ok: 2 };
-            return rank[a.state] !== rank[b.state] ? rank[a.state] - rank[b.state] : b.total - a.total;
+          },
+          firstOut: null,
+          lastBack: null,
+          overLimit: 0,
+          offSlot: 0,
+          lateSlot: 0,
+          botReset: 0,
+          noBack: 0,
+          booked: _booked[norm(u.username)] || [],
+          overCap: false,
+          overMeal: false,
+          absent: true,
+          state: 'ok',
+          ds: dayStartFor(u, u.username, c.dayStart)
         });
+      }));
     }
-
-    window.baCompute = function () {
-        const c = cfg(), dept = $('baDept').value, team = $('baTeam').value;
-        const unknown = {}, hit = {};
-        let use = [];
-
-        const d0 = dateVal(), d1 = addDays(d0, 1);
-
-        _rows.forEach(r => {
-            const t = toSec(r.started_at);
-            if (t === null) return;
-
-            // 🌙 หาคนก่อน เพื่อรู้ว่าเขาอยู่กะไหน → วันทำงานของเขาเริ่มนับตอนกี่โมง
-            const u = findUser(r.tg_user_id, r.tg_name);
-            const ds = dayStartFor(u, r.tg_name, c.dayStart);
-            const resetTs = c.botReset === null ? null : (c.botReset + (c.botReset < ds ? 86400 : 0));
-            const isToday = d0 === workDateNow(ds);
-            const nowTs = nowSec() + (nowSec() < ds ? 86400 : 0);
-
-            // อยู่ในวันทำงานที่เลือกไหม (ก่อนเวลาเริ่มวัน = ยังเป็นของเมื่อวาน)
-            // รอบที่ข้ามเที่ยงคืน (กลับก่อนเวลาที่ออก) = ออกตั้งแต่วันก่อนหน้า
-            const eRaw = r.is_open ? null : toSec(r.ended_at);
-            const crossed = eRaw !== null && eRaw < t && t >= ds;
-            let off = null;
-            // ⚠️ listener ลง punch_date ตามวันที่ "กดกลับ" → รอบที่คร่อมเที่ยงคืน (ออก 23:55 กลับ 00:14) จะมี punch_date เป็นวันถัดไป
-            //    รอบแบบนี้ที่ punch_date = d0 แปลว่าออกตั้งแต่เย็นวันก่อน (d0-1) → ไม่ใช่ของวันนี้ ห้ามหยิบ
-            if (r.punch_date === d0 && t >= ds && !crossed) off = 0;  // ออกในวันนี้หลังเวลาเริ่มวัน
-            else if (r.punch_date === d1 && t < ds) off = 86400;      // หลังเที่ยงคืน ก่อนถึงเวลาเริ่มวันใหม่ = ยังเป็นวันนี้
-            else if (r.punch_date === d1 && crossed) off = 0;          // ออกเย็นวันนี้ กลับหลังเที่ยงคืน (ลงวันที่เป็น d1)
-            if (off === null) return;
-
-            if (!u) {
-                // 👤 คนที่กดแต่จับคู่กับพนักงานไม่ได้ → ยังนับใน "ไม่รู้จัก" (กล่องเตือน) และ
-                //    เอามาโชว์ในรายการหลักด้วย (ใช้ชื่อ/ไอดี Telegram แทน) จะได้ไม่หลุดจากการตรวจ
-                //    โชว์เฉพาะตอนดู "ทุกแผนก / ทุกเว็บ" เพราะไม่รู้ว่าเขาอยู่แผนกไหน
-                (unknown[r.tg_user_id] = unknown[r.tg_user_id] || { id: r.tg_user_id, name: r.tg_name, n: 0 }).n++;
-                if (dept !== 'all' || team !== 'all') return;
-            } else {
-                if (_skipDepts.indexOf(u.department || '') > -1) return;
-                if (dept !== 'all' && (u.department || '') !== dept) return;
-                if (team !== 'all' && (u.team || '') !== team) return;
-                if (!inShift(u, r.tg_name)) return;
-            }
-
-            const start = t + off;
-            let end = null, dur = null, botReset = false, noBack = false;
-
-            if (!r.is_open) {
-                let e = toSec(r.ended_at);
-                if (e !== null) { e += off; if (e < start) e += 86400; }
-                end = e; dur = r.duration_sec;
-            } else if (isToday && (resetTs === null || nowTs <= resetTs)) {
-                end = null;                                   // ยังไม่กลับจริงๆ เวลาเดินอยู่
-            } else if (resetTs !== null && start < resetTs) {
-                end = resetTs; dur = resetTs - start; botReset = true;   // บอทรีเซ็ตไปแล้ว กดกลับไม่ได้
-            } else {
-                end = start; dur = 0; noBack = true;          // ค้างไว้ ไม่รู้เวลาจริง
-            }
-
-            if (u) hit[u.id] = true;
-            use.push(u ? {
-                uid: u.id, id: String(u.telegram_id || r.tg_user_id), name: u.username || r.tg_name,
-                dept: u.department || '', team: u.team || '', cat: r.category || 'อื่นๆ',
-                start, end, dur, limit: r.limit_min, botReset, noBack, ds
-            } : {
-                uid: 'tg:' + r.tg_user_id, id: String(r.tg_user_id), name: r.tg_name || ('TG ' + r.tg_user_id),
-                dept: '', team: '', cat: r.category || 'อื่นๆ',
-                start, end, dur, limit: r.limit_min, botReset, noBack, ds, unknown: true
-            });
-        });
-
-        // รอบเดียวกันที่โผล่ซ้ำ (เช่นบันทึกไว้ทั้ง 2 วันจากข้อมูลเก่า) → เก็บแค่แถวเดียว
-        const seen = {};
-        use = use.filter(x => { const k = x.uid + '|' + x.start + '|' + x.end; if (seen[k]) return false; seen[k] = true; return true; });
-
-        // ซากจากบั๊กเดิม: แถวกดออกค้าง ที่จริงมีรอบปิดแล้วเวลาเริ่มเดียวกัน → ทิ้งแถวค้าง
-        const closedStarts = {};
-        use.forEach(x => { if (x.end !== null && !x.botReset && !x.noBack) (closedStarts[x.uid] = closedStarts[x.uid] || []).push(x.start); });
-        use = use.filter(x => {
-            if (x.end !== null && !x.botReset && !x.noBack) return true;
-            return !(closedStarts[x.uid] || []).some(st => Math.abs(st - x.start) <= 120);
-        });
-
-        _people = build(use, c);
-        _unknown = Object.values(unknown).sort((a, b) => b.n - a.n);
-
-        if ($('baAbsent').checked) {
-            _users.forEach(u => {
-                if (hit[u.id] || !u.telegram_id) return;
-                if (_skipDepts.indexOf(u.department || '') > -1) return;
-                if (!inShift(u)) return;
-                if (dept !== 'all' && (u.department || '') !== dept) return;
-                if (team !== 'all' && (u.team || '') !== team) return;
-                _people.push({
-                    uid: u.id, id: String(u.telegram_id), name: u.username || '-', dept: u.department || '', team: u.team || '',
-                    sessions: [], total: 0, meal: 0, live: false, chains: [], inChain: {}, chainMax: 0,
-                    byKind: { meal:{n:0,sec:0}, heavy:{n:0,sec:0}, light:{n:0,sec:0}, other:{n:0,sec:0} },
-                    firstOut: null, lastBack: null, overLimit: 0, offSlot: 0, lateSlot: 0, botReset: 0, noBack: 0, booked: _booked[norm(u.username)] || [],
-                    overCap: false, overMeal: false, absent: true, state: 'ok', ds: dayStartFor(u, u.username, c.dayStart)
-                });
-            });
-        }
-
-        const ubox = $('baUnknownBox');
-        if (_unknown.length) {
-            ubox.style.display = '';
-            $('baUnknown').innerHTML = _unknown.slice(0, 40).map(u =>
-                `<span class="ba-chip" style="border-color:rgba(245,158,11,.4);color:var(--k-amber-tx)">${esc(u.name)} · ${esc(u.id)} · ${u.n} รอบ</span>`).join('');
-        } else ubox.style.display = 'none';
-
-        const canExport = (typeof window.hasUserPerm !== 'function') || window.hasUserPerm('break_audit_export');
-        $('baExportBtn').style.display = (_people.length && canExport) ? 'flex' : 'none';
-
-        render();
-        updateStatus();
+    const ubox = $('baUnknownBox');
+    if (_unknown.length) {
+      ubox.style.display = '';
+      $('baUnknown').innerHTML = _unknown.slice(0, 40).map((u => `<span class="ba-chip" style="border-color:rgba(245,158,11,.4);color:var(--k-amber-tx)">${esc(u.name)} · ${esc(u.id)} · ${u.n} รอบ</span>`)).join('');
+    } else ubox.style.display = 'none';
+    const canExport = typeof window.hasUserPerm !== 'function' || window.hasUserPerm('break_audit_export');
+    $('baExportBtn').style.display = _people.length && canExport ? 'flex' : 'none';
+    render();
+    updateStatus();
+  };
+  function updateStatus() {
+    const box = $('baLive'), txt = $('baLiveText');
+    if (!box) return;
+    const isToday = dateVal() === iso(new Date);
+    if (!isToday) {
+      box.className = 'ba-live';
+      txt.textContent = 'ดูข้อมูลย้อนหลัง';
+    } else if (!_lastRowAt) {
+      box.className = 'ba-live off';
+      txt.textContent = 'ยังไม่มีข้อมูลวันนี้';
+    } else {
+      const mins = Math.floor((Date.now() - new Date(_lastRowAt).getTime()) / 6e4);
+      if (mins <= 90) {
+        box.className = 'ba-live on';
+        txt.textContent = `รับสด · ล่าสุด ${mins} นาทีที่แล้ว`;
+      } else {
+        box.className = 'ba-live off';
+        txt.textContent = `เงียบไป ${Math.floor(mins / 60)} ชม. — เช็คตัวดักฟัง`;
+      }
+    }
+    const u = $('baUpdatedAt');
+    if (u) {
+      const n = new Date;
+      u.textContent = `อัปเดต ${pad(n.getHours())}:${pad(n.getMinutes())} · ${_rows.length} รอบในวันนี้`;
+    }
+  }
+  function render() {
+    const c = cfg();
+    const q = ($('baSearch') && $('baSearch').value || '').trim().toLowerCase();
+    const kindPick = $('baKind') && $('baKind').value || 'all';
+    const counts = {
+      all: _people.length,
+      over: 0,
+      near: 0,
+      live: 0
     };
-
-    // ── หน้างานตอนนี้: ใครออกพร้อมกันกี่คน เทียบเพดานของเว็บ ──
-    // ── ไฟสถานะตัวดักฟัง ─────────────────────────────────
-    function updateStatus() {
-        const box = $('baLive'), txt = $('baLiveText');
-        if (!box) return;
-        const isToday = dateVal() === iso(new Date());
-        if (!isToday) { box.className = 'ba-live'; txt.textContent = 'ดูข้อมูลย้อนหลัง'; }
-        else if (!_lastRowAt) { box.className = 'ba-live off'; txt.textContent = 'ยังไม่มีข้อมูลวันนี้'; }
-        else {
-            const mins = Math.floor((Date.now() - new Date(_lastRowAt).getTime()) / 60000);
-            if (mins <= 90) { box.className = 'ba-live on'; txt.textContent = `รับสด · ล่าสุด ${mins} นาทีที่แล้ว`; }
-            else { box.className = 'ba-live off'; txt.textContent = `เงียบไป ${Math.floor(mins / 60)} ชม. — เช็คตัวดักฟัง`; }
-        }
-        const u = $('baUpdatedAt');
-        if (u) { const n = new Date(); u.textContent = `อัปเดต ${pad(n.getHours())}:${pad(n.getMinutes())} · ${_rows.length} รอบในวันนี้`; }
+    _people.forEach((p => {
+      if (p.state === 'over') counts.over++; else if (p.state === 'near') counts.near++;
+      if (p.live) counts.live++;
+    }));
+    $('baTally').innerHTML = [ [ 'all', 'ทั้งหมด', counts.all, '' ], [ 'over', 'เกินเกณฑ์', counts.over, 'over' ], [ 'near', 'กดต่อเนื่อง', counts.near, 'near' ], [ 'live', 'ยังไม่กดกลับ', counts.live, 'live' ] ].map((t => `<button class="ba-t ${t[3]} ${_filter === t[0] ? 'on' : ''}" onclick="baFilter('${t[0]}')">\n                        <span class="n">${t[2]}</span><span class="l">${t[1]}</span></button>`)).join('');
+    const shown = _people.filter((p => {
+      if (_filter === 'over' && p.state !== 'over') return false;
+      if (_filter === 'near' && p.state !== 'near') return false;
+      if (_filter === 'live' && !p.live) return false;
+      if (kindPick !== 'all' && (!p.byKind[kindPick] || !p.byKind[kindPick].n)) return false;
+      if (q && !String(p.name).toLowerCase().includes(q)) return false;
+      return true;
+    }));
+    const box = $('baList');
+    if (!_people.length) {
+      box.innerHTML = `<div class="text-center text-gray-500 py-12 text-sm px-4">\n                <span class="material-icons text-4xl text-slate-600">inbox</span><br>\n                ไม่มีข้อมูลของวันนี้<br>\n                <span class="text-[12px] text-gray-600">ถ้าบอทในกลุ่มยังพิมพ์อยู่ แปลว่าตัวดักฟัง (tg-listener) อาจหยุดทำงาน ลองเช็คที่ Railway</span></div>`;
+      return;
     }
-
-    // ── วาดหน้าจอ ────────────────────────────────────────
-    function render() {
-        const c = cfg();
-        const q = (($('baSearch') && $('baSearch').value) || '').trim().toLowerCase();
-        const kindPick = ($('baKind') && $('baKind').value) || 'all';
-        const counts = { all: _people.length, over: 0, near: 0, live: 0 };
-        _people.forEach(p => { if (p.state === 'over') counts.over++; else if (p.state === 'near') counts.near++; if (p.live) counts.live++; });
-
-        $('baTally').innerHTML = [
-            ['all', 'ทั้งหมด', counts.all, ''],
-            ['over', 'เกินเกณฑ์', counts.over, 'over'],
-            ['near', 'กดต่อเนื่อง', counts.near, 'near'],
-            ['live', 'ยังไม่กดกลับ', counts.live, 'live']
-        ].map(t => `<button class="ba-t ${t[3]} ${_filter === t[0] ? 'on' : ''}" onclick="baFilter('${t[0]}')">
-                        <span class="n">${t[2]}</span><span class="l">${t[1]}</span></button>`).join('');
-
-        const shown = _people.filter(p => {
-            if (_filter === 'over' && p.state !== 'over') return false;
-            if (_filter === 'near' && p.state !== 'near') return false;
-            if (_filter === 'live' && !p.live) return false;
-            if (kindPick !== 'all' && (!p.byKind[kindPick] || !p.byKind[kindPick].n)) return false;
-            if (q && !String(p.name).toLowerCase().includes(q)) return false;
-            return true;
-        });
-        const box = $('baList');
-
-        if (!_people.length) {
-            box.innerHTML = `<div class="text-center text-gray-500 py-12 text-sm px-4">
-                <span class="material-icons text-4xl text-slate-600">inbox</span><br>
-                ไม่มีข้อมูลของวันนี้<br>
-                <span class="text-[12px] text-gray-600">ถ้าบอทในกลุ่มยังพิมพ์อยู่ แปลว่าตัวดักฟัง (tg-listener) อาจหยุดทำงาน ลองเช็คที่ Railway</span></div>`;
-            return;
+    if (!shown.length) {
+      box.innerHTML = '<div class="text-center text-gray-500 py-10 text-sm">ไม่มีคนที่ตรงกับตัวกรองนี้</div>';
+      return;
+    }
+    box.innerHTML = shown.map((p => {
+      const KIND = {
+        meal: {
+          name: 'กินข้าว',
+          color: '#22c55e'
+        },
+        heavy: {
+          name: 'ปวดหนัก',
+          color: '#f97316'
+        },
+        light: {
+          name: 'ปวดน้อย/สูบบุหรี่',
+          color: '#38bdf8'
+        },
+        other: {
+          name: 'อื่นๆ',
+          color: '#a78bfa'
         }
-        if (!shown.length) { box.innerHTML = '<div class="text-center text-gray-500 py-10 text-sm">ไม่มีคนที่ตรงกับตัวกรองนี้</div>'; return; }
-
-        box.innerHTML = shown.map(p => {
-            const KIND = {
-                meal:  { name: 'กินข้าว',            color: '#22c55e' },
-                heavy: { name: 'ปวดหนัก',           color: '#f97316' },
-                light: { name: 'ปวดน้อย/สูบบุหรี่', color: '#38bdf8' },
-                other: { name: 'อื่นๆ',              color: '#a78bfa' }
+      };
+      const kindCells = [ 'meal', 'heavy', 'light', 'other' ].map((k => {
+        const d = p.byKind[k], on = d.n > 0;
+        if (k === 'other' && !on) return '';
+        return `<div class="ba-k ${on ? '' : 'off'}">\n                    <span class="ba-kdot" style="background:${on ? KIND[k].color : 'var(--k-btn-h)'}"></span>\n                    <span class="ba-kname">${KIND[k].name}</span>\n                    <b class="ba-kn">${d.n}</b><span class="ba-kunit">รอบ</span>\n                    <span class="ba-ktime">${on ? hms(d.sec) : '—'}</span>\n                </div>`;
+      })).join('');
+      const chips = [];
+      if (p.absent) chips.push('<span class="ba-chip">ไม่มีการกดเลยในวันนี้</span>');
+      if (p.overCap) chips.push(`<span class="ba-chip bad">เกินเพดาน ${hms(p.total - c.cap)}</span>`);
+      if (p.overMeal) chips.push(`<span class="ba-chip bad">กินข้าวเกิน ${p.meal}/${c.mealMax} รอบ</span>`);
+      if (p.chains.length) chips.push(`<span class="ba-chip ${p.overCap ? 'bad' : 'warn'}">กดต่อเนื่อง ${p.chains.length} ชุด รวดเดียว ${hms(p.chainMax)}</span>`);
+      if (p.overLimit) chips.push(`<span class="ba-chip warn">ใช้เกินเวลาที่บอทให้ ${p.overLimit} รอบ</span>`);
+      if (p.lateSlot) chips.push(`<span class="ba-chip bad">ออกผิดเวลาที่จอง ${p.lateSlot} รอบ</span>`);
+      if (p.offSlot - (p.lateSlot || 0) > 0) chips.push(`<span class="ba-chip warn">ไม่ได้จองรอบพัก ${p.offSlot - p.lateSlot} รอบ</span>`);
+      if (p.checkSlot !== false && p.booked && p.booked.length) chips.push(`<span class="ba-chip">จองไว้ ${p.booked.map((b => b.text)).join(', ')}</span>`);
+      if (p.live) chips.push('<span class="ba-chip live">ตอนนี้ยังไม่กลับที่นั่ง</span>');
+      if (p.botReset) chips.push(`<span class="ba-chip">ค้างเพราะบอทรีเซ็ต ${p.botReset} รอบ</span>`);
+      if (p.noBack) chips.push(`<span class="ba-chip warn">ไม่มีการกดกลับ ${p.noBack} รอบ</span>`);
+      const when = p.sessions.length ? `ออกครั้งแรก ${clock(p.firstOut)} · ${p.live ? 'ออกล่าสุด ' + clock(p.sessions[p.sessions.length - 1].start) : 'กลับล่าสุด ' + clock(p.lastBack)}` : '';
+      const rows = p.sessions.map(((s, i) => {
+        const K = KIND[s.kind];
+        const limitSec = s.limit ? s.limit * 60 : 0;
+        const pct = limitSec ? Math.min(100, Math.round(s.dur / limitSec * 100)) : 0;
+        const barColor = s.overLimit ? '#ef4444' : limitSec && pct >= 85 ? '#f59e0b' : K.color;
+        const endTxt = s.live ? '<span style="color:var(--k-green-tx);font-weight:800">ยังไม่กลับ</span>' : s.noBack ? '—' : clock(s.end);
+        const tags = [];
+        if (p.inChain[i]) tags.push([ 'warn', 'link', 'ต่อจากรอบก่อน' ]);
+        if (s.overLimit) tags.push([ 'bad', 'timer_off', 'เกินเวลาที่บอทให้' ]);
+        if (s.botReset) tags.push([ 'dim', 'restart_alt', 'บอทรีเซ็ต · นับถึงตรงนั้น' ]);
+        if (s.noBack) tags.push([ 'warn', 'help_outline', 'ไม่มีการกดกลับ' ]);
+        if (s.slotNote) tags.push([ s.lateSlot ? 'bad' : s.offSlot ? 'warn' : 'ok', s.lateSlot ? 'schedule' : s.offSlot ? 'event_busy' : 'event_available', s.slotNote ]);
+        return `<div class="ba-ses ${s.overLimit || s.lateSlot ? 'bad' : p.inChain[i] ? 'warn' : ''}" style="--k:${K.color}">\n                    <div class="ba-ses-n">${i + 1}</div>\n                    <div class="ba-ses-cat"><i class="ba-dot" style="background:${K.color}"></i>${esc(s.cat || '-')}</div>\n                    <div class="ba-ses-time"><b>${clock(s.start)}</b><span class="material-icons">east</span><b>${endTxt}</b></div>\n                    <div class="ba-ses-dur">\n                        <div class="ba-ses-dur-t"><b style="color:${s.overLimit ? 'var(--k-red-tx)' : 'var(--k-tx)'}">${hms(s.dur)}</b>${limitSec ? `<small>/ ${s.limit} น.</small>` : '<small>ไม่มีลิมิต</small>'}</div>\n                        ${limitSec ? `<div class="ba-ses-bar"><i style="width:${pct}%;background:${barColor}"></i></div>` : ''}\n                    </div>\n                    <div class="ba-ses-tags">${tags.length ? tags.map((t => `<span class="ba-tag ${t[0]}"><span class="material-icons">${t[1]}</span>${esc(t[2])}</span>`)).join('') : '<span class="ba-tag ok"><span class="material-icons">check_circle</span>ปกติ</span>'}</div>\n                </div>`;
+      })).join('');
+      const spots = _dutyOf[norm(p.name)] || [];
+      const dutyTeams = [ ...new Set(spots.map((x => x.team))) ];
+      const meta = p.unknown ? `Telegram ID ${p.id} · ไม่รู้แผนก/เว็บ` : [ p.dept, dutyTeams.length ? 'หน้างานวันนี้ ' + dutyTeams.join('+') : p.team || '', p.id ].filter(Boolean).join(' · ');
+      const pctUsed = Math.min(100, Math.round(p.total / c.cap * 100));
+      const shiftBadge = (() => {
+        if (p.unknown) return `<span title="Telegram ID ${esc(p.id)} ยังไม่ผูกกับพนักงานคนไหน — ใส่ที่หน้า พนักงาน" style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:800;color:var(--k-amber-tx);background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.4);vertical-align:middle"><span class="material-icons" style="font-size:12px">person_off</span>ไม่อยู่ในระบบ</span>`;
+        const sh = shiftOf(_users.find((x => x.id === p.uid)) || _users.find((x => x.username === p.name)), p.name);
+        const B = {
+          'กะเช้า': [ '☀️', 'เช้า', '#fbbf24' ],
+          'กะกลาง': [ '🌤️', 'กลาง', '#60a5fa' ],
+          'กะดึก': [ '🌙', 'ดึก', '#a78bfa' ]
+        }[sh];
+        if (!B) return '';
+        return `<span title="${esc(sh)}" style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:800;color:${B[2]};background:${B[2]}1f;border:1px solid ${B[2]}55;vertical-align:middle">${B[0]} ${B[1]}</span>`;
+      })();
+      return `<details class="ba-row" data-state="${p.state}">\n                <summary>\n                    <i class="ba-bar"></i>\n                    <div style="min-width:0">\n                        <div class="ba-nm">${esc(p.name)}${shiftBadge} <span class="ba-cnt">${p.sessions.length} รอบวันนี้</span></div>\n                        <div class="ba-meta">${esc(meta)}${when ? ' · ' + when : ''}</div>\n                    </div>\n                    <div class="ba-tot">${hms(p.total)}<small>ใช้ไป ${pctUsed}% ของ ${hms(c.cap)}</small></div>\n                    <div class="ba-kinds">${kindCells}</div>\n                    ${chips.length ? `<div class="ba-chips">${chips.join('')}</div>` : ''}\n                    <div class="ba-open"><span class="material-icons">chevron_right</span>${p.sessions.length ? `กดเพื่อดูรายละเอียดทั้ง ${p.sessions.length} รอบ (ออกตอนไหน กลับตอนไหน)` : 'ไม่มีรอบให้ดู'}</div>\n                </summary>\n                <div class="ba-det">\n                    ${p.sessions.length ? `<div class="ba-ses-head"><span>#</span><span>หมวด</span><span>ออก → กลับ</span><span>ใช้ไป / บอทให้</span><span>หมายเหตุ</span></div>${rows}` : '<div class="text-[12px] text-gray-500 py-2">ไม่มีรายการในวันนี้</div>'}\n                </div>\n            </details>`;
+    })).join('');
+  }
+  window.baRender = render;
+  window.baFilter = function(f) {
+    _filter = f;
+    render();
+  };
+  window.baReload = async function() {
+    await load();
+    await loadBooked();
+    await loadDuty();
+    window.baCompute();
+  };
+  window.baShiftDate = function(n) {
+    const d = new Date(dateVal() + 'T12:00:00');
+    d.setDate(d.getDate() + n);
+    $('baDate').value = iso(d);
+    window.baReload();
+  };
+  const KIND_NAME = {
+    meal: 'กินข้าว',
+    heavy: 'ปวดหนัก',
+    light: 'ปวดน้อย/สูบบุหรี่',
+    other: 'อื่นๆ'
+  };
+  function sortedForExport() {
+    return _people.slice().sort(((a, b) => {
+      const d = String(a.dept || 'zzz').localeCompare(String(b.dept || 'zzz'), 'th');
+      if (d !== 0) return d;
+      const t = String(a.team || 'zzz').localeCompare(String(b.team || 'zzz'), 'th');
+      if (t !== 0) return t;
+      return b.total - a.total;
+    }));
+  }
+  const statusText = p => p.absent ? 'ไม่ได้กดเลย' : p.state === 'over' ? 'เกินเกณฑ์' : p.state === 'near' ? 'ต้องดู' : 'ปกติ';
+  window.baExport = function() {
+    if (!_people.length) return;
+    if (typeof window.loadExcelLibrary !== 'function' || typeof ExcelJS === 'undefined' && !window.loadExcelLibrary) return baExportCsv();
+    window.loadExcelLibrary((async function() {
+      try {
+        if (typeof Swal !== 'undefined') Swal.fire({
+          title: 'กำลังสร้างไฟล์ Excel...',
+          allowOutsideClick: false,
+          didOpen: () => Swal.showLoading()
+        });
+        const c = cfg(), d = dateVal(), list = sortedForExport();
+        const wb = new ExcelJS.Workbook;
+        const HEAD_FILL = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: {
+            argb: 'FF1E293B'
+          }
+        };
+        const headStyle = row => row.eachCell((cell => {
+          cell.font = {
+            bold: true,
+            color: {
+              argb: 'FFFFFFFF'
+            },
+            size: 11
+          };
+          cell.fill = HEAD_FILL;
+          cell.alignment = {
+            horizontal: 'center',
+            vertical: 'middle',
+            wrapText: true
+          };
+          cell.border = {
+            bottom: {
+              style: 'thin',
+              color: {
+                argb: 'FF94A3B8'
+              }
+            }
+          };
+        }));
+        const s1 = wb.addWorksheet('สรุปรายคน', {
+          views: [ {
+            state: 'frozen',
+            ySplit: 1
+          } ]
+        });
+        s1.columns = [ {
+          header: 'วันที่',
+          key: 'date',
+          width: 12
+        }, {
+          header: 'แผนก',
+          key: 'dept',
+          width: 9
+        }, {
+          header: 'เว็บ',
+          key: 'team',
+          width: 10
+        }, {
+          header: 'ชื่อ',
+          key: 'name',
+          width: 18
+        }, {
+          header: 'รวมทั้งวัน',
+          key: 'total',
+          width: 12
+        }, {
+          header: 'เพดาน',
+          key: 'cap',
+          width: 10
+        }, {
+          header: 'เกินไป',
+          key: 'over',
+          width: 11
+        }, {
+          header: 'รวมกี่รอบ',
+          key: 'n',
+          width: 10
+        }, {
+          header: 'กินข้าว\n(รอบ)',
+          key: 'mn',
+          width: 9
+        }, {
+          header: 'เวลากินข้าว',
+          key: 'mt',
+          width: 12
+        }, {
+          header: 'ปวดหนัก\n(รอบ)',
+          key: 'hn',
+          width: 9
+        }, {
+          header: 'เวลาปวดหนัก',
+          key: 'ht',
+          width: 12
+        }, {
+          header: 'ปวดน้อย\n(รอบ)',
+          key: 'ln',
+          width: 9
+        }, {
+          header: 'เวลาปวดน้อย',
+          key: 'lt',
+          width: 12
+        }, {
+          header: 'กดต่อเนื่อง\n(ชุด)',
+          key: 'ch',
+          width: 11
+        }, {
+          header: 'เกินเวลาบอท\n(รอบ)',
+          key: 'ol',
+          width: 11
+        }, {
+          header: 'ออกครั้งแรก',
+          key: 'first',
+          width: 12
+        }, {
+          header: 'กลับล่าสุด',
+          key: 'last',
+          width: 12
+        }, {
+          header: 'สถานะ',
+          key: 'st',
+          width: 12
+        } ];
+        headStyle(s1.getRow(1));
+        s1.getRow(1).height = 30;
+        list.forEach((p => {
+          const r = s1.addRow({
+            date: d,
+            dept: p.dept || '-',
+            team: String(p.team || '-'),
+            name: String(p.name || '-'),
+            total: hms(p.total),
+            cap: hms(c.cap),
+            over: p.overCap ? hms(p.total - c.cap) : '',
+            n: p.sessions.length,
+            mn: p.byKind.meal.n,
+            mt: p.byKind.meal.n ? hms(p.byKind.meal.sec) : '',
+            hn: p.byKind.heavy.n,
+            ht: p.byKind.heavy.n ? hms(p.byKind.heavy.sec) : '',
+            ln: p.byKind.light.n,
+            lt: p.byKind.light.n ? hms(p.byKind.light.sec) : '',
+            ch: p.chains.length,
+            ol: p.overLimit,
+            first: p.firstOut != null ? clock(p.firstOut) : '',
+            last: p.live ? 'ยังไม่กลับ' : p.lastBack != null ? clock(p.lastBack) : '',
+            st: statusText(p)
+          });
+          r.eachCell(((cell, col) => {
+            cell.alignment = {
+              horizontal: col <= 4 ? 'left' : 'center',
+              vertical: 'middle'
             };
-
-            // แถวนับรอบแยกหมวด — โชว์ทุกหมวดเสมอ หมวดที่ไม่ได้กดเป็นสีจาง
-            const kindCells = ['meal','heavy','light','other'].map(k => {
-                const d = p.byKind[k], on = d.n > 0;
-                if (k === 'other' && !on) return '';
-                return `<div class="ba-k ${on ? '' : 'off'}">
-                    <span class="ba-kdot" style="background:${on ? KIND[k].color : 'var(--k-btn-h)'}"></span>
-                    <span class="ba-kname">${KIND[k].name}</span>
-                    <b class="ba-kn">${d.n}</b><span class="ba-kunit">รอบ</span>
-                    <span class="ba-ktime">${on ? hms(d.sec) : '—'}</span>
-                </div>`;
-            }).join('');
-
-            const chips = [];
-            if (p.absent)        chips.push('<span class="ba-chip">ไม่มีการกดเลยในวันนี้</span>');
-            if (p.overCap)       chips.push(`<span class="ba-chip bad">เกินเพดาน ${hms(p.total - c.cap)}</span>`);
-            if (p.overMeal)      chips.push(`<span class="ba-chip bad">กินข้าวเกิน ${p.meal}/${c.mealMax} รอบ</span>`);
-            if (p.chains.length) chips.push(`<span class="ba-chip ${p.overCap ? 'bad' : 'warn'}">กดต่อเนื่อง ${p.chains.length} ชุด รวดเดียว ${hms(p.chainMax)}</span>`);
-            if (p.overLimit)     chips.push(`<span class="ba-chip warn">ใช้เกินเวลาที่บอทให้ ${p.overLimit} รอบ</span>`);
-            if (p.lateSlot)      chips.push(`<span class="ba-chip bad">ออกผิดเวลาที่จอง ${p.lateSlot} รอบ</span>`);
-            if (p.offSlot - (p.lateSlot || 0) > 0) chips.push(`<span class="ba-chip warn">ไม่ได้จองรอบพัก ${p.offSlot - p.lateSlot} รอบ</span>`);
-            if (p.checkSlot !== false && p.booked && p.booked.length) chips.push(`<span class="ba-chip">จองไว้ ${p.booked.map(b => b.text).join(', ')}</span>`);
-            if (p.live)          chips.push('<span class="ba-chip live">ตอนนี้ยังไม่กลับที่นั่ง</span>');
-            if (p.botReset)      chips.push(`<span class="ba-chip">ค้างเพราะบอทรีเซ็ต ${p.botReset} รอบ</span>`);
-            if (p.noBack)        chips.push(`<span class="ba-chip warn">ไม่มีการกดกลับ ${p.noBack} รอบ</span>`);
-
-            const when = p.sessions.length
-                ? `ออกครั้งแรก ${clock(p.firstOut)} · ${p.live ? 'ออกล่าสุด ' + clock(p.sessions[p.sessions.length-1].start) : 'กลับล่าสุด ' + clock(p.lastBack)}`
-                : '';
-
-            // 🧾 รายรอบ — แถวแบบการ์ดพรีเมียม (เลขลำดับ · หมวด · ช่วงเวลา · แถบเวลาเทียบที่บอทให้ · ป้ายหมายเหตุ)
-            const rows = p.sessions.map((s, i) => {
-                const K = KIND[s.kind];
-                const limitSec = s.limit ? s.limit * 60 : 0;
-                const pct = limitSec ? Math.min(100, Math.round(s.dur / limitSec * 100)) : 0;
-                const barColor = s.overLimit ? '#ef4444' : (limitSec && pct >= 85 ? '#f59e0b' : K.color);
-                const endTxt = s.live ? '<span style="color:var(--k-green-tx);font-weight:800">ยังไม่กลับ</span>' : s.noBack ? '—' : clock(s.end);
-                const tags = [];
-                if (p.inChain[i]) tags.push(['warn', 'link', 'ต่อจากรอบก่อน']);
-                if (s.overLimit)  tags.push(['bad', 'timer_off', 'เกินเวลาที่บอทให้']);
-                if (s.botReset)   tags.push(['dim', 'restart_alt', 'บอทรีเซ็ต · นับถึงตรงนั้น']);
-                if (s.noBack)     tags.push(['warn', 'help_outline', 'ไม่มีการกดกลับ']);
-                if (s.slotNote)   tags.push([s.lateSlot ? 'bad' : (s.offSlot ? 'warn' : 'ok'), s.lateSlot ? 'schedule' : (s.offSlot ? 'event_busy' : 'event_available'), s.slotNote]);
-                return `<div class="ba-ses ${s.overLimit || s.lateSlot ? 'bad' : (p.inChain[i] ? 'warn' : '')}" style="--k:${K.color}">
-                    <div class="ba-ses-n">${i + 1}</div>
-                    <div class="ba-ses-cat"><i class="ba-dot" style="background:${K.color}"></i>${esc(s.cat || '-')}</div>
-                    <div class="ba-ses-time"><b>${clock(s.start)}</b><span class="material-icons">east</span><b>${endTxt}</b></div>
-                    <div class="ba-ses-dur">
-                        <div class="ba-ses-dur-t"><b style="color:${s.overLimit ? 'var(--k-red-tx)' : 'var(--k-tx)'}">${hms(s.dur)}</b>${limitSec ? `<small>/ ${s.limit} น.</small>` : '<small>ไม่มีลิมิต</small>'}</div>
-                        ${limitSec ? `<div class="ba-ses-bar"><i style="width:${pct}%;background:${barColor}"></i></div>` : ''}
-                    </div>
-                    <div class="ba-ses-tags">${tags.length ? tags.map(t => `<span class="ba-tag ${t[0]}"><span class="material-icons">${t[1]}</span>${esc(t[2])}</span>`).join('') : '<span class="ba-tag ok"><span class="material-icons">check_circle</span>ปกติ</span>'}</div>
-                </div>`;
-            }).join('');
-
-            const spots = _dutyOf[norm(p.name)] || [];
-            const dutyTeams = [...new Set(spots.map(x => x.team))];
-            const meta = p.unknown
-                ? `Telegram ID ${p.id} · ไม่รู้แผนก/เว็บ`
-                : [p.dept, dutyTeams.length ? 'หน้างานวันนี้ ' + dutyTeams.join('+') : (p.team || ''), p.id].filter(Boolean).join(' · ');
-            const pctUsed = Math.min(100, Math.round(p.total / c.cap * 100));
-            const shiftBadge = (() => {
-                if (p.unknown) return `<span title="Telegram ID ${esc(p.id)} ยังไม่ผูกกับพนักงานคนไหน — ใส่ที่หน้า พนักงาน" style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:800;color:var(--k-amber-tx);background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.4);vertical-align:middle"><span class="material-icons" style="font-size:12px">person_off</span>ไม่อยู่ในระบบ</span>`;
-                const sh = shiftOf(_users.find(x => x.id === p.uid) || _users.find(x => x.username === p.name), p.name);
-                const B = { 'กะเช้า': ['☀️', 'เช้า', '#fbbf24'], 'กะกลาง': ['🌤️', 'กลาง', '#60a5fa'], 'กะดึก': ['🌙', 'ดึก', '#a78bfa'] }[sh];
-                if (!B) return '';
-                return `<span title="${esc(sh)}" style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:800;color:${B[2]};background:${B[2]}1f;border:1px solid ${B[2]}55;vertical-align:middle">${B[0]} ${B[1]}</span>`;
-            })();
-
-            return `<details class="ba-row" data-state="${p.state}">
-                <summary>
-                    <i class="ba-bar"></i>
-                    <div style="min-width:0">
-                        <div class="ba-nm">${esc(p.name)}${shiftBadge} <span class="ba-cnt">${p.sessions.length} รอบวันนี้</span></div>
-                        <div class="ba-meta">${esc(meta)}${when ? ' · ' + when : ''}</div>
-                    </div>
-                    <div class="ba-tot">${hms(p.total)}<small>ใช้ไป ${pctUsed}% ของ ${hms(c.cap)}</small></div>
-                    <div class="ba-kinds">${kindCells}</div>
-                    ${chips.length ? `<div class="ba-chips">${chips.join('')}</div>` : ''}
-                    <div class="ba-open"><span class="material-icons">chevron_right</span>${p.sessions.length ? `กดเพื่อดูรายละเอียดทั้ง ${p.sessions.length} รอบ (ออกตอนไหน กลับตอนไหน)` : 'ไม่มีรอบให้ดู'}</div>
-                </summary>
-                <div class="ba-det">
-                    ${p.sessions.length ? `<div class="ba-ses-head"><span>#</span><span>หมวด</span><span>ออก → กลับ</span><span>ใช้ไป / บอทให้</span><span>หมายเหตุ</span></div>${rows}`
-                                        : '<div class="text-[12px] text-gray-500 py-2">ไม่มีรายการในวันนี้</div>'}
-                </div>
-            </details>`;
-        }).join('');
-    }
-
-    // ── ปุ่มต่างๆ ────────────────────────────────────────
-    window.baRender = render;
-    window.baFilter = function (f) { _filter = f; render(); };
-    window.baReload = async function () { await load(); await loadBooked(); await loadDuty(); window.baCompute(); };
-    window.baShiftDate = function (n) {
-        const d = new Date(dateVal() + 'T12:00:00');
-        d.setDate(d.getDate() + n);
-        $('baDate').value = iso(d);
-        window.baReload();
-    };
-
-    // ── ส่งออก Excel ───────────────────────────────────
-    const KIND_NAME = { meal: 'กินข้าว', heavy: 'ปวดหนัก', light: 'ปวดน้อย/สูบบุหรี่', other: 'อื่นๆ' };
-
-    function sortedForExport() {
-        return _people.slice().sort((a, b) => {
-            const d = String(a.dept || 'zzz').localeCompare(String(b.dept || 'zzz'), 'th');
-            if (d !== 0) return d;
-            const t = String(a.team || 'zzz').localeCompare(String(b.team || 'zzz'), 'th');
-            if (t !== 0) return t;
-            return b.total - a.total;
+            cell.border = {
+              bottom: {
+                style: 'hair',
+                color: {
+                  argb: 'FFCBD5E1'
+                }
+              }
+            };
+          }));
+          if (p.state === 'over') {
+            r.getCell('st').font = {
+              bold: true,
+              color: {
+                argb: 'FFB91C1C'
+              }
+            };
+            r.getCell('total').font = {
+              bold: true,
+              color: {
+                argb: 'FFB91C1C'
+              }
+            };
+            r.eachCell((cell => {
+              cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: {
+                  argb: 'FFFEE2E2'
+                }
+              };
+            }));
+          } else if (p.state === 'near') {
+            r.getCell('st').font = {
+              bold: true,
+              color: {
+                argb: 'FFB45309'
+              }
+            };
+            r.eachCell((cell => {
+              cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: {
+                  argb: 'FFFEF3C7'
+                }
+              };
+            }));
+          } else if (p.absent) {
+            r.eachCell((cell => {
+              cell.font = {
+                color: {
+                  argb: 'FF94A3B8'
+                }
+              };
+            }));
+          }
+        }));
+        s1.autoFilter = {
+          from: 'A1',
+          to: {
+            row: 1,
+            column: s1.columns.length
+          }
+        };
+        const s2 = wb.addWorksheet('รายรอบแต่ละคน', {
+          views: [ {
+            state: 'frozen',
+            ySplit: 1
+          } ]
         });
-    }
-    const statusText = p => p.absent ? 'ไม่ได้กดเลย'
-                       : p.state === 'over' ? 'เกินเกณฑ์'
-                       : p.state === 'near' ? 'ต้องดู' : 'ปกติ';
-
-    window.baExport = function () {
-        if (!_people.length) return;
-        if (typeof window.loadExcelLibrary !== 'function' || typeof ExcelJS === 'undefined' && !window.loadExcelLibrary) return baExportCsv();
-        window.loadExcelLibrary(async function () {
-            try {
-                if (typeof Swal !== 'undefined') Swal.fire({ title: 'กำลังสร้างไฟล์ Excel...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-                const c = cfg(), d = dateVal(), list = sortedForExport();
-                const wb = new ExcelJS.Workbook();
-
-                const HEAD_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
-                const headStyle = row => row.eachCell(cell => {
-                    cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
-                    cell.fill = HEAD_FILL;
-                    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-                    cell.border = { bottom: { style: 'thin', color: { argb: 'FF94A3B8' } } };
-                });
-
-                // ══ ชีท 1: สรุปรายคน ══
-                const s1 = wb.addWorksheet('สรุปรายคน', { views: [{ state: 'frozen', ySplit: 1 }] });
-                s1.columns = [
-                    { header: 'วันที่',        key: 'date',  width: 12 },
-                    { header: 'แผนก',          key: 'dept',  width: 9  },
-                    { header: 'เว็บ',           key: 'team',  width: 10 },
-                    { header: 'ชื่อ',            key: 'name',  width: 18 },
-                    { header: 'รวมทั้งวัน',     key: 'total', width: 12 },
-                    { header: 'เพดาน',          key: 'cap',   width: 10 },
-                    { header: 'เกินไป',         key: 'over',  width: 11 },
-                    { header: 'รวมกี่รอบ',      key: 'n',     width: 10 },
-                    { header: 'กินข้าว\n(รอบ)',  key: 'mn',    width: 9  },
-                    { header: 'เวลากินข้าว',    key: 'mt',    width: 12 },
-                    { header: 'ปวดหนัก\n(รอบ)', key: 'hn',    width: 9  },
-                    { header: 'เวลาปวดหนัก',   key: 'ht',    width: 12 },
-                    { header: 'ปวดน้อย\n(รอบ)', key: 'ln',    width: 9  },
-                    { header: 'เวลาปวดน้อย',   key: 'lt',    width: 12 },
-                    { header: 'กดต่อเนื่อง\n(ชุด)', key: 'ch', width: 11 },
-                    { header: 'เกินเวลาบอท\n(รอบ)', key: 'ol', width: 11 },
-                    { header: 'ออกครั้งแรก',   key: 'first', width: 12 },
-                    { header: 'กลับล่าสุด',     key: 'last',  width: 12 },
-                    { header: 'สถานะ',          key: 'st',    width: 12 }
-                ];
-                headStyle(s1.getRow(1));
-                s1.getRow(1).height = 30;
-
-                list.forEach(p => {
-                    const r = s1.addRow({
-                        date: d, dept: p.dept || '-', team: String(p.team || '-'), name: String(p.name || '-'),
-                        total: hms(p.total), cap: hms(c.cap), over: p.overCap ? hms(p.total - c.cap) : '',
-                        n: p.sessions.length,
-                        mn: p.byKind.meal.n,  mt: p.byKind.meal.n  ? hms(p.byKind.meal.sec)  : '',
-                        hn: p.byKind.heavy.n, ht: p.byKind.heavy.n ? hms(p.byKind.heavy.sec) : '',
-                        ln: p.byKind.light.n, lt: p.byKind.light.n ? hms(p.byKind.light.sec) : '',
-                        ch: p.chains.length, ol: p.overLimit,
-                        first: p.firstOut != null ? clock(p.firstOut) : '',
-                        last:  p.live ? 'ยังไม่กลับ' : (p.lastBack != null ? clock(p.lastBack) : ''),
-                        st: statusText(p)
-                    });
-                    r.eachCell((cell, col) => {
-                        cell.alignment = { horizontal: col <= 4 ? 'left' : 'center', vertical: 'middle' };
-                        cell.border = { bottom: { style: 'hair', color: { argb: 'FFCBD5E1' } } };
-                    });
-                    if (p.state === 'over') {
-                        r.getCell('st').font = { bold: true, color: { argb: 'FFB91C1C' } };
-                        r.getCell('total').font = { bold: true, color: { argb: 'FFB91C1C' } };
-                        r.eachCell(cell => { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } }; });
-                    } else if (p.state === 'near') {
-                        r.getCell('st').font = { bold: true, color: { argb: 'FFB45309' } };
-                        r.eachCell(cell => { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } }; });
-                    } else if (p.absent) {
-                        r.eachCell(cell => { cell.font = { color: { argb: 'FF94A3B8' } }; });
-                    }
-                });
-                s1.autoFilter = { from: 'A1', to: { row: 1, column: s1.columns.length } };
-
-                // ══ ชีท 2: รายรอบ แยกเป็นคนๆ ══
-                const s2 = wb.addWorksheet('รายรอบแต่ละคน', { views: [{ state: 'frozen', ySplit: 1 }] });
-                s2.columns = [
-                    { header: 'แผนก',   key: 'dept',  width: 9  },
-                    { header: 'เว็บ',    key: 'team',  width: 10 },
-                    { header: 'ชื่อ',     key: 'name',  width: 18 },
-                    { header: 'รอบที่', key: 'i',     width: 8  },
-                    { header: 'หมวด',   key: 'cat',   width: 20 },
-                    { header: 'ออกตอน', key: 'out',   width: 11 },
-                    { header: 'กลับตอน',key: 'back',  width: 11 },
-                    { header: 'ใช้ไป',   key: 'dur',   width: 11 },
-                    { header: 'บอทให้\n(นาที)', key: 'lim', width: 10 },
-                    { header: 'หมายเหตุ', key: 'note', width: 34 }
-                ];
-                headStyle(s2.getRow(1));
-                s2.getRow(1).height = 30;
-
-                list.forEach(p => {
-                    if (!p.sessions.length) return;
-                    // หัวชื่อคน คั่นให้อ่านง่าย
-                    const h = s2.addRow({ dept: p.dept || '-', team: String(p.team || '-'), name: String(p.name || '-'),
-                                          i: '', cat: `รวม ${p.sessions.length} รอบ · ${hms(p.total)}`, note: statusText(p) });
-                    h.eachCell(cell => {
-                        cell.font = { bold: true, color: { argb: 'FF0F172A' } };
-                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
-                        cell.alignment = { horizontal: 'left', vertical: 'middle' };
-                    });
-                    p.sessions.forEach((ss, i) => {
-                        const note = [p.inChain[i] ? 'ต่อจากรอบก่อน' : '', ss.overLimit ? 'เกินเวลาที่บอทให้' : ''].filter(Boolean).join(' · ');
-                        const r = s2.addRow({
-                            dept: '', team: '', name: '', i: i + 1,
-                            cat: String(ss.cat || '-'),
-                            out: clock(ss.start),
-                            back: ss.live ? 'ยังไม่กลับ' : clock(ss.end),
-                            dur: hms(ss.dur),
-                            lim: ss.limit || '',
-                            note: note
-                        });
-                        r.eachCell((cell, col) => {
-                            cell.alignment = { horizontal: (col === 5 || col === 10) ? 'left' : 'center', vertical: 'middle' };
-                            cell.border = { bottom: { style: 'hair', color: { argb: 'FFE2E8F0' } } };
-                        });
-                        if (ss.overLimit) r.getCell('dur').font = { bold: true, color: { argb: 'FFB91C1C' } };
-                        if (p.inChain[i])  r.getCell('note').font = { color: { argb: 'FFB45309' } };
-                    });
-                    s2.addRow({});   // เว้นบรรทัดคั่นคน
-                });
-
-                const buf = await wb.xlsx.writeBuffer();
-                const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
-                const a = document.createElement('a');
-                a.href = url; a.download = `ตรวจเวลาลุกจากที่นั่ง-${d}.xlsx`; document.body.appendChild(a); a.click(); a.remove();
-                setTimeout(() => URL.revokeObjectURL(url), 2000);
-                if (typeof Swal !== 'undefined') Swal.close();
-            } catch (e) {
-                console.error('[break_audit] export', e);
-                if (typeof Swal !== 'undefined') Swal.fire('ผิดพลาด', 'สร้างไฟล์ไม่สำเร็จ: ' + e.message, 'error');
-            }
-        });
-    };
-
-    // สำรอง: ถ้าโหลด ExcelJS ไม่ได้ ใช้ CSV แทน
-    function baExportCsv() {
-        const c = cfg(), d = dateVal();
-        const head = ['วันที่','แผนก','เว็บ','ชื่อ','รวมทั้งวัน','เพดาน','เกินไป','รวมกี่รอบ','กินข้าว(รอบ)','ปวดหนัก(รอบ)','ปวดน้อย(รอบ)','กดต่อเนื่อง(ชุด)','ออกครั้งแรก','กลับล่าสุด','สถานะ'];
-        const lines = [head.join(',')].concat(sortedForExport().map(p => [
-            d, p.dept || '', p.team || '', `"${p.name}"`, hms(p.total), hms(c.cap),
-            p.overCap ? hms(p.total - c.cap) : '', p.sessions.length,
-            p.byKind.meal.n, p.byKind.heavy.n, p.byKind.light.n, p.chains.length,
-            p.firstOut != null ? clock(p.firstOut) : '',
-            p.live ? 'ยังไม่กลับ' : (p.lastBack != null ? clock(p.lastBack) : ''),
-            statusText(p)
-        ].join(',')));
-        const url = URL.createObjectURL(new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8' }));
+        s2.columns = [ {
+          header: 'แผนก',
+          key: 'dept',
+          width: 9
+        }, {
+          header: 'เว็บ',
+          key: 'team',
+          width: 10
+        }, {
+          header: 'ชื่อ',
+          key: 'name',
+          width: 18
+        }, {
+          header: 'รอบที่',
+          key: 'i',
+          width: 8
+        }, {
+          header: 'หมวด',
+          key: 'cat',
+          width: 20
+        }, {
+          header: 'ออกตอน',
+          key: 'out',
+          width: 11
+        }, {
+          header: 'กลับตอน',
+          key: 'back',
+          width: 11
+        }, {
+          header: 'ใช้ไป',
+          key: 'dur',
+          width: 11
+        }, {
+          header: 'บอทให้\n(นาที)',
+          key: 'lim',
+          width: 10
+        }, {
+          header: 'หมายเหตุ',
+          key: 'note',
+          width: 34
+        } ];
+        headStyle(s2.getRow(1));
+        s2.getRow(1).height = 30;
+        list.forEach((p => {
+          if (!p.sessions.length) return;
+          const h = s2.addRow({
+            dept: p.dept || '-',
+            team: String(p.team || '-'),
+            name: String(p.name || '-'),
+            i: '',
+            cat: `รวม ${p.sessions.length} รอบ · ${hms(p.total)}`,
+            note: statusText(p)
+          });
+          h.eachCell((cell => {
+            cell.font = {
+              bold: true,
+              color: {
+                argb: 'FF0F172A'
+              }
+            };
+            cell.fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: {
+                argb: 'FFE2E8F0'
+              }
+            };
+            cell.alignment = {
+              horizontal: 'left',
+              vertical: 'middle'
+            };
+          }));
+          p.sessions.forEach(((ss, i) => {
+            const note = [ p.inChain[i] ? 'ต่อจากรอบก่อน' : '', ss.overLimit ? 'เกินเวลาที่บอทให้' : '' ].filter(Boolean).join(' · ');
+            const r = s2.addRow({
+              dept: '',
+              team: '',
+              name: '',
+              i: i + 1,
+              cat: String(ss.cat || '-'),
+              out: clock(ss.start),
+              back: ss.live ? 'ยังไม่กลับ' : clock(ss.end),
+              dur: hms(ss.dur),
+              lim: ss.limit || '',
+              note: note
+            });
+            r.eachCell(((cell, col) => {
+              cell.alignment = {
+                horizontal: col === 5 || col === 10 ? 'left' : 'center',
+                vertical: 'middle'
+              };
+              cell.border = {
+                bottom: {
+                  style: 'hair',
+                  color: {
+                    argb: 'FFE2E8F0'
+                  }
+                }
+              };
+            }));
+            if (ss.overLimit) r.getCell('dur').font = {
+              bold: true,
+              color: {
+                argb: 'FFB91C1C'
+              }
+            };
+            if (p.inChain[i]) r.getCell('note').font = {
+              color: {
+                argb: 'FFB45309'
+              }
+            };
+          }));
+          s2.addRow({});
+        }));
+        const buf = await wb.xlsx.writeBuffer();
+        const url = URL.createObjectURL(new Blob([ buf ], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        }));
         const a = document.createElement('a');
-        a.href = url; a.download = `break-audit-${d}.csv`; a.click();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        a.href = url;
+        a.download = `ตรวจเวลาลุกจากที่นั่ง-${d}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout((() => URL.revokeObjectURL(url)), 2e3);
+        if (typeof Swal !== 'undefined') Swal.close();
+      } catch (e) {
+        console.error('[break_audit] export', e);
+        if (typeof Swal !== 'undefined') Swal.fire('ผิดพลาด', 'สร้างไฟล์ไม่สำเร็จ: ' + e.message, 'error');
+      }
+    }));
+  };
+  function baExportCsv() {
+    const c = cfg(), d = dateVal();
+    const head = [ 'วันที่', 'แผนก', 'เว็บ', 'ชื่อ', 'รวมทั้งวัน', 'เพดาน', 'เกินไป', 'รวมกี่รอบ', 'กินข้าว(รอบ)', 'ปวดหนัก(รอบ)', 'ปวดน้อย(รอบ)', 'กดต่อเนื่อง(ชุด)', 'ออกครั้งแรก', 'กลับล่าสุด', 'สถานะ' ];
+    const lines = [ head.join(',') ].concat(sortedForExport().map((p => [ d, p.dept || '', p.team || '', `"${p.name}"`, hms(p.total), hms(c.cap), p.overCap ? hms(p.total - c.cap) : '', p.sessions.length, p.byKind.meal.n, p.byKind.heavy.n, p.byKind.light.n, p.chains.length, p.firstOut != null ? clock(p.firstOut) : '', p.live ? 'ยังไม่กลับ' : p.lastBack != null ? clock(p.lastBack) : '', statusText(p) ].join(','))));
+    const url = URL.createObjectURL(new Blob([ '\ufeff' + lines.join('\n') ], {
+      type: 'text/csv;charset=utf-8'
+    }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `break-audit-${d}.csv`;
+    a.click();
+    setTimeout((() => URL.revokeObjectURL(url)), 1e3);
+  }
+  window.initBreakAudit = async function() {
+    if (!$('baPage')) return;
+    await loadRules();
+    await loadUsers();
+    if (!$('baDate').value) {
+      const me = window.currentUser && window.currentUser.username ? _users.find((x => x.username === window.currentUser.username)) : null;
+      $('baDate').value = workDateNow(me ? dayStartFor(me, me.username, cfg().dayStart) : cfg().dayStart);
     }
-
-    // ── เริ่มหน้า ────────────────────────────────────────
-    window.initBreakAudit = async function () {
-        if (!$('baPage')) return;
-        await loadRules();
-        await loadUsers();
-        if (!$('baDate').value) {
-            // คนกะดึกเปิดหน้านี้ตอน 10 โมงเช้าวันที่ 23 → ยังเป็น "วันทำงาน 22" ของเขา
-            const me = (window.currentUser && window.currentUser.username) ? _users.find(x => x.username === window.currentUser.username) : null;
-            $('baDate').value = workDateNow(me ? dayStartFor(me, me.username, cfg().dayStart) : cfg().dayStart);
-        }
-        await load();
-        await loadBooked();
-        await loadDuty();
-        window.baCompute();
-
-        // 📡 realtime — บอทในกลุ่มพิมพ์ → tg-listener เขียนลงตาราง → หน้านี้ขยับเอง
-        if (_sub) { try { appDB.removeChannel(_sub); } catch (e) {} _sub = null; }
-        if (typeof appDB !== 'undefined') {
-            let t = null;
-            _sub = appDB.channel('break-audit-live')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'break_punches' }, () => {
-                    clearTimeout(t);
-                    t = setTimeout(() => { if ($('baPage')) window.baReload(); }, 400);
-                }).subscribe();
-            if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(_sub);
-        }
-
-        // เดินเวลาให้คนที่ยังไม่กดกลับที่นั่ง + ขยับเส้นเวลาปัจจุบัน
-        const tick = setInterval(() => {
-            if (!$('baPage')) { clearInterval(tick); return; }
-            if (_people.some(p => p.live) || dateVal() === iso(new Date())) window.baCompute();
-        }, 30000);
-        if (typeof window.registerPageInterval === 'function') window.registerPageInterval(tick);
-    };
+    await load();
+    await loadBooked();
+    await loadDuty();
+    window.baCompute();
+    if (_sub) {
+      try {
+        appDB.removeChannel(_sub);
+      } catch (e) {}
+      _sub = null;
+    }
+    if (typeof appDB !== 'undefined') {
+      let t = null;
+      _sub = appDB.channel('break-audit-live').on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'break_punches'
+      }, (() => {
+        clearTimeout(t);
+        t = setTimeout((() => {
+          if ($('baPage')) window.baReload();
+        }), 400);
+      })).subscribe();
+      if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(_sub);
+    }
+    const tick = setInterval((() => {
+      if (!$('baPage')) {
+        clearInterval(tick);
+        return;
+      }
+      if (_people.some((p => p.live)) || dateVal() === iso(new Date)) window.baCompute();
+    }), 3e4);
+    if (typeof window.registerPageInterval === 'function') window.registerPageInterval(tick);
+  };
 })();

@@ -1,4 +1,4 @@
-<!-- ⏱️ ตรวจเวลาลุกจากที่นั่ง — ข้อมูลสดจากกลุ่ม Telegram (ผ่าน tg-listener → ตาราง break_punches) -->
+
 <div class="w-full animate-fade-in pb-10" id="baPage">
     <style>
         #baPage .ba-sel{background:var(--k-panel2);border:1px solid var(--k-line2);color:var(--k-tx);border-radius:9px;padding:8px 10px;font-size:13px;font-weight:700;outline:none;min-width:120px}
@@ -7,7 +7,6 @@
         #baPage .ba-navbtn{width:34px;height:34px;border-radius:9px;border:1px solid var(--k-line2);background:var(--k-panel2);color:var(--k-tx2);display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
         #baPage .ba-navbtn:hover{border-color:#60a5fa;color:var(--k-tx-strong)}
 
-        /* ไฟสถานะตัวดักฟัง */
         #baPage .ba-live{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:800;padding:3px 10px;border-radius:99px;border:1px solid var(--k-line2);color:var(--k-tx3);background:var(--k-panel2)}
         #baPage .ba-live .dot{width:7px;height:7px;border-radius:50%;background:#64748b}
         #baPage .ba-live.on{border-color:rgba(34,197,94,.45);color:var(--k-green-tx);background:rgba(34,197,94,.1)}
@@ -16,7 +15,6 @@
         #baPage .ba-live.off .dot{background:#ef4444}
         @keyframes baPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.65)}}
 
-        /* ชิปสรุปด้านบน */
         #baPage .ba-tally{display:flex;flex-wrap:wrap;gap:8px}
         #baPage .ba-t{flex:1 1 120px;background:var(--k-panel2);border:1px solid rgba(148,163,184,.16);border-radius:12px;padding:10px 12px;cursor:pointer;transition:border-color .15s,background .15s;text-align:left}
         #baPage .ba-t:hover{border-color:rgba(96,165,250,.5);background:var(--k-panel2)}
@@ -27,7 +25,6 @@
         #baPage .ba-t.near .n{color:var(--k-amber-tx)}
         #baPage .ba-t.live .n{color:var(--k-green-tx)}
 
-        /* แถวพนักงาน */
         #baPage .ba-row{border-bottom:1px solid rgba(148,163,184,.1)}
         #baPage .ba-row>summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:4px 1fr auto;gap:0 12px;align-items:center;padding:11px 10px}
         #baPage .ba-row>summary::-webkit-details-marker{display:none}
@@ -42,7 +39,6 @@
         #baPage .ba-row[data-state="near"] .ba-tot{color:var(--k-amber-tx)}
         #baPage .ba-tot small{display:block;font-size:10.5px;font-weight:700;color:var(--k-mute);font-family:inherit}
 
-        /* นับรอบแยกหมวด */
         #baPage .ba-kinds{grid-column:2/-1;display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
         #baPage .ba-k{display:flex;align-items:center;gap:6px;background:var(--k-panel2);border:1px solid rgba(148,163,184,.16);border-radius:9px;padding:5px 10px}
         #baPage .ba-k.off{opacity:.42}
@@ -77,7 +73,6 @@
         #baPage .ba-det tr.linked td{border-left:2px solid #ef4444;padding-left:7px}
         #baPage .ba-dot{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px}
 
-        /* ═══ 🧾 รายรอบแบบการ์ดพรีเมียม ═══ */
         #baPage .ba-ses-head,#baPage .ba-ses{display:grid;grid-template-columns:34px 170px 190px 170px 1fr;gap:0 14px;align-items:center}
         #baPage .ba-ses-head{padding:4px 12px 6px;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--k-mute3)}
         #baPage .ba-ses{position:relative;margin:4px 0;padding:9px 12px;border-radius:12px;background:linear-gradient(90deg,color-mix(in srgb,var(--k-tx-strong) 3.5%,transparent),color-mix(in srgb,var(--k-tx-strong) 1.5%,transparent));border:1px solid color-mix(in srgb,var(--k-tx-strong) 6.0%,transparent);transition:border-color .15s,background .15s}
@@ -106,9 +101,8 @@
             #baPage .ba-ses{grid-template-columns:30px 1fr;gap:6px 10px}
             #baPage .ba-ses-tags{grid-column:1/-1}
         }
-    </style>
-
-    <!-- หัวหน้า -->
+</style>
+    
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-[#151f32] p-4 rounded-2xl border border-slate-700 shadow-xl">
         <div>
             <h2 class="text-xl font-black text-white flex items-center gap-2">
@@ -126,8 +120,7 @@
             <button onclick="baReload()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-1"><span class="material-icons text-sm">refresh</span> รีเฟรช</button>
         </div>
     </div>
-
-    <!-- แถวบน: เกณฑ์ที่ต้องกดบันทึก -->
+    
     <div class="bg-[#0f172a] mt-3 p-3 rounded-2xl border border-slate-700 flex flex-wrap gap-3 items-end">
         <div><div class="ba-lbl">เพดานรวมทั้งวัน (นาที)</div><input id="baCap" type="number" min="1" value="120" onchange="baCompute()" class="ba-sel" style="min-width:90px"></div>
         <div><div class="ba-lbl">กินข้าวได้กี่รอบ</div><input id="baMealMax" type="number" min="1" value="2" onchange="baCompute()" class="ba-sel" style="min-width:80px"></div>
@@ -148,8 +141,7 @@
         </button>
         <span id="baRulesNote" class="text-[11px] text-gray-500 self-end pb-2"></span>
     </div>
-
-    <!-- แถวล่าง: ตัวกรอง เลือกแล้วเปลี่ยนทันที ไม่ต้องบันทึก -->
+    
     <div class="bg-[#0b1220] mt-2 p-3 rounded-2xl border border-slate-800 flex flex-wrap gap-3 items-end">
         <span class="text-[11px] text-gray-500 self-end pb-2 mr-1">ตัวกรอง (เลือกแล้วเปลี่ยนทันที)</span>
         <div><div class="ba-lbl">แผนก</div><select id="baDept" class="ba-sel" onchange="baCompute()"><option value="all">ทุกแผนก</option></select></div>
@@ -167,11 +159,9 @@
             <input type="checkbox" id="baAbsent" checked onchange="baCompute()" class="w-4 h-4 accent-amber-500"> แสดงคนที่ไม่ได้กดเลย
         </label>
     </div>
-
-    <!-- สรุป -->
+    
     <div class="ba-tally mt-3" id="baTally"></div>
-
-    <!-- ตั้งค่าแผนก -->
+    
     <details id="baSettings" class="bg-[#0f172a] mt-3 rounded-2xl border border-slate-700">
         <summary class="cursor-pointer px-4 py-3 text-[13px] font-bold text-gray-300 flex items-center gap-2 select-none">
             <span class="material-icons text-base text-amber-400">tune</span>
@@ -199,8 +189,7 @@
             </div>
         </div>
     </details>
-
-    <!-- รายชื่อ -->
+    
     <div class="bg-[#0b1220] mt-3 rounded-2xl border border-slate-700 overflow-hidden">
         <div id="baList">
             <div class="text-center text-gray-500 py-12 text-sm px-4">
@@ -208,8 +197,7 @@
             </div>
         </div>
     </div>
-
-    <!-- คนที่จับคู่กับระบบไม่ได้ -->
+    
     <div id="baUnknownBox" class="bg-[#1a1408] mt-3 p-3 rounded-2xl border border-amber-800/60" style="display:none">
         <div class="text-amber-300 font-black text-sm flex items-center gap-2 mb-1">
             <span class="material-icons text-base">person_off</span> มีคนกดเช็คอินแต่จับคู่กับพนักงานในระบบไม่ได้
@@ -217,8 +205,7 @@
         <p class="text-[11px] text-amber-200/70 mb-2">ถ้าเป็นคนของเรา ให้ไปใส่ Telegram ID ให้เขาที่ “ตั้งค่าระบบ → จัดการพนักงาน” แล้วกดรีเฟรช ถ้าไม่ใช่คนของเราปล่อยไว้ได้เลย</p>
         <div id="baUnknown" class="flex flex-wrap gap-2"></div>
     </div>
-
-    <!-- คำอธิบายสี -->
+    
     <div class="flex flex-wrap gap-3 mt-3 text-[11px] text-gray-500 px-1">
         <span><span class="ba-dot" style="background:#22c55e"></span>กินข้าว</span>
         <span><span class="ba-dot" style="background:#f97316"></span>ปวดหนัก</span>

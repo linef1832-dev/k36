@@ -1,5 +1,4 @@
-<!-- 📊 สรุปยอดทำรายการ (ออกแบบใหม่รอบ 2) — id / onclick / ฟังก์ชันเดิมครบ ใช้กับ js/summary/* ได้เหมือนเดิม
-     ลำดับใช้งาน: ① เลือกข้อมูล (วันที่บันทึกไว้ หรืออัปโหลดไฟล์ใหม่) → ② ดูยอดรวม/แยกเว็บ → ③ รายบุคคล + อันดับ -->
+
 <style>
 #summaryApp{background:var(--k-bg);color:var(--k-tx);--g:#E8C15A;--gi:#1b1406}
 #summaryApp .material-icons{font-size:18px}
@@ -9,7 +8,7 @@
 #summaryApp .sm-title{font-size:19px;font-weight:900;color:var(--k-tx-strong);margin-right:auto}
 #summaryApp .sm-body{flex:1;overflow-y:auto;padding:18px 20px}
 #summaryApp .sm-wrap{max-width:1600px;margin:0 auto;display:flex;flex-direction:column;gap:14px;padding-bottom:32px}
-/* ปุ่ม */
+
 #summaryApp .sm-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:38px;padding:0 14px;border-radius:11px;font-size:13px;font-weight:800;white-space:nowrap;cursor:pointer;border:1px solid var(--k-line3);background:var(--k-btn);color:var(--k-tx2);transition:background .15s,border-color .15s,color .15s,transform .08s}
 #summaryApp .sm-btn .material-icons{font-size:17px}
 #summaryApp .sm-btn:hover{background:var(--k-btn-h);border-color:var(--k-line4);color:var(--k-tx-strong)}
@@ -22,7 +21,7 @@
 #summaryApp .sm-btn.green{color:var(--k-green-tx);border-color:var(--k-green-line);background:var(--k-green-bg)}
 #summaryApp .sm-btn.ghost{background:transparent}
 #summaryApp .sm-btn.hide{display:none}
-/* แผง */
+
 #summaryApp .sm-panel{background:var(--k-panel);border:1px solid var(--k-line);border-radius:18px;display:flex;flex-direction:column;min-height:0;box-shadow:var(--k-shadow)}
 #summaryApp .sm-ph{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:13px 16px;border-bottom:1px solid var(--k-line)}
 #summaryApp .sm-h{display:flex;align-items:center;gap:9px;font-size:14.5px;font-weight:900;color:var(--k-tx-strong);margin-right:auto}
@@ -30,7 +29,6 @@
 #summaryApp .sm-n{width:22px;height:22px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;background:var(--g);color:var(--gi);flex:none}
 #summaryApp .sm-tip{font-size:12px;font-weight:700;color:var(--k-mute)}
 
-/* แถบสถานะ: ตอนนี้กำลังดูข้อมูลอะไร */
 #summaryApp .sm-source{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 16px;border-radius:18px;border:1px solid var(--k-line);background:var(--k-panel);box-shadow:var(--k-shadow);position:relative;overflow:hidden}
 #summaryApp .sm-source::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:var(--src,var(--k-line3))}
 #summaryApp .sm-src-ic{width:44px;height:44px;border-radius:13px;display:flex;align-items:center;justify-content:center;flex:none;background:color-mix(in srgb,var(--src,var(--k-mute)) 16%,transparent);color:var(--src,var(--k-mute))}
@@ -44,7 +42,6 @@
 #summaryApp .sm-source.is-history{--src:#38bdf8}
 #summaryApp .sm-source.is-empty{--src:var(--k-mute2)}
 
-/* ① เลือกข้อมูล */
 #summaryApp .sm-pick{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr)}
 #summaryApp .sm-pick>div{padding:14px 16px;min-width:0}
 #summaryApp .sm-pick>div+div{border-left:1px solid var(--k-line)}
@@ -63,7 +60,6 @@
 #summaryApp .sm-dcta{margin-left:auto;font-size:11.5px;font-weight:800;color:var(--c);display:flex;align-items:center;gap:4px;white-space:nowrap}
 #summaryApp .sm-dcta .material-icons{font-size:15px}
 
-/* ชิปวันที่แบบปฏิทิน */
 #summaryApp .sm-quick{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:11px}
 #summaryApp .sm-quick-l{font-size:11.5px;font-weight:800;color:var(--k-mute2);margin-right:2px}
 #summaryApp .sm-qb{height:30px;padding:0 12px;border-radius:999px;font-size:12px;font-weight:800;color:var(--k-tx3);background:var(--k-field);border:1px solid var(--k-line2);transition:background .15s,border-color .15s,color .15s}
@@ -85,14 +81,14 @@
 #summaryApp .sm-dchip .sm-ddel{position:absolute;top:-7px;left:-7px;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#ef4444;color:#fff;opacity:0;transform:scale(.8);transition:opacity .15s,transform .15s;box-shadow:0 2px 8px rgba(0,0,0,.3);z-index:2}
 #summaryApp .sm-dchip:hover .sm-ddel{opacity:1;transform:scale(1)}
 #summaryApp .sm-dchip .sm-ddel .material-icons{font-size:12px}
-/* กล่องว่างของยอดรวม */
+
 #summaryApp .sm-kpi-empty{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px;padding:26px 16px;border-radius:16px;border:1px dashed var(--k-line3);background:radial-gradient(120% 100% at 50% 0%,rgba(232,193,90,.07),transparent 60%)}
 #summaryApp .sm-ke-ic{width:52px;height:52px;border-radius:16px;display:flex;align-items:center;justify-content:center;background:rgba(232,193,90,.14);color:var(--k-gold-tx);margin-bottom:4px}
 #summaryApp .sm-ke-ic .material-icons{font-size:28px}
 #summaryApp .sm-ke-t{font-size:16px;font-weight:900;color:var(--k-tx-strong)}
 #summaryApp .sm-ke-s{font-size:12.5px;font-weight:700;color:var(--k-mute)}
 #summaryApp .sm-ke-a{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px}
-/* การ์ดเว็บ */
+
 #summaryApp .sm-webs-h{display:flex;align-items:center;gap:8px;padding:0 16px 9px;font-size:12.5px;font-weight:900;color:var(--k-tx3)}
 #summaryApp .sm-webs-h .sm-tip{font-weight:700}
 #summaryApp #summaryWebGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:9px;padding:0 16px 16px}
@@ -117,7 +113,7 @@
 #summaryApp .sm-web-chk{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--g);color:var(--gi);display:none;align-items:center;justify-content:center}
 #summaryApp .sm-web.on .sm-web-chk{display:flex}
 #summaryApp .sm-web-chk .material-icons{font-size:14px}
-/* ② ยอดรวม */
+
 #summaryApp #shiftSummaryStats{display:grid;grid-template-columns:1.5fr repeat(3,1fr);gap:10px;padding:14px 16px}
 #summaryApp .sm-kpi{min-width:0;padding:12px 14px;border-radius:14px;background:var(--k-panel2);border:1px solid var(--k-line)}
 #summaryApp .sm-kpi .l{font-size:12px;font-weight:800;color:var(--k-mute);display:flex;align-items:center;gap:6px}
@@ -127,7 +123,6 @@
 #summaryApp .sm-kpi.main .v{color:var(--k-gold-tx);font-size:32px}
 #summaryApp .sm-kpi .dot{width:9px;height:9px;border-radius:99px;display:inline-block}
 
-/* ③ รายบุคคล + อันดับ */
 #summaryApp .sm-split{display:grid;grid-template-columns:minmax(0,8fr) minmax(0,4fr);gap:14px}
 #summaryApp .sm-split .sm-panel{height:680px}
 #summaryApp .sm-filters{display:flex;flex-wrap:wrap;gap:8px;padding:10px 16px;border-bottom:1px solid var(--k-line);background:var(--k-panel2)}
@@ -140,7 +135,7 @@
 #summaryApp .sm-field.grow input{width:100%}
 #summaryApp .sm-field .hidden{display:none}
 #summaryApp .sm-scroll{flex:1;overflow-y:auto;min-height:0;padding:12px}
-/* กลุ่มวันที่ */
+
 #summaryApp .sm-dg{border:1px solid var(--k-line);border-radius:14px;margin-bottom:10px;overflow:hidden;background:var(--k-panel2)}
 #summaryApp .sm-dg-h{display:flex;align-items:center;gap:12px;padding:11px 14px;cursor:pointer;background:var(--k-panel2);transition:background .15s}
 #summaryApp .sm-dg-h:hover{background:var(--k-btn-h)}
@@ -153,7 +148,7 @@
 #summaryApp .sm-ok{color:var(--k-green-tx)} #summaryApp .sm-no{color:var(--k-red-tx)}
 #summaryApp .sm-dg-ar{color:var(--k-mute)}
 #summaryApp .sm-dg-body{padding:8px;border-top:1px solid var(--k-line);background:var(--k-panel)}
-/* แถวพนักงาน */
+
 #summaryApp .sm-emp{border-radius:12px;border:1px solid var(--k-line);background:var(--k-panel2);margin-bottom:6px;overflow:hidden}
 #summaryApp .sm-emp-h{display:flex;align-items:center;gap:11px;padding:9px 12px;cursor:pointer;transition:background .15s}
 #summaryApp .sm-emp-h:hover{background:var(--k-btn-h)}
@@ -174,7 +169,7 @@
 #summaryApp .sm-ws-money b{color:var(--k-green-tx);font-variant-numeric:tabular-nums}
 #summaryApp .sm-noemp{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:50px 16px;text-align:center;color:var(--k-mute2);font-size:14px;font-weight:700}
 #summaryApp .sm-noemp .material-icons{font-size:44px;opacity:.5}
-/* อันดับ */
+
 #summaryApp .leaderboard-item{display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:12px;border:1px solid transparent;transition:background .15s}
 #summaryApp .leaderboard-item:hover{background:var(--k-btn-h)}
 #summaryApp .sm-lb-b{flex:1;min-width:0}
@@ -184,7 +179,7 @@
 #summaryApp .sm-lb-s .m{color:var(--k-mute);font-variant-numeric:tabular-nums}
 #summaryApp .sm-lb-tot{font-size:18px;font-weight:900;color:var(--k-tx-strong);font-variant-numeric:tabular-nums;text-align:right;line-height:1.1}
 #summaryApp .sm-lb-tot small{display:block;font-size:10px;color:var(--k-mute);font-weight:700}
-/* month input ให้เห็นตัวอักษร */
+
 #leaderboardMonth::-webkit-datetime-edit,#leaderboardMonth::-webkit-datetime-edit-fields-wrapper,#leaderboardMonth::-webkit-datetime-edit-text,#leaderboardMonth::-webkit-datetime-edit-month-field,#leaderboardMonth::-webkit-datetime-edit-year-field{color:inherit !important}
 #leaderboardMonth{color:var(--k-gold-tx) !important;text-shadow:none !important;color-scheme:light dark}
 @media (max-width:1100px){ #summaryApp .sm-split{grid-template-columns:1fr} #summaryApp .sm-pick{grid-template-columns:1fr} #summaryApp .sm-pick>div+div{border-left:0;border-top:1px solid var(--k-line)} }
@@ -203,8 +198,7 @@
     </div>
     <div class="sm-body custom-scrollbar">
         <div class="sm-wrap">
-
-            <!-- แถบสถานะ: ตอนนี้กำลังดูข้อมูลชุดไหน (smSyncSource() เติมให้) -->
+            
             <div id="smSource" class="sm-source is-empty">
                 <div class="sm-src-ic"><span class="material-icons" id="smSrcIcon">inventory_2</span></div>
                 <div class="min-w-0">
@@ -217,8 +211,7 @@
                     <button onclick="saveSummaryToSupabase()" id="smBtnSave" class="sm-btn primary hide"><span class="material-icons">save</span>บันทึกยอดเข้าฐานข้อมูล</button>
                 </div>
             </div>
-
-            <!-- ① เลือกข้อมูล -->
+            
             <section class="sm-panel">
                 <div class="sm-ph"><div class="sm-h"><span class="sm-n">1</span>เลือกข้อมูลที่จะดู</div></div>
                 <div class="sm-pick">
@@ -251,8 +244,7 @@
                     </div>
                 </div>
             </section>
-
-            <!-- ② ยอดรวม + แยกเว็บ -->
+            
             <section class="sm-panel">
                 <div class="sm-ph"><div class="sm-h"><span class="sm-n">2</span>ยอดรวม</div></div>
                 <div id="shiftSummaryStats">
@@ -261,8 +253,7 @@
                 <div class="sm-webs-h" id="smWebsHead" style="display:none"><span class="material-icons" style="color:var(--k-mute)">language</span>แยกตามเว็บ <span class="sm-tip">· กดเว็บเพื่อกรองรายบุคคล กดซ้ำเพื่อดูทั้งหมด</span></div>
                 <div id="summaryWebGrid" style="display:none"></div>
             </section>
-
-            <!-- ③ รายบุคคล + อันดับ -->
+            
             <div class="sm-split">
                 <section class="sm-panel">
                     <div class="sm-ph">
@@ -340,7 +331,7 @@
         </div>
     </div>
 </div>
-<!-- 🖼️ จัดการโลโก้: เลือกเว็บ + ใส่รูป + บันทึก ในหน้าต่างเดียว (เดิมต้องเลือกเว็บในหน้าต่างหนึ่ง กดถัดไป แล้วค่อยเปิดอีกหน้าต่าง) -->
+
 <style>
 #webLogoModal{background:rgba(2,6,23,.62);backdrop-filter:blur(4px)}
 #webLogoModal .lg-box{width:100%;max-width:520px;max-height:calc(100vh - 32px);display:flex;flex-direction:column;border-radius:20px;overflow:hidden;background:var(--k-panel);border:1px solid var(--k-line3);box-shadow:0 24px 60px rgba(0,0,0,.45)}
@@ -509,6 +500,5 @@
             <div class="sm-lb-tot">{{totalCount}}<small>ยอด</small></div>
         </div>
     </template>
-    
-<!-- (tpl-manage-system-item เดิม: เลิกใช้ — หน้าต่างตั้งค่าหลังบ้านสร้างเองใน export.js) -->
+
 </div>

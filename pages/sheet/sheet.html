@@ -1,4 +1,4 @@
-<!-- 🗂️ หน้าตารางงานรวม (ออกแบบใหม่) — id / onclick / template เดิมทุกตัว -->
+
 <style>
     #sheetApp{background:var(--k-bg)}
     #sheetApp .sh-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px;background:var(--k-panel);border-bottom:1px solid var(--k-line)}
@@ -26,17 +26,15 @@
     #sheetApp .sh-search input:focus{width:260px;border-color:#E8C15A;box-shadow:0 0 0 3px rgba(232,193,90,.15)}
     #sheetApp .sh-search input::placeholder{color:var(--k-mute3)}
 
-    /* พื้นที่การ์ด */
     #sheetApp #sheetMenu{background:var(--k-bg)}
     #sheetApp .sh-main{max-width:1600px;margin:0 auto;display:flex;gap:20px;align-items:flex-start}
-    /* หัวกลุ่มที่ระบบวาด (h2) → แถบหัวข้อมีเส้นต่อท้าย */
+
     #sheetGroupsContainer h2{display:flex !important;align-items:center;gap:8px;font-size:13px !important;letter-spacing:.02em !important;text-transform:none !important;margin-bottom:12px !important;color:var(--k-tx) !important}
     #sheetGroupsContainer h2>.material-icons{font-size:16px !important;color:var(--k-gold-tx)}
     #sheetGroupsContainer h2::after{content:'';flex:1;height:1px;background:var(--k-line);margin-left:6px}
     #sheetGroupsContainer>div{margin-bottom:26px !important}
     #sheetGroupsContainer .grid{gap:12px !important}
 
-    /* การ์ดชีต */
     #sheetApp .sh-card{position:relative;cursor:pointer;height:112px;border-radius:14px;overflow:hidden;background:var(--k-panel);border:1px solid var(--k-line);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;transition:border-color .15s,transform .15s,box-shadow .15s}
     #sheetApp .sh-card:hover{border-color:var(--k-line4);transform:translateY(-2px);box-shadow:0 10px 24px rgba(0,0,0,.35)}
     #sheetApp .sh-card:focus-visible{outline:2px solid #E8C15A;outline-offset:2px}
@@ -47,7 +45,6 @@
     #sheetApp .sh-pin:hover{background:color-mix(in srgb,var(--k-panel2) 90.0%,transparent)}
     #sheetApp .sh-pin .material-icons{font-size:17px}
 
-    /* แผงคำนวณยอด */
     #sheetApp .sh-calc{background:var(--k-panel);border:1px solid var(--k-line);border-radius:16px;overflow:hidden}
     #sheetApp .sh-calc-h{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--k-line)}
     #sheetApp .sh-calc-h .ic{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:rgba(232,193,90,.12);color:var(--k-gold-tx)}
@@ -67,7 +64,7 @@
     #sheetApp .sh-ibtn .material-icons{font-size:19px}
     #sheetApp .sh-result{display:flex;gap:8px;align-items:stretch}
     #sheetApp #calcResultDisplay{flex:1;min-width:0;height:60px;border-radius:12px;background:var(--k-panel);border:1px solid rgba(34,197,94,.4);color:var(--k-green-tx);font-size:28px;font-weight:900;display:flex;align-items:center;justify-content:flex-end;padding:0 14px;overflow:hidden;font-variant-numeric:tabular-nums;-webkit-text-fill-color:var(--k-green-tx);-webkit-background-clip:border-box !important;background-clip:border-box !important}
-    /* JS เปลี่ยนคลาสตามผลลัพธ์: ติดลบ = แดง, ศูนย์ = เทา */
+
     #sheetApp #calcResultDisplay.text-rose-500{color:var(--k-red-tx);-webkit-text-fill-color:var(--k-red-tx);background:var(--k-red-bg);border-color:rgba(248,113,113,.45)}
     #sheetApp #calcResultDisplay.text-slate-500{color:var(--k-mute3);-webkit-text-fill-color:var(--k-mute3);background:var(--k-panel2);border-color:var(--k-line)}
     #sheetApp .sh-copy{width:64px;flex:none;border-radius:12px;border:1px solid #E8C15A;background:#E8C15A;color:#1b1406;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:11px;font-weight:900;cursor:pointer;transition:background .15s,transform .08s}
@@ -75,11 +72,9 @@
     #sheetApp .sh-copy:active{transform:scale(.95)}
     #sheetApp .sh-copy .material-icons{font-size:20px}
 
-    /* แถบบนตอนเปิดดูชีต */
     #sheetApp .sh-vbar{display:flex;align-items:center;justify-content:space-between;gap:10px;height:50px;padding:0 10px 0 14px;background:var(--k-panel);border-bottom:1px solid var(--k-line)}
     #sheetApp #sheetTitle{font-size:14px;font-weight:900;color:var(--k-tx-strong)}
 
-    /* ── โหมดแบ่งจอกับคลังรูป: หัวกะทัดรัด ปุ่มเหลือแต่ไอคอน (ชี้ค้างมีคำอธิบาย) ── */
     #sheetApp.sheet-split .sh-head{padding:10px 12px;gap:10px;flex-wrap:nowrap}
     #sheetApp.sheet-split .sh-sub{display:none}
     #sheetApp.sheet-split .sh-ico{width:34px;height:34px}
@@ -126,7 +121,7 @@
     </div>
 
     <style>
-        /* 🎩 แถบแท็บชีต V2 — สีตามที่ตั้งของแต่ละชีต · แท็บที่เปิดอยู่เด่นชัด */
+
         #recentTabsContainer{display:flex;align-items:flex-end;gap:6px;padding:7px 8px 0;background:linear-gradient(180deg,var(--k-panel2),var(--k-bg));border-bottom:1px solid rgba(148,163,184,.14)}
         .sht-tab{position:relative;display:flex;align-items:center;gap:7px;padding:8px 8px 8px 11px;min-width:130px;max-width:220px;flex-shrink:0;border-radius:12px 12px 0 0;cursor:pointer;user-select:none;background:color-mix(in srgb,var(--k-panel2) 55.0%,transparent);border:1px solid rgba(148,163,184,.16);border-bottom:none;color:var(--k-tx3);transition:all .15s}
         .sht-tab:hover{color:var(--k-tx);background:color-mix(in srgb,var(--k-card) 75.0%,transparent);transform:translateY(-1px)}
@@ -141,11 +136,11 @@
         .sht-tab.on::after{content:'';position:absolute;left:8px;right:8px;bottom:0;height:2.5px;border-radius:99px 99px 0 0;background:var(--tc,#3b82f6)}
         .sht-clear{margin-left:6px;align-self:center;flex-shrink:0;display:inline-flex;align-items:center;gap:4px;padding:5px 11px;border-radius:99px;font-size:10.5px;font-weight:800;color:var(--k-red-tx);background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);cursor:pointer;transition:all .15s;white-space:nowrap}
         .sht-clear:hover{background:#dc2626;border-color:#f87171;color:#fff;box-shadow:0 4px 12px -4px rgba(239,68,68,.5)}
-    </style>
+</style>
     <div id="recentTabsContainer" class="overflow-x-auto shrink-0 hidden z-20 custom-scrollbar"></div>
 
     <div id="sheetMenu" class="flex-1 p-4 md:p-6 overflow-y-auto custom-scrollbar relative z-0 fast-render-list">
-        <!-- คง class lg:flex-row / lg:w-[340px] ไว้: โหมดแบ่งจอกับคลังรูปใช้คลาสนี้จัดเลย์เอาต์ -->
+        
         <div class="sh-main lg:flex-row relative z-10">
             <div class="flex-1 min-w-0 w-full">
                 <div id="sheetGroupsContainer"></div>
@@ -214,7 +209,7 @@
                 <span class="text-purple-400 font-bold animate-pulse">กำลังโหลดข้อมูล...</span>
             </div>
             <iframe id="sheetFrame" class="absolute inset-0 w-full h-full border-0 bg-white" allow=""></iframe>
-            <!-- 📝 หน้าข้อความที่สร้างในระบบ (ไม่ใช่ลิงก์) — โหลดทันที ไม่ต้องรอ Google -->
+            
             <div id="noteViewer" class="hidden absolute inset-0 flex-col bg-[#0b1120] overflow-hidden">
                 <div class="p-3 border-b border-slate-700 flex items-center gap-3 shrink-0 bg-slate-900/60">
                     <div class="relative flex-1 max-w-md">
@@ -225,7 +220,7 @@
                     <span id="noteHint" class="text-[11px] text-slate-500 ml-auto hidden md:inline">💡 คลิกช่องไหนก็ได้เพื่อก๊อปปี้</span>
                     <button id="btnNoteEdit" onclick="noteEditStart()" class="hidden ml-auto bg-purple-600 hover:bg-purple-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 shadow"><span class="material-icons text-sm">edit</span> แก้ไขหน้านี้</button>
                 </div>
-                <!-- 🛠️ แถบเครื่องมือแก้ไข (โชว์เฉพาะตอนกดแก้ไข) -->
+                
                 <div id="noteToolbar" class="hidden items-center gap-1 flex-wrap px-3 py-2 bg-slate-800 border-b border-slate-700 shrink-0 text-white">
                     <button onclick="noteCmd('undo')" title="เลิกทำ (Ctrl+Z)" class="nt-btn"><span class="material-icons text-[18px]">undo</span></button>
                     <button onclick="noteCmd('redo')" title="ทำซ้ำ (Ctrl+Y)" class="nt-btn"><span class="material-icons text-[18px]">redo</span></button>
@@ -312,7 +307,6 @@
     </div>
 </div>
 
-<!-- ⚙️ หน้าต่างเพิ่ม/แก้ชีต (ออกแบบใหม่: ฟอร์มซ้าย · รายการขวา) — id / onclick เดิมทุกตัว -->
 <style>
     #sheetAdminModal .sa-box{width:100%;max-width:1040px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;border-radius:18px;background:var(--k-panel);border:1px solid var(--k-line);box-shadow:0 30px 80px rgba(0,0,0,.6);color:var(--k-tx)}
     #sheetAdminModal .sa-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 18px;border-bottom:1px solid var(--k-line)}
@@ -333,8 +327,8 @@
     #sheetAdminModal .sa-in:focus,#sheetAdminModal textarea:focus{border-color:#E8C15A;box-shadow:0 0 0 3px rgba(232,193,90,.15)}
     #sheetAdminModal textarea{width:100%;padding:10px 12px;border-radius:10px;background:var(--k-panel2);border:1px solid var(--k-line2);color:var(--k-tx);font-size:12.5px;outline:none;white-space:pre}
     #sheetAdminModal .sa-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    #sheetAdminModal .sa-row:has(#sheetGroupFieldWrap.hidden){grid-template-columns:1fr}   /* โหมดชีตของฉัน: ไม่มีช่องหมวด → ช่องชื่อเต็มแถว */
-    /* ปุ่มเลือกประเภท (JS เปลี่ยน className เป็น bg-purple-600 = เลือก / bg-slate-800 = ไม่เลือก) */
+    #sheetAdminModal .sa-row:has(#sheetGroupFieldWrap.hidden){grid-template-columns:1fr}
+
     #sheetAdminModal .sa-seg{display:flex;gap:4px;padding:4px;border-radius:12px;background:var(--k-panel2);border:1px solid var(--k-line)}
     #sheetAdminModal .sa-seg button{flex:1;height:38px;border-radius:9px !important;border:0 !important;font-size:12.5px !important;font-weight:800 !important;display:flex;align-items:center;justify-content:center;gap:6px;background:transparent !important;color:var(--k-mute) !important;cursor:pointer;transition:background .15s,color .15s}
     #sheetAdminModal .sa-seg button:hover{color:var(--k-tx-strong) !important}
@@ -370,7 +364,7 @@
         </div>
 
         <div class="sa-body">
-            <!-- ซ้าย: ฟอร์ม -->
+            
             <div class="sa-form custom-scrollbar">
                 <h4 id="formTitle"><span class="material-icons text-[18px]">add_circle</span> เพิ่มรายการใหม่</h4>
                 <input type="hidden" id="editSheetId">
@@ -441,8 +435,7 @@
                     <button id="btnSaveSheet" onclick="saveSheetData()" class="bg-green-600 hover:bg-green-500"><span class="material-icons">save</span> บันทึกข้อมูล</button>
                 </div>
             </div>
-
-            <!-- ขวา: รายการที่มีอยู่ -->
+            
             <div class="sa-list custom-scrollbar">
                 <div class="sa-sec"><span class="material-icons" style="font-size:16px;color:var(--k-gold-tx)">list</span> รายการที่มีอยู่ <span style="font-weight:600;color:var(--k-mute3)">· กดดินสอเพื่อแก้ไข</span></div>
                 <div id="adminSheetList"></div>
@@ -501,15 +494,10 @@
     </template>
 </div>
 
-<!-- 🖼️ [แบ่งจอคลังรูป] ชีตซ้าย-คลังรูปขวา ครึ่งต่อครึ่ง ใช้พร้อมกันได้ เปิดค้างจนกว่าจะกดปิดเอง
-     ⚠️ ใช้ inline style ทั้งหมด — ห้ามใช้ Tailwind class แบบ z-[..] w-[..] เพราะ CSS คอมไพล์ไว้ล่วงหน้าแล้ว -->
 <style>
-    /* 🖼️ คลังรูปในแผงแบ่งจอ: ขนาดรูปคิดจากความกว้าง "แผง" ไม่ใช่ความกว้างจอ
-       (คลาส md:/lg:/xl: ของ Tailwind ดูจากจอทั้งจอ → พอเปิดคู่กับชีตแล้วบีบ 5 คอลัมน์ลงครึ่งจอ รูปเลยจิ๋ว)
-       ใช้ auto-fill: กว้างขั้นต่ำ 190px ต่อรูป ได้กี่คอลัมน์ก็เท่านั้น ย่อจอแล้วรูปยังเท่าเดิม */
+
     #galleryDrawer #galleryGrid{grid-template-columns:repeat(auto-fill,minmax(190px,1fr)) !important}
 
-    /* ── หัวแผงคลังรูป ── */
     #galleryDrawer{background:var(--k-bg) !important}
     #galleryDrawer .gd-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px 8px 12px;background:var(--k-panel);border-bottom:1px solid var(--k-line);flex-shrink:0}
     #galleryDrawer .gd-title{display:flex;align-items:center;gap:10px;min-width:0}
@@ -526,7 +514,6 @@
     #galleryDrawer .gd-btn.close:hover{background:var(--k-red-bg-h);border-color:var(--k-red-line-h);color:var(--k-tx-strong)}
     #galleryDrawer #galleryDrawerBody{padding:0 !important}
 
-    /* ③ ปุ่มขนาดสำเร็จรูป */
     #galleryDrawer .gd-size{display:flex;align-items:center;gap:2px;padding:2px;border-radius:9px;background:var(--k-bg);border:1px solid var(--k-line)}
     #galleryDrawer .gd-size button{height:26px;min-width:32px;padding:0 6px;border-radius:7px;font-size:11.5px;font-weight:900;color:var(--k-mute);background:transparent;border:0;cursor:pointer;font-variant-numeric:tabular-nums}
     #galleryDrawer .gd-size button:hover{color:var(--k-tx-strong);background:var(--k-btn)}
@@ -535,7 +522,6 @@
     #galleryDrawer .gd-btn.on{border-color:rgba(232,193,90,.55);background:rgba(232,193,90,.12);color:var(--k-gold-tx)}
     @media (max-width:1200px){ #galleryDrawer .gd-t{display:none} #galleryDrawer .gd-btn{padding:0 8px} #galleryDrawer .gd-now{display:none} }
 
-    /* ⑦ คัดลอกแล้วเห็นชัด */
     .gx-card.gd-copied{position:relative;border-color:#E8C15A !important;box-shadow:0 0 0 2px #E8C15A,0 0 24px rgba(232,193,90,.45) !important;animation:gdGlow 2.6s ease forwards}
     .gx-card.gd-copied::after{content:'คัดลอกแล้ว ✓';position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:45;padding:5px 12px;border-radius:999px;background:#E8C15A;color:#1b1406;font-size:12px;font-weight:900;box-shadow:0 6px 16px rgba(0,0,0,.4);pointer-events:none;animation:gdBadge 2.6s ease forwards}
     @keyframes gdGlow{0%{box-shadow:0 0 0 2px #E8C15A,0 0 34px rgba(232,193,90,.7)}75%{box-shadow:0 0 0 2px #E8C15A,0 0 18px rgba(232,193,90,.35)}100%{box-shadow:0 0 0 0 transparent}}
@@ -548,10 +534,8 @@
     #gdClipBar b{font-size:12.5px;font-weight:900;color:var(--k-gold-tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     #gdClipBar .gdc-key{flex:none;font-size:11px;font-weight:800;color:var(--k-green-tx);background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.35);padding:3px 9px;border-radius:999px}
 
-    /* ⑧ พรีวิวรูปใหญ่ (ลอยทับฝั่งชีต) */
     @media (prefers-reduced-motion:reduce){ .gx-card.gd-copied,.gx-card.gd-copied::after{transition:none;animation:none} }
 
-    /* ── คลังรูปในแผง: ย้ายแถบข้างซ้ายขึ้นเป็นแถบเครื่องมือด้านบน → รูปได้พื้นที่เต็มความกว้าง ── */
     #galleryDrawer .gx-app{flex-direction:column;border-radius:0;border:0;box-shadow:none;background:var(--k-bg)}
     #galleryDrawer .gx-side{width:auto;flex-direction:row;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 10px;overflow:visible;background:var(--k-panel2);border-right:0;border-bottom:1px solid var(--k-line)}
     #galleryDrawer .gx-brand,#galleryDrawer .gx-side-label,#galleryDrawer .gx-back{display:none !important}
@@ -604,9 +588,7 @@
 </div>
 
 <style>
-/* 📐 [โหมดแบ่งจอ] ตอนเปิดคลังรูป ฝั่งชีตเหลือครึ่งจอ → จัด layout ใหม่ไม่ให้บีบ
-   - แถวการ์ด: 5 คอลัมน์ → 3 คอลัมน์
-   - แผงคำนวณยอด: ย้ายจากข้างขวา ลงไปต่อท้ายข้างล่าง (เต็มความกว้าง) */
+
 #sheetApp.sheet-split #sheetMenu .lg\:flex-row{ flex-direction:column !important; }
 #sheetApp.sheet-split #sheetMenu .lg\:w-\[340px\]{ width:100% !important; position:static !important; max-width:520px; }
 #sheetApp.sheet-split #sheetGroupsContainer .grid{ grid-template-columns:repeat(3,minmax(0,1fr)) !important; }

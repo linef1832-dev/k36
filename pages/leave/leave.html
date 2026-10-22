@@ -1,18 +1,12 @@
 <div id="leaveApp" class="fade-in flex flex-col h-full relative overflow-hidden" style="height:calc(100vh - 2rem)">
 <style>
-/* ════════════════════════════════════════════════════════════
-   🎩 ตารางวันหยุด V2 — ผังใหม่ 2 แถวชัดเจน + CSS ชั้นเดียว (ล้างของซ้อนหมดแล้ว)
-   แถว 1: ชื่อหน้า · แผนก · เดือน · กลับ
-   แถว 2: ปุ่มประเภทลา (เห็นตลอด ไม่ต้องกดเปิด) · กะ · ค้นหา · ตั้งค่า · Excel · ประวัติ
-   id/onclick/คลาสที่ JS ใช้ ครบทุกตัว — ระบบจองทำงานเหมือนเดิม
-   ════════════════════════════════════════════════════════════ */
+
 #leaveApp{
     background:linear-gradient(180deg,var(--k-sunk) 0%,var(--k-panel2) 100%);
     border-radius:22px; border:1px solid rgba(232,193,90,0.14);
     box-shadow:0 0 0 1px rgba(255,255,255,0.02), 0 18px 60px -18px rgba(0,0,0,0.85);
 }
 
-/* ── 🥇 แถว 1: หัวเรื่อง ── */
 .lv-header{
     flex-shrink:0; z-index:30; position:relative;
     display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px;
@@ -31,7 +25,6 @@
 .lv-title{ font-size:0.95rem; font-weight:800; letter-spacing:0.01em; color:var(--k-tx); display:flex; align-items:center; gap:8px; line-height:1.2; }
 .lv-subtitle{ font-size:10px; color:var(--k-mute); display:flex; align-items:center; gap:6px; margin-top:2px; }
 
-/* แท็บแผนก — คงคลาส dept-segment-btn/active ให้ JS จัดการเหมือนเดิม */
 .lv-header .dept-segment-container{
     background:color-mix(in srgb,var(--k-panel2) 55.0%,transparent); border:1px solid rgba(232,193,90,0.16);
     box-shadow:inset 0 2px 6px rgba(0,0,0,0.45);
@@ -42,7 +35,6 @@
 
 .lv-tools{ display:flex; flex-wrap:wrap; align-items:center; gap:7px; margin-left:auto; }
 
-/* ── 🛠️ แถว 2: แถบเครื่องมือ ── */
 .lv-toolbar{
     flex-shrink:0; z-index:25;
     display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 14px;
@@ -51,10 +43,10 @@
     border-bottom:1px solid rgba(232,193,90,0.14);
     box-shadow:inset 0 4px 10px -8px rgba(0,0,0,0.7);
 }
-/* สองกลุ่มชัดเจน: ซ้าย=ประเภทลา · ขวา=เครื่องมือ — แต่ละกลุ่มเกาะกันเสมอ ไม่มีปุ่มตกแถวลอยเดี่ยว */
+
 .lv-tb-left, .lv-tb-right{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
 .lv-tb-right{ margin-left:auto; }
-/* กล่องประเภทลา — มีกรอบครอบให้อ่านเป็นชุดเดียว โชว์ตลอด (ตามสิทธิ์) */
+
 #leaveTypeToolbar{
     display:flex; flex-wrap:wrap; align-items:center; gap:6px;
     padding:5px 10px; border-radius:14px;
@@ -74,7 +66,6 @@
 }
 #leaveTypeToolbar .leave-type-btn:hover{ transform:translateY(-1px); filter:brightness(1.07); }
 
-/* ช่องกรอก/ตัวเลือก/ปุ่ม — นิยามเดียวจบ */
 .lv-input, .lv-select{
     height:30px; border-radius:11px; font-size:12px; font-weight:700;
     background:color-mix(in srgb,var(--k-panel2) 55.0%,transparent); border:1px solid color-mix(in srgb,var(--k-tx-strong) 10.0%,transparent); color:var(--k-tx);
@@ -110,7 +101,6 @@
 .lv-btn-back{ background:transparent; color:var(--k-tx2); border:1px solid color-mix(in srgb,var(--k-tx-strong) 16.0%,transparent); box-shadow:none; }
 .lv-btn-back:hover{ color:var(--k-gold-tx); border-color:rgba(232,193,90,0.45); background:rgba(232,193,90,0.06); }
 
-/* ปุ่มพับ/กางแผงตั้งค่า */
 .lv-chip-toggle{
     height:30px; padding:0 12px; border-radius:10px;
     font-size:11px; font-weight:800; display:inline-flex; align-items:center; gap:5px; cursor:pointer;
@@ -127,7 +117,6 @@
 #leaveApp:has(#leaveManagerControls.hidden) #btnToggleSettings{ display:none; }
 .lv-divider{ width:1px; height:22px; background:rgba(232,193,90,0.22); margin:0 3px; flex-shrink:0; }
 
-/* ── ⚙️ แผงตั้งค่าแอดมิน — นิยามเดียวจบ ── */
 #leaveManagerControls{
     flex-shrink:0; z-index:20;
     display:flex; flex-wrap:wrap; align-items:stretch; gap:8px;
@@ -174,7 +163,6 @@
 .lv-btn-staff{ background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff; border:1px solid color-mix(in srgb,var(--k-tx-strong) 20.0%,transparent); height:34px; align-self:center; font-size:11px; }
 .lv-toggle-track{ transition:background .2s; }
 
-/* ── 📅 ตาราง — คงชุดเดิมทั้งหมด ── */
 .lv-table-wrap{ flex:1 1 0%; overflow:auto; position:relative; background:var(--k-panel2); }
 #leaveTableMain{ border-collapse:separate !important; border-spacing:0 !important; }
 #leaveTableMain thead th{ background-color:var(--k-panel); background-clip:padding-box; min-width:56px !important; padding:4px 3px !important; }
@@ -191,8 +179,7 @@
 #tableWorkingRow th .material-icons{ font-size:10px !important; }
 #tableBody td .text-\[9px\], #tableBody td [class*="text-[9px]"]{ font-size:8px !important; margin-top:2px !important; }
 </style>
-
-    <!-- ═══════════ 🥇 แถว 1: หัวเรื่อง · แผนก · เดือน · กลับ ═══════════ -->
+    
     <div class="lv-header">
         <div class="lv-title-wrap">
             <div class="lv-title-icon"><span class="material-icons">event_available</span></div>
@@ -225,8 +212,7 @@
             <button onclick="showPage('dashboard')" class="lv-btn lv-btn-back"><span class="material-icons">arrow_back</span> กลับ</button>
         </div>
     </div>
-
-    <!-- ═══════════ 🛠️ แถว 2: ซ้าย=ประเภทลา · ขวา=เครื่องมือ (เกาะกลุ่ม ไม่ตกแถว) ═══════════ -->
+    
     <div class="lv-toolbar">
         <div class="lv-tb-left">
             <div id="leaveTypeToolbar" class="hidden">
@@ -262,8 +248,7 @@
             </button>
         </div>
     </div>
-
-    <!-- ═══════════ ⚙️ แถบตั้งค่า (แอดมิน) ═══════════ -->
+    
     <div id="leaveManagerControls" class="hidden lv-collapsed custom-scrollbar">
 
         <div class="lv-set-head">
@@ -355,8 +340,7 @@
         </button>
         <button onclick="executeSaveSettings()" class="lv-btn lv-btn-save shrink-0"><span class="material-icons">save</span> บันทึก <span id="saveBtnLabel">AM</span></button>
     </div>
-
-    <!-- ═══════════ 📅 ตาราง ═══════════ -->
+    
     <div class="lv-table-wrap custom-scrollbar fast-render-list">
         <table class="w-full text-xs" id="leaveTableMain">
             <thead class="sticky top-0 z-20 bg-slate-50 dark:bg-slate-800 shadow-sm text-slate-600 dark:text-gray-300">

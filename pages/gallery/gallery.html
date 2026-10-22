@@ -1,10 +1,6 @@
 <div id="galleryApp" class="fade-in gx-app">
 <style>
-/* ════════════════════════════════════════════════════
-   🎩 คลังรูป V2 — ผังใหม่แบบแถบข้าง (Sidebar Studio)
-   ซ้าย: หมวด/ตัวกรอง/ปุ่มงานทั้งหมด · ขวา: ค้นหาใหญ่ + รูปเต็มจอ
-   id / onclick / template เดิมครบทุกตัว — ทุกระบบทำงานเหมือนเดิม
-   ════════════════════════════════════════════════════ */
+
 .gx-app{
     display:flex; height:100%; overflow:hidden; border-radius:22px;
     background:linear-gradient(180deg,#0c1424 0%,#0a0f1c 100%);
@@ -12,7 +8,6 @@
     box-shadow:0 0 0 1px rgba(255,255,255,0.02), 0 18px 60px -18px rgba(0,0,0,0.85);
 }
 
-/* ── 🧭 แถบข้างซ้าย ── */
 .gx-side{
     width:212px; flex-shrink:0; display:flex; flex-direction:column; gap:6px;
     padding:14px 12px; overflow-y:auto;
@@ -34,7 +29,6 @@
     text-transform:uppercase; margin:10px 2px 4px; user-select:none;
 }
 
-/* หมวด (แนวตั้ง) */
 .gx-tabs{ display:flex; flex-direction:column; gap:4px; }
 .gx-tab{
     display:flex; align-items:center; gap:8px; width:100%; text-align:left;
@@ -48,7 +42,6 @@
     box-shadow:0 6px 16px -6px rgba(0,0,0,0.6), 0 0 18px -8px var(--tc,#3b82f6);
 }
 
-/* ตัวกรอง/ปุ่มในแถบข้าง */
 .gx-select{
     width:100%; height:34px; border-radius:11px; padding:0 10px;
     font-size:12px; font-weight:700; cursor:pointer; outline:none;
@@ -91,7 +84,6 @@
 .gx-back:hover{ color:light-dark(#9a7813,#f5e3ae); border-color:rgba(232,193,90,0.45); background:rgba(232,193,90,0.06); }
 .gx-back .material-icons{ font-size:15px; }
 
-/* ── 🖼️ ฝั่งขวา ── */
 .gx-main{ flex:1; display:flex; flex-direction:column; overflow:hidden; min-width:0; }
 .gx-top{
     flex-shrink:0; display:flex; align-items:center; gap:10px;
@@ -128,7 +120,6 @@
 }
 #galleryWebBadges{ padding:9px 16px; display:flex; flex-wrap:wrap; gap:6px; min-height:36px; border-bottom:1px solid rgba(232,193,90,0.12); }
 
-/* ── การ์ดรูป (ของเดิม สวยอยู่แล้ว) ── */
 .gx-card{
     background:linear-gradient(165deg,#131c30,#0d1422);
     border:1px solid rgba(255,255,255,0.07); border-radius:16px; overflow:hidden;
@@ -160,7 +151,6 @@
 .gx-cbtn-copy{ background:linear-gradient(135deg,#3b82f6,#2563eb); color:#fff; border:1px solid rgba(255,255,255,0.18); }
 .gx-cbtn-dl{ background:linear-gradient(135deg,#10b981,#059669); color:#fff; border:1px solid rgba(255,255,255,0.18); }
 
-/* ── แถบล่าง ── */
 .gx-foot{
     flex-shrink:0; padding:9px 16px; display:flex; justify-content:space-between; align-items:center;
     gap:10px; flex-wrap:wrap; font-size:11px; color:#8b9bb4;
@@ -174,7 +164,6 @@
 #galleryLightbox{ backdrop-filter:blur(6px); }
 #lightboxImg{ border:1px solid rgba(232,193,90,0.25); box-shadow:0 30px 80px -20px rgba(0,0,0,0.9), 0 0 50px -18px rgba(232,193,90,0.35); }
 
-/* ── 📱 จอแคบ: แถบข้างพับขึ้นบน ── */
 @media (max-width: 900px){
     .gx-app{ flex-direction:column; }
     .gx-side{ width:100%; flex-direction:row; flex-wrap:wrap; align-items:center; gap:5px; padding:10px 12px; border-right:none; border-bottom:1px solid rgba(232,193,90,0.18); overflow:visible; }
@@ -188,8 +177,7 @@
     .gx-back{ margin-top:0; width:auto; flex:0 0 auto; padding:0 12px; }
 }
 </style>
-
-    <!-- ═══ 🧭 แถบข้างซ้าย: หมวด + ตัวกรอง + ปุ่มงานทั้งหมด ═══ -->
+    
     <aside class="gx-side">
         <div class="gx-brand">
             <div class="gx-brand-icon"><span class="material-icons">photo_library</span></div>
@@ -231,8 +219,7 @@
 
         <button onclick="showPage('dashboard')" class="gx-back"><span class="material-icons">arrow_back</span> กลับหน้าหลัก</button>
     </aside>
-
-    <!-- ═══ 🖼️ ฝั่งขวา: ค้นหาใหญ่ + รูปเต็มพื้นที่ ═══ -->
+    
     <div class="gx-main">
         <div class="gx-top">
             <div class="gx-search">
@@ -266,7 +253,6 @@
     </div>
 </div>
 
-<!-- Lightbox -->
 <div id="galleryLightbox" class="hidden fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center" onclick="closeLightbox()">
     <button onclick="event.stopPropagation();moveLightbox(-1)" class="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white rounded-full w-12 h-12 flex items-center justify-center text-2xl font-bold transition z-10">&#8249;</button>
     <div class="flex flex-col items-center max-w-[90vw] max-h-[90vh]" onclick="event.stopPropagation()">

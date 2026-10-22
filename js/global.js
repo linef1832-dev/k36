@@ -1,1744 +1,1673 @@
-// ==========================================
-// 🧠 ตัวแปรส่วนกลาง (Global Variables)
-// ==========================================
 const DB_URL = 'https://evuzlihhbicmuvpjwwln.supabase.co';
 
-// ════════════════════════════════════════════════════════
-// 🕐 นาฬิกามาตรฐานจากเซิร์ฟเวอร์ — กันคนตั้งเวลาเครื่องเองเพื่อแซงคิวเปิดจอง
-//   วิธี: ยิงถาม Supabase เบา ๆ แล้วอ่านเวลาจากหัวตอบกลับ (Date header) ของเซิร์ฟเวอร์
-//   จากนั้นจำ "ส่วนต่าง" ระหว่างเวลาเซิร์ฟเวอร์กับเครื่องไว้ → serverNow() คืนเวลาจริงเสมอ
-//   ถ้ายิงไม่สำเร็จ (เน็ตล่มแวบ) ถอยไปใช้เวลาเครื่องตามเดิม ระบบไม่พัง
-// ════════════════════════════════════════════════════════
-window._srvOffset = 0;        // ms: เวลาเซิร์ฟเวอร์ - เวลาเครื่อง
-window._srvSyncedAt = 0;      // ครั้งล่าสุดที่เทียบเวลา
-window.syncServerTime = async function (force) {
-    try {
-        if (!force && (Date.now() - window._srvSyncedAt) < 5 * 60 * 1000) return;   // เทียบซ้ำทุก 5 นาทีพอ
-        const res = await fetch(DB_URL + '/rest/v1/', { method: 'HEAD', headers: { apikey: DB_KEY, 'Authorization': 'Bearer ' + DB_KEY }, cache: 'no-store' });
-        const hdr = res.headers.get('date');
-        if (hdr) {
-            const srv = new Date(hdr).getTime() + 500;   // header ละเอียดระดับวินาที → บวกครึ่งวิให้อยู่กลาง ๆ
-            window._srvOffset = srv - Date.now();
-            window._srvSyncedAt = Date.now();
-        }
-    } catch (e) { /* ใช้เวลาเครื่องไปก่อน */ }
+window._srvOffset = 0;
+
+window._srvSyncedAt = 0;
+
+window.syncServerTime = async function(force) {
+  try {
+    if (!force && Date.now() - window._srvSyncedAt < 5 * 60 * 1e3) return;
+    const res = await fetch(DB_URL + '/rest/v1/', {
+      method: 'HEAD',
+      headers: {
+        apikey: DB_KEY,
+        Authorization: 'Bearer ' + DB_KEY
+      },
+      cache: 'no-store'
+    });
+    const hdr = res.headers.get('date');
+    if (hdr) {
+      const srv = new Date(hdr).getTime() + 500;
+      window._srvOffset = srv - Date.now();
+      window._srvSyncedAt = Date.now();
+    }
+  } catch (e) {}
 };
-// ⏰ เวลาปัจจุบันฉบับเชื่อถือได้ — ใช้แทน new Date() ในทุกด่านเช็คเวลา
-window.serverNow = function () { return new Date(Date.now() + (window._srvOffset || 0)); };
+
+window.serverNow = function() {
+  return new Date(Date.now() + (window._srvOffset || 0));
+};
+
 const DB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2dXpsaWhoYmljbXV2cGp3d2xuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg1Nzk0OTIsImV4cCI6MjEwNDE1NTQ5Mn0.QZdqTS3c9rsMBdRVyakqAPYwQULhzff7hBrvM3zqAUA';
 
-// ═══════════════════════════════════════
-// 🔑 เช็คสิทธิ์แบบปลอดภัย — ใช้แทนการเช็ค role ทั้งระบบ
-//   ทุกฟีเจอร์ต้องถามผ่านตัวนี้ "สิทธิ์อย่างเดียว" ห้ามดู currentUser.role
-//   (role เหลือไว้เป็นป้ายบอกตำแหน่ง/แสดงผลเท่านั้น)
-// ═══════════════════════════════════════
-window.canPerm = function (permId) {
-    return typeof window.hasUserPerm === 'function' && window.hasUserPerm(permId);
+window.canPerm = function(permId) {
+  return typeof window.hasUserPerm === 'function' && window.hasUserPerm(permId);
 };
 
-
 let appDB;
+
 let currentUser = {};
-let TEAM_LIST = ['Jun88', 'MK8', 'F168', 'PG688', 'JL69', 'NM9', 'VV72', 'TH26', 'BT678', 'K188'];
+
+let TEAM_LIST = [ 'Jun88', 'MK8', 'F168', 'PG688', 'JL69', 'NM9', 'VV72', 'TH26', 'BT678', 'K188' ];
+
 let GLOBAL_USER_LIST = [];
 
-// ==========================================
-// 🔗 [FIX] ผูก currentUser / GLOBAL_USER_LIST เข้ากับ window ให้เป็น "ตัวเดียวกัน"
-// ตัวแปรที่ประกาศด้วย let ที่ระดับบนสุดของสคริปต์ จะไม่กลายเป็น property ของ window
-// แต่โค้ดในโปรเจกต์อ่าน/เขียนปนกันทั้งสองแบบ (บางไฟล์ใช้ชื่อตรง ๆ บางไฟล์ใช้ window.)
-// จึงกลายเป็นตัวแปรคนละตัว เช่น dashboard.js เขียน window.currentUser
-// แต่ system_core.js อ่าน currentUser ตรง ๆ เลยได้ค่าเก่า
-// ผูกด้วย accessor ทำให้เป็นตัวเดียวกันจริง โดยไม่ต้องไล่แก้จุดเรียกทั้ง 86 จุด
-// ==========================================
 Object.defineProperty(window, 'currentUser', {
-    get: function() { return currentUser; },
-    set: function(v) { currentUser = v; },
-    configurable: true, enumerable: true
-});
-Object.defineProperty(window, 'GLOBAL_USER_LIST', {
-    get: function() { return GLOBAL_USER_LIST; },
-    set: function(v) { GLOBAL_USER_LIST = v; },
-    configurable: true, enumerable: true
+  get: function() {
+    return currentUser;
+  },
+  set: function(v) {
+    currentUser = v;
+  },
+  configurable: true,
+  enumerable: true
 });
 
-// ==========================================
-// 🔧 [FIX] safeSetItem / safeGetItem — ป้องกัน localStorage เต็มหรือ Private Mode
-// ฟังก์ชันนี้ถูกเรียกจาก auth.js, system_core.js, duty.js, discord.js ฯลฯ
-// แต่ไม่เคยถูก define ไว้ที่ไหน ทำให้ ReferenceError ทุกครั้งที่เรียก
-// ==========================================
+Object.defineProperty(window, 'GLOBAL_USER_LIST', {
+  get: function() {
+    return GLOBAL_USER_LIST;
+  },
+  set: function(v) {
+    GLOBAL_USER_LIST = v;
+  },
+  configurable: true,
+  enumerable: true
+});
+
 window.safeSetItem = function(key, value) {
-    try {
-        localStorage.setItem(key, value);
-    } catch (e) {
-        console.warn('[safeSetItem] localStorage error:', e);
-    }
+  try {
+    localStorage.setItem(key, value);
+  } catch (e) {
+    console.warn('[safeSetItem] localStorage error:', e);
+  }
 };
 
 window.safeGetItem = function(key, fallback) {
-    try {
-        const val = localStorage.getItem(key);
-        return val !== null ? val : (fallback !== undefined ? fallback : null);
-    } catch (e) {
-        console.warn('[safeGetItem] localStorage error:', e);
-        return fallback !== undefined ? fallback : null;
-    }
+  try {
+    const val = localStorage.getItem(key);
+    return val !== null ? val : fallback !== undefined ? fallback : null;
+  } catch (e) {
+    console.warn('[safeGetItem] localStorage error:', e);
+    return fallback !== undefined ? fallback : null;
+  }
 };
 
-// ==========================================
-// 🛡️ [SECURITY/XSS] escape ข้อความก่อนยัดลง innerHTML
-// ปัญหาเดิม: หลายจุดเอาข้อมูลที่ผู้ใช้กรอก (ชื่อเว็บ, URL, username, ข้อความ) ยัดลง innerHTML ตรง ๆ
-// ถ้าใครใส่ <img src=x onerror=...> หรือ <script> ปนมา จะรันในเบราว์เซอร์คนอื่นได้ (Stored XSS)
-// วิธีใช้: ครอบเฉพาะ "ค่าที่มาจากผู้ใช้/ภายนอก" เท่านั้น — อย่าครอบ HTML ที่เราสร้างเอง (ปุ่ม/badge)
-//   ตัวอย่าง:  `<span>${escapeHtml(item.site_name)}</span>`
-//   ในแอตทริบิวต์ (href/title/value):  `<a href="${escapeAttr(item.site_url)}">`
 window.escapeHtml = function(s) {
-    if (s === undefined || s === null) return '';
-    return String(s)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+  if (s === undefined || s === null) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 };
-// สำหรับใส่ในแอตทริบิวต์ที่คร่อมด้วย " " — escape เหมือนกัน แต่กัน javascript:/data: ใน URL ด้วย
+
 window.escapeAttr = function(s) {
-    const t = window.escapeHtml(s);
-    // ตัด scheme อันตรายใน href/src (javascript: , data: , vbscript:)
-    if (/^\s*(javascript|data|vbscript):/i.test(String(s || ''))) return '#';
-    return t;
+  const t = window.escapeHtml(s);
+  if (/^\s*(javascript|data|vbscript):/i.test(String(s || ''))) return '#';
+  return t;
 };
-// 🛡️ สำหรับค่าที่อยู่ใน JS-string ภายใน on-handler เช่น onclick="fn('${escapeJsAttr(name)}')"
-// ที่นี่มี 2 ชั้น: เบราว์เซอร์ decode HTML ก่อน แล้วค่อยรันเป็น JS → escapeHtml เดี่ยว ๆ ไม่พอ
-// วิธี: escape JS ก่อน ( \ และ ' ) แล้วค่อย escapeHtml ทับ → ปลอดภัยทั้งสองชั้น
+
 window.escapeJsAttr = function(s) {
-    return window.escapeHtml(
-        String(s === undefined || s === null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'")
-    );
+  return window.escapeHtml(String(s === undefined || s === null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
 };
 
-// ==========================================
-// 🖼️ [ย่อรูปก่อนอัปโหลด] ลดขนาดรูปให้พอดีจอ ก่อนส่งขึ้น Supabase Storage
-// เดิม: ปก/โลโก้บางรูป 2-3 MB → โหลดหน้าช้า กินเน็ต · ตอนนี้ย่อเหลือ ~100-300 KB โดยดูบนจอไม่ต่าง
-// - ไม่ใช่รูป / GIF / SVG / รูปเล็กอยู่แล้ว → ส่งคืนตัวเดิม ไม่แตะ
-// - คงนามสกุลเดิม (PNG ยังเป็น PNG กันโปร่งใสหาย, JPEG/WebP ใช้ quality ที่กำหนด)
-// - ถ้าย่อแล้วกลับใหญ่กว่าเดิม → ใช้ตัวเดิม
-// ==========================================
 window.compressImageFile = async function(file, opts) {
+  try {
+    const o = Object.assign({
+      maxDim: 1600,
+      quality: .82,
+      minBytes: 150 * 1024
+    }, opts || {});
+    if (!file || !(file instanceof Blob)) return file;
+    const type = (file.type || '').toLowerCase();
+    if (!type.startsWith('image/') || type === 'image/gif' || type === 'image/svg+xml') return file;
+    let bmp;
     try {
-        const o = Object.assign({ maxDim: 1600, quality: 0.82, minBytes: 150 * 1024 }, opts || {});
-        if (!file || !(file instanceof Blob)) return file;
-        const type = (file.type || '').toLowerCase();
-        if (!type.startsWith('image/') || type === 'image/gif' || type === 'image/svg+xml') return file;
-        let bmp;
-        try { bmp = await createImageBitmap(file); } catch (e) { return file; }
-        const scale = Math.min(1, o.maxDim / Math.max(bmp.width, bmp.height));
-        if (scale >= 1 && file.size <= o.minBytes) { bmp.close && bmp.close(); return file; }   // เล็กพออยู่แล้ว
-        const w = Math.max(1, Math.round(bmp.width * scale)), h = Math.max(1, Math.round(bmp.height * scale));
-        const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
-        const ctx = canvas.getContext('2d'); ctx.drawImage(bmp, 0, 0, w, h); bmp.close && bmp.close();
-        // outType: บังคับชนิดไฟล์ได้ (เช่น ใบปรับใช้ WebP คุณภาพสูง — ตัวหนังสือในภาพคมเหมือน PNG แต่ไฟล์เล็กกว่ามาก โหลดเร็ว)
-        const outType = o.outType || ((type === 'image/png') ? 'image/png' : (type === 'image/webp' ? 'image/webp' : 'image/jpeg'));
-        const blob = await new Promise(res => canvas.toBlob(res, outType, outType === 'image/png' ? undefined : o.quality));
-        if (!blob || blob.size >= file.size) return file;
-        const out = new File([blob], file.name || 'image', { type: outType, lastModified: Date.now() });
-        console.log(`[compressImage] ${file.name}: ${(file.size/1024).toFixed(0)}KB → ${(out.size/1024).toFixed(0)}KB (${w}x${h})`);
-        return out;
-    } catch (e) { return file; }
+      bmp = await createImageBitmap(file);
+    } catch (e) {
+      return file;
+    }
+    const scale = Math.min(1, o.maxDim / Math.max(bmp.width, bmp.height));
+    if (scale >= 1 && file.size <= o.minBytes) {
+      bmp.close && bmp.close();
+      return file;
+    }
+    const w = Math.max(1, Math.round(bmp.width * scale)), h = Math.max(1, Math.round(bmp.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(bmp, 0, 0, w, h);
+    bmp.close && bmp.close();
+    const outType = o.outType || (type === 'image/png' ? 'image/png' : type === 'image/webp' ? 'image/webp' : 'image/jpeg');
+    const blob = await new Promise((res => canvas.toBlob(res, outType, outType === 'image/png' ? undefined : o.quality)));
+    if (!blob || blob.size >= file.size) return file;
+    const out = new File([ blob ], file.name || 'image', {
+      type: outType,
+      lastModified: Date.now()
+    });
+    console.log(`[compressImage] ${file.name}: ${(file.size / 1024).toFixed(0)}KB → ${(out.size / 1024).toFixed(0)}KB (${w}x${h})`);
+    return out;
+  } catch (e) {
+    return file;
+  }
 };
 
-// ==========================================
-// 🛡️ แจ้งเตือนเมื่อ "เขียนฐานข้อมูลไม่สำเร็จ"
-// ปัญหาเดิม: มี 56 จุดในโปรเจกต์ที่เขียน DB แล้วเด้ง "สำเร็จ" ทันทีโดยไม่เช็ค error
-// ถ้า Supabase ปฏิเสธ (สิทธิ์ RLS / เน็ตหลุด / ข้อมูลผิดรูป) ผู้ใช้จะเห็นว่าบันทึกแล้ว
-// ทั้งที่ข้อมูลไม่เข้า แล้วเดินจากไปโดยไม่รู้ตัว
-//
-// วิธีแก้: ดักที่ตัว Supabase client จุดเดียว แทนการไล่แก้ทีละ 56 จุด
-//   - ทำงานเฉพาะตอน error เท่านั้น ตอนสำเร็จทุกอย่างเหมือนเดิม 100%
-//   - ไม่แตะค่าที่คืนกลับ โค้ดเดิมที่เช็ค error เองอยู่แล้วยังทำงานเหมือนเดิม
-//   - ใช้แถบแจ้งเตือนของตัวเอง ไม่ใช้ SweetAlert เพราะ popup "สำเร็จ" ของโค้ดเดิม
-//     จะขึ้นทับ toast ทันที ทำให้ผู้ใช้ไม่ทันเห็น
-// ==========================================
-// ==========================================
-// 📚 selectAllRows — ดึงข้อมูลให้ครบ ไม่ให้ถูกตัดที่ 1000 แถว
-// Supabase/PostgREST คืนสูงสุด 1000 แถวต่อคำขอ และ "ไม่แจ้ง error" เมื่อถูกตัด
-// โค้ดเดิมหลายจุด select มาทั้งชุดโดยไม่ใส่ .range() ตัวเลขจึงขาดไปเงียบ ๆ
-// (วัดจริงแล้ว: leaderboard เดือน ส.ค. 2026 มี 1,213 แถว แต่ได้มาแค่ 1,000)
-//
-// วิธีใช้: ส่ง "ฟังก์ชันที่สร้าง query ใหม่" เข้ามา เพราะ builder ของ Supabase
-// ใช้ซ้ำหลายรอบไม่ได้ ต้องสร้างใหม่ทุกหน้า
-//   const { data, error } = await window.selectAllRows(() =>
-//       appDB.from('t').select('a,b').gte('date', d1).lte('date', d2));
-// คืนค่ารูปแบบเดียวกับ Supabase ({ data, error }) จุดเรียกจึงแทบไม่ต้องแก้
-// ==========================================
 window.selectAllRows = async function(buildQuery, pageSize) {
-    const size = pageSize || 1000;
-    let from = 0;
-    let out = [];
-    for (let guard = 0; guard < 500; guard++) {   // กันวนไม่รู้จบถ้ามีอะไรผิดปกติ
-        const { data, error } = await buildQuery().range(from, from + size - 1);
-        if (error) return { data: out.length ? out : null, error: error };
-        if (!data || data.length === 0) break;
-        out = out.concat(data);
-        if (data.length < size) break;   // หน้าสุดท้ายแล้ว
-        from += size;
-    }
-    return { data: out, error: null };
+  const size = pageSize || 1e3;
+  let from = 0;
+  let out = [];
+  for (let guard = 0; guard < 500; guard++) {
+    const {data: data, error: error} = await buildQuery().range(from, from + size - 1);
+    if (error) return {
+      data: out.length ? out : null,
+      error: error
+    };
+    if (!data || data.length === 0) break;
+    out = out.concat(data);
+    if (data.length < size) break;
+    from += size;
+  }
+  return {
+    data: out,
+    error: null
+  };
 };
 
 window._showDbError = function(msg) {
-    try {
-        if (!document.body) return;
-        let box = document.getElementById('dbErrorBanner');
-        if (!box) {
-            box = document.createElement('div');
-            box.id = 'dbErrorBanner';
-            box.style.cssText = 'position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:2147483000;max-width:min(560px,92vw);display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-radius:14px;background:#7f1d1d;border:1px solid #ef4444;color:#fee2e2;font-size:13px;line-height:1.5;box-shadow:0 12px 32px -8px rgba(0,0,0,.6);cursor:pointer;';
-            box.title = 'คลิกเพื่อปิด';
-            box.onclick = function() { box.remove(); };
-            document.body.appendChild(box);
-        }
-        box.textContent = '';
-        const ic = document.createElement('span');
-        ic.className = 'material-icons';
-        ic.style.cssText = 'font-size:18px;color:#fca5a5;flex-shrink:0';
-        ic.textContent = 'error_outline';
-        const wrap = document.createElement('span');
-        const t1 = document.createElement('b');
-        t1.style.cssText = 'display:block;margin-bottom:2px';
-        t1.textContent = 'บันทึกลงฐานข้อมูลไม่สำเร็จ';
-        const t2 = document.createElement('span');
-        t2.style.cssText = 'opacity:.9;word-break:break-word';
-        t2.textContent = msg;
-        wrap.appendChild(t1); wrap.appendChild(t2);
-        box.appendChild(ic); box.appendChild(wrap);
-        clearTimeout(box._t);
-        box._t = setTimeout(function() { if (box.parentNode) box.remove(); }, 9000);
-    } catch (e) { console.warn('[_showDbError]', e); }
+  try {
+    if (!document.body) return;
+    let box = document.getElementById('dbErrorBanner');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'dbErrorBanner';
+      box.style.cssText = 'position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:2147483000;max-width:min(560px,92vw);display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-radius:14px;background:#7f1d1d;border:1px solid #ef4444;color:#fee2e2;font-size:13px;line-height:1.5;box-shadow:0 12px 32px -8px rgba(0,0,0,.6);cursor:pointer;';
+      box.title = 'คลิกเพื่อปิด';
+      box.onclick = function() {
+        box.remove();
+      };
+      document.body.appendChild(box);
+    }
+    box.textContent = '';
+    const ic = document.createElement('span');
+    ic.className = 'material-icons';
+    ic.style.cssText = 'font-size:18px;color:#fca5a5;flex-shrink:0';
+    ic.textContent = 'error_outline';
+    const wrap = document.createElement('span');
+    const t1 = document.createElement('b');
+    t1.style.cssText = 'display:block;margin-bottom:2px';
+    t1.textContent = 'บันทึกลงฐานข้อมูลไม่สำเร็จ';
+    const t2 = document.createElement('span');
+    t2.style.cssText = 'opacity:.9;word-break:break-word';
+    t2.textContent = msg;
+    wrap.appendChild(t1);
+    wrap.appendChild(t2);
+    box.appendChild(ic);
+    box.appendChild(wrap);
+    clearTimeout(box._t);
+    box._t = setTimeout((function() {
+      if (box.parentNode) box.remove();
+    }), 9e3);
+  } catch (e) {
+    console.warn('[_showDbError]', e);
+  }
 };
 
 window._installDbWriteGuard = function(db) {
-    if (!db || typeof db.from !== 'function' || db.__writeGuardOn) return;
-    db.__writeGuardOn = true;
-
-    let lastMsg = '', lastAt = 0;
-    // ตารางที่เป็นบันทึกประวัติล้วน ๆ — ถ้าเขียนไม่ผ่านก็ไม่ควรเด้งแถบแดงรบกวนผู้ใช้
-    // (ยังขึ้น console.error ให้แอดมินเห็นเหมือนเดิม)
-    const QUIET_TABLES = ['user_ip_logs', 'system_logs'];
-
-    const notify = function(err, table) {
-        try {
-            console.error('[เขียนฐานข้อมูลไม่สำเร็จ]', err);
-            const msg = (err && (err.message || err.details || err.hint)) || 'ไม่ทราบสาเหตุ';
-            const now = Date.now();
-            if (QUIET_TABLES.indexOf(table) !== -1) return;
-            if (msg === lastMsg && (now - lastAt) < 4000) return;   // กันเด้งรัวตอนเขียนหลายรายการติดกัน
-            lastMsg = msg; lastAt = now;
-            window._showDbError(msg);
-        } catch (e) {}
-    };
-
-    const watch = function(builder, table) {
-        try {
-            if (!builder || typeof builder.then !== 'function' || builder.__dbWatched) return builder;
-            builder.__dbWatched = true;
-            const origThen = builder.then.bind(builder);
-            builder.then = function(onOk, onErr) {
-                return origThen(function(res) {
-                    if (res && res.error) notify(res.error, table);
-                    return onOk ? onOk(res) : res;
-                }, onErr);
-            };
-        } catch (e) {}
-        return builder;
-    };
-
-    const origFrom = db.from.bind(db);
-    db.from = function(table) {
-        const qb = origFrom(table);
-        try {
-            ['insert', 'update', 'upsert', 'delete'].forEach(function(m) {
-                const orig = qb[m];
-                if (typeof orig !== 'function') return;
-                qb[m] = function() { return watch(orig.apply(qb, arguments), table); };
-            });
-        } catch (e) {}
-        return qb;
-    };
+  if (!db || typeof db.from !== 'function' || db.__writeGuardOn) return;
+  db.__writeGuardOn = true;
+  let lastMsg = '', lastAt = 0;
+  const QUIET_TABLES = [ 'user_ip_logs', 'system_logs' ];
+  const notify = function(err, table) {
+    try {
+      console.error('[เขียนฐานข้อมูลไม่สำเร็จ]', err);
+      const msg = err && (err.message || err.details || err.hint) || 'ไม่ทราบสาเหตุ';
+      const now = Date.now();
+      if (QUIET_TABLES.indexOf(table) !== -1) return;
+      if (msg === lastMsg && now - lastAt < 4e3) return;
+      lastMsg = msg;
+      lastAt = now;
+      window._showDbError(msg);
+    } catch (e) {}
+  };
+  const watch = function(builder, table) {
+    try {
+      if (!builder || typeof builder.then !== 'function' || builder.__dbWatched) return builder;
+      builder.__dbWatched = true;
+      const origThen = builder.then.bind(builder);
+      builder.then = function(onOk, onErr) {
+        return origThen((function(res) {
+          if (res && res.error) notify(res.error, table);
+          return onOk ? onOk(res) : res;
+        }), onErr);
+      };
+    } catch (e) {}
+    return builder;
+  };
+  const origFrom = db.from.bind(db);
+  db.from = function(table) {
+    const qb = origFrom(table);
+    try {
+      [ 'insert', 'update', 'upsert', 'delete' ].forEach((function(m) {
+        const orig = qb[m];
+        if (typeof orig !== 'function') return;
+        qb[m] = function() {
+          return watch(orig.apply(qb, arguments), table);
+        };
+      }));
+    } catch (e) {}
+    return qb;
+  };
 };
 
-// ==========================================
-// 🚨 ตัวดัก error ระดับแอป
-// เดิมทั้งโปรเจกต์ไม่มีตัวดักเลย — ถ้า JS พังกลางทาง หน้าจะค้างครึ่ง ๆ กลาง ๆ
-// เงียบ ๆ ผู้ใช้ไม่รู้ว่าเกิดอะไร แอดมินก็ตามไม่ได้ว่าพังตรงไหน
-//
-// ตัวนี้ "ไม่เปลี่ยนพฤติกรรมอะไรเลย" แค่ทำให้ความพังมองเห็นได้:
-//   - ไม่ขวางการทำงาน ไม่กลืน error (ยังขึ้น console เหมือนเดิมทุกอย่าง)
-//   - ใช้แถบเตือนของตัวเอง ไม่ใช้ SweetAlert จะได้ไม่ไปทับ popup ที่เปิดอยู่
-//   - กันสแปม: ข้อความเดิมเตือนครั้งเดียว และทั้งหน้าไม่เกิน 3 ครั้ง
-//   - เก็บ 20 รายการล่าสุด ดูย้อนหลังได้ที่ Console ด้วย  showAppErrors()
-// ==========================================
 window._showAppError = function(msg, src) {
-    try {
-        if (!document.body) return;
-        let box = document.getElementById('appErrorBanner');
-        if (!box) {
-            box = document.createElement('div');
-            box.id = 'appErrorBanner';
-            box.style.cssText = 'position:fixed;bottom:16px;left:16px;z-index:2147482000;max-width:min(420px,88vw);display:flex;align-items:flex-start;gap:9px;padding:11px 14px;border-radius:12px;background:#78350f;border:1px solid #f59e0b;color:#fef3c7;font-size:12.5px;line-height:1.5;box-shadow:0 10px 28px -8px rgba(0,0,0,.6);cursor:pointer;';
-            box.title = 'คลิกเพื่อปิด';
-            box.onclick = function() { box.remove(); };
-            document.body.appendChild(box);
-        }
-        box.textContent = '';
-        const ic = document.createElement('span');
-        ic.className = 'material-icons';
-        ic.style.cssText = 'font-size:17px;color:#fcd34d;flex-shrink:0';
-        ic.textContent = 'warning_amber';
-        const wrap = document.createElement('span');
-        const t1 = document.createElement('b');
-        t1.style.cssText = 'display:block;margin-bottom:2px';
-        t1.textContent = 'ระบบมีข้อผิดพลาด บางส่วนของหน้าอาจไม่ทำงาน';
-        const t2 = document.createElement('span');
-        t2.style.cssText = 'opacity:.9;word-break:break-word;font-size:11.5px';
-        t2.textContent = msg + (src ? '  (' + src + ')' : '');
-        wrap.appendChild(t1); wrap.appendChild(t2);
-        box.appendChild(ic); box.appendChild(wrap);
-        clearTimeout(box._t);
-        box._t = setTimeout(function() { if (box.parentNode) box.remove(); }, 12000);
-    } catch (e) {}
+  try {
+    if (!document.body) return;
+    let box = document.getElementById('appErrorBanner');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'appErrorBanner';
+      box.style.cssText = 'position:fixed;bottom:16px;left:16px;z-index:2147482000;max-width:min(420px,88vw);display:flex;align-items:flex-start;gap:9px;padding:11px 14px;border-radius:12px;background:#78350f;border:1px solid #f59e0b;color:#fef3c7;font-size:12.5px;line-height:1.5;box-shadow:0 10px 28px -8px rgba(0,0,0,.6);cursor:pointer;';
+      box.title = 'คลิกเพื่อปิด';
+      box.onclick = function() {
+        box.remove();
+      };
+      document.body.appendChild(box);
+    }
+    box.textContent = '';
+    const ic = document.createElement('span');
+    ic.className = 'material-icons';
+    ic.style.cssText = 'font-size:17px;color:#fcd34d;flex-shrink:0';
+    ic.textContent = 'warning_amber';
+    const wrap = document.createElement('span');
+    const t1 = document.createElement('b');
+    t1.style.cssText = 'display:block;margin-bottom:2px';
+    t1.textContent = 'ระบบมีข้อผิดพลาด บางส่วนของหน้าอาจไม่ทำงาน';
+    const t2 = document.createElement('span');
+    t2.style.cssText = 'opacity:.9;word-break:break-word;font-size:11.5px';
+    t2.textContent = msg + (src ? '  (' + src + ')' : '');
+    wrap.appendChild(t1);
+    wrap.appendChild(t2);
+    box.appendChild(ic);
+    box.appendChild(wrap);
+    clearTimeout(box._t);
+    box._t = setTimeout((function() {
+      if (box.parentNode) box.remove();
+    }), 12e3);
+  } catch (e) {}
 };
 
 (function() {
-    const seen = new Set();
-    let shown = 0;
-    const MAX_BANNERS = 3;
-    window._appErrors = [];
-
-    function record(kind, msg, src) {
-        try {
-            msg = String(msg || 'ไม่ทราบสาเหตุ');
-            window._appErrors.push({ เวลา: new Date().toLocaleTimeString('th-TH'), ประเภท: kind, ข้อความ: msg, ที่มา: src || '-' });
-            if (window._appErrors.length > 20) window._appErrors.shift();
-            console.error('[แอปมีข้อผิดพลาด]', kind, msg, src || '');
-            const key = kind + '|' + msg;
-            if (seen.has(key) || shown >= MAX_BANNERS) return;
-            seen.add(key); shown++;
-            window._showAppError(msg, src);
-        } catch (e) {}
+  const seen = new Set;
+  let shown = 0;
+  const MAX_BANNERS = 3;
+  window._appErrors = [];
+  function record(kind, msg, src) {
+    try {
+      msg = String(msg || 'ไม่ทราบสาเหตุ');
+      window._appErrors.push({
+        "เวลา": (new Date).toLocaleTimeString('th-TH'),
+        "ประเภท": kind,
+        "ข้อความ": msg,
+        "ที่มา": src || '-'
+      });
+      if (window._appErrors.length > 20) window._appErrors.shift();
+      console.error('[แอปมีข้อผิดพลาด]', kind, msg, src || '');
+      const key = kind + '|' + msg;
+      if (seen.has(key) || shown >= MAX_BANNERS) return;
+      seen.add(key);
+      shown++;
+      window._showAppError(msg, src);
+    } catch (e) {}
+  }
+  window.addEventListener('error', (function(e) {
+    if (!e || !e.message) return;
+    const file = (e.filename || '').split('/').pop().split('?')[0];
+    record('error', e.message, file ? file + ':' + (e.lineno || '?') : '');
+  }));
+  window.addEventListener('unhandledrejection', (function(e) {
+    const r = e && e.reason;
+    record('promise', r && (r.message || r.details) || r, '');
+  }));
+  window.showAppErrors = function() {
+    if (!window._appErrors.length) {
+      console.log('✅ ยังไม่พบข้อผิดพลาด');
+      return [];
     }
-
-    // หมายเหตุ: รูป/สคริปต์โหลดไม่ขึ้นจะยิง event นี้เหมือนกัน แต่ไม่มี .message
-    // จึงข้ามไป ไม่เอามารบกวนผู้ใช้
-    window.addEventListener('error', function(e) {
-        if (!e || !e.message) return;
-        const file = (e.filename || '').split('/').pop().split('?')[0];
-        record('error', e.message, file ? file + ':' + (e.lineno || '?') : '');
-    });
-
-    window.addEventListener('unhandledrejection', function(e) {
-        const r = e && e.reason;
-        record('promise', (r && (r.message || r.details)) || r, '');
-    });
-
-    // เรียกใน Console เพื่อดูรายการที่ผ่านมา
-    window.showAppErrors = function() {
-        if (!window._appErrors.length) { console.log('✅ ยังไม่พบข้อผิดพลาด'); return []; }
-        console.table(window._appErrors);
-        return window._appErrors;
-    };
+    console.table(window._appErrors);
+    return window._appErrors;
+  };
 })();
 
-// ==========================================
-// 🚀 เริ่มทำงานเมื่อเปิดเว็บ
-// ==========================================
-document.addEventListener('DOMContentLoaded', async () => {
-    window.syncThemeUI();   // 🌗 โหมดถูกตั้งไว้แล้วใน <head> ของ index.html — ตรงนี้แค่ทำให้ไอคอน/สวิตช์ตรงกับโหมดปัจจุบัน
-
-    if (window.supabase) {
-        appDB = window.supabase.createClient(DB_URL, DB_KEY);
-        if (typeof window.syncServerTime === 'function') window.syncServerTime(true);   // 🕐 เทียบเวลาเซิร์ฟเวอร์ทันที
-        // [FIX] appDB ประกาศด้วย let จึงไม่กลายเป็น property ของ window
-        // summary.js อ่านผ่าน window.appDB ทำให้ realtime ของหน้าสรุปยอดไม่เคยทำงาน
-        window.appDB = appDB;
-        // ดักการเขียนฐานข้อมูลที่ล้มเหลว (ดูรายละเอียดที่ _installDbWriteGuard)
-        try { window._installDbWriteGuard(appDB); } catch (e) { console.warn('[dbWriteGuard]', e); }
+document.addEventListener('DOMContentLoaded', (async () => {
+  window.syncThemeUI();
+  if (window.supabase) {
+    appDB = window.supabase.createClient(DB_URL, DB_KEY);
+    if (typeof window.syncServerTime === 'function') window.syncServerTime(true);
+    window.appDB = appDB;
+    try {
+      window._installDbWriteGuard(appDB);
+    } catch (e) {
+      console.warn('[dbWriteGuard]', e);
     }
-
-    const savedUser = sessionStorage.getItem('user_platinum_plus');
-    if (savedUser) {
-        currentUser = JSON.parse(savedUser);
-        // 🚪 [เช็คว่าถูกเตะไหม] ถ้าแอดมินเตะหลังจากเวลาที่ล็อกอิน → ไม่ให้เข้าต่อ ต้องล็อกอินใหม่ (กันรีเฟรชหนี)
-        if (appDB && currentUser && currentUser.id) {
-            try {
-                const { data: kick } = await appDB.from('settings').select('value').eq('key', `force_logout_${currentUser.id}`).maybeSingle();
-                const kickedAt = kick && kick.value ? parseInt(kick.value, 10) : 0;
-                if (kickedAt && kickedAt > (currentUser._loginAt || 0)) {
-                    sessionStorage.removeItem('user_platinum_plus');
-                    currentUser = null; window.currentUser = null;
-                    Swal.fire({ icon: 'warning', title: 'คุณถูกให้ออกจากระบบ', text: 'ผู้ดูแลระบบให้คุณออกจากระบบ กรุณาล็อกอินใหม่', confirmButtonText: 'ตกลง' });
-                    document.getElementById('loading').classList.add('hidden');
-                    showLogin();
-                    return;
-                }
-            } catch (e) {}
+  }
+  const savedUser = sessionStorage.getItem('user_platinum_plus');
+  if (savedUser) {
+    currentUser = JSON.parse(savedUser);
+    if (appDB && currentUser && currentUser.id) {
+      try {
+        const {data: kick} = await appDB.from('settings').select('value').eq('key', `force_logout_${currentUser.id}`).maybeSingle();
+        const kickedAt = kick && kick.value ? parseInt(kick.value, 10) : 0;
+        if (kickedAt && kickedAt > (currentUser._loginAt || 0)) {
+          sessionStorage.removeItem('user_platinum_plus');
+          currentUser = null;
+          window.currentUser = null;
+          Swal.fire({
+            icon: 'warning',
+            title: 'คุณถูกให้ออกจากระบบ',
+            text: 'ผู้ดูแลระบบให้คุณออกจากระบบ กรุณาล็อกอินใหม่',
+            confirmButtonText: 'ตกลง'
+          });
+          document.getElementById('loading').classList.add('hidden');
+          showLogin();
+          return;
         }
-        // 🔄 ฟังการเปลี่ยนกะ/แผนก/ทีมของตัวเองแบบ realtime (เดิมมีฟังก์ชันแต่ไม่เคยถูกเรียก)
-        setTimeout(() => { if (typeof window.subscribeUserChanges === 'function') window.subscribeUserChanges(); }, 300);
-        // 📡 ฟังแจ้งเตือนล้าง/กู้คืนกระดาน (ดู js/system/admin.js)
-        setTimeout(() => { if (typeof window.subscribeBoardEvents === 'function') window.subscribeBoardEvents(); }, 300);
-        document.getElementById('loading').classList.add('hidden');
-        document.getElementById('main-layout').classList.remove('hidden');
-
-        // [FIX] โหลด dept_menu_rules จาก DB ก่อนแสดงเมนู
-        // ปัญหาเดิม: applySidebarPermissions รันก่อน loadSettings เสร็จ
-        // ทำให้ SETTINGS['dept_menu_rules'] ยังว่าง → เมนูทุกอย่างถูกซ่อนหมด
-        // วิธีแก้: ดึง dept_menu_rules ตรงๆ ก่อน 1 ครั้ง แล้วค่อย showPage
-        if (appDB) {
-            try {
-                const { data } = await appDB
-                    .from('settings')
-                    .select('value')
-                    .eq('key', 'dept_menu_rules')
-                    .maybeSingle();
-                if (data && data.value) {
-                    // อัปเดตทั้ง SETTINGS และ cache ในคราวเดียว
-                    if (typeof SETTINGS !== 'undefined') {
-                        SETTINGS['dept_menu_rules'] = data.value;
-                    }
-                    window.safeSetItem('cached_menu_rules', data.value);
-                }
-            } catch(e) {
-                console.warn('[startup] dept_menu_rules fetch failed, falling back to cache', e);
-            }
-        }
-
-        window.openPageFromHash();   // 🔗 รีเฟรชแล้วกลับไปหน้าเดิมตามลิงก์
-    } else {
-        showLogin();
+      } catch (e) {}
     }
-});
+    setTimeout((() => {
+      if (typeof window.subscribeUserChanges === 'function') window.subscribeUserChanges();
+    }), 300);
+    setTimeout((() => {
+      if (typeof window.subscribeBoardEvents === 'function') window.subscribeBoardEvents();
+    }), 300);
+    document.getElementById('loading').classList.add('hidden');
+    document.getElementById('main-layout').classList.remove('hidden');
+    if (appDB) {
+      try {
+        const {data: data} = await appDB.from('settings').select('value').eq('key', 'dept_menu_rules').maybeSingle();
+        if (data && data.value) {
+          if (typeof SETTINGS !== 'undefined') {
+            SETTINGS['dept_menu_rules'] = data.value;
+          }
+          window.safeSetItem('cached_menu_rules', data.value);
+        }
+      } catch (e) {
+        console.warn('[startup] dept_menu_rules fetch failed, falling back to cache', e);
+      }
+    }
+    window.openPageFromHash();
+  } else {
+    showLogin();
+  }
+}));
 
-
-// ════════════════════════════════════════════════════════
-// 🔗 ระบบจำหน้าไว้ในลิงก์ (URL Router)
-//   /#gallery → รีเฟรชแล้วยังอยู่หน้าคลังรูป · ปุ่ม Back/Forward ของเบราว์เซอร์ใช้ได้
-//   กันพลาด: หน้าที่ไม่มีจริง/ไม่มีสิทธิ์ → พากลับหน้าหลักตามปกติ
-// ════════════════════════════════════════════════════════
-window.openPageFromHash = function () {
-    const raw = (location.hash || '').replace('#', '').trim();
-    const name = /^[a-z0-9_]+$/i.test(raw) ? raw : '';
-    if (!name || name === 'dashboard') return showPage('dashboard');
-
-    // มีเมนูหน้านี้ให้คนนี้จริงไหม
-    // ⚠️ [FIX] ห้ามเช็คด้วย "มองเห็นบนจอไหม" — หมวดเมนูที่พับอยู่ (group-collapsed) หรือแถบข้างแบบย่อ
-    //    จะทำให้ปุ่มถูกซ่อนด้วย CSS ทั้งที่มีสิทธิ์ → เด้งกลับหน้าหลักทุกครั้งที่รีเฟรช
-    //    เช็คแค่ว่า "ปุ่มเมนูนี้มีอยู่จริงและไม่ได้ถูกซ่อนด้วยสิทธิ์ (.hidden)" ก็พอ
-    const btn = document.querySelector(`button[onclick*="showPage('${name}')"]`);
-    const hiddenByPerm = btn && (btn.classList.contains('hidden') || btn.style.display === 'none');
-    if (!btn || hiddenByPerm) { try { history.replaceState({ page: 'dashboard' }, '', '#dashboard'); } catch (e) {} return showPage('dashboard'); }
-    return showPage(name);
+window.openPageFromHash = function() {
+  const raw = (location.hash || '').replace('#', '').trim();
+  const name = /^[a-z0-9_]+$/i.test(raw) ? raw : '';
+  if (!name || name === 'dashboard') return showPage('dashboard');
+  const btn = document.querySelector(`button[onclick*="showPage('${name}')"]`);
+  const hiddenByPerm = btn && (btn.classList.contains('hidden') || btn.style.display === 'none');
+  if (!btn || hiddenByPerm) {
+    try {
+      history.replaceState({
+        page: 'dashboard'
+      }, '', '#dashboard');
+    } catch (e) {}
+    return showPage('dashboard');
+  }
+  return showPage(name);
 };
 
-// ⬅️➡️ ปุ่มย้อนกลับ/ไปหน้าถัดไปของเบราว์เซอร์
-window.addEventListener('popstate', () => {
-    const name = (location.hash || '').replace('#', '').trim() || 'dashboard';
-    if (name === window._currentPageName) return;
-    window._navFromHash = true;                        // กันเขียนประวัติซ้ำซ้อน
-    Promise.resolve(showPage(name)).finally(() => { window._navFromHash = false; });
-});
+window.addEventListener('popstate', (() => {
+  const name = (location.hash || '').replace('#', '').trim() || 'dashboard';
+  if (name === window._currentPageName) return;
+  window._navFromHash = true;
+  Promise.resolve(showPage(name)).finally((() => {
+    window._navFromHash = false;
+  }));
+}));
 
-// ==========================================
-// 🔄 ระบบดึงหน้าเว็บ (Router) และกระตุ้นสมองกล
-// ==========================================
-// 🩹 [แก้บั๊กลึก] innerHTML ไม่รันแท็ก <script> ที่แนบมาด้วย (พฤติกรรมมาตรฐานเบราว์เซอร์ กันสคริปต์แปลกปลอม)
-// ผลคือทุกฟังก์ชันใน <script> ของหน้า login (รวม toggleRememberMe, เอฟเฟกต์ต่างๆ) ไม่เคยทำงานเลย
-// ฟังก์ชันนี้ใส่ HTML เข้า container แล้ว "รันสคริปต์ใหม่" ให้จริงๆ ด้วยการสร้าง <script> element ใหม่มาแทนที่ตัวเดิม
-// (การ appendChild script element ใหม่ = เบราว์เซอร์รันให้จริง ต่างจาก innerHTML ที่ไม่รัน)
 function setHtmlAndRunScripts(container, html) {
-    container.innerHTML = html;
-    const oldScripts = container.querySelectorAll('script');
-    oldScripts.forEach(oldScript => {
-        const newScript = document.createElement('script');
-        Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
-        newScript.textContent = oldScript.textContent;
-        oldScript.parentNode.replaceChild(newScript, oldScript);
-    });
+  container.innerHTML = html;
+  const oldScripts = container.querySelectorAll('script');
+  oldScripts.forEach((oldScript => {
+    const newScript = document.createElement('script');
+    Array.from(oldScript.attributes).forEach((attr => newScript.setAttribute(attr.name, attr.value)));
+    newScript.textContent = oldScript.textContent;
+    oldScript.parentNode.replaceChild(newScript, oldScript);
+  }));
 }
 
 async function showLogin() {
-    const loading = document.getElementById('loading');
-    if(loading) loading.classList.remove('hidden');
-    try {
-        const response = await fetch(`./pages/login/login.html?v=${window._APP_VERSION || Date.now()}`);
-        // ⚡ [เร่งล็อกอิน] เริ่มเช็ค IP เบื้องหลังตั้งแต่ตอนนี้ — ตอนกดเข้าระบบผลจะรออยู่แล้ว
-        setTimeout(() => { if (typeof window.prewarmIpProbe === 'function') window.prewarmIpProbe(); }, 800);
-        const html = await response.text();
-        setHtmlAndRunScripts(document.getElementById('login-container'), html);
-        
-        if(typeof setupPinInputs === 'function') setupPinInputs();
-        
-        const savedName = localStorage.getItem('remember_me_name');
-        if (savedName && document.getElementById('loginName')) {
-            document.getElementById('loginName').value = savedName;
-            document.getElementById('rememberMe').checked = true;
-        }
-    } catch (err) {
-        console.error('Error loading login:', err);
-    } finally {
-        if(loading) loading.classList.add('hidden');
-        // ⚡ เริ่ม warm-up ทุกหน้าหลังระบบนิ่ง (ครั้งเดียวต่อ session)
-        if (!window._warmedUp) setTimeout(() => window._warmupAllPages(), 4000);
+  const loading = document.getElementById('loading');
+  if (loading) loading.classList.remove('hidden');
+  try {
+    const response = await fetch(`./pages/login/login.html?v=${window._APP_VERSION || Date.now()}`);
+    setTimeout((() => {
+      if (typeof window.prewarmIpProbe === 'function') window.prewarmIpProbe();
+    }), 800);
+    const html = await response.text();
+    setHtmlAndRunScripts(document.getElementById('login-container'), html);
+    if (typeof setupPinInputs === 'function') setupPinInputs();
+    const savedName = localStorage.getItem('remember_me_name');
+    if (savedName && document.getElementById('loginName')) {
+      document.getElementById('loginName').value = savedName;
+      document.getElementById('rememberMe').checked = true;
     }
+  } catch (err) {
+    console.error('Error loading login:', err);
+  } finally {
+    if (loading) loading.classList.add('hidden');
+    if (!window._warmedUp) setTimeout((() => window._warmupAllPages()), 4e3);
+  }
 }
 
-
-// ==========================================================
-// 🖼️ ตัวย่อรูปอัตโนมัติก่อนอัปโหลด (ใช้ร่วมกันทุกหน้า)
-// ย่อขนาด + บีบคุณภาพในเบราว์เซอร์ก่อนส่งขึ้น Storage
-// ช่วยลดทั้งพื้นที่เก็บและเวลาโหลดของผู้ใช้ทุกคน
-// ==========================================================
-// ==========================================
-// ⚡ [SPEED] กันยิงคำขอซ้ำในช่วงสั้นๆ (request de-dup + micro cache)
-// ถ้าโค้ดหลายที่ขอข้อมูลชุดเดียวกันพร้อมกัน จะยิงจริงครั้งเดียวแล้วแชร์ผลกัน
-// ==========================================
 window._reqCache = {};
-window.cachedQuery = async function(key, fn, ttlMs = 15000) {
-    const now = Date.now();
-    const hit = window._reqCache[key];
-    if (hit && (now - hit.ts) < ttlMs) return hit.promise;   // ใช้ผลเดิม / รอผลที่กำลังยิงอยู่
-    const promise = Promise.resolve().then(fn);
-    window._reqCache[key] = { ts: now, promise };
-    promise.catch(() => { delete window._reqCache[key]; });   // พังแล้วอย่า cache ไว้
-    return promise;
-};
-window.clearQueryCache = function(prefix) {
-    if (!prefix) { window._reqCache = {}; return; }
-    Object.keys(window._reqCache).forEach(k => { if (k.startsWith(prefix)) delete window._reqCache[k]; });
+
+window.cachedQuery = async function(key, fn, ttlMs = 15e3) {
+  const now = Date.now();
+  const hit = window._reqCache[key];
+  if (hit && now - hit.ts < ttlMs) return hit.promise;
+  const promise = Promise.resolve().then(fn);
+  window._reqCache[key] = {
+    ts: now,
+    promise: promise
+  };
+  promise.catch((() => {
+    delete window._reqCache[key];
+  }));
+  return promise;
 };
 
-// ==========================================
-// 🔍 เครื่องมือหาโลโก้เว็บที่ไฟล์ใหญ่เกินจำเป็น
-// วิธีใช้: เปิด Console (F12) แล้วพิมพ์  checkBigLogos()
-// ==========================================
+window.clearQueryCache = function(prefix) {
+  if (!prefix) {
+    window._reqCache = {};
+    return;
+  }
+  Object.keys(window._reqCache).forEach((k => {
+    if (k.startsWith(prefix)) delete window._reqCache[k];
+  }));
+};
+
 window.checkBigLogos = async function(limitKB = 200) {
-    try {
-        const logos = window.summaryWebLogos || {};
-        const names = Object.keys(logos);
-        if (!names.length) { console.log('⚠️ ยังไม่มีข้อมูลโลโก้ (ลองเข้าหน้าสรุปยอดก่อน แล้วรันใหม่)'); return; }
-        console.log(`🔍 กำลังตรวจโลโก้ ${names.length} เว็บ...`);
-        const rows = [];
-        for (const web of names) {
-            const url = logos[web];
-            if (!url) continue;
-            try {
-                const res = await fetch(url, { method: 'HEAD' });
-                const kb = Math.round((+res.headers.get('content-length') || 0) / 1024);
-                rows.push({ เว็บ: web, ขนาด_KB: kb, สถานะ: kb > limitKB ? '🔴 ใหญ่เกิน ควรย่อ' : '✅ โอเค', ลิงก์: url });
-            } catch (e) { rows.push({ เว็บ: web, ขนาด_KB: '?', สถานะ: '⚠️ เช็คไม่ได้', ลิงก์: url }); }
-        }
-        rows.sort((a, b) => (+b.ขนาด_KB || 0) - (+a.ขนาด_KB || 0));
-        console.table(rows);
-        const big = rows.filter(r => +r.ขนาด_KB > limitKB);
-        if (big.length) {
-            console.log(`\n🔴 พบ ${big.length} เว็บที่โลโก้ใหญ่เกิน ${limitKB} KB:`);
-            big.forEach(b => console.log(`   • ${b.เว็บ} = ${b.ขนาด_KB} KB`));
-            console.log('\n💡 วิธีแก้: ไปหน้าสรุปยอด → คลิกโลโก้เว็บนั้น → อัปรูปเดิมใหม่อีกครั้ง');
-            console.log('   ระบบจะย่อให้อัตโนมัติเหลือ ~20-50 KB');
-        } else {
-            console.log('✅ โลโก้ทุกเว็บขนาดเหมาะสมแล้ว');
-        }
-        return rows;
-    } catch (e) { console.error('เช็คโลโก้ไม่สำเร็จ:', e); }
+  try {
+    const logos = window.summaryWebLogos || {};
+    const names = Object.keys(logos);
+    if (!names.length) {
+      console.log('⚠️ ยังไม่มีข้อมูลโลโก้ (ลองเข้าหน้าสรุปยอดก่อน แล้วรันใหม่)');
+      return;
+    }
+    console.log(`🔍 กำลังตรวจโลโก้ ${names.length} เว็บ...`);
+    const rows = [];
+    for (const web of names) {
+      const url = logos[web];
+      if (!url) continue;
+      try {
+        const res = await fetch(url, {
+          method: 'HEAD'
+        });
+        const kb = Math.round((+res.headers.get('content-length') || 0) / 1024);
+        rows.push({
+          "เว็บ": web,
+          "ขนาด_KB": kb,
+          "สถานะ": kb > limitKB ? '🔴 ใหญ่เกิน ควรย่อ' : '✅ โอเค',
+          "ลิงก์": url
+        });
+      } catch (e) {
+        rows.push({
+          "เว็บ": web,
+          "ขนาด_KB": '?',
+          "สถานะ": '⚠️ เช็คไม่ได้',
+          "ลิงก์": url
+        });
+      }
+    }
+    rows.sort(((a, b) => (+b.ขนาด_KB || 0) - (+a.ขนาด_KB || 0)));
+    console.table(rows);
+    const big = rows.filter((r => +r.ขนาด_KB > limitKB));
+    if (big.length) {
+      console.log(`\n🔴 พบ ${big.length} เว็บที่โลโก้ใหญ่เกิน ${limitKB} KB:`);
+      big.forEach((b => console.log(`   • ${b.เว็บ} = ${b.ขนาด_KB} KB`)));
+      console.log('\n💡 วิธีแก้: ไปหน้าสรุปยอด → คลิกโลโก้เว็บนั้น → อัปรูปเดิมใหม่อีกครั้ง');
+      console.log('   ระบบจะย่อให้อัตโนมัติเหลือ ~20-50 KB');
+    } else {
+      console.log('✅ โลโก้ทุกเว็บขนาดเหมาะสมแล้ว');
+    }
+    return rows;
+  } catch (e) {
+    console.error('เช็คโลโก้ไม่สำเร็จ:', e);
+  }
 };
 
 window.compressImage = async function(file, opts = {}) {
-    const maxW = opts.maxWidth || 800;      // กว้างสุด
-    const maxH = opts.maxHeight || 800;     // สูงสุด
-    const quality = opts.quality || 0.85;   // คุณภาพ 0-1
-    const skipUnder = (opts.skipUnderKB || 150) * 1024;  // เล็กกว่านี้ไม่ต้องย่อ
-
-    if (!file || !file.type || !file.type.startsWith('image/')) return file;
-    if (file.type === 'image/gif' || file.type === 'image/svg+xml') return file; // ย่อแล้วเสียภาพเคลื่อนไหว/เวกเตอร์
-    if (file.size <= skipUnder) return file;
-
-    try {
-        const dataUrl = await new Promise((res, rej) => {
-            const r = new FileReader();
-            r.onload = () => res(r.result);
-            r.onerror = rej;
-            r.readAsDataURL(file);
-        });
-        const img = await new Promise((res, rej) => {
-            const i = new Image();
-            i.onload = () => res(i);
-            i.onerror = rej;
-            i.src = dataUrl;
-        });
-
-        let { width: w, height: h } = img;
-        if (w <= maxW && h <= maxH && file.size < 400 * 1024) return file;
-        const ratio = Math.min(maxW / w, maxH / h, 1);
-        w = Math.round(w * ratio); h = Math.round(h * ratio);
-
-        const canvas = document.createElement('canvas');
-        canvas.width = w; canvas.height = h;
-        const ctx = canvas.getContext('2d');
-        ctx.imageSmoothingQuality = 'high';
-        ctx.drawImage(img, 0, 0, w, h);
-
-        const blob = await new Promise(res => canvas.toBlob(res, 'image/webp', quality));
-        if (!blob || blob.size >= file.size) return file;   // ย่อแล้วไม่เล็กลง ใช้ของเดิม
-
-        const newName = file.name.replace(/\.[^.]+$/, '') + '.webp';
-        const out = new File([blob], newName, { type: 'image/webp' });
-        console.log(`[ย่อรูป] ${file.name}: ${(file.size/1024).toFixed(0)}KB → ${(out.size/1024).toFixed(0)}KB`);
-        return out;
-    } catch (e) {
-        console.warn('[ย่อรูป] ล้มเหลว ใช้ไฟล์เดิม', e);
-        return file;
-    }
+  const maxW = opts.maxWidth || 800;
+  const maxH = opts.maxHeight || 800;
+  const quality = opts.quality || .85;
+  const skipUnder = (opts.skipUnderKB || 150) * 1024;
+  if (!file || !file.type || !file.type.startsWith('image/')) return file;
+  if (file.type === 'image/gif' || file.type === 'image/svg+xml') return file;
+  if (file.size <= skipUnder) return file;
+  try {
+    const dataUrl = await new Promise(((res, rej) => {
+      const r = new FileReader;
+      r.onload = () => res(r.result);
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    }));
+    const img = await new Promise(((res, rej) => {
+      const i = new Image;
+      i.onload = () => res(i);
+      i.onerror = rej;
+      i.src = dataUrl;
+    }));
+    let {width: w, height: h} = img;
+    if (w <= maxW && h <= maxH && file.size < 400 * 1024) return file;
+    const ratio = Math.min(maxW / w, maxH / h, 1);
+    w = Math.round(w * ratio);
+    h = Math.round(h * ratio);
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, w, h);
+    const blob = await new Promise((res => canvas.toBlob(res, 'image/webp', quality)));
+    if (!blob || blob.size >= file.size) return file;
+    const newName = file.name.replace(/\.[^.]+$/, '') + '.webp';
+    const out = new File([ blob ], newName, {
+      type: 'image/webp'
+    });
+    console.log(`[ย่อรูป] ${file.name}: ${(file.size / 1024).toFixed(0)}KB → ${(out.size / 1024).toFixed(0)}KB`);
+    return out;
+  } catch (e) {
+    console.warn('[ย่อรูป] ล้มเหลว ใช้ไฟล์เดิม', e);
+    return file;
+  }
 };
 
-// 1. สร้างตัวแปรเก็บ Cache สำหรับ HTML String
 const pageCache = {};
 
-// ==========================================
-// ⚡ [SPEED] DOM Snapshot — กดเข้าหน้าแล้วข้อมูลเด้งขึ้นทันที
-// หลักการ: ก่อนออกจากหน้า เก็บภาพ DOM ล่าสุด (ที่มีข้อมูลแล้ว) ไว้
-// พอกลับเข้ามา → แปะภาพเดิมขึ้นจอทันที (0 วินาที) แล้วค่อยให้
-// init ของหน้านั้นดึงข้อมูลใหม่มาวาดทับเงียบๆ ข้างหลัง
-// ปุ่ม onclick ต่างๆ ใช้ได้ทันทีเพราะเป็น inline attribute ทั้งระบบ
-// ==========================================
 const domSnapshot = {};
+
 window._currentPageName = null;
 
-// ชิปเล็กๆ มุมจอ บอกว่ากำลังดึงข้อมูลชุดใหม่
 window._refreshChipTimer = null;
+
 window._buildRefreshChip = function() {
-    if (document.getElementById('pageRefreshChip')) return;
-    const el = document.createElement('div');
-    el.id = 'pageRefreshChip';
-    el.innerHTML = `<span class="material-icons animate-spin" style="font-size:14px;color:var(--k-gold-tx)">sync</span> กำลังอัปเดตข้อมูล...`;
-    el.style.cssText = 'position:fixed;bottom:18px;right:18px;z-index:9999;display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:999px;background:rgba(10,16,29,0.92);border:1px solid rgba(232,193,90,0.35);color:#f5e3ae;font-size:11px;font-weight:700;box-shadow:0 8px 24px -8px rgba(0,0,0,0.6);backdrop-filter:blur(4px);transition:opacity .25s;';
-    document.body.appendChild(el);
-};
-window._showRefreshChip = function() {
-    // 🎯 [นิ่งขึ้น] หน่วง ~600ms ก่อนโชว์ — ถ้าข้อมูลใหม่มาไวกว่านั้น ชิปจะไม่โผล่เลย
-    // (เดิมเด้งทุกครั้งที่กลับเข้าหน้าเดิม แม้ข้อมูลมาไวมาก → เห็นชิปกระพริบตลอด)
-    if (window._refreshChipTimer || document.getElementById('pageRefreshChip')) return;
-    window._refreshChipTimer = setTimeout(() => {
-        window._refreshChipTimer = null;
-        window._buildRefreshChip();
-    }, 600);
-};
-window._hideRefreshChip = function() {
-    if (window._refreshChipTimer) { clearTimeout(window._refreshChipTimer); window._refreshChipTimer = null; }
-    const el = document.getElementById('pageRefreshChip');
-    if (!el) return;
-    el.style.opacity = '0';
-    setTimeout(() => el.remove(), 300);
+  if (document.getElementById('pageRefreshChip')) return;
+  const el = document.createElement('div');
+  el.id = 'pageRefreshChip';
+  el.innerHTML = `<span class="material-icons animate-spin" style="font-size:14px;color:var(--k-gold-tx)">sync</span> กำลังอัปเดตข้อมูล...`;
+  el.style.cssText = 'position:fixed;bottom:18px;right:18px;z-index:9999;display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:999px;background:rgba(10,16,29,0.92);border:1px solid rgba(232,193,90,0.35);color:#f5e3ae;font-size:11px;font-weight:700;box-shadow:0 8px 24px -8px rgba(0,0,0,0.6);backdrop-filter:blur(4px);transition:opacity .25s;';
+  document.body.appendChild(el);
 };
 
-// ==========================================
-// 🆕 [เช็คเวอร์ชันใหม่อัตโนมัติ] แก้ปัญหา "push โค้ดใหม่แล้วพนักงานที่เปิดค้างไว้ไม่รู้ตัว"
-// วิธีทำงาน: แอบขอไฟล์ index.html ตัวเองเป็นระยะ (ไม่โดน cache) มาอ่านเลข _APP_VERSION
-// ถ้าเลขไม่ตรงกับที่ตัวเองใช้อยู่ → มีโค้ดใหม่ขึ้นเว็บแล้ว → เด้งแถบแจ้งเตือนให้กดอัปเดต
-// (ไม่บังคับรีเฟรชอัตโนมัติ กันข้อมูลที่กำลังกรอกอยู่หาย — ให้พนักงานเป็นคนกดเอง)
-// ==========================================
-const VERSION_CHECK_INTERVAL_MS = 3 * 60 * 1000; // เช็คทุก 3 นาที
+window._showRefreshChip = function() {
+  if (window._refreshChipTimer || document.getElementById('pageRefreshChip')) return;
+  window._refreshChipTimer = setTimeout((() => {
+    window._refreshChipTimer = null;
+    window._buildRefreshChip();
+  }), 600);
+};
+
+window._hideRefreshChip = function() {
+  if (window._refreshChipTimer) {
+    clearTimeout(window._refreshChipTimer);
+    window._refreshChipTimer = null;
+  }
+  const el = document.getElementById('pageRefreshChip');
+  if (!el) return;
+  el.style.opacity = '0';
+  setTimeout((() => el.remove()), 300);
+};
+
+const VERSION_CHECK_INTERVAL_MS = 3 * 60 * 1e3;
+
 window._versionCheckInterval = null;
+
 window._newVersionDetected = false;
 
 window.checkForNewVersion = async function() {
-    if (window._newVersionDetected) return; // เจอแล้วครั้งนึง ไม่ต้องเช็คซ้ำ (รอพนักงานกดอัปเดต)
-    try {
-        const res = await fetch('./index.html?_vc=' + Date.now(), { cache: 'no-store' });
-        if (!res.ok) return;
-        const html = await res.text();
-        const m = html.match(/_APP_VERSION\s*=\s*["']([^"']+)["']/);
-        if (!m) return;
-        const liveVersion = m[1];
-        const myVersion = String(window._APP_VERSION || '');
-        if (liveVersion && myVersion && liveVersion !== myVersion) {
-            window._newVersionDetected = true;
-            window._showNewVersionBanner();
-        }
-    } catch (e) {
-        // เน็ตหลุดชั่วคราว ฯลฯ — เงียบไว้ รอบหน้าค่อยลองใหม่
+  if (window._newVersionDetected) return;
+  try {
+    const res = await fetch('./index.html?_vc=' + Date.now(), {
+      cache: 'no-store'
+    });
+    if (!res.ok) return;
+    const html = await res.text();
+    const m = html.match(/_APP_VERSION\s*=\s*["']([^"']+)["']/);
+    if (!m) return;
+    const liveVersion = m[1];
+    const myVersion = String(window._APP_VERSION || '');
+    if (liveVersion && myVersion && liveVersion !== myVersion) {
+      window._newVersionDetected = true;
+      window._showNewVersionBanner();
     }
+  } catch (e) {}
 };
 
 window._showNewVersionBanner = function() {
-    if (document.getElementById('newVersionBanner')) return;
-    const el = document.createElement('div');
-    el.id = 'newVersionBanner';
-    el.innerHTML = `
-        <span class="material-icons" style="font-size:18px;color:var(--k-gold-tx)">new_releases</span>
-        <span>มีการอัปเดตระบบใหม่ — กดเพื่อโหลดหน้าล่าสุด</span>
-        <button onclick="location.reload()" style="margin-left:6px;padding:6px 14px;border-radius:8px;background:#E8C15A;color:#101828;font-weight:900;font-size:12.5px;border:none;cursor:pointer;white-space:nowrap;box-shadow:0 2px 10px rgba(232,193,90,0.4)">อัปเดตเลย</button>
-    `;
-    el.style.cssText = 'position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:100000;display:flex;align-items:center;gap:10px;padding:11px 16px;border-radius:14px;background:rgba(10,16,29,0.97);border:1px solid rgba(232,193,90,0.5);color:#f5e3ae;font-size:13px;font-weight:700;box-shadow:0 12px 32px -8px rgba(0,0,0,0.7);backdrop-filter:blur(6px);max-width:92vw;';
-    document.body.appendChild(el);
+  if (document.getElementById('newVersionBanner')) return;
+  const el = document.createElement('div');
+  el.id = 'newVersionBanner';
+  el.innerHTML = `\n        <span class="material-icons" style="font-size:18px;color:var(--k-gold-tx)">new_releases</span>\n        <span>มีการอัปเดตระบบใหม่ — กดเพื่อโหลดหน้าล่าสุด</span>\n        <button onclick="location.reload()" style="margin-left:6px;padding:6px 14px;border-radius:8px;background:#E8C15A;color:#101828;font-weight:900;font-size:12.5px;border:none;cursor:pointer;white-space:nowrap;box-shadow:0 2px 10px rgba(232,193,90,0.4)">อัปเดตเลย</button>\n    `;
+  el.style.cssText = 'position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:100000;display:flex;align-items:center;gap:10px;padding:11px 16px;border-radius:14px;background:rgba(10,16,29,0.97);border:1px solid rgba(232,193,90,0.5);color:#f5e3ae;font-size:13px;font-weight:700;box-shadow:0 12px 32px -8px rgba(0,0,0,0.7);backdrop-filter:blur(6px);max-width:92vw;';
+  document.body.appendChild(el);
 };
 
-// ▶️ เริ่มเช็คเวอร์ชันเป็นระยะ (เรียกคู่กับ startIpHeartbeat ตอน login สำเร็จ)
 window.startVersionWatch = function() {
-    if (window._versionCheckInterval) return; // กันสร้างซ้ำ
-    window._versionCheckInterval = setInterval(window.checkForNewVersion, VERSION_CHECK_INTERVAL_MS);
-    // 🌟 เช็คทันทีตอนกลับมาที่ Tab (เผื่อพลาดตอนปิดแท็บไปนาน)
-    if (!window._versionVisibilityHandlerAttached) {
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) window.checkForNewVersion();
-        });
-        window._versionVisibilityHandlerAttached = true;
-    }
-    console.log(`[Version Watch] เริ่มเช็คอัปเดตทุก ${VERSION_CHECK_INTERVAL_MS/60000} นาที`);
+  if (window._versionCheckInterval) return;
+  window._versionCheckInterval = setInterval(window.checkForNewVersion, VERSION_CHECK_INTERVAL_MS);
+  if (!window._versionVisibilityHandlerAttached) {
+    document.addEventListener('visibilitychange', (() => {
+      if (!document.hidden) window.checkForNewVersion();
+    }));
+    window._versionVisibilityHandlerAttached = true;
+  }
+  console.log(`[Version Watch] เริ่มเช็คอัปเดตทุก ${VERSION_CHECK_INTERVAL_MS / 6e4} นาที`);
 };
 
-// ==========================================
-// 🧹 ระบบจัดการ Realtime Subscriptions ตามหน้า (กัน memory leak)
-// ==========================================
-window._pageSubscriptions = window._pageSubscriptions || new Set();
+window._pageSubscriptions = window._pageSubscriptions || new Set;
 
 window.registerPageSubscription = function(channel) {
-    if (!channel) return channel;
-    window._pageSubscriptions.add(channel);
-    return channel;
+  if (!channel) return channel;
+  window._pageSubscriptions.add(channel);
+  return channel;
 };
 
 window.cleanupPageSubscriptions = function() {
-    if (!appDB || !window._pageSubscriptions || window._pageSubscriptions.size === 0) return;
-    window._pageSubscriptions.forEach(ch => {
-        try { appDB.removeChannel(ch); } catch (e) { /* ignore */ }
-    });
-    window._pageSubscriptions.clear();
+  if (!appDB || !window._pageSubscriptions || window._pageSubscriptions.size === 0) return;
+  window._pageSubscriptions.forEach((ch => {
+    try {
+      appDB.removeChannel(ch);
+    } catch (e) {}
+  }));
+  window._pageSubscriptions.clear();
 };
 
-// ==========================================
-// 🧹 ระบบจัดการ setInterval / setTimeout ตามหน้า (กัน CPU drain)
-// ==========================================
-window._pageIntervals = window._pageIntervals || new Set();
+window._pageIntervals = window._pageIntervals || new Set;
 
 window.registerPageInterval = function(intervalId) {
-    if (!intervalId) return intervalId;
-    window._pageIntervals.add(intervalId);
-    return intervalId;
+  if (!intervalId) return intervalId;
+  window._pageIntervals.add(intervalId);
+  return intervalId;
 };
 
 window.cleanupPageIntervals = function() {
-    if (!window._pageIntervals || window._pageIntervals.size === 0) return;
-    window._pageIntervals.forEach(id => {
-        try { clearInterval(id); } catch (e) { /* ignore */ }
-    });
-    window._pageIntervals.clear();
+  if (!window._pageIntervals || window._pageIntervals.size === 0) return;
+  window._pageIntervals.forEach((id => {
+    try {
+      clearInterval(id);
+    } catch (e) {}
+  }));
+  window._pageIntervals.clear();
 };
 
-// ==========================================
-// 📦 [PERF] โหลด JS เฉพาะหน้าที่เปิด
-// เดิม index.html โหลดทุกไฟล์ ~2 MB ตั้งแต่เปิดเว็บ ทั้งที่ใช้แค่ 1-2 หน้า
-// ตอนนี้โหลดแค่ global/auth/system_core/dashboard/sheet ก่อน
-// ไฟล์ของแต่ละหน้าจะถูกดึงตอนกดเข้าหน้านั้นครั้งแรก (โหลดแล้วจำไว้ ไม่โหลดซ้ำ)
-// เปลี่ยน version ทีเดียวที่ window._APP_VERSION ใน index.html
-// ==========================================
-// 📁 โครงสร้างใหม่: สคริปต์ของแต่ละหน้าอยู่ในโฟลเดอร์ของตัวเอง (js/ชื่อหน้า/ไฟล์.js)
-// ชื่อในรายการ = path ต่อจาก js/ (ไม่ต้องมี .js) — loadScript ประกอบเป็น ./js/{ชื่อ}.js เอง
 const PAGE_SCRIPTS = {
-    bell:              ['bell/core'],   // 🔔 กระดิ่งเรียกพนักงาน
-    oa_chat:           ['oa_chat/core'],   // 💬 ตรวจนับแชท LINE OA
-    breaktable: ['breaktable/core'],   // 📊 ตารางลงเวลาพักทั้งหมด (ใช้ fetchData จาก system/users.js ที่โหลดไว้แล้ว)
-    break_audit:       ['break_audit/core'],
-    staff_record:      ['staff_record/core'],   // 📒 ประวัติการทำงานพนักงาน   // ⏱️ ตรวจเวลาลุกจากที่นั่ง (อ่าน export กลุ่ม Telegram)
-    leave:             ['leave/core', 'leave/table', 'leave/controls', 'swap/core', 'swap/view', 'swap/admin', 'swap/extras'],
-    swap:              ['leave/core', 'leave/table', 'leave/controls', 'swap/core', 'swap/view', 'swap/admin', 'swap/extras'],
-    duty:              ['duty/core', 'duty/dragdrop', 'duty/roles', 'duty/tools', 'duty/support', 'duty/rotation'],   // แยกจาก duty.js เดิม (5,478) — core ต้องมาก่อน
-    discord:           ['discord/core', 'discord/history', 'discord/message', 'discord/breaktrack', 'discord/tts', 'discord/chatcount'],   // ลำดับสำคัญ: core ต้องมาก่อนเสมอ
-    summary:           ['summary/core', 'summary/export'],
-    telegram:          ['telegram/Telegram'],
-    password:          ['password/Password'],
-    files:             ['files/FilesApp'],
-    od_config:         ['od_config/config', 'od_config/history'],
-    kbiz:              ['kbiz/core', 'kbiz/ops'],
-    gallery:           ['gallery/core', 'gallery/ui'],
-    logo_editor:       ['logo_editor/core', 'logo_editor/erase', 'logo_editor/tools', 'logo_editor/extras'],
-    fine:              ['fine/core', 'fine/rules', 'fine/records', 'fine/tools'],
-    withdrawal_report: ['withdrawal_report/stats', 'withdrawal_report/bot'],
-    sop:               ['sop/core', 'sop/rules', 'sop/manage', 'sop/share'],   // แยกจาก sop.js เดิม (3,451) — core ต้องมาก่อน
-
-    ip_check:          ['ip_check/core', 'ip_check/tabs', 'ip_check/risk', 'ip_check/alerts'],
-    ip_allow:          ['ip_allow/ip_allow'],
-    slip_check:        ['slip_check/core', 'slip_check/scan', 'slip_check/history'],
+  bell: [ 'bell/core' ],
+  oa_chat: [ 'oa_chat/core' ],
+  breaktable: [ 'breaktable/core' ],
+  break_audit: [ 'break_audit/core' ],
+  staff_record: [ 'staff_record/core' ],
+  leave: [ 'leave/core', 'leave/table', 'leave/controls', 'swap/core', 'swap/view', 'swap/admin', 'swap/extras' ],
+  swap: [ 'leave/core', 'leave/table', 'leave/controls', 'swap/core', 'swap/view', 'swap/admin', 'swap/extras' ],
+  duty: [ 'duty/core', 'duty/dragdrop', 'duty/roles', 'duty/tools', 'duty/support', 'duty/rotation' ],
+  discord: [ 'discord/core', 'discord/history', 'discord/message', 'discord/breaktrack', 'discord/tts', 'discord/chatcount' ],
+  summary: [ 'summary/core', 'summary/export' ],
+  telegram: [ 'telegram/Telegram' ],
+  password: [ 'password/Password' ],
+  files: [ 'files/FilesApp' ],
+  od_config: [ 'od_config/config', 'od_config/history' ],
+  kbiz: [ 'kbiz/core', 'kbiz/ops' ],
+  gallery: [ 'gallery/core', 'gallery/ui' ],
+  logo_editor: [ 'logo_editor/core', 'logo_editor/erase', 'logo_editor/tools', 'logo_editor/extras' ],
+  fine: [ 'fine/core', 'fine/rules', 'fine/records', 'fine/tools' ],
+  withdrawal_report: [ 'withdrawal_report/stats', 'withdrawal_report/bot' ],
+  sop: [ 'sop/core', 'sop/rules', 'sop/manage', 'sop/share' ],
+  ip_check: [ 'ip_check/core', 'ip_check/tabs', 'ip_check/risk', 'ip_check/alerts' ],
+  ip_allow: [ 'ip_allow/ip_allow' ],
+  slip_check: [ 'slip_check/core', 'slip_check/scan', 'slip_check/history' ]
 };
+
 window._loadedScripts = {};
+
 window.loadScript = function(name) {
-    if (window._loadedScripts[name]) return window._loadedScripts[name];
-    window._loadedScripts[name] = new Promise((resolve, reject) => {
-        const el = document.createElement('script');
-        el.src = `./js/${name}.js?v=${window._APP_VERSION || Date.now()}`;
-        el.onload = () => resolve(name);
-        el.onerror = () => { delete window._loadedScripts[name]; reject(new Error(`โหลดไฟล์ ${name}.js ไม่สำเร็จ`)); };
-        document.head.appendChild(el);
-    });
-    return window._loadedScripts[name];
-};
-window.loadPageScripts = async function(pageName) {
-    const list = PAGE_SCRIPTS[pageName] || [];
-    for (const n of list) await window.loadScript(n);   // ตามลำดับ (leave ต้องมาก่อน swap)
-};
-// ฟังก์ชันที่ถูกเรียกข้ามหน้า (เช่น dashboard เรียกของ duty) — ตัวแทนจะโหลดไฟล์จริงก่อนแล้วค่อยเรียก
-window.lazyStub = function(fnName, scriptName) {
-    if (typeof window[fnName] === 'function') return;
-    const stub = async function(...args) {
-        // รองรับทั้งไฟล์เดียวและหลายไฟล์ (ฟีเจอร์ที่ถูกผ่าเป็นหลายส่วน ต้องโหลดครบตามลำดับ)
-        const list = Array.isArray(scriptName) ? scriptName : [scriptName];
-        for (const sn of list) await window.loadScript(sn);
-        if (typeof window[fnName] === 'function' && window[fnName] !== stub) return window[fnName](...args);
-        throw new Error(`${fnName} ไม่พบใน ${list.join(', ')}`);
+  if (window._loadedScripts[name]) return window._loadedScripts[name];
+  window._loadedScripts[name] = new Promise(((resolve, reject) => {
+    const el = document.createElement('script');
+    el.src = `./js/${name}.js?v=${window._APP_VERSION || Date.now()}`;
+    el.onload = () => resolve(name);
+    el.onerror = () => {
+      delete window._loadedScripts[name];
+      reject(new Error(`โหลดไฟล์ ${name}.js ไม่สำเร็จ`));
     };
-    window[fnName] = stub;
+    document.head.appendChild(el);
+  }));
+  return window._loadedScripts[name];
 };
-window.lazyStub('loadExcelLibrary', ['summary/core', 'summary/export']);         // leave.js → summary.js
-window.lazyStub('initSlipCheck', ['slip_check/core', 'slip_check/scan', 'slip_check/history']);
-window.lazyStub('initOdConfig', ['od_config/config', 'od_config/history']);
 
-// ==========================================
-// 🍽️ [กติกาพัก] "พักพร้อมกันได้ไม่เกินกี่คน — ต่อเว็บ — อัตโนมัติตามตารางหน้าที่"
-// นับคนของแต่ละเว็บ (หลัก + รอง รวมกัน) จากตารางจัดหน้าที่ของวันนั้น แล้วใช้กติกา:
-//   (⚠️ เลิกใช้แล้ว 09/09/2026 — กติกาปัจจุบันไม่มีขั้นบันได เก็บฟังก์ชันไว้กันโค้ดเก่าอ้างถึงเท่านั้น)
-// แยก AM / OD เพราะแต่ละแผนกมีตารางหน้าที่ของตัวเอง ไม่ปนกัน — ไม่มีค่าให้ตั้ง ไม่ต้องกดคำนวณ
-// ==========================================
+window.loadPageScripts = async function(pageName) {
+  const list = PAGE_SCRIPTS[pageName] || [];
+  for (const n of list) await window.loadScript(n);
+};
+
+window.lazyStub = function(fnName, scriptName) {
+  if (typeof window[fnName] === 'function') return;
+  const stub = async function(...args) {
+    const list = Array.isArray(scriptName) ? scriptName : [ scriptName ];
+    for (const sn of list) await window.loadScript(sn);
+    if (typeof window[fnName] === 'function' && window[fnName] !== stub) return window[fnName](...args);
+    throw new Error(`${fnName} ไม่พบใน ${list.join(', ')}`);
+  };
+  window[fnName] = stub;
+};
+
+window.lazyStub('loadExcelLibrary', [ 'summary/core', 'summary/export' ]);
+
+window.lazyStub('initSlipCheck', [ 'slip_check/core', 'slip_check/scan', 'slip_check/history' ]);
+
+window.lazyStub('initOdConfig', [ 'od_config/config', 'od_config/history' ]);
+
 window.breakCapByRule = function(total) {
-    if (!total || total <= 0) return 0;
-    if (total <= 4) return 1;
-    if (total <= 7) return 2;
-    if (total <= 10) return 3;
-    if (total <= 14) return 4;
-    if (total <= 20) return 5;
-    if (total <= 25) return 6;
-    if (total <= 30) return 7;
-    return 8;
+  if (!total || total <= 0) return 0;
+  if (total <= 4) return 1;
+  if (total <= 7) return 2;
+  if (total <= 10) return 3;
+  if (total <= 14) return 4;
+  if (total <= 20) return 5;
+  if (total <= 25) return 6;
+  if (total <= 30) return 7;
+  return 8;
 };
-// สร้างแผนที่จากตารางหน้าที่ — 🌟 แยกกลุ่ม "หลัก" กับ "รอง" ของแต่ละเว็บออกจากกัน
-// (แผนที่เก็บทั้งแบบแยกกลุ่มและแบบรวม — กติกาปัจจุบันใช้เฉพาะ combined: นับรวมไม่สนหลัก/รอง)
-// เหตุผล: ถ้าหลักไปพัก ยังมีรองเฝ้า / ถ้ารองไปพัก ยังมีหลักเฝ้า → หน้างานไม่มีวันโล่ง
-// ⚙️ [ตั้งค่าได้] "พักแล้วต้องเหลือหน้างานกี่คน" — แยกแผนก(AM/OD) × กะ × เว็บ
-// เก็บถาวรใน settings key 'break_min_remain' รูปแบบ { AM: { 'กะเช้า': { Jun88: 2, ... } } }
-// ไม่ได้ตั้ง = 1 (เหลือเฝ้า 1 คน) | ตั้งได้ในหน้าตั้งค่าระบบ → เพดานพักต่อเว็บ
+
 window._breakMinRemainCfg = null;
-// 📊 ตารางขั้นบันได "พักพร้อมกันได้สูงสุด" ตามจำนวนคนของเว็บ (ประกาศหน้างาน)
-//   ≤4→1 · 5-7→2 · 8-10→3 · 11-14→4 · 15-20→5 · 21-25→6 · 26-30→7 · 31-35→8 · 36-40→9 · 41-45→10 · 46-50→11 · เกินนั้น +1 ทุก 5 คน
-//   (เว็บคนเดียวพักได้ปกติ ไม่งั้นอดพักทั้งวัน)
+
 window.breakCapByHeadcount = function(n) {
-    n = parseInt(n) || 0;
-    if (n <= 1) return n;
-    if (n <= 4) return 1;
-    if (n <= 7) return 2;
-    if (n <= 10) return 3;
-    if (n <= 14) return 4;
-    if (n <= 20) return 5;
-    if (n <= 25) return 6;
-    if (n <= 30) return 7;
-    if (n <= 35) return 8;
-    if (n <= 40) return 9;
-    if (n <= 45) return 10;
-    if (n <= 50) return 11;
-    return 11 + Math.ceil((n - 50) / 5);
+  n = parseInt(n) || 0;
+  if (n <= 1) return n;
+  if (n <= 4) return 1;
+  if (n <= 7) return 2;
+  if (n <= 10) return 3;
+  if (n <= 14) return 4;
+  if (n <= 20) return 5;
+  if (n <= 25) return 6;
+  if (n <= 30) return 7;
+  if (n <= 35) return 8;
+  if (n <= 40) return 9;
+  if (n <= 45) return 10;
+  if (n <= 50) return 11;
+  return 11 + Math.ceil((n - 50) / 5);
 };
 
-// ⏳ ระยะห่างขั้นต่ำระหว่างรอบพักของคนเดียวกัน (นาที) — ตั้งในหน้าตั้งค่าระบบ · 0 = ห้ามติดกันเฉยๆ
 window.getBreakGapMin = function() {
-    const S = (typeof SETTINGS !== 'undefined' && SETTINGS) ? SETTINGS : {};
-    const v = parseInt(S.break_gap_min);
-    return (isNaN(v) || v < 0) ? 0 : v;
+  const S = typeof SETTINGS !== 'undefined' && SETTINGS ? SETTINGS : {};
+  const v = parseInt(S.break_gap_min);
+  return isNaN(v) || v < 0 ? 0 : v;
 };
 
-// เช็คว่า 2 รอบห่างกันพอไหม (รองรับรอบคร่อมเที่ยงคืน) — true = ชนกฎ ลงไม่ได้
 window.isSlotTooClose = function(slotA, slotB, gapMin) {
-    const gap = (gapMin === undefined) ? window.getBreakGapMin() : (parseInt(gapMin) || 0);
-    const toM = s => { const m = /^(\d{1,2}):(\d{2})/.exec(String(s || '')); return m ? (+m[1]) * 60 + (+m[2]) : null; };
-    const pa = String(slotA || '').split('-'), pb = String(slotB || '').split('-');
-    if (pa.length !== 2 || pb.length !== 2) return false;
-    const a1 = toM(pa[0]), a2 = toM(pa[1]), b1 = toM(pb[0]), b2 = toM(pb[1]);
-    if ([a1, a2, b1, b2].some(v => v === null)) return false;
-    if (gap <= 0) return (pa[1] === pb[0] || pb[1] === pa[0]);   // 0 = กฎเดิม: ห้ามติดกัน
-    // ระยะจากจบรอบก่อน → เริ่มรอบหลัง (วนข้ามเที่ยงคืนได้)
-    const d1 = ((b1 - a2) + 1440) % 1440;
-    const d2 = ((a1 - b2) + 1440) % 1440;
-    return Math.min(d1, d2) < gap;
+  const gap = gapMin === undefined ? window.getBreakGapMin() : parseInt(gapMin) || 0;
+  const toM = s => {
+    const m = /^(\d{1,2}):(\d{2})/.exec(String(s || ''));
+    return m ? +m[1] * 60 + +m[2] : null;
+  };
+  const pa = String(slotA || '').split('-'), pb = String(slotB || '').split('-');
+  if (pa.length !== 2 || pb.length !== 2) return false;
+  const a1 = toM(pa[0]), a2 = toM(pa[1]), b1 = toM(pb[0]), b2 = toM(pb[1]);
+  if ([ a1, a2, b1, b2 ].some((v => v === null))) return false;
+  if (gap <= 0) return pa[1] === pb[0] || pb[1] === pa[0];
+  const d1 = (b1 - a2 + 1440) % 1440;
+  const d2 = (a1 - b2 + 1440) % 1440;
+  return Math.min(d1, d2) < gap;
 };
 
-// ข้อความบอกระยะห่างแบบอ่านง่าย เช่น "1 ชม. 30 นาที"
 window.fmtGapText = function(min) {
-    min = parseInt(min) || 0;
-    if (min <= 0) return '';
-    const h = Math.floor(min / 60), m = min % 60;
-    return (h ? `${h} ชม.` : '') + (m ? `${h ? ' ' : ''}${m} นาที` : '');
+  min = parseInt(min) || 0;
+  if (min <= 0) return '';
+  const h = Math.floor(min / 60), m = min % 60;
+  return (h ? `${h} ชม.` : '') + (m ? `${h ? ' ' : ''}${m} นาที` : '');
 };
 
-// ═══════════════════════════════════════
-// 🔗 [กลุ่มเว็บ] เว็บหลายเว็บที่ "ใช้โควตาพักรวมกัน"
-//   เช่น AMQL เอา BT678 กับ F168 รวมกัน → นับคนรวมเป็นก้อนเดียว เพดานพักก็ก้อนเดียว
-//   ในตารางยังเห็นแยกเว็บเหมือนเดิม แค่ตอนคิดว่าใครพักได้ ถือเป็นกองเดียวกัน
-//   เก็บที่ settings.break_web_groups รูปแบบ { "AMQL": [["BT678","F168"], ...], ... }
-// ═══════════════════════════════════════
 window._breakWebGroups = null;
 
 window.loadBreakWebGroups = async function(force) {
-    if (window._breakWebGroups && !force) return window._breakWebGroups;
-    try {
-        const { data } = await appDB.from('settings').select('value').eq('key', 'break_web_groups').maybeSingle();
-        window._breakWebGroups = (data && data.value) ? JSON.parse(data.value) : {};
-    } catch (e) { window._breakWebGroups = window._breakWebGroups || {}; }
-    return window._breakWebGroups;
+  if (window._breakWebGroups && !force) return window._breakWebGroups;
+  try {
+    const {data: data} = await appDB.from('settings').select('value').eq('key', 'break_web_groups').maybeSingle();
+    window._breakWebGroups = data && data.value ? JSON.parse(data.value) : {};
+  } catch (e) {
+    window._breakWebGroups = window._breakWebGroups || {};
+  }
+  return window._breakWebGroups;
 };
 
-// คืนกลุ่มของเว็บนี้ -> { key, members[] }  (ไม่ได้จับกลุ่ม = อยู่คนเดียว)
-// คืนกลุ่มของเว็บนี้ "ในกะนั้น" -> { key, members[] }  (ไม่ได้จับกลุ่ม = อยู่คนเดียว)
 window.getBreakWebPool = function(dept, team, shift) {
-    const groups = window.getWebGroupsOf(dept, shift);
-    for (const g of groups) {
-        if (Array.isArray(g) && g.includes(team)) {
-            const members = [...new Set(g.filter(Boolean))];
-            return { key: members.slice().sort().join(' + '), members, grouped: members.length > 1 };
-        }
+  const groups = window.getWebGroupsOf(dept, shift);
+  for (const g of groups) {
+    if (Array.isArray(g) && g.includes(team)) {
+      const members = [ ...new Set(g.filter(Boolean)) ];
+      return {
+        key: members.slice().sort().join(' + '),
+        members: members,
+        grouped: members.length > 1
+      };
     }
-    return { key: team, members: [team], grouped: false };
+  }
+  return {
+    key: team,
+    members: [ team ],
+    grouped: false
+  };
 };
 
-// อ่านรายการกลุ่มของแผนก+กะ (รองรับข้อมูลรูปแบบเก่าที่เป็น array เดียวใช้ทุกกะ)
 window.getWebGroupsOf = function(dept, shift) {
-    const all = window._breakWebGroups || {};
-    const d = all[dept];
-    if (Array.isArray(d)) return d;                       // ⏳ รูปแบบเก่า = ใช้กับทุกกะ
-    if (d && typeof d === "object") {
-        const g = d[shift];
-        if (Array.isArray(g)) return g;
-    }
-    return [];
+  const all = window._breakWebGroups || {};
+  const d = all[dept];
+  if (Array.isArray(d)) return d;
+  if (d && typeof d === "object") {
+    const g = d[shift];
+    if (Array.isArray(g)) return g;
+  }
+  return [];
 };
 
-// รวมสมาชิกทุกเว็บในกลุ่มเป็นกองเดียว
 window.poolMembers = function(covMap, dept, team) {
-    const pool = window.getBreakWebPool(dept, team, (covMap && covMap.shift) || "");
-    const out = new Set();
-    pool.members.forEach(t => {
-        const s = (covMap && covMap.combined && covMap.combined[t]) || new Set();
-        s.forEach(n => out.add(n));
-    });
-    return { pool, members: out };
+  const pool = window.getBreakWebPool(dept, team, covMap && covMap.shift || "");
+  const out = new Set;
+  pool.members.forEach((t => {
+    const s = covMap && covMap.combined && covMap.combined[t] || new Set;
+    s.forEach((n => out.add(n)));
+  }));
+  return {
+    pool: pool,
+    members: out
+  };
 };
 
 window.loadBreakMinRemainCfg = async function(force) {
-    if (window._breakMinRemainCfg && !force) return window._breakMinRemainCfg;
-    try {
-        const { data } = await appDB.from('settings').select('value').eq('key', 'break_min_remain').maybeSingle();
-        window._breakMinRemainCfg = (data && data.value) ? JSON.parse(data.value) : {};
-    } catch (e) { window._breakMinRemainCfg = window._breakMinRemainCfg || {}; }
-    return window._breakMinRemainCfg;
+  if (window._breakMinRemainCfg && !force) return window._breakMinRemainCfg;
+  try {
+    const {data: data} = await appDB.from('settings').select('value').eq('key', 'break_min_remain').maybeSingle();
+    window._breakMinRemainCfg = data && data.value ? JSON.parse(data.value) : {};
+  } catch (e) {
+    window._breakMinRemainCfg = window._breakMinRemainCfg || {};
+  }
+  return window._breakMinRemainCfg;
 };
+
 window.getBreakMinRemain = function(dept, shift, team) {
-    const n = window.getBreakMinRemainRaw(dept, shift, team);
-    return n === null ? 1 : n;
+  const n = window.getBreakMinRemainRaw(dept, shift, team);
+  return n === null ? 1 : n;
 };
-// อ่านค่าที่ "ตั้งเอง" — คืน null ถ้าไม่ได้ตั้ง (= ใช้ค่าเริ่มต้น เหลือเฝ้า 1)
+
 window.getBreakMinRemainRaw = function(dept, shift, team) {
-    const c = window._breakMinRemainCfg || {};
-    const v = c && c[dept] && c[dept][shift] ? c[dept][shift][team] : undefined;
-    if (v === undefined || v === null || v === '') return null;
-    const n = parseInt(v, 10);
-    return (isNaN(n) || n < 0) ? null : n;
+  const c = window._breakMinRemainCfg || {};
+  const v = c && c[dept] && c[dept][shift] ? c[dept][shift][team] : undefined;
+  if (v === undefined || v === null || v === '') return null;
+  const n = parseInt(v, 10);
+  return isNaN(n) || n < 0 ? null : n;
 };
 
 window.buildCoverageMap = function(roster, dept, shift) {
-    const webs = {};        // "เว็บ (หลัก)" หรือ "เว็บ (รอง)" -> Set(username)
-    const websOf = {};      // username -> ["เว็บ (หลัก)", "เว็บ (รอง)", ...]
-    const combined = {};    // เว็บ -> Set(username) รวมหลัก+รองทั้งหมดของเว็บนั้น (ไว้เช็ค "เว็บห้ามว่าง")
-    const combinedOf = {};  // username -> [เว็บ, ...] ทุกเว็บที่เขารับผิดชอบไม่ว่าฐานะไหน
-    for (const team in (roster || {})) {
-        (roster[team] || []).forEach(u => {
-            if (!u || !u.username || String(u.username).includes('ขาดคน')) return;
-            const add = (t) => {
-                if (!t) return;
-                (webs[t] = webs[t] || new Set()).add(u.username);
-                (websOf[u.username] = websOf[u.username] || []);
-                if (!websOf[u.username].includes(t)) websOf[u.username].push(t);
-            };
-            const addCombined = (tm) => {
-                if (!tm) return;
-                (combined[tm] = combined[tm] || new Set()).add(u.username);
-                (combinedOf[u.username] = combinedOf[u.username] || []);
-                if (!combinedOf[u.username].includes(tm)) combinedOf[u.username].push(tm);
-            };
-            add(`${team} (หลัก)`);                                        // คนนี้เป็นหลักของเว็บนี้
-            addCombined(team);
-            if (u.secondary_team) { add(`${u.secondary_team} (รอง)`); addCombined(u.secondary_team); }   // และเป็นรองของอีกเว็บ
-        });
-    }
-    return { webs, websOf, combined, combinedOf, dept: dept || '', shift: shift || '' };
+  const webs = {};
+  const websOf = {};
+  const combined = {};
+  const combinedOf = {};
+  for (const team in roster || {}) {
+    (roster[team] || []).forEach((u => {
+      if (!u || !u.username || String(u.username).includes('ขาดคน')) return;
+      const add = t => {
+        if (!t) return;
+        (webs[t] = webs[t] || new Set).add(u.username);
+        websOf[u.username] = websOf[u.username] || [];
+        if (!websOf[u.username].includes(t)) websOf[u.username].push(t);
+      };
+      const addCombined = tm => {
+        if (!tm) return;
+        (combined[tm] = combined[tm] || new Set).add(u.username);
+        combinedOf[u.username] = combinedOf[u.username] || [];
+        if (!combinedOf[u.username].includes(tm)) combinedOf[u.username].push(tm);
+      };
+      add(`${team} (หลัก)`);
+      addCombined(team);
+      if (u.secondary_team) {
+        add(`${u.secondary_team} (รอง)`);
+        addCombined(u.secondary_team);
+      }
+    }));
+  }
+  return {
+    webs: webs,
+    websOf: websOf,
+    combined: combined,
+    combinedOf: combinedOf,
+    dept: dept || '',
+    shift: shift || ''
+  };
 };
-// เช็คว่า username พักช่วงนี้ได้ไหม — 🧹 [ล้างกระดาน 09/09/2026] เหลือกติกาเดียวเท่านั้น:
-//   "นับรวมทุกคนของเว็บ (ไม่สนหลัก/รอง) — ช่วงเวลาไหนก็ตาม ต้องเหลือคนเฝ้า ≥ ค่าที่ตั้งหลังบ้าน"
-//   เช่น Jun88 หลัก+รอง รวม 6 คน ตั้งเหลือ 2 → ลงเวลาเดียวกันได้ 4 คน จบ ไม่มีข้อยิบย่อยอื่น
-//   ค่าที่ตั้ง: หน้าตั้งค่าระบบ → เพดานพักต่อเว็บ (แยกแผนก/กะ/เว็บ, ไม่ตั้ง = เหลือ 1)
-//   เว็บที่มีคนเดียว → พักได้ปกติ (ไม่งั้นอดพักทั้งวัน)
-//   (กติกาเก่าทั้งหมด — ขั้นบันได, หลักชนหลัก, รองชนรอง — ยกเลิกหมดแล้ว)
-// → { ok, problems:[{team, used, cap, total}], canLeave }
+
 window.checkCoverage = function(username, covMap, slotBookings) {
-    const myTeams = (covMap && covMap.combinedOf && covMap.combinedOf[username]) || [];
-    if (myTeams.length === 0) return { ok: true, problems: [], canLeave: Infinity };
-    const onBreak = new Set((slotBookings || []).map(b => b.staff_name).filter(Boolean));
-    const dept = (covMap && covMap.dept) || "";
-    const problems = [];
-    let canLeave = Infinity;
-
-    // 🔗 เว็บที่จับกลุ่มกันไว้ = คิดรวมเป็นกองเดียว (เช็คกองละครั้ง ไม่นับซ้ำ)
-    const seen = new Set();
-    myTeams.forEach(team => {
-        const { pool, members } = window.poolMembers(covMap, dept, team);
-        if (seen.has(pool.key)) return;
-        seen.add(pool.key);
-        if (members.size < 2) return;
-
-        // ค่า "เหลือเฝ้า≥" ของกอง: ถ้าจับกลุ่ม ใช้ค่าที่ตั้งไว้สูงสุดในกลุ่ม
-        let raw = null;
-        pool.members.forEach(t => {
-            const v = window.getBreakMinRemainRaw(dept, covMap.shift, t);
-            if (v !== null) raw = (raw === null) ? v : Math.max(raw, v);
-        });
-
-        const cap = (raw === null)
-            ? Math.min(members.size, window.breakCapByHeadcount(members.size))
-            : Math.max(0, members.size - raw);
-        const minRemain = members.size - cap;
-        let used = 0;
-        members.forEach(n => { if (n !== username && onBreak.has(n)) used++; });
-        if (used >= cap) problems.push({
-            team: pool.key + ' (' + (raw === null ? 'เพดานอัตโนมัติ เหลือเฝ้า' : 'ตั้งเอง เหลือเฝ้า') + ' ' + minRemain + ')',
-            used, cap, total: members.size
-        });
-        canLeave = Math.min(canLeave, Math.max(0, cap - used));
+  const myTeams = covMap && covMap.combinedOf && covMap.combinedOf[username] || [];
+  if (myTeams.length === 0) return {
+    ok: true,
+    problems: [],
+    canLeave: Infinity
+  };
+  const onBreak = new Set((slotBookings || []).map((b => b.staff_name)).filter(Boolean));
+  const dept = covMap && covMap.dept || "";
+  const problems = [];
+  let canLeave = Infinity;
+  const seen = new Set;
+  myTeams.forEach((team => {
+    const {pool: pool, members: members} = window.poolMembers(covMap, dept, team);
+    if (seen.has(pool.key)) return;
+    seen.add(pool.key);
+    if (members.size < 2) return;
+    let raw = null;
+    pool.members.forEach((t => {
+      const v = window.getBreakMinRemainRaw(dept, covMap.shift, t);
+      if (v !== null) raw = raw === null ? v : Math.max(raw, v);
+    }));
+    const cap = raw === null ? Math.min(members.size, window.breakCapByHeadcount(members.size)) : Math.max(0, members.size - raw);
+    const minRemain = members.size - cap;
+    let used = 0;
+    members.forEach((n => {
+      if (n !== username && onBreak.has(n)) used++;
+    }));
+    if (used >= cap) problems.push({
+      team: pool.key + ' (' + (raw === null ? 'เพดานอัตโนมัติ เหลือเฝ้า' : 'ตั้งเอง เหลือเฝ้า') + ' ' + minRemain + ')',
+      used: used,
+      cap: cap,
+      total: members.size
     });
-    return { ok: problems.length === 0, problems, canLeave };
+    canLeave = Math.min(canLeave, Math.max(0, cap - used));
+  }));
+  return {
+    ok: problems.length === 0,
+    problems: problems,
+    canLeave: canLeave
+  };
 };
 
 async function showPage(pageName) {
-    const loading = document.getElementById('loading');
-
-    // 🧹 ก่อนเปลี่ยนหน้า: เคลียร์ subscription + intervals ของหน้าเดิมเพื่อกัน leak
-    window.cleanupPageSubscriptions();
-    window.cleanupPageIntervals();
-    // 🧹 กล่องพรีวิวรูปของหน้าตารางรวมงาน (ฟีเจอร์ที่เอาออกแล้ว) ถ้ายังค้างจากเวอร์ชันเก่า → ทิ้ง
-    document.querySelectorAll('#gdPreview').forEach(el => el.remove());
-
-    // ⚡ [SPEED] เก็บภาพหน้าปัจจุบัน (ที่มีข้อมูลวาดเสร็จแล้ว) ไว้ก่อนสลับ
-    const _prevApp = document.getElementById('app-content');
-    if (window._currentPageName && _prevApp && _prevApp.innerHTML && _prevApp.innerHTML.length > 50) {
-        domSnapshot[window._currentPageName] = _prevApp.innerHTML;
+  const loading = document.getElementById('loading');
+  window.cleanupPageSubscriptions();
+  window.cleanupPageIntervals();
+  document.querySelectorAll('#gdPreview').forEach((el => el.remove()));
+  const _prevApp = document.getElementById('app-content');
+  if (window._currentPageName && _prevApp && _prevApp.innerHTML && _prevApp.innerHTML.length > 50) {
+    domSnapshot[window._currentPageName] = _prevApp.innerHTML;
+  }
+  const _snapReady = !!domSnapshot[pageName];
+  const _scriptsReady = typeof PAGE_SCRIPTS !== 'undefined' ? (PAGE_SCRIPTS[pageName] || []).every((n => window._loadedScripts && window._loadedScripts[n])) : false;
+  const _instant = _snapReady && _scriptsReady && !!pageCache[pageName];
+  try {
+    if (!pageCache[pageName] && loading) loading.classList.remove('hidden');
+    if (!pageCache[pageName]) {
+      const _v = window._APP_VERSION || Date.now();
+      const response = await fetch(`./pages/${pageName}/${pageName}.html?v=${_v}`);
+      if (!response.ok) throw new Error('Page not found');
+      pageCache[pageName] = await response.text();
     }
-
-    // มี snapshot + สคริปต์โหลดครบแล้ว = โชว์ได้ทันที ไม่ต้องขึ้น overlay เลย
-    const _snapReady = !!domSnapshot[pageName];
-    const _scriptsReady = (typeof PAGE_SCRIPTS !== 'undefined')
-        ? (PAGE_SCRIPTS[pageName] || []).every(n => window._loadedScripts && window._loadedScripts[n])
-        : false;
-    const _instant = _snapReady && _scriptsReady && !!pageCache[pageName];
-
-    try {
-        if (!pageCache[pageName] && loading) loading.classList.remove('hidden');
-        
-        if (!pageCache[pageName]) {
-            const _v = window._APP_VERSION || Date.now();
-            const response = await fetch(`./pages/${pageName}/${pageName}.html?v=${_v}`);   // 📁 โครงใหม่: หน้าแต่ละหน้าอยู่ในโฟลเดอร์ตัวเอง
-            if (!response.ok) throw new Error('Page not found');
-            pageCache[pageName] = await response.text();
+    if (loading && !_instant) loading.classList.remove('hidden');
+    await window.loadPageScripts(pageName);
+    const usedSnapshot = !!domSnapshot[pageName];
+    const htmlContent = domSnapshot[pageName] || pageCache[pageName];
+    const updateDOM = () => {
+      const appContent = document.getElementById('app-content');
+      appContent.innerHTML = htmlContent;
+      appContent.classList.remove('hidden');
+      window._currentPageName = pageName;
+      try {
+        if (!window._navFromHash && location.hash.slice(1) !== pageName) {
+          history.pushState({
+            page: pageName
+          }, '', '#' + pageName);
         }
-        // 📦 โหลด JS ของหน้านี้ (ครั้งแรกเท่านั้น)
-        if (loading && !_instant) loading.classList.remove('hidden');
-        await window.loadPageScripts(pageName);
-        
-        // ⚡ ถ้ามี snapshot ให้แปะภาพเดิม (มีข้อมูลอยู่แล้ว) ขึ้นก่อน — ตาเห็นทันที
-        const usedSnapshot = !!domSnapshot[pageName];
-        const htmlContent = domSnapshot[pageName] || pageCache[pageName];
-
-        const updateDOM = () => {
-            const appContent = document.getElementById('app-content');
-            appContent.innerHTML = htmlContent;
-            appContent.classList.remove('hidden');
-            window._currentPageName = pageName;
-
-            // 🔗 เขียนชื่อหน้าลงลิงก์ (เช่น /#gallery) → รีเฟรชแล้วอยู่หน้าเดิม + ปุ่มย้อนกลับของเบราว์เซอร์ใช้ได้
-            try {
-                if (!window._navFromHash && location.hash.slice(1) !== pageName) {
-                    history.pushState({ page: pageName }, '', '#' + pageName);
-                }
-            } catch (e) {}
-            
-            document.querySelectorAll('.nm-menu-title').forEach(el => el.classList.remove('active'));
-            const activeBtn = document.querySelector(`button[onclick*="showPage('${pageName}')"]`);
-            if (activeBtn) activeBtn.classList.add('active');
-
-            requestAnimationFrame(async () => {
-                // ⚡ กำลังโชว์ข้อมูลชุดเก่าอยู่ → ขึ้นชิปบอกว่าเบื้องหลังกำลังดึงของใหม่
-                if (usedSnapshot && window._showRefreshChip) window._showRefreshChip();
-
-                if(document.getElementById('uName') && currentUser && currentUser.username) {
-                    document.getElementById('uName').innerText = currentUser.username;
-                }
-
-                if (pageName === 'dashboard') {
-                    // 🏠 [FIX] กดเมนู "หน้าหลักลงเวลา" ขณะเปิดหน้าย่อยที่ซ้อนใน dashboard (ตั้งค่าระบบ/ประวัติ)
-                    // → snapshot คืนภาพหน้าย่อยเดิมกลับมา เหมือนกดแล้วไม่ไปไหน
-                    // แก้: เข้าหน้า dashboard ทางเมนูเมื่อไหร่ ปิดหน้าย่อยทั้งหมด กลับหน้าลงเวลาเสมอ
-                    // ⛳ ยกเว้น: กำลังกดเข้า "ตั้งค่าระบบ" หรือ "ประวัติระบบ" อยู่ (ตั้งธงไว้) — อย่าปิดแผงตัดหน้า
-                    if (!window._openingAdminPanel && !window._openingLogsPage) {
-                        let _subWasOpen = false;
-                        ['adminPanel', 'logsPage'].forEach(id => {
-                            const el = document.getElementById(id);
-                            if (el && !el.classList.contains('hidden')) {
-                                el.classList.add('hidden');
-                                el.classList.remove('flex');
-                                _subWasOpen = true;
-                            }
-                        });
-                        if (_subWasOpen) {
-                            const mc = document.getElementById('mainContentArea');
-                            if (mc) mc.classList.remove('hidden');
-                        }
-                    } else {
-                        // 🎯 [เกราะชั้นสอง] กำลังกดเข้าหน้าย่อยอยู่ → showPage ช่วยเปิดให้เลยตรงนี้
-                        // (กันเคสจังหวะ DOM แปะช้ากว่าที่ปุ่มไปหยิบ — สองฝั่งช่วยกันเปิด ใครถึงก่อนก็ติด)
-                        const mc = document.getElementById('mainContentArea');
-                        if (mc) mc.classList.add('hidden');
-                        if (window._openingAdminPanel) {
-                            const ap = document.getElementById('adminPanel');
-                            if (ap) { ap.classList.remove('hidden'); ap.classList.add('flex'); }
-                        }
-                        if (window._openingLogsPage) {
-                            const lp = document.getElementById('logsPage');
-                            if (lp) { lp.classList.remove('hidden'); lp.classList.add('flex'); }
-                        }
-                    }
-                    if (typeof initDashboard === 'function') initDashboard();
-                    if (typeof refreshAdminData === 'function') refreshAdminData();
-                    if (canPerm('admin_users')) {
-                        if (document.getElementById('userManagerUIBlock')) {
-                            document.getElementById('userManagerUIBlock').classList.remove('hidden');
-                            document.getElementById('userManagerUIBlock').classList.add('flex');
-                        }
-                    }
-                }
-                else if (pageName === 'fine') {
-                    if (typeof initFineApp === 'function') await initFineApp();
-                }
-
-                else if (pageName === 'sop') {
-                    if (typeof initSopApp === 'function') await initSopApp();
-                    if (typeof subscribeSopChanges === 'function') subscribeSopChanges();   // 📡 realtime
-                }
-                else if (pageName === 'od_center') {
-                    if (typeof initOdCenterApp === 'function') await initOdCenterApp();
-                }
-                else if (pageName === 'breaktable') {
-                    if (typeof initBreakTable === 'function') await initBreakTable();
-                }
-                else if (pageName === 'break_audit') {
-                    if (typeof initBreakAudit === 'function') await initBreakAudit();
-                }
-                else if (pageName === 'leave') {
-                    if (typeof initLeaveTable === 'function') await initLeaveTable();
-                }
-                else if (pageName === 'gallery') {
-                    if (typeof initGalleryApp === 'function') initGalleryApp();
-                }
-                else if (pageName === 'logo_editor') {
-                    if (typeof initLogoEditorApp === 'function') initLogoEditorApp();
-                }
-                else if (pageName === 'duty') {
-                    if (typeof initDutyApp === 'function') await initDutyApp();
-                }
-                else if (pageName === 'discord') {
-                    if (typeof applyDiscordPermissions === 'function') applyDiscordPermissions();
-                }
-                else if (pageName === 'withdrawal_report') {
-                    if (typeof initWithdrawalReport === 'function') await initWithdrawalReport();
-                }
-                else if (pageName === 'summary') {
-                    // [แก้] เดิมเรียก 3 ตัวซ้อนกัน (initSummaryDate ข้างในก็ดึงวันที่ + ยอดอยู่แล้ว) → ดึงซ้ำ 2 รอบ
-                    //      และกลับเข้าหน้านี้ระหว่างมีไฟล์พรีวิว ยอดพรีวิวถูกยอดในฐานข้อมูลทับหาย
-                    if (typeof initSummaryDate === 'function') await initSummaryDate();
-                }
-                else if (pageName === 'telegram') {
-                    if (typeof initTelegramApp === 'function') await initTelegramApp();
-                }
-                else if (pageName === 'password') {
-                    if (typeof initPasswordApp === 'function') await initPasswordApp();
-                }
-                else if (pageName === 'files') {
-                    if (typeof initFilesApp === 'function') await initFilesApp(); 
-                }
-                else if (pageName === 'od_config') {
-                    if (typeof initOdConfig === 'function') await initOdConfig();
-                    if (typeof subscribeOdConfigChanges === 'function') subscribeOdConfigChanges();   // 📡 realtime
-                }
-                else if (pageName === 'sheet') {
-                    if (typeof fetchSheets === 'function') await fetchSheets(); 
-                    if (typeof renderSheetMenu === 'function') renderSheetMenu();
-                    if (typeof renderRecentTabs === 'function') renderRecentTabs();
-                    if (canPerm('sheet_manage')) {
-                        if(document.getElementById('sheetAdminControls')) document.getElementById('sheetAdminControls').classList.remove('hidden');
-                    }
-                    const sheetApp = document.getElementById('sheetApp');
-                    if (sheetApp) {
-                        sheetApp.classList.remove('hidden');
-                        sheetApp.classList.add('flex');
-                    }
-                    if (document.getElementById('sheetMenu')) document.getElementById('sheetMenu').classList.remove('hidden');
-                    if (document.getElementById('sheetViewer')) {
-                        document.getElementById('sheetViewer').classList.add('hidden');
-                        document.getElementById('sheetViewer').classList.remove('flex');
-                    }
-                }
-                else if (pageName === 'kbiz') {
-                    if (typeof fetchKbizData === 'function') await fetchKbizData();
-                    if (typeof subscribeKbizChanges === 'function') subscribeKbizChanges();   // 📡 realtime
-                }
-
-                else if (pageName === 'swap') {
-                    if (typeof openAutoSwapModal === 'function') await openAutoSwapModal();
-                }
-                else if (pageName === 'ip_check') {
-                    if (typeof initIpCheckApp === 'function') await initIpCheckApp();
-                }
-                else if (pageName === 'ip_allow') {
-                    if (typeof initIpAllowApp === 'function') await initIpAllowApp();
-                }
-                else if (pageName === 'slip_check') {
-                    if (typeof window.initSlipCheck === 'function') await window.initSlipCheck();
-                }
-                else if (pageName === 'bell') {
-                    if (typeof initBell === 'function') await initBell();
-                }
-                else if (pageName === 'oa_chat') {
-                    if (typeof initOaChat === 'function') await initOaChat();
-                }
-                else if (pageName === 'staff_record') {
-                    if (typeof initStaffRecord === 'function') await initStaffRecord();
-                }
-
-                // ⚡ ข้อมูลชุดใหม่วาดเสร็จแล้ว → ปิดชิป + เก็บ snapshot เวอร์ชันสดไว้เลย
-                if (window._hideRefreshChip) window._hideRefreshChip();
-                const _appNow = document.getElementById('app-content');
-                if (_appNow && window._currentPageName === pageName) {
-                    domSnapshot[pageName] = _appNow.innerHTML;
-                }
-            });
-        };
-
-        // 🎯 [นิ่งขึ้น] เลิกใช้ view transition (cross-fade) ตอนสลับหน้า
-        // เหตุผล: มันเฟดภาพทั้งหน้า แต่ข้อมูลจริงเพิ่งมาทีหลัง (ใน rAF) → เห็น "เฟดแล้วเด้ง" ฟีลไม่นิ่ง
-        // การเรียก updateDOM() ตรง ๆ คือเส้นทางเดิมที่ Safari/Firefox ใช้อยู่แล้ว = ผ่านการใช้งานจริงมาแล้ว
-        // 👉 อยากได้ cross-fade กลับ: เปลี่ยนบล็อกนี้กลับเป็น if (document.startViewTransition) { ... }
-        updateDOM();
-
-    } catch (err) {
-        console.error(err);
-        document.getElementById('app-content').innerHTML = `<div class="p-10 text-center text-red-500 font-bold">เกิดข้อผิดพลาดในการโหลดหน้า ${pageName}<br><br><span class="text-xs text-gray-500">${err.message}</span></div>`;
-    } finally {
-        if(loading) loading.classList.add('hidden');
-        // ⚡ เริ่ม warm-up ทุกหน้าหลังระบบนิ่ง (ครั้งเดียวต่อ session)
-        if (!window._warmedUp) setTimeout(() => window._warmupAllPages(), 4000);
-    }
-}
-
-// ==========================================
-// 🎨 ระบบเปลี่ยนโหมดสี
-// ==========================================
-// ==========================================
-// 🌗 โหมดสว่าง / มืด — จุดเดียวของทั้งเว็บ
-//   • ตั้งค่าเริ่มต้นตอนเปิดเว็บ: สคริปต์เล็กใน <head> ของ index.html (ก่อนวาดหน้า กันกระพริบ)
-//   • สี: css/theme.css (ตัวแปร --k-*) + คลาส dark: ของ Tailwind
-// ==========================================
-window.syncThemeUI = function() {
-    const dark = window._themeMode ? window._themeMode === 'dark' : document.documentElement.classList.contains('dark');
-    const icon = document.getElementById('themeIcon');
-    if (icon) icon.innerText = dark ? 'light_mode' : 'dark_mode';   // ไอคอน = โหมดที่จะสลับไป
-    const cb = document.getElementById('themeToggleCb');
-    if (cb) cb.checked = dark;
-};
-window.setTheme = function(mode) {
-    const root = document.documentElement;
-    window._themeMode = mode;   // โหมดที่ "ตั้งใจ" ล่าสุด — กดรัวๆ ระหว่างแอนิเมชันยังสลับถูกทุกครั้ง
-    const apply = () => {
-        // ⚡ ปิด transition ทุกตัวชั่วคราวตอนสลับ — เดิมสั่งให้ "ทุก element" ค่อยๆ เปลี่ยนสีพร้อมกัน 0.25 วิ
-        //    (หน้าที่มีหลายพัน element = เบราว์เซอร์ต้องวาดใหม่ทุกเฟรม → กดสลับแล้วหน่วง)
-        root.classList.add('theme-noanim');
-        root.classList.toggle('dark', window._themeMode === 'dark');   // ใช้โหมดล่าสุดเสมอ (กันแอนิเมชันเก่าที่ค้างมาทับ)
-        window.syncThemeUI();
-        requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove('theme-noanim')));
+      } catch (e) {}
+      document.querySelectorAll('.nm-menu-title').forEach((el => el.classList.remove('active')));
+      const activeBtn = document.querySelector(`button[onclick*="showPage('${pageName}')"]`);
+      if (activeBtn) activeBtn.classList.add('active');
+      requestAnimationFrame((async () => {
+        if (usedSnapshot && window._showRefreshChip) window._showRefreshChip();
+        if (document.getElementById('uName') && currentUser && currentUser.username) {
+          document.getElementById('uName').innerText = currentUser.username;
+        }
+        if (pageName === 'dashboard') {
+          if (!window._openingAdminPanel && !window._openingLogsPage) {
+            let _subWasOpen = false;
+            [ 'adminPanel', 'logsPage' ].forEach((id => {
+              const el = document.getElementById(id);
+              if (el && !el.classList.contains('hidden')) {
+                el.classList.add('hidden');
+                el.classList.remove('flex');
+                _subWasOpen = true;
+              }
+            }));
+            if (_subWasOpen) {
+              const mc = document.getElementById('mainContentArea');
+              if (mc) mc.classList.remove('hidden');
+            }
+          } else {
+            const mc = document.getElementById('mainContentArea');
+            if (mc) mc.classList.add('hidden');
+            if (window._openingAdminPanel) {
+              const ap = document.getElementById('adminPanel');
+              if (ap) {
+                ap.classList.remove('hidden');
+                ap.classList.add('flex');
+              }
+            }
+            if (window._openingLogsPage) {
+              const lp = document.getElementById('logsPage');
+              if (lp) {
+                lp.classList.remove('hidden');
+                lp.classList.add('flex');
+              }
+            }
+          }
+          if (typeof initDashboard === 'function') initDashboard();
+          if (typeof refreshAdminData === 'function') refreshAdminData();
+          if (canPerm('admin_users')) {
+            if (document.getElementById('userManagerUIBlock')) {
+              document.getElementById('userManagerUIBlock').classList.remove('hidden');
+              document.getElementById('userManagerUIBlock').classList.add('flex');
+            }
+          }
+        } else if (pageName === 'fine') {
+          if (typeof initFineApp === 'function') await initFineApp();
+        } else if (pageName === 'sop') {
+          if (typeof initSopApp === 'function') await initSopApp();
+          if (typeof subscribeSopChanges === 'function') subscribeSopChanges();
+        } else if (pageName === 'od_center') {
+          if (typeof initOdCenterApp === 'function') await initOdCenterApp();
+        } else if (pageName === 'breaktable') {
+          if (typeof initBreakTable === 'function') await initBreakTable();
+        } else if (pageName === 'break_audit') {
+          if (typeof initBreakAudit === 'function') await initBreakAudit();
+        } else if (pageName === 'leave') {
+          if (typeof initLeaveTable === 'function') await initLeaveTable();
+        } else if (pageName === 'gallery') {
+          if (typeof initGalleryApp === 'function') initGalleryApp();
+        } else if (pageName === 'logo_editor') {
+          if (typeof initLogoEditorApp === 'function') initLogoEditorApp();
+        } else if (pageName === 'duty') {
+          if (typeof initDutyApp === 'function') await initDutyApp();
+        } else if (pageName === 'discord') {
+          if (typeof applyDiscordPermissions === 'function') applyDiscordPermissions();
+        } else if (pageName === 'withdrawal_report') {
+          if (typeof initWithdrawalReport === 'function') await initWithdrawalReport();
+        } else if (pageName === 'summary') {
+          if (typeof initSummaryDate === 'function') await initSummaryDate();
+        } else if (pageName === 'telegram') {
+          if (typeof initTelegramApp === 'function') await initTelegramApp();
+        } else if (pageName === 'password') {
+          if (typeof initPasswordApp === 'function') await initPasswordApp();
+        } else if (pageName === 'files') {
+          if (typeof initFilesApp === 'function') await initFilesApp();
+        } else if (pageName === 'od_config') {
+          if (typeof initOdConfig === 'function') await initOdConfig();
+          if (typeof subscribeOdConfigChanges === 'function') subscribeOdConfigChanges();
+        } else if (pageName === 'sheet') {
+          if (typeof fetchSheets === 'function') await fetchSheets();
+          if (typeof renderSheetMenu === 'function') renderSheetMenu();
+          if (typeof renderRecentTabs === 'function') renderRecentTabs();
+          if (canPerm('sheet_manage')) {
+            if (document.getElementById('sheetAdminControls')) document.getElementById('sheetAdminControls').classList.remove('hidden');
+          }
+          const sheetApp = document.getElementById('sheetApp');
+          if (sheetApp) {
+            sheetApp.classList.remove('hidden');
+            sheetApp.classList.add('flex');
+          }
+          if (document.getElementById('sheetMenu')) document.getElementById('sheetMenu').classList.remove('hidden');
+          if (document.getElementById('sheetViewer')) {
+            document.getElementById('sheetViewer').classList.add('hidden');
+            document.getElementById('sheetViewer').classList.remove('flex');
+          }
+        } else if (pageName === 'kbiz') {
+          if (typeof fetchKbizData === 'function') await fetchKbizData();
+          if (typeof subscribeKbizChanges === 'function') subscribeKbizChanges();
+        } else if (pageName === 'swap') {
+          if (typeof openAutoSwapModal === 'function') await openAutoSwapModal();
+        } else if (pageName === 'ip_check') {
+          if (typeof initIpCheckApp === 'function') await initIpCheckApp();
+        } else if (pageName === 'ip_allow') {
+          if (typeof initIpAllowApp === 'function') await initIpAllowApp();
+        } else if (pageName === 'slip_check') {
+          if (typeof window.initSlipCheck === 'function') await window.initSlipCheck();
+        } else if (pageName === 'bell') {
+          if (typeof initBell === 'function') await initBell();
+        } else if (pageName === 'oa_chat') {
+          if (typeof initOaChat === 'function') await initOaChat();
+        } else if (pageName === 'staff_record') {
+          if (typeof initStaffRecord === 'function') await initStaffRecord();
+        }
+        if (window._hideRefreshChip) window._hideRefreshChip();
+        const _appNow = document.getElementById('app-content');
+        if (_appNow && window._currentPageName === pageName) {
+          domSnapshot[pageName] = _appNow.innerHTML;
+        }
+      }));
     };
-    // 🎞️ ความนุ่มมาจาก View Transition แทน: เบราว์เซอร์ถ่ายภาพหน้าจอเก่า-ใหม่แล้วเฟดข้ามกันด้วยการ์ดจอ (เบามาก)
-    //    กดรัวๆ → ข้ามแอนิเมชันที่ค้างอยู่ทันที ไม่ต่อคิว
-    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    try { localStorage.setItem('theme', mode); } catch (e) {}
-    window.syncThemeUI();
-    if (window._themeVT) { try { window._themeVT.skipTransition(); } catch (e) {} window._themeVT = null; }
-    let started = false;
-    if (document.startViewTransition && !reduce && document.visibilityState === 'visible') {
-        try {
-            const vt = document.startViewTransition(apply);
-            window._themeVT = vt; started = true;
-            vt.finished.catch(() => {}).finally(() => { if (window._themeVT === vt) window._themeVT = null; });
-        } catch (e) { started = false; }
-    }
-    if (!started) apply();   // เบราว์เซอร์เก่า / ตั้งค่าลดการเคลื่อนไหว → สลับทันที
-    window.dispatchEvent(new CustomEvent('k-themechange', { detail: { mode } }));   // ให้หน้าที่วาดสีด้วย JS วาดใหม่ได้
-};
-function toggleTheme() {
-    const cur = window._themeMode || (document.documentElement.classList.contains('dark') ? 'dark' : 'light');
-    window.setTheme(cur === 'dark' ? 'light' : 'dark');
+    updateDOM();
+  } catch (err) {
+    console.error(err);
+    document.getElementById('app-content').innerHTML = `<div class="p-10 text-center text-red-500 font-bold">เกิดข้อผิดพลาดในการโหลดหน้า ${pageName}<br><br><span class="text-xs text-gray-500">${err.message}</span></div>`;
+  } finally {
+    if (loading) loading.classList.add('hidden');
+    if (!window._warmedUp) setTimeout((() => window._warmupAllPages()), 4e3);
+  }
 }
+
+window.syncThemeUI = function() {
+  const dark = window._themeMode ? window._themeMode === 'dark' : document.documentElement.classList.contains('dark');
+  const icon = document.getElementById('themeIcon');
+  if (icon) icon.innerText = dark ? 'light_mode' : 'dark_mode';
+  const cb = document.getElementById('themeToggleCb');
+  if (cb) cb.checked = dark;
+};
+
+window.setTheme = function(mode) {
+  const root = document.documentElement;
+  window._themeMode = mode;
+  const apply = () => {
+    root.classList.add('theme-noanim');
+    root.classList.toggle('dark', window._themeMode === 'dark');
+    window.syncThemeUI();
+    requestAnimationFrame((() => requestAnimationFrame((() => root.classList.remove('theme-noanim')))));
+  };
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  try {
+    localStorage.setItem('theme', mode);
+  } catch (e) {}
+  window.syncThemeUI();
+  if (window._themeVT) {
+    try {
+      window._themeVT.skipTransition();
+    } catch (e) {}
+    window._themeVT = null;
+  }
+  let started = false;
+  if (document.startViewTransition && !reduce && document.visibilityState === 'visible') {
+    try {
+      const vt = document.startViewTransition(apply);
+      window._themeVT = vt;
+      started = true;
+      vt.finished.catch((() => {})).finally((() => {
+        if (window._themeVT === vt) window._themeVT = null;
+      }));
+    } catch (e) {
+      started = false;
+    }
+  }
+  if (!started) apply();
+  window.dispatchEvent(new CustomEvent('k-themechange', {
+    detail: {
+      mode: mode
+    }
+  }));
+};
+
+function toggleTheme() {
+  const cur = window._themeMode || (document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+  window.setTheme(cur === 'dark' ? 'light' : 'dark');
+}
+
 window.toggleTheme = toggleTheme;
 
-// ==========================================
-// 🧩 ระบบดึง HTML Template
-// ==========================================
 window.renderTemplate = function(templateId, data = {}) {
-    const tpl = document.getElementById(templateId);
-    if (!tpl) return '';
-    let html = tpl.innerHTML;
-    for (const key in data) {
-        html = html.split(`{{${key}}}`).join(data[key] !== undefined && data[key] !== null ? data[key] : '');
-    }
-    return html;
+  const tpl = document.getElementById(templateId);
+  if (!tpl) return '';
+  let html = tpl.innerHTML;
+  for (const key in data) {
+    html = html.split(`{{${key}}}`).join(data[key] !== undefined && data[key] !== null ? data[key] : '');
+  }
+  return html;
 };
 
-// ==========================================
-// 🛠️ ฟังก์ชันเพิ่มแผนก และ Role ลงฐานข้อมูล
-// ==========================================
-// [ลบออก] addCustomPermDept ตัวนี้ซ้ำกับใน system_core.js และไม่มีการเช็คสิทธิ์แอดมิน — ใช้ตัวใน system_core.js แทน
-
-
-// ==========================================
-// 🗑️ ฟังก์ชันลบแผนก และ Role ที่สร้างเอง
-// ==========================================
 window.deleteCustomPermDept = async function(dept) {
-    Swal.fire({
-        title: `ลบแผนก ${dept}?`,
-        text: 'ลบแล้วจะไม่แสดงในตารางอีก',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#ef4444',
-        cancelButtonColor: '#64748b',
-        confirmButtonText: 'ลบเลย',
-        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
-    }).then(async (result) => {
-        if (result.isConfirmed) {
-            Swal.fire({title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
-            let dbDepts = [];
-            try { dbDepts = JSON.parse(SETTINGS['custom_departments'] || '[]'); } catch(e) {}
-            
-            dbDepts = dbDepts.filter(d => d !== dept);
-            SETTINGS['custom_departments'] = JSON.stringify(dbDepts);
-            
-            await appDB.from('settings').upsert([{ key: 'custom_departments', value: JSON.stringify(dbDepts) }]);
-            window.renderPermsTable();
-            Swal.fire({icon: 'success', title: 'ลบแผนกสำเร็จ', timer: 1000, showConfirmButton: false});
-        }
-    });
-};
-
-
-// ==========================================
-// ✏️ ฟังก์ชันเปลี่ยนชื่อแผนก และอัปเดตพนักงานทั้งระบบ
-// ==========================================
-window.renameCustomPermDept = async function(oldDept) {
-    const { value: newDeptRaw } = await Swal.fire({
-        title: `เปลี่ยนชื่อแผนก ${oldDept}`,
-        input: 'text',
-        inputValue: oldDept,
-        inputPlaceholder: 'พิมพ์ชื่อแผนกใหม่...',
-        showCancelButton: true,
-        confirmButtonText: 'บันทึกการเปลี่ยนแปลง',
-        cancelButtonText: 'ยกเลิก',
-        confirmButtonColor: '#f59e0b',
-        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
-    });
-
-    if (newDeptRaw) {
-        const newDept = newDeptRaw.toUpperCase().trim();
-        if (!newDept || newDept === oldDept) return;
-
-        let dbDepts = [];
-        try { dbDepts = JSON.parse(SETTINGS['custom_departments'] || '[]'); } catch(e) {}
-
-        if (dbDepts.includes(newDept) || ['AM', 'OD', 'AMQL'].includes(newDept)) {
-            return Swal.fire('เตือน', 'มีแผนกชื่อนี้อยู่ในระบบแล้วครับ', 'warning');
-        }
-
-        Swal.fire({title: 'กำลังอัปเดตข้อมูลทั้งระบบ...', text: 'โปรดรอสักครู่...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
-
-        try {
-            dbDepts = dbDepts.map(d => d === oldDept ? newDept : d);
-            SETTINGS['custom_departments'] = JSON.stringify(dbDepts);
-
-            let newPerms = JSON.parse(JSON.stringify(MENU_PERMS));
-            Object.keys(newPerms).forEach(key => {
-                if (key.startsWith(oldDept + '_')) {
-                    const newKey = key.replace(oldDept + '_', newDept + '_');
-                    newPerms[newKey] = newPerms[key];
-                    delete newPerms[key];
-                }
-            });
-            MENU_PERMS = newPerms;
-            SETTINGS['dept_menu_rules'] = JSON.stringify(MENU_PERMS);
-            window.safeSetItem('cached_menu_rules', JSON.stringify(MENU_PERMS));
-
-            await appDB.from('settings').upsert([
-                { key: 'custom_departments', value: JSON.stringify(dbDepts) },
-                { key: 'dept_menu_rules', value: JSON.stringify(MENU_PERMS) }
-            ]);
-
-            await appDB.from('users').update({ department: newDept }).eq('department', oldDept);
-
-            if (typeof GLOBAL_USER_LIST !== 'undefined') {
-                GLOBAL_USER_LIST.forEach(u => {
-                    if (u.department === oldDept) u.department = newDept;
-                });
-            }
-
-            window.renderPermsTable();
-            if (typeof populateAdminDeptSelects === 'function') populateAdminDeptSelects();
-
-            Swal.fire({icon: 'success', title: 'เปลี่ยนชื่อแผนกสำเร็จ!', text: `ระบบอัปเดตแท็กของพนักงานทุกคนเป็น ${newDept} เรียบร้อยแล้วครับ 🎉`, timer: 2500, showConfirmButton: false});
-
-        } catch (e) {
-            console.error(e);
-            Swal.fire('Error', 'เกิดข้อผิดพลาด: ' + e.message, 'error');
-        }
+  Swal.fire({
+    title: `ลบแผนก ${dept}?`,
+    text: 'ลบแล้วจะไม่แสดงในตารางอีก',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#ef4444',
+    cancelButtonColor: '#64748b',
+    confirmButtonText: 'ลบเลย',
+    customClass: {
+      popup: 'dark:bg-slate-800 dark:text-white rounded-3xl'
     }
+  }).then((async result => {
+    if (result.isConfirmed) {
+      Swal.fire({
+        title: 'กำลังลบ...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
+      let dbDepts = [];
+      try {
+        dbDepts = JSON.parse(SETTINGS['custom_departments'] || '[]');
+      } catch (e) {}
+      dbDepts = dbDepts.filter((d => d !== dept));
+      SETTINGS['custom_departments'] = JSON.stringify(dbDepts);
+      await appDB.from('settings').upsert([ {
+        key: 'custom_departments',
+        value: JSON.stringify(dbDepts)
+      } ]);
+      window.renderPermsTable();
+      Swal.fire({
+        icon: 'success',
+        title: 'ลบแผนกสำเร็จ',
+        timer: 1e3,
+        showConfirmButton: false
+      });
+    }
+  }));
 };
 
-// ==========================================
-// 🗄️ Settings Cache — ลด Supabase query
-// ==========================================
+window.renameCustomPermDept = async function(oldDept) {
+  const {value: newDeptRaw} = await Swal.fire({
+    title: `เปลี่ยนชื่อแผนก ${oldDept}`,
+    input: 'text',
+    inputValue: oldDept,
+    inputPlaceholder: 'พิมพ์ชื่อแผนกใหม่...',
+    showCancelButton: true,
+    confirmButtonText: 'บันทึกการเปลี่ยนแปลง',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: '#f59e0b',
+    customClass: {
+      popup: 'dark:bg-slate-800 dark:text-white rounded-3xl'
+    }
+  });
+  if (newDeptRaw) {
+    const newDept = newDeptRaw.toUpperCase().trim();
+    if (!newDept || newDept === oldDept) return;
+    let dbDepts = [];
+    try {
+      dbDepts = JSON.parse(SETTINGS['custom_departments'] || '[]');
+    } catch (e) {}
+    if (dbDepts.includes(newDept) || [ 'AM', 'OD', 'AMQL' ].includes(newDept)) {
+      return Swal.fire('เตือน', 'มีแผนกชื่อนี้อยู่ในระบบแล้วครับ', 'warning');
+    }
+    Swal.fire({
+      title: 'กำลังอัปเดตข้อมูลทั้งระบบ...',
+      text: 'โปรดรอสักครู่...',
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading()
+    });
+    try {
+      dbDepts = dbDepts.map((d => d === oldDept ? newDept : d));
+      SETTINGS['custom_departments'] = JSON.stringify(dbDepts);
+      let newPerms = JSON.parse(JSON.stringify(MENU_PERMS));
+      Object.keys(newPerms).forEach((key => {
+        if (key.startsWith(oldDept + '_')) {
+          const newKey = key.replace(oldDept + '_', newDept + '_');
+          newPerms[newKey] = newPerms[key];
+          delete newPerms[key];
+        }
+      }));
+      MENU_PERMS = newPerms;
+      SETTINGS['dept_menu_rules'] = JSON.stringify(MENU_PERMS);
+      window.safeSetItem('cached_menu_rules', JSON.stringify(MENU_PERMS));
+      await appDB.from('settings').upsert([ {
+        key: 'custom_departments',
+        value: JSON.stringify(dbDepts)
+      }, {
+        key: 'dept_menu_rules',
+        value: JSON.stringify(MENU_PERMS)
+      } ]);
+      await appDB.from('users').update({
+        department: newDept
+      }).eq('department', oldDept);
+      if (typeof GLOBAL_USER_LIST !== 'undefined') {
+        GLOBAL_USER_LIST.forEach((u => {
+          if (u.department === oldDept) u.department = newDept;
+        }));
+      }
+      window.renderPermsTable();
+      if (typeof populateAdminDeptSelects === 'function') populateAdminDeptSelects();
+      Swal.fire({
+        icon: 'success',
+        title: 'เปลี่ยนชื่อแผนกสำเร็จ!',
+        text: `ระบบอัปเดตแท็กของพนักงานทุกคนเป็น ${newDept} เรียบร้อยแล้วครับ 🎉`,
+        timer: 2500,
+        showConfirmButton: false
+      });
+    } catch (e) {
+      console.error(e);
+      Swal.fire('Error', 'เกิดข้อผิดพลาด: ' + e.message, 'error');
+    }
+  }
+};
+
 const _settingsCache = {};
-const _SETTINGS_TTL  = 5 * 60 * 1000;
+
+const _SETTINGS_TTL = 5 * 60 * 1e3;
 
 window.getSettingCached = async function(key) {
-    const now = Date.now();
-    if (_settingsCache[key] && (now - _settingsCache[key].ts) < _SETTINGS_TTL) {
-        return _settingsCache[key].value;
-    }
-    try {
-        const { data } = await appDB.from('settings').select('value').eq('key', key).maybeSingle();
-        const val = data?.value ?? null;
-        _settingsCache[key] = { value: val, ts: now };
-        return val;
-    } catch(e) {
-        return _settingsCache[key]?.value ?? null;
-    }
+  const now = Date.now();
+  if (_settingsCache[key] && now - _settingsCache[key].ts < _SETTINGS_TTL) {
+    return _settingsCache[key].value;
+  }
+  try {
+    const {data: data} = await appDB.from('settings').select('value').eq('key', key).maybeSingle();
+    const val = data?.value ?? null;
+    _settingsCache[key] = {
+      value: val,
+      ts: now
+    };
+    return val;
+  } catch (e) {
+    return _settingsCache[key]?.value ?? null;
+  }
 };
 
 window.clearSettingCache = function(key) {
-    if (key) delete _settingsCache[key];
-    else Object.keys(_settingsCache).forEach(k => delete _settingsCache[k]);
+  if (key) delete _settingsCache[key]; else Object.keys(_settingsCache).forEach((k => delete _settingsCache[k]));
 };
 
-// ==========================================
-// 🗄️ Users Cache — ลด query users table
-// ==========================================
 let _usersCacheTs = 0;
-const _USERS_TTL  = 3 * 60 * 1000;
+
+const _USERS_TTL = 3 * 60 * 1e3;
 
 window.getUsersCached = async function() {
-    const now = Date.now();
-    if (GLOBAL_USER_LIST.length > 0 && (now - _usersCacheTs) < _USERS_TTL) {
-        return GLOBAL_USER_LIST;
+  const now = Date.now();
+  if (GLOBAL_USER_LIST.length > 0 && now - _usersCacheTs < _USERS_TTL) {
+    return GLOBAL_USER_LIST;
+  }
+  try {
+    const {data: data} = await appDB.from('users').select('*');
+    if (data) {
+      GLOBAL_USER_LIST = data;
+      _usersCacheTs = now;
     }
-    try {
-        const { data } = await appDB.from('users').select('*');
-        if (data) {
-            GLOBAL_USER_LIST = data;
-            _usersCacheTs = now;
-        }
-        return GLOBAL_USER_LIST;
-    } catch(e) {
-        return GLOBAL_USER_LIST;
-    }
+    return GLOBAL_USER_LIST;
+  } catch (e) {
+    return GLOBAL_USER_LIST;
+  }
 };
 
-window.clearUsersCache = function() { _usersCacheTs = 0; };
+window.clearUsersCache = function() {
+  _usersCacheTs = 0;
+};
 
-// ==========================================
-// 📡 debouncedBroadcast — broadcast realtime แบบ debounce กัน spam
-// ถูกเรียกจาก duty.js 22 จุด ด้วย channel 'duty-updates'
-// ตัวรับอยู่ที่ duty.js > subscribeDutyChanges (event 'force_reload')
-//
-// [FIX] เดิมสร้าง channel ใหม่ทุกครั้งแล้ว .send() ทันทีโดยไม่ subscribe ก่อน
-//       Supabase จะไม่ส่งออกไปจริง (เงียบ ไม่มี error) และ channel ที่สร้างทิ้งไว้
-//       ก็ไม่เคยถูกปิด กลายเป็น memory leak สะสมทุกครั้งที่แก้ตารางเวร
-// ตอนนี้: ส่งผ่าน channel ที่หน้านั้น subscribe ไว้อยู่แล้วเป็นอันดับแรก
-//         (ผู้ส่งจึงไม่ได้รับ broadcast ของตัวเอง = ไม่รีโหลดซ้ำซ้อน)
-//         ถ้าไม่มีจริง ๆ ค่อยเปิดของตัวเองไว้ตัวเดียวแล้วใช้ซ้ำ ไม่สร้างใหม่ทุกครั้ง
-// ==========================================
 (function() {
-    const _timers = {};
-    const _own = {};   // ชื่อ channel -> { ch, ready, queue } เฉพาะกรณีที่ต้องเปิดเอง
-
-    // หา channel ที่ต่อสำเร็จอยู่แล้วในชื่อเดียวกัน
-    function _findJoined(name) {
-        try {
-            const list = (appDB.getChannels && appDB.getChannels()) || [];
-            for (let i = 0; i < list.length; i++) {
-                const c = list[i];
-                if (!c || !c.topic) continue;
-                if ((c.topic === name || c.topic === 'realtime:' + name) && c.state === 'joined') return c;
-            }
-        } catch (e) {}
-        return null;
+  const _timers = {};
+  const _own = {};
+  function _findJoined(name) {
+    try {
+      const list = appDB.getChannels && appDB.getChannels() || [];
+      for (let i = 0; i < list.length; i++) {
+        const c = list[i];
+        if (!c || !c.topic) continue;
+        if ((c.topic === name || c.topic === 'realtime:' + name) && c.state === 'joined') return c;
+      }
+    } catch (e) {}
+    return null;
+  }
+  function _emit(name, event) {
+    try {
+      if (typeof appDB === 'undefined' || !appDB || !appDB.channel) return;
+      const joined = _findJoined(name);
+      if (joined) {
+        joined.send({
+          type: 'broadcast',
+          event: event
+        });
+        return;
+      }
+      let entry = _own[name];
+      if (!entry) {
+        const ch = appDB.channel(name);
+        entry = _own[name] = {
+          ch: ch,
+          ready: false,
+          queue: []
+        };
+        ch.subscribe((function(status) {
+          if (status !== 'SUBSCRIBED') return;
+          entry.ready = true;
+          const pending = entry.queue;
+          entry.queue = [];
+          pending.forEach((function(ev) {
+            try {
+              ch.send({
+                type: 'broadcast',
+                event: ev
+              });
+            } catch (e) {}
+          }));
+        }));
+      }
+      if (entry.ready) entry.ch.send({
+        type: 'broadcast',
+        event: event
+      }); else if (entry.queue.indexOf(event) === -1) entry.queue.push(event);
+    } catch (e) {
+      console.warn('[debouncedBroadcast] failed:', e);
     }
-
-    function _emit(name, event) {
-        try {
-            if (typeof appDB === 'undefined' || !appDB || !appDB.channel) return;
-
-            const joined = _findJoined(name);
-            if (joined) { joined.send({ type: 'broadcast', event: event }); return; }
-
-            let entry = _own[name];
-            if (!entry) {
-                const ch = appDB.channel(name);
-                entry = _own[name] = { ch: ch, ready: false, queue: [] };
-                ch.subscribe(function(status) {
-                    if (status !== 'SUBSCRIBED') return;
-                    entry.ready = true;
-                    const pending = entry.queue;
-                    entry.queue = [];
-                    pending.forEach(function(ev) {
-                        try { ch.send({ type: 'broadcast', event: ev }); } catch (e) {}
-                    });
-                });
-            }
-            // ยังต่อไม่เสร็จ → พักไว้ก่อน แล้วส่งตอน subscribe สำเร็จ (กันส่งทิ้งเปล่าแบบเดิม)
-            if (entry.ready) entry.ch.send({ type: 'broadcast', event: event });
-            else if (entry.queue.indexOf(event) === -1) entry.queue.push(event);
-        } catch (e) {
-            console.warn('[debouncedBroadcast] failed:', e);
-        }
-    }
-
-    window.debouncedBroadcast = function(channel, event, delay) {
-        delay = delay || 800;
-        if (_timers[channel]) clearTimeout(_timers[channel]);
-        _timers[channel] = setTimeout(function() {
-            delete _timers[channel];
-            _emit(channel, event || 'force_reload');
-        }, delay);
-    };
+  }
+  window.debouncedBroadcast = function(channel, event, delay) {
+    delay = delay || 800;
+    if (_timers[channel]) clearTimeout(_timers[channel]);
+    _timers[channel] = setTimeout((function() {
+      delete _timers[channel];
+      _emit(channel, event || 'force_reload');
+    }), delay);
+  };
 })();
 
-// ====== TAG Badge Helper ======
-// ── ป้าย TAG ────────────────────────────────────────────────────────────
-// TAG บอก "รูปแบบการทำงาน" อย่างเดียว: ONLINE / TEMP / ONSITE
-// ส่วน "แผนก" (AM / OD) มาจากช่อง department ซึ่งเป็นตัวคุมสิทธิ์ ไม่เกี่ยวกับ TAG
-// ป้ายที่แสดงจะประกอบสองอย่างเข้าด้วยกัน เช่น  AM · ONLINE
-window.TAG_OPTIONS = [
-    { value: 'ONLINE', label: 'ONLINE', desc: 'ออนไลน์ — ถ่ายรูปเช็คชื่อ' },
-    { value: 'TEMP',   label: 'TEMP',   desc: 'ออนไลน์ชั่วคราว — ถ่ายรูปอีกกลุ่ม' },
-    { value: 'ONSITE', label: 'ONSITE', desc: 'หน้างาน — ไม่ต้องถ่ายรูป' },
-];
+window.TAG_OPTIONS = [ {
+  value: 'ONLINE',
+  label: 'ONLINE',
+  desc: 'ออนไลน์ — ถ่ายรูปเช็คชื่อ'
+}, {
+  value: 'TEMP',
+  label: 'TEMP',
+  desc: 'ออนไลน์ชั่วคราว — ถ่ายรูปอีกกลุ่ม'
+}, {
+  value: 'ONSITE',
+  label: 'ONSITE',
+  desc: 'หน้างาน — ไม่ต้องถ่ายรูป'
+} ];
 
-// ตัดแผนกให้เหลือสายหลัก: AMQL / AMTT / AM → AM · ODQL / OD → OD
 window.getDeptPrefix = function(department) {
-    const d = String(department || '').toUpperCase();
-    if (d.startsWith('AM')) return 'AM';
-    if (d.startsWith('OD')) return 'OD';
-    return d || '';
+  const d = String(department || '').toUpperCase();
+  if (d.startsWith('AM')) return 'AM';
+  if (d.startsWith('OD')) return 'OD';
+  return d || '';
 };
 
 window.getTagBadge = function(tag, department) {
-    if (!tag) return '';
-    // ป้ายสองโทน — ครึ่งซ้ายคือ "สายงาน" (สีเป็นตัวบอก) ครึ่งขวาคือ "รูปแบบการทำงาน"
-    // แยกเป็นสองช่องจริง ๆ แทนการใช้จุดคั่น เพราะสองค่านี้มาจากคนละช่องข้อมูล
-    // ตาจะจับสีก่อน (AM/OD) แล้วค่อยอ่านข้อความ (ONLINE/TEMP/ONSITE)
-    const palette = {
-        'AM': { solid:'#16a34a', tint:'#86efac', glow:'rgba(22,163,74,.45)' },   // เขียว
-        'OD': { solid:'#ea580c', tint:'#fdba74', glow:'rgba(234,88,12,.45)' },   // ส้ม
-    };
-    const prefix = window.getDeptPrefix(department);
-    const p = palette[prefix] || { solid:'#475569', tint:'#cbd5e1', glow:'rgba(71,85,105,.4)' };
-
-    // ── หมายเหตุเรื่องการจัดกึ่งกลาง ────────────────────────────────────
-    // 1) แนวนอน: letter-spacing เติมช่องว่างท้ายตัวอักษรตัวสุดท้ายด้วย
-    //    ข้อความจึงดูเบี้ยวไปทางซ้าย → ลด padding ขวาลงเท่ากับ letter-spacing
-    // 2) แนวตั้ง: ตัวพิมพ์ใหญ่ล้วนไม่มีหางล่าง กล่องตัวอักษรจึงเหลือที่ว่าง
-    //    ด้านล่างมากกว่าด้านบน ตาเลยเห็นว่าลอยสูง → ดันลงครึ่งพิกเซล
-    const H = 18;
-    const wrap = `display:inline-flex;align-items:stretch;margin-left:7px;vertical-align:middle;`
-        + `border-radius:999px;overflow:hidden;font-size:9px;line-height:1;`
-        + `white-space:nowrap;flex-shrink:0;height:${H}px;`
-        + `box-shadow:0 1px 3px ${p.glow}, inset 0 0 0 1px ${p.solid}66;`;
-    const cell = `display:flex;align-items:center;justify-content:center;box-sizing:border-box;height:100%;`;
-    const left = cell + `background:${p.solid};color:#fff;padding:0 8.1px 0 9px;`
-        + `font-weight:900;letter-spacing:.9px;text-shadow:0 1px 1px rgba(0,0,0,.28);`;
-    const right = cell + `background:#0f172a;color:${p.tint};padding:0 9px 0 10px;`
-        + `font-weight:800;letter-spacing:1px;border-left:1px solid rgba(255,255,255,.14);`;
-    const nudge = `position:relative;top:.5px;display:block;`;
-
-    const cellHtml = (style, txt) => `<span style="${style}"><span style="${nudge}">${txt}</span></span>`;
-    if (!prefix) return `<span style="${wrap}">${cellHtml(right, tag)}</span>`;
-    return `<span style="${wrap}">${cellHtml(left, prefix)}${cellHtml(right, tag)}</span>`;
+  if (!tag) return '';
+  const palette = {
+    AM: {
+      solid: '#16a34a',
+      tint: '#86efac',
+      glow: 'rgba(22,163,74,.45)'
+    },
+    OD: {
+      solid: '#ea580c',
+      tint: '#fdba74',
+      glow: 'rgba(234,88,12,.45)'
+    }
+  };
+  const prefix = window.getDeptPrefix(department);
+  const p = palette[prefix] || {
+    solid: '#475569',
+    tint: '#cbd5e1',
+    glow: 'rgba(71,85,105,.4)'
+  };
+  const H = 18;
+  const wrap = `display:inline-flex;align-items:stretch;margin-left:7px;vertical-align:middle;` + `border-radius:999px;overflow:hidden;font-size:9px;line-height:1;` + `white-space:nowrap;flex-shrink:0;height:${H}px;` + `box-shadow:0 1px 3px ${p.glow}, inset 0 0 0 1px ${p.solid}66;`;
+  const cell = `display:flex;align-items:center;justify-content:center;box-sizing:border-box;height:100%;`;
+  const left = cell + `background:${p.solid};color:#fff;padding:0 8.1px 0 9px;` + `font-weight:900;letter-spacing:.9px;text-shadow:0 1px 1px rgba(0,0,0,.28);`;
+  const right = cell + `background:#0f172a;color:${p.tint};padding:0 9px 0 10px;` + `font-weight:800;letter-spacing:1px;border-left:1px solid rgba(255,255,255,.14);`;
+  const nudge = `position:relative;top:.5px;display:block;`;
+  const cellHtml = (style, txt) => `<span style="${style}"><span style="${nudge}">${txt}</span></span>`;
+  if (!prefix) return `<span style="${wrap}">${cellHtml(right, tag)}</span>`;
+  return `<span style="${wrap}">${cellHtml(left, prefix)}${cellHtml(right, tag)}</span>`;
 };
 
 window.getTagBadgeByName = function(name) {
-    if (!window.GLOBAL_USER_LIST || !name) return '';
-    const u = window.GLOBAL_USER_LIST.find(x =>
-        x.username && x.username.toLowerCase() === name.toLowerCase()
-    );
-    return u ? window.getTagBadge(u.tag, u.department) : '';
+  if (!window.GLOBAL_USER_LIST || !name) return '';
+  const u = window.GLOBAL_USER_LIST.find((x => x.username && x.username.toLowerCase() === name.toLowerCase()));
+  return u ? window.getTagBadge(u.tag, u.department) : '';
 };
-// ====== จบ TAG Badge Helper ======
 
-// ══════════════════════════════════════════════════════════════════════════
-// ⚡ [อัปเกรดเว็บ] เมนูด่วน Ctrl+K + Prefetch ตอนชี้เมนู + แถบเตือนเน็ตหลุด
-// ══════════════════════════════════════════════════════════════════════════
-
-// ── 1) 🚀 เมนูด่วน (Ctrl+K): พิมพ์ชื่อหน้า → Enter → เด้งไปทันที ──
 window._qnavItems = function() {
-    // เก็บจากเมนูจริงในหน้า → ได้เฉพาะหน้าที่คนนี้มีสิทธิ์เห็น (ปุ่มที่โดนซ่อนด้วยสิทธิ์จะไม่ติดมา)
-    const seen = new Set(); const items = [];
-    document.querySelectorAll("#sidebarNav [onclick*=\"showPage('\"]").forEach(btn => {
-        if (btn.classList.contains('hidden')) return;   // โดนซ่อนด้วยสิทธิ์
-        const m = (btn.getAttribute('onclick') || '').match(/showPage\('([^']+)'\)/);
-        if (!m || seen.has(m[1])) return;
-        seen.add(m[1]);
-        const label = btn.innerText.replace(/\s+/g, ' ').trim();
-        if (label) items.push({ page: m[1], label });
-    });
-    return items;
-};
-window.openQuickNav = function() {
-    let box = document.getElementById('quickNavBox');
-    if (!box) {
-        box = document.createElement('div');
-        box.id = 'quickNavBox';
-        box.style.cssText = 'position:fixed;inset:0;z-index:99990;display:none;align-items:flex-start;justify-content:center;padding-top:14vh;background:rgba(2,6,23,.75);backdrop-filter:blur(3px)';
-        box.innerHTML = `
-            <div style="width:min(520px,92vw);background:var(--k-panel2);border:1px solid rgba(232,193,90,.35);border-radius:16px;box-shadow:0 24px 80px rgba(0,0,0,.7);overflow:hidden">
-                <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid rgba(148,163,184,.15)">
-                    <span class="material-icons" style="color:var(--k-gold-tx);font-size:20px">bolt</span>
-                    <input id="quickNavInput" placeholder="พิมพ์ชื่อหน้า... (เช่น ชีต, คลังรูป, จัดเวร)" autocomplete="off"
-                        style="flex:1;background:transparent;border:0;outline:none;color:var(--k-tx);font-size:15px;font-weight:600">
-                    <span style="font-size:10px;color:var(--k-mute);border:1px solid var(--k-line2);border-radius:5px;padding:2px 6px">Esc ปิด</span>
-                </div>
-                <div id="quickNavList" style="max-height:46vh;overflow-y:auto;padding:6px"></div>
-            </div>`;
-        document.body.appendChild(box);
-        box.addEventListener('mousedown', e => { if (e.target === box) window.closeQuickNav(); });
-        const input = box.querySelector('#quickNavInput');
-        input.addEventListener('input', () => window._qnavRender());
-        input.addEventListener('keydown', e => {
-            const rows = box.querySelectorAll('.qnav-row');
-            let idx = [...rows].findIndex(r => r.dataset.sel === '1');
-            if (e.key === 'ArrowDown') { e.preventDefault(); window._qnavSelect(rows, Math.min(rows.length - 1, idx + 1)); }
-            else if (e.key === 'ArrowUp') { e.preventDefault(); window._qnavSelect(rows, Math.max(0, idx - 1)); }
-            else if (e.key === 'Enter') { e.preventDefault(); const r = rows[idx >= 0 ? idx : 0]; if (r) r.click(); }
-            else if (e.key === 'Escape') { window.closeQuickNav(); }
-        });
-    }
-    box.style.display = 'flex';
-    const input = box.querySelector('#quickNavInput');
-    input.value = ''; window._qnavRender(); setTimeout(() => input.focus(), 30);
-};
-window.closeQuickNav = function() { const b = document.getElementById('quickNavBox'); if (b) b.style.display = 'none'; };
-window._qnavSelect = function(rows, i) {
-    rows.forEach((r, x) => { r.dataset.sel = x === i ? '1' : ''; r.style.background = x === i ? 'rgba(232,193,90,.14)' : 'transparent'; r.style.borderColor = x === i ? 'rgba(232,193,90,.4)' : 'transparent'; });
-    if (rows[i]) rows[i].scrollIntoView({ block: 'nearest' });
-};
-window._qnavRender = function() {
-    const list = document.getElementById('quickNavList'); if (!list) return;
-    const q = (document.getElementById('quickNavInput').value || '').toLowerCase().trim();
-    const items = window._qnavItems().filter(it => !q || it.label.toLowerCase().includes(q) || it.page.toLowerCase().includes(q));
-    if (!items.length) { list.innerHTML = '<div style="text-align:center;color:var(--k-mute);padding:20px;font-size:13px">ไม่พบหน้าที่ค้นหา</div>'; return; }
-    list.innerHTML = items.map((it, i) => `
-        <div class="qnav-row" data-sel="${i === 0 ? '1' : ''}" onclick="closeQuickNav();showPage('${it.page}')"
-            onmouseenter="window._qnavSelect(document.querySelectorAll('.qnav-row'), ${i})"
-            style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;border:1px solid ${i === 0 ? 'rgba(232,193,90,.4)' : 'transparent'};background:${i === 0 ? 'rgba(232,193,90,.14)' : 'transparent'};color:var(--k-tx);font-size:14px;font-weight:600">
-            <span class="material-icons" style="font-size:17px;color:var(--k-tx3)">arrow_forward</span>${it.label}
-            <span style="margin-left:auto;font-size:10px;color:var(--k-mute3)">${it.page}</span>
-        </div>`).join('');
-};
-document.addEventListener('keydown', e => {
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); window.openQuickNav(); }
-});
-
-// ── 2) ⚡ Prefetch: เอาเมาส์ชี้ปุ่มเมนู → แอบโหลด HTML ของหน้านั้นเข้า cache รอไว้ ──
-// พอคลิกจริง fetch เจอ cache เปิดติดแทบทันที (โหลดล่วงหน้าแค่ HTML ไม่รันสคริปต์ ปลอดภัย)
-window._prefetched = new Set();
-window._prefetchPage = async function(name) {
-    if (window._prefetched.has(name)) return;
-    window._prefetched.add(name);
-    try {
-        const v = window._APP_VERSION || '';
-        // HTML → ยัดเข้า pageCache ตรงๆ เลย (ตอนกดจริงไม่ต้องยิงเน็ตแม้แต่ครั้งเดียว)
-        if (typeof pageCache !== 'undefined' && !pageCache[name]) {
-            const r = await fetch(`./pages/${name}/${name}.html?v=${v}`);
-            if (r.ok) pageCache[name] = await r.text();
-        }
-        // ไฟล์ JS ของหน้านั้น → อุ่นเข้า HTTP cache (ตอน loadScript จริงจะติดตั้งจาก cache ทันที)
-        if (typeof PAGE_SCRIPTS !== 'undefined') {
-            for (const sn of (PAGE_SCRIPTS[name] || [])) {
-                if (!window._loadedScripts || !window._loadedScripts[sn]) fetch(`./js/${sn}.js?v=${v}`).catch(() => {});
-            }
-        }
-    } catch (e) { window._prefetched.delete(name); }
-};
-document.addEventListener('mouseover', e => {
-    const btn = e.target.closest && e.target.closest("[onclick*=\"showPage('\"]");
-    if (!btn) return;
+  const seen = new Set;
+  const items = [];
+  document.querySelectorAll("#sidebarNav [onclick*=\"showPage('\"]").forEach((btn => {
+    if (btn.classList.contains('hidden')) return;
     const m = (btn.getAttribute('onclick') || '').match(/showPage\('([^']+)'\)/);
-    if (m) window._prefetchPage(m[1]);
-});
-
-// ⚡ [Warm-up ทั้งเว็บ] หลังเข้าระบบนิ่งแล้ว ~4 วิ → แอบโหลดทุกหน้า+ทุกสคริปต์เข้าเครื่องเงียบๆ
-// ทีละหน้า เว้นจังหวะ ไม่แย่งแบนด์วิดท์งานจริง — หลังจากนั้นกดหน้าไหนก็เปิดติดทันที
-window._warmedUp = false;
-window._warmupAllPages = async function() {
-    if (window._warmedUp) return;
-    window._warmedUp = true;
-    const names = [...new Set([...(typeof PAGE_SCRIPTS !== 'undefined' ? Object.keys(PAGE_SCRIPTS) : []), 'dashboard', 'announcement'])];
-    for (const n of names) {
-        if (window._currentPageName === n) continue;   // หน้าปัจจุบันโหลดแล้ว
-        await window._prefetchPage(n);
-        await new Promise(r => setTimeout(r, 200));    // เว้นจังหวะเบาๆ
-    }
-    console.log('⚡ warm-up ครบทุกหน้าแล้ว — สลับหน้าจากนี้ไม่ต้องรอโหลดไฟล์อีก');
+    if (!m || seen.has(m[1])) return;
+    seen.add(m[1]);
+    const label = btn.innerText.replace(/\s+/g, ' ').trim();
+    if (label) items.push({
+      page: m[1],
+      label: label
+    });
+  }));
+  return items;
 };
 
-// ── 3) 📶 แถบเตือนเน็ตหลุด: เน็ตดับขึ้นแถบแดงทันที กลับมาแล้วขึ้นเขียวแป๊บนึง ──
+window.openQuickNav = function() {
+  let box = document.getElementById('quickNavBox');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'quickNavBox';
+    box.style.cssText = 'position:fixed;inset:0;z-index:99990;display:none;align-items:flex-start;justify-content:center;padding-top:14vh;background:rgba(2,6,23,.75);backdrop-filter:blur(3px)';
+    box.innerHTML = `\n            <div style="width:min(520px,92vw);background:var(--k-panel2);border:1px solid rgba(232,193,90,.35);border-radius:16px;box-shadow:0 24px 80px rgba(0,0,0,.7);overflow:hidden">\n                <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid rgba(148,163,184,.15)">\n                    <span class="material-icons" style="color:var(--k-gold-tx);font-size:20px">bolt</span>\n                    <input id="quickNavInput" placeholder="พิมพ์ชื่อหน้า... (เช่น ชีต, คลังรูป, จัดเวร)" autocomplete="off"\n                        style="flex:1;background:transparent;border:0;outline:none;color:var(--k-tx);font-size:15px;font-weight:600">\n                    <span style="font-size:10px;color:var(--k-mute);border:1px solid var(--k-line2);border-radius:5px;padding:2px 6px">Esc ปิด</span>\n                </div>\n                <div id="quickNavList" style="max-height:46vh;overflow-y:auto;padding:6px"></div>\n            </div>`;
+    document.body.appendChild(box);
+    box.addEventListener('mousedown', (e => {
+      if (e.target === box) window.closeQuickNav();
+    }));
+    const input = box.querySelector('#quickNavInput');
+    input.addEventListener('input', (() => window._qnavRender()));
+    input.addEventListener('keydown', (e => {
+      const rows = box.querySelectorAll('.qnav-row');
+      let idx = [ ...rows ].findIndex((r => r.dataset.sel === '1'));
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        window._qnavSelect(rows, Math.min(rows.length - 1, idx + 1));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        window._qnavSelect(rows, Math.max(0, idx - 1));
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        const r = rows[idx >= 0 ? idx : 0];
+        if (r) r.click();
+      } else if (e.key === 'Escape') {
+        window.closeQuickNav();
+      }
+    }));
+  }
+  box.style.display = 'flex';
+  const input = box.querySelector('#quickNavInput');
+  input.value = '';
+  window._qnavRender();
+  setTimeout((() => input.focus()), 30);
+};
+
+window.closeQuickNav = function() {
+  const b = document.getElementById('quickNavBox');
+  if (b) b.style.display = 'none';
+};
+
+window._qnavSelect = function(rows, i) {
+  rows.forEach(((r, x) => {
+    r.dataset.sel = x === i ? '1' : '';
+    r.style.background = x === i ? 'rgba(232,193,90,.14)' : 'transparent';
+    r.style.borderColor = x === i ? 'rgba(232,193,90,.4)' : 'transparent';
+  }));
+  if (rows[i]) rows[i].scrollIntoView({
+    block: 'nearest'
+  });
+};
+
+window._qnavRender = function() {
+  const list = document.getElementById('quickNavList');
+  if (!list) return;
+  const q = (document.getElementById('quickNavInput').value || '').toLowerCase().trim();
+  const items = window._qnavItems().filter((it => !q || it.label.toLowerCase().includes(q) || it.page.toLowerCase().includes(q)));
+  if (!items.length) {
+    list.innerHTML = '<div style="text-align:center;color:var(--k-mute);padding:20px;font-size:13px">ไม่พบหน้าที่ค้นหา</div>';
+    return;
+  }
+  list.innerHTML = items.map(((it, i) => `\n        <div class="qnav-row" data-sel="${i === 0 ? '1' : ''}" onclick="closeQuickNav();showPage('${it.page}')"\n            onmouseenter="window._qnavSelect(document.querySelectorAll('.qnav-row'), ${i})"\n            style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;border:1px solid ${i === 0 ? 'rgba(232,193,90,.4)' : 'transparent'};background:${i === 0 ? 'rgba(232,193,90,.14)' : 'transparent'};color:var(--k-tx);font-size:14px;font-weight:600">\n            <span class="material-icons" style="font-size:17px;color:var(--k-tx3)">arrow_forward</span>${it.label}\n            <span style="margin-left:auto;font-size:10px;color:var(--k-mute3)">${it.page}</span>\n        </div>`)).join('');
+};
+
+document.addEventListener('keydown', (e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    window.openQuickNav();
+  }
+}));
+
+window._prefetched = new Set;
+
+window._prefetchPage = async function(name) {
+  if (window._prefetched.has(name)) return;
+  window._prefetched.add(name);
+  try {
+    const v = window._APP_VERSION || '';
+    if (typeof pageCache !== 'undefined' && !pageCache[name]) {
+      const r = await fetch(`./pages/${name}/${name}.html?v=${v}`);
+      if (r.ok) pageCache[name] = await r.text();
+    }
+    if (typeof PAGE_SCRIPTS !== 'undefined') {
+      for (const sn of PAGE_SCRIPTS[name] || []) {
+        if (!window._loadedScripts || !window._loadedScripts[sn]) fetch(`./js/${sn}.js?v=${v}`).catch((() => {}));
+      }
+    }
+  } catch (e) {
+    window._prefetched.delete(name);
+  }
+};
+
+document.addEventListener('mouseover', (e => {
+  const btn = e.target.closest && e.target.closest("[onclick*=\"showPage('\"]");
+  if (!btn) return;
+  const m = (btn.getAttribute('onclick') || '').match(/showPage\('([^']+)'\)/);
+  if (m) window._prefetchPage(m[1]);
+}));
+
+window._warmedUp = false;
+
+window._warmupAllPages = async function() {
+  if (window._warmedUp) return;
+  window._warmedUp = true;
+  const names = [ ...new Set([ ...typeof PAGE_SCRIPTS !== 'undefined' ? Object.keys(PAGE_SCRIPTS) : [], 'dashboard', 'announcement' ]) ];
+  for (const n of names) {
+    if (window._currentPageName === n) continue;
+    await window._prefetchPage(n);
+    await new Promise((r => setTimeout(r, 200)));
+  }
+  console.log('⚡ warm-up ครบทุกหน้าแล้ว — สลับหน้าจากนี้ไม่ต้องรอโหลดไฟล์อีก');
+};
+
 (function() {
-    const bar = document.createElement('div');
-    bar.id = 'netStatusBar';
-    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;display:none;align-items:center;justify-content:center;gap:8px;padding:8px;font-weight:800;font-size:13px;color:#fff;font-family:Sarabun,sans-serif';
-    document.body.appendChild(bar);
-    let hideTimer = null;
-    const show = (msg, bg, autoHide) => {
-        clearTimeout(hideTimer);
-        bar.style.background = bg; bar.innerHTML = msg; bar.style.display = 'flex';
-        if (autoHide) hideTimer = setTimeout(() => bar.style.display = 'none', 3000);
-    };
-    window.addEventListener('offline', () => show('<span class="material-icons" style="font-size:17px">wifi_off</span> อินเทอร์เน็ตหลุด — ข้อมูลจะยังไม่ถูกบันทึกจนกว่าเน็ตจะกลับมา', '#dc2626', false));
-    window.addEventListener('online',  () => show('<span class="material-icons" style="font-size:17px">wifi</span> เน็ตกลับมาแล้ว ใช้งานต่อได้เลย', '#16a34a', true));
+  const bar = document.createElement('div');
+  bar.id = 'netStatusBar';
+  bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;display:none;align-items:center;justify-content:center;gap:8px;padding:8px;font-weight:800;font-size:13px;color:#fff;font-family:Sarabun,sans-serif';
+  document.body.appendChild(bar);
+  let hideTimer = null;
+  const show = (msg, bg, autoHide) => {
+    clearTimeout(hideTimer);
+    bar.style.background = bg;
+    bar.innerHTML = msg;
+    bar.style.display = 'flex';
+    if (autoHide) hideTimer = setTimeout((() => bar.style.display = 'none'), 3e3);
+  };
+  window.addEventListener('offline', (() => show('<span class="material-icons" style="font-size:17px">wifi_off</span> อินเทอร์เน็ตหลุด — ข้อมูลจะยังไม่ถูกบันทึกจนกว่าเน็ตจะกลับมา', '#dc2626', false)));
+  window.addEventListener('online', (() => show('<span class="material-icons" style="font-size:17px">wifi</span> เน็ตกลับมาแล้ว ใช้งานต่อได้เลย', '#16a34a', true)));
 })();
 
-// ══════════════════════════════════════════════════════════════════════════
-// 🗃️ [dbCache] cache กลางฝั่งเว็บ ลดการยิงขอข้อมูลเดิมซ้ำๆ จาก Supabase
-// ใช้: dbCache.get(key) / dbCache.set(key, val, ttlMs) / dbCache.bust(prefix)
-// กติกา: ใช้กับข้อมูลที่นานๆ เปลี่ยนที (รายการชีต, รายชื่อ user) เท่านั้น
-//        ข้อมูลที่ต้อง realtime (เวร, คิวพัก, ยอดเงิน) ห้ามใช้ — ต้องสดเสมอ
-// ══════════════════════════════════════════════════════════════════════════
 window.dbCache = {
-    _m: new Map(),
-    get(key) { const e = this._m.get(key); if (e && Date.now() < e.exp) return e.val; this._m.delete(key); return undefined; },
-    set(key, val, ttlMs) { this._m.set(key, { val, exp: Date.now() + (ttlMs || 60000) }); },
-    bust(prefix) { [...this._m.keys()].forEach(k => { if (!prefix || k.startsWith(prefix)) this._m.delete(k); }); }
+  _m: new Map,
+  get(key) {
+    const e = this._m.get(key);
+    if (e && Date.now() < e.exp) return e.val;
+    this._m.delete(key);
+    return undefined;
+  },
+  set(key, val, ttlMs) {
+    this._m.set(key, {
+      val: val,
+      exp: Date.now() + (ttlMs || 6e4)
+    });
+  },
+  bust(prefix) {
+    [ ...this._m.keys() ].forEach((k => {
+      if (!prefix || k.startsWith(prefix)) this._m.delete(k);
+    }));
+  }
 };

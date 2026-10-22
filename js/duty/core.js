@@ -1,2229 +1,2116 @@
-// ════════════════════════════════════════════════════════════════════
-// 📦 duty/core.js — ส่วนที่ 1/6 ของหน้าจัดหน้าที่/เวร (แยกจาก duty.js เดิม 5,478 บรรทัด)
-// เนื้อหา: แกนหลัก: ตัวแปรกลาง, ตัวช่วยกลาง, โหลด/วาด/บันทึกตารางเวร, ค้นหา
-// ⚠️ ลำดับโหลด (PAGE_SCRIPTS ใน global.js): duty/core → duty/dragdrop → duty/roles → duty/tools → duty/support → duty/rotation
-// ตัวแปร top-level (currentDutyDept, sortedTeams ฯลฯ) แชร์ข้ามไฟล์กันอัตโนมัติ — scope เดียวกัน
-// ════════════════════════════════════════════════════════════════════
 let currentDutyDept = 'AM';
-let dutyAccessMatrix = {}; 
-let customDutyRoles = {}; 
-let currentDutyLeaves = new Set(); 
 
-// [FIX] กะที่พนักงานต้องทำงานจริง "ของวันที่เลือก"
-// users.allowed_shift คือกะปัจจุบัน ซึ่งยังไม่เปลี่ยนจนกว่า task จะยิงตอน 05:00 ของวันถัดไป
-// คนที่สลับเช้า→ดึกวันนี้ จึงยังเป็น 'กะเช้า' ใน DB ทั้งที่ต้องเข้าดึก 20:00 วันนี้
-// ฟังก์ชันนี้เอา scheduled_tasks ของวันนั้นมาทับให้ตรงความจริง
+let dutyAccessMatrix = {};
+
+let customDutyRoles = {};
+
+let currentDutyLeaves = new Set;
+
 window.getDutyShiftForToday = function(u) {
-    if (!u) return null;
-    const override = window.currentDutyShiftToday && window.currentDutyShiftToday[String(u.id)];
-    return override || u.allowed_shift;
+  if (!u) return null;
+  const override = window.currentDutyShiftToday && window.currentDutyShiftToday[String(u.id)];
+  return override || u.allowed_shift;
 };
 
 window.isDutyShiftMatch = function(u, shiftFilter) {
-    const shift = window.getDutyShiftForToday(u);
-    return shift === shiftFilter || shift === 'all';
+  const shift = window.getDutyShiftForToday(u);
+  return shift === shiftFilter || shift === 'all';
 };
+
 let dutySubscription = null;
-let sortedTeams = []; 
-// ⚠️ ตัวนี้ประกาศด้วย let ที่ระดับไฟล์ จึง "ไม่ได้อยู่บน window"
-// อ่านผ่าน window.currentRosterData จะได้ undefined เสมอ — ให้เรียกชื่อตรงๆ เท่านั้น
-// (เคยพลาดมาแล้ว ทำให้แผงซัพพอร์ตนับจำนวนคนได้ 0 ทุกเว็บทั้งที่ตารางมีคน)
+
+let sortedTeams = [];
+
 let currentRosterData = {};
+
 let window_currentAssignedStaff = [];
 
 window.isDutyAdmin = function() {
-    // ปรับชื่อแผนกให้ตรงกับรหัสสิทธิ์
-    let deptCheck = currentDutyDept;
-    if (deptCheck === 'TRAINER_AM') deptCheck = 'AMQL';
-    if (deptCheck === 'TRAINER_OD') deptCheck = 'ODQL';
-    
-    // ดึงค่าสิทธิ์ตามแท็บที่เปิดดูอยู่ เช่น duty_manage_am, duty_manage_od
-    const reqPerm = 'duty_manage_' + deptCheck.toLowerCase();
-    
-    // ระบบจะยอมให้จัดการได้ ถ้ามีสิทธิ์ตรงตามแผนก หรือมีสิทธิ์จัดการแบบรวม (เผื่อแอดมินหลัก)
-    return window.hasUserPerm(reqPerm) || window.hasUserPerm('duty_manage'); 
+  let deptCheck = currentDutyDept;
+  if (deptCheck === 'TRAINER_AM') deptCheck = 'AMQL';
+  if (deptCheck === 'TRAINER_OD') deptCheck = 'ODQL';
+  const reqPerm = 'duty_manage_' + deptCheck.toLowerCase();
+  return window.hasUserPerm(reqPerm) || window.hasUserPerm('duty_manage');
 };
 
-// ==========================================
-// 🧰 [REFACTOR] ตัวช่วยกลาง — เดิมเงื่อนไขพวกนี้ถูกก๊อปวางซ้ำหลายสิบจุด
-// แก้ที่นี่ที่เดียว ทุกระบบในไฟล์จะได้ค่าตรงกัน
-// ==========================================
-
-// แผนกนี้เป็น "ผู้สอน" ไหม (AMQL / ODQL / TRAINER_*)
-// 🧭 "ฝั่ง" ของแผนก — ใช้จับคู่ผู้สอนกับพนักงานให้เห็นข้อมูลชุดเดียวกัน
-//   AM, AMQL, TRAINER_AM  -> ฝั่ง AM     |     OD, ODQL, TRAINER_OD -> ฝั่ง OD
-//   รวมห้อง Discord ใช้ร่วมกันทั้งฝั่ง (ผู้สอนตั้ง พนักงานเห็น) แต่ต้องไม่ข้ามฝั่ง
 window.dutySideOf = function(dept) {
-    const d = String(dept || currentDutyDept || 'AM').toUpperCase();
-    if (d === 'OD' || d === 'ODQL' || d.startsWith('TRAINER_OD')) return 'OD';
-    return 'AM';
+  const d = String(dept || currentDutyDept || 'AM').toUpperCase();
+  if (d === 'OD' || d === 'ODQL' || d.startsWith('TRAINER_OD')) return 'OD';
+  return 'AM';
 };
 
-// 🔑 คีย์เก็บผลรวมห้อง Discord — แยกตามฝั่ง + วันที่ + กะ
-//   (ของเดิมไม่มีฝั่ง ทำให้ผู้สอน AM กับผู้สอน OD เขียนทับกัน)
 window.dutyMergeKey = function(date, shift, dept) {
-    return 'duty_merge_rooms_' + window.dutySideOf(dept) + '_' + date + '_' + shift;
+  return 'duty_merge_rooms_' + window.dutySideOf(dept) + '_' + date + '_' + shift;
 };
-window.dutyMergeKeyLegacy = function(date, shift) { return 'duty_merge_rooms_' + date + '_' + shift; };
+
+window.dutyMergeKeyLegacy = function(date, shift) {
+  return 'duty_merge_rooms_' + date + '_' + shift;
+};
 
 window.isTrainerDept = function(dept) {
-    dept = dept || currentDutyDept || '';
-    return dept === 'AMQL' || dept === 'ODQL' || dept.startsWith('TRAINER');
+  dept = dept || currentDutyDept || '';
+  return dept === 'AMQL' || dept === 'ODQL' || dept.startsWith('TRAINER');
 };
 
-// แปลงแผนกของ user ให้เทียบกับแท็บได้ (TRAINER เก่า = AMQL)
 window.normalizeUserDept = function(u) {
-    let d = (u && u.department) || 'AM';
-    if (d === 'TRAINER') d = 'AMQL';
-    return d;
+  let d = u && u.department || 'AM';
+  if (d === 'TRAINER') d = 'AMQL';
+  return d;
 };
 
-// รายชื่อ "คนที่มาทำงานจริง" ของแผนก+กะที่เลือก (ตัดคนลาหยุดแล้ว)
-// opts.anyRole = true → ไม่บังคับ role 'staff' (ใช้กับงานพิเศษของผู้สอน)
 window.getDutyActiveStaff = function(shiftFilter, opts) {
-    opts = opts || {};
-    const trainer = window.isTrainerDept();
-    return (GLOBAL_USER_LIST || []).filter(u => {
-        if (!u) return false;
-        if (window.normalizeUserDept(u) !== currentDutyDept) return false;
-        if (!opts.anyRole && !trainer && u.role !== 'staff') return false;
-        if (!window.isDutyShiftMatch(u, shiftFilter)) return false;
-        if (currentDutyLeaves && currentDutyLeaves.has(String(u.id))) return false;
-        return true;
-    });
+  opts = opts || {};
+  const trainer = window.isTrainerDept();
+  return (GLOBAL_USER_LIST || []).filter((u => {
+    if (!u) return false;
+    if (window.normalizeUserDept(u) !== currentDutyDept) return false;
+    if (!opts.anyRole && !trainer && u.role !== 'staff') return false;
+    if (!window.isDutyShiftMatch(u, shiftFilter)) return false;
+    if (currentDutyLeaves && currentDutyLeaves.has(String(u.id))) return false;
+    return true;
+  }));
 };
 
 const LEAVE_STYLES = {
-    'X': { text: '✕ หยุดปกติ', color: 'text-red-700 bg-red-100 border-red-300 dark:bg-red-900/40 dark:text-red-400', border: 'border-red-200 dark:border-red-900/50' },
-    'Table-Booking': { text: '✕ หยุดปกติ', color: 'text-red-700 bg-red-100 border-red-300 dark:bg-red-900/40 dark:text-red-400', border: 'border-red-200 dark:border-red-900/50' },
-    'XX': { text: 'XX เปลี่ยนกะ', color: 'text-yellow-800 bg-yellow-100 border-yellow-400 dark:bg-yellow-900/40 dark:text-yellow-400', border: 'border-yellow-300 dark:border-yellow-700/50' },
-    'X4': { text: 'X4 ลาครึ่งวัน', color: 'text-pink-700 bg-pink-100 border-pink-300 dark:bg-pink-900/40 dark:text-pink-400', border: 'border-pink-200 dark:border-pink-900/50' },
-    'KL': { text: 'KL ลากิจ', color: 'text-green-800 bg-green-100 border-green-400 dark:bg-green-900/40 dark:text-green-400', border: 'border-green-300 dark:border-green-800/50' },
-    'TL': { text: 'TL สลับวันหยุด', color: 'text-blue-800 bg-blue-100 border-blue-400 dark:bg-blue-900/40 dark:text-blue-400', border: 'border-blue-300 dark:border-blue-800/50' },
-    'TX': { text: 'TX สลับวันหยุด', color: 'text-blue-800 bg-blue-100 border-blue-400 dark:bg-blue-900/40 dark:text-blue-400', border: 'border-blue-300 dark:border-blue-800/50' },
-    'PN': { text: 'PN พักร้อน', color: 'text-white bg-amber-800 border-amber-900 dark:bg-amber-900 dark:text-amber-200', border: 'border-amber-700 dark:border-amber-800/50' }
+  X: {
+    text: '✕ หยุดปกติ',
+    color: 'text-red-700 bg-red-100 border-red-300 dark:bg-red-900/40 dark:text-red-400',
+    border: 'border-red-200 dark:border-red-900/50'
+  },
+  'Table-Booking': {
+    text: '✕ หยุดปกติ',
+    color: 'text-red-700 bg-red-100 border-red-300 dark:bg-red-900/40 dark:text-red-400',
+    border: 'border-red-200 dark:border-red-900/50'
+  },
+  XX: {
+    text: 'XX เปลี่ยนกะ',
+    color: 'text-yellow-800 bg-yellow-100 border-yellow-400 dark:bg-yellow-900/40 dark:text-yellow-400',
+    border: 'border-yellow-300 dark:border-yellow-700/50'
+  },
+  X4: {
+    text: 'X4 ลาครึ่งวัน',
+    color: 'text-pink-700 bg-pink-100 border-pink-300 dark:bg-pink-900/40 dark:text-pink-400',
+    border: 'border-pink-200 dark:border-pink-900/50'
+  },
+  KL: {
+    text: 'KL ลากิจ',
+    color: 'text-green-800 bg-green-100 border-green-400 dark:bg-green-900/40 dark:text-green-400',
+    border: 'border-green-300 dark:border-green-800/50'
+  },
+  TL: {
+    text: 'TL สลับวันหยุด',
+    color: 'text-blue-800 bg-blue-100 border-blue-400 dark:bg-blue-900/40 dark:text-blue-400',
+    border: 'border-blue-300 dark:border-blue-800/50'
+  },
+  TX: {
+    text: 'TX สลับวันหยุด',
+    color: 'text-blue-800 bg-blue-100 border-blue-400 dark:bg-blue-900/40 dark:text-blue-400',
+    border: 'border-blue-300 dark:border-blue-800/50'
+  },
+  PN: {
+    text: 'PN พักร้อน',
+    color: 'text-white bg-amber-800 border-amber-900 dark:bg-amber-900 dark:text-amber-200',
+    border: 'border-amber-700 dark:border-amber-800/50'
+  }
 };
 
 const TEAM_COLORS = {
-    'Jun88': { bg: 'bg-blue-600', text: 'text-white', border: 'border-blue-800', lightBg: 'bg-blue-100', lightText: 'text-blue-800' },
-    'MK8': { bg: 'bg-black', text: 'text-yellow-400', border: 'border-yellow-600', lightBg: 'bg-gray-800', lightText: 'text-yellow-500' },
-    'F168': { bg: 'bg-orange-500', text: 'text-white', border: 'border-orange-700', lightBg: 'bg-orange-100', lightText: 'text-orange-800' },
-    'PG688': { bg: 'bg-amber-100', text: 'text-amber-900', border: 'border-amber-300', lightBg: 'bg-amber-50', lightText: 'text-amber-700' },
-    'JL69': { bg: 'bg-slate-500', text: 'text-white', border: 'border-slate-700', lightBg: 'bg-slate-200', lightText: 'text-slate-800' },
-    'TH26': { bg: 'bg-gray-700', text: 'text-white', border: 'border-gray-900', lightBg: 'bg-gray-200', lightText: 'text-gray-800' },
-    'VV72': { bg: 'bg-red-800', text: 'text-white', border: 'border-red-950', lightBg: 'bg-red-100', lightText: 'text-red-800' },
-    'NM9': { bg: 'bg-pink-500', text: 'text-white', border: 'border-pink-700', lightBg: 'bg-pink-100', lightText: 'text-pink-800' },
-    'สอนงาน': { bg: 'bg-emerald-500', text: 'text-white', border: 'border-emerald-700', lightBg: 'bg-emerald-100', lightText: 'text-emerald-800' },
-    'Telegram': { bg: 'bg-sky-500', text: 'text-white', border: 'border-sky-700', lightBg: 'bg-sky-100', lightText: 'text-sky-800' },
-    'DEFAULT': { bg: 'bg-indigo-500', text: 'text-white', border: 'border-indigo-700', lightBg: 'bg-indigo-100', lightText: 'text-indigo-800' }
+  Jun88: {
+    bg: 'bg-blue-600',
+    text: 'text-white',
+    border: 'border-blue-800',
+    lightBg: 'bg-blue-100',
+    lightText: 'text-blue-800'
+  },
+  MK8: {
+    bg: 'bg-black',
+    text: 'text-yellow-400',
+    border: 'border-yellow-600',
+    lightBg: 'bg-gray-800',
+    lightText: 'text-yellow-500'
+  },
+  F168: {
+    bg: 'bg-orange-500',
+    text: 'text-white',
+    border: 'border-orange-700',
+    lightBg: 'bg-orange-100',
+    lightText: 'text-orange-800'
+  },
+  PG688: {
+    bg: 'bg-amber-100',
+    text: 'text-amber-900',
+    border: 'border-amber-300',
+    lightBg: 'bg-amber-50',
+    lightText: 'text-amber-700'
+  },
+  JL69: {
+    bg: 'bg-slate-500',
+    text: 'text-white',
+    border: 'border-slate-700',
+    lightBg: 'bg-slate-200',
+    lightText: 'text-slate-800'
+  },
+  TH26: {
+    bg: 'bg-gray-700',
+    text: 'text-white',
+    border: 'border-gray-900',
+    lightBg: 'bg-gray-200',
+    lightText: 'text-gray-800'
+  },
+  VV72: {
+    bg: 'bg-red-800',
+    text: 'text-white',
+    border: 'border-red-950',
+    lightBg: 'bg-red-100',
+    lightText: 'text-red-800'
+  },
+  NM9: {
+    bg: 'bg-pink-500',
+    text: 'text-white',
+    border: 'border-pink-700',
+    lightBg: 'bg-pink-100',
+    lightText: 'text-pink-800'
+  },
+  'สอนงาน': {
+    bg: 'bg-emerald-500',
+    text: 'text-white',
+    border: 'border-emerald-700',
+    lightBg: 'bg-emerald-100',
+    lightText: 'text-emerald-800'
+  },
+  Telegram: {
+    bg: 'bg-sky-500',
+    text: 'text-white',
+    border: 'border-sky-700',
+    lightBg: 'bg-sky-100',
+    lightText: 'text-sky-800'
+  },
+  DEFAULT: {
+    bg: 'bg-indigo-500',
+    text: 'text-white',
+    border: 'border-indigo-700',
+    lightBg: 'bg-indigo-100',
+    lightText: 'text-indigo-800'
+  }
 };
 
 window.syncTeamOrder = function() {
-    // ลบเงื่อนไขดักของผู้สอนออก ให้ทุกคนดึงรายชื่อเว็บจาก TEAM_LIST เหมือนกันหมด
-    const savedOrder = JSON.parse(localStorage.getItem('duty_team_order') || '[]');
-    let validSaved = savedOrder.filter(t => TEAM_LIST.includes(t));
-    
-    // ดึงเว็บมาตรฐานทั้งหมดมาใส่
-    TEAM_LIST.forEach(t => { if(!validSaved.includes(t)) validSaved.push(t); });
-    
-    sortedTeams = validSaved;
-}
+  const savedOrder = JSON.parse(localStorage.getItem('duty_team_order') || '[]');
+  let validSaved = savedOrder.filter((t => TEAM_LIST.includes(t)));
+  TEAM_LIST.forEach((t => {
+    if (!validSaved.includes(t)) validSaved.push(t);
+  }));
+  sortedTeams = validSaved;
+};
 
 window.moveTeam = function(teamName, direction) {
-    if (window.isTrainerDept()) return; 
-    const index = sortedTeams.indexOf(teamName);
-    if(index === -1) return;
-    if(direction === -1 && index > 0) { [sortedTeams[index - 1], sortedTeams[index]] = [sortedTeams[index], sortedTeams[index - 1]]; } 
-    else if (direction === 1 && index < sortedTeams.length - 1) { [sortedTeams[index], sortedTeams[index + 1]] = [sortedTeams[index + 1], sortedTeams[index]]; }
-    window.safeSetItem('duty_team_order', JSON.stringify(sortedTeams));
-    window.renderDutyRequirements();
-    window.updateDutyStats(); 
-}
+  if (window.isTrainerDept()) return;
+  const index = sortedTeams.indexOf(teamName);
+  if (index === -1) return;
+  if (direction === -1 && index > 0) {
+    [sortedTeams[index - 1], sortedTeams[index]] = [ sortedTeams[index], sortedTeams[index - 1] ];
+  } else if (direction === 1 && index < sortedTeams.length - 1) {
+    [sortedTeams[index], sortedTeams[index + 1]] = [ sortedTeams[index + 1], sortedTeams[index] ];
+  }
+  window.safeSetItem('duty_team_order', JSON.stringify(sortedTeams));
+  window.renderDutyRequirements();
+  window.updateDutyStats();
+};
 
 window.initDutyApp = async function() {
-    Swal.fire({title: 'โหลดข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
-    try {
-        const dateInput = document.getElementById('dutyDate');
-        if (dateInput && !dateInput.value) {
-            const today = new Date(); const offset = today.getTimezoneOffset() * 60000;
-            dateInput.value = (new Date(today - offset)).toISOString().slice(0, 10);
-        }
+  Swal.fire({
+    title: 'โหลดข้อมูล...',
+    allowOutsideClick: false,
+    didOpen: () => Swal.showLoading()
+  });
+  try {
+    const dateInput = document.getElementById('dutyDate');
+    if (dateInput && !dateInput.value) {
+      const today = new Date;
+      const offset = today.getTimezoneOffset() * 6e4;
+      dateInput.value = new Date(today - offset).toISOString().slice(0, 10);
+    }
+    if (typeof window.fillRotationGapInput === 'function') window.fillRotationGapInput();
+    const initFetches = [ window.loadDutyAccessAndRoles() ];
+    if (typeof fetchUsers === 'function') {
+      initFetches.push(fetchUsers());
+    }
+    await Promise.all(initFetches);
+    const teamSelect = document.getElementById('roleEditorTeam');
+    if (teamSelect) {
+      let opts = TEAM_LIST.map((t => `<option value="${t}">${t}</option>`));
+      teamSelect.innerHTML = opts.join('');
+    }
+    window.syncTeamOrder();
+    window.ensureDutyExtraButtons();
+    window.applyDutyRoleUI();
+    if (typeof window._dutyAccessMarkDirty === 'function') window._dutyAccessMarkDirty(false);
+    window.renderDutyAccessTable();
+    window.renderDutyRequirements();
+    await window.refreshDutyData();
+    window.renderRoleEditorList();
+    window.subscribeDutyChanges();
+    window._dutyPendingReload = false;
+    window._dutyLastReloadTime = Date.now();
+  } catch (err) {
+    console.error("Init Duty Error:", err);
+  } finally {
+    Swal.close();
+  }
+};
 
-        if (typeof window.fillRotationGapInput === 'function') window.fillRotationGapInput();   // 🔁 เติมค่าเว้นวันที่ตั้งไว้
+const TEAM_ALIASES = {
+  Vv72: 'VV72'
+};
 
-        // 🚀 ดึง users + access matrix/roles ขนานกัน (อิสระต่อกัน)
-        const initFetches = [window.loadDutyAccessAndRoles()];
-        // 👥 ดึงรายชื่อพนักงานใหม่ทุกครั้งที่เปิดหน้า (เดิมดึงเฉพาะตอนรายชื่อว่าง →
-        //    พนักงานที่เพิ่งเพิ่มเข้าระบบ/ย้ายกะ/ย้ายแผนก ไม่โผล่ในหน้าจัดหน้าที่จนกว่าจะรีเฟรชทั้งเว็บ)
-        if (typeof fetchUsers === 'function') {
-            initFetches.push(fetchUsers());
-        }
-        await Promise.all(initFetches);
-        
-        const teamSelect = document.getElementById('roleEditorTeam');
-        if(teamSelect) {
-            let opts = TEAM_LIST.map(t => `<option value="${t}">${t}</option>`);
-            teamSelect.innerHTML = opts.join('');
-        }
-        
-        window.syncTeamOrder();
-        window.ensureDutyExtraButtons();
-        window.applyDutyRoleUI(); 
-
-        if (typeof window._dutyAccessMarkDirty === 'function') window._dutyAccessMarkDirty(false);   // เพิ่งโหลดสิทธิ์จากฐานข้อมูล = ยังไม่มีอะไรค้างบันทึก
-        window.renderDutyAccessTable();
-        window.renderDutyRequirements();
-        await window.refreshDutyData(); 
-        window.renderRoleEditorList();
-
-        window.subscribeDutyChanges(); 
-        
-        // 🌟 [แก้บัค Realtime] reset flag เพราะเพิ่ง refresh ไป
-        window._dutyPendingReload = false;
-        window._dutyLastReloadTime = Date.now();
-    } catch (err) { console.error("Init Duty Error:", err); } 
-    finally { Swal.close(); }
-}
-
-// [FIX] ชื่อเว็บ VV72 เคยถูกพิมพ์เป็น 'Vv72' ในข้อมูลเก่า ทำให้มี 2 key ซ้อนกัน
-// (สีคนละสี / หัวข้อแยกกัน / ต้อง hack `web === 'VV72' ? 'Vv72' : web` ทุกจุด)
-// รวมให้เหลือ 'VV72' ตัวเดียวตอนโหลด — คืนค่า true ถ้ามีการแก้ (จะได้เขียนกลับ DB ทีเดียว)
-const TEAM_ALIASES = { 'Vv72': 'VV72' };
-window.normalizeTeamName = function(t) { return TEAM_ALIASES[t] || t; };
+window.normalizeTeamName = function(t) {
+  return TEAM_ALIASES[t] || t;
+};
 
 function normalizeRolesObject(roles) {
-    let changed = false;
-    Object.keys(TEAM_ALIASES).forEach(oldKey => {
-        if (!(oldKey in roles)) return;
-        const newKey = TEAM_ALIASES[oldKey];
-        const merged = [...(roles[newKey] || [])];
-        (roles[oldKey] || []).forEach(r => { if (!merged.includes(r)) merged.push(r); });
-        roles[newKey] = merged;
-        delete roles[oldKey];
-        changed = true;
-    });
-    return changed;
+  let changed = false;
+  Object.keys(TEAM_ALIASES).forEach((oldKey => {
+    if (!(oldKey in roles)) return;
+    const newKey = TEAM_ALIASES[oldKey];
+    const merged = [ ...roles[newKey] || [] ];
+    (roles[oldKey] || []).forEach((r => {
+      if (!merged.includes(r)) merged.push(r);
+    }));
+    roles[newKey] = merged;
+    delete roles[oldKey];
+    changed = true;
+  }));
+  return changed;
 }
+
 function normalizeAccessMatrix(matrix) {
-    let changed = false;
-    Object.keys(matrix).forEach(uid => {
-        const arr = matrix[uid];
-        if (!Array.isArray(arr)) return;
-        const fixed = [];
-        arr.forEach(t => { const n = window.normalizeTeamName(t); if (!fixed.includes(n)) fixed.push(n); });
-        if (fixed.length !== arr.length || fixed.some((t, i) => t !== arr[i])) { matrix[uid] = fixed; changed = true; }
-    });
-    return changed;
+  let changed = false;
+  Object.keys(matrix).forEach((uid => {
+    const arr = matrix[uid];
+    if (!Array.isArray(arr)) return;
+    const fixed = [];
+    arr.forEach((t => {
+      const n = window.normalizeTeamName(t);
+      if (!fixed.includes(n)) fixed.push(n);
+    }));
+    if (fixed.length !== arr.length || fixed.some(((t, i) => t !== arr[i]))) {
+      matrix[uid] = fixed;
+      changed = true;
+    }
+  }));
+  return changed;
 }
 
 window.loadDutyAccessAndRoles = async function() {
+  try {
+    const {data: data} = await appDB.from('settings').select('*').in('key', [ 'duty_access_matrix', 'duty_custom_roles', 'duty_rotation_gap' ]);
     try {
-        const { data } = await appDB.from('settings').select('*').in('key', ['duty_access_matrix', 'duty_custom_roles', 'duty_rotation_gap']);
-        // [FIX] ค่า "เว้นซ้ำเว็บ" — ระบบโหลดค่าตั้งตอนเปิดเว็บไม่รวมคีย์ duty_* เลยได้ 3 เสมอหลังรีเฟรช
-        //       (ค่าที่กดเปลี่ยนถูกบันทึกจริง แต่ไม่เคยถูกอ่านกลับมา) → โหลดเองที่นี่
-        try {
-            const _gapRow = (data || []).find(r => r.key === 'duty_rotation_gap');
-            if (_gapRow && typeof SETTINGS !== 'undefined') SETTINGS.duty_rotation_gap = _gapRow.value;
-            if (typeof window.fillRotationGapInput === 'function') window.fillRotationGapInput();
-        } catch (e) {}
-        if(data) {
-            const accessData = data.find(d => d.key === 'duty_access_matrix');
-            if(accessData && accessData.value) dutyAccessMatrix = JSON.parse(accessData.value);
-            else dutyAccessMatrix = {};
-            if (normalizeAccessMatrix(dutyAccessMatrix)) {
-                window.clearSettingCache();
-                appDB.from('settings').upsert([{ key: 'duty_access_matrix', value: JSON.stringify(dutyAccessMatrix) }]).then(() => {}, () => {});
-            }
-
-            const rolesData = data.find(d => d.key === 'duty_custom_roles');
-            if(rolesData && rolesData.value && Object.keys(JSON.parse(rolesData.value)).length > 0) {
-                customDutyRoles = JSON.parse(rolesData.value);
-                if (normalizeRolesObject(customDutyRoles)) {
-                    window.clearSettingCache();
-                    appDB.from('settings').upsert([{ key: 'duty_custom_roles', value: JSON.stringify(customDutyRoles) }]).then(() => {}, () => {});
-                }
-            } else { 
-                // ค่าเริ่มต้นสำหรับแต่ละเว็บ
-                customDutyRoles = {
-                    'Jun88': [],
-                    'MK8': [],
-                    'VV72': [],
-                    'TH26': [],
-                    'K188': [],
-                    'BT678': [],
-                    'PG688': [],
-                    'JL69': [],
-                    'NM9': [],
-                    'F168': [],
-                }; 
-                // บันทึกขึ้นฐานข้อมูลทันทีเพื่อให้แอดมินแก้ไขทีหลังได้
-                appDB.from('settings').upsert([{ key: 'duty_custom_roles', value: JSON.stringify(customDutyRoles) }]);
-            }
+      const _gapRow = (data || []).find((r => r.key === 'duty_rotation_gap'));
+      if (_gapRow && typeof SETTINGS !== 'undefined') SETTINGS.duty_rotation_gap = _gapRow.value;
+      if (typeof window.fillRotationGapInput === 'function') window.fillRotationGapInput();
+    } catch (e) {}
+    if (data) {
+      const accessData = data.find((d => d.key === 'duty_access_matrix'));
+      if (accessData && accessData.value) dutyAccessMatrix = JSON.parse(accessData.value); else dutyAccessMatrix = {};
+      if (normalizeAccessMatrix(dutyAccessMatrix)) {
+        window.clearSettingCache();
+        appDB.from('settings').upsert([ {
+          key: 'duty_access_matrix',
+          value: JSON.stringify(dutyAccessMatrix)
+        } ]).then((() => {}), (() => {}));
+      }
+      const rolesData = data.find((d => d.key === 'duty_custom_roles'));
+      if (rolesData && rolesData.value && Object.keys(JSON.parse(rolesData.value)).length > 0) {
+        customDutyRoles = JSON.parse(rolesData.value);
+        if (normalizeRolesObject(customDutyRoles)) {
+          window.clearSettingCache();
+          appDB.from('settings').upsert([ {
+            key: 'duty_custom_roles',
+            value: JSON.stringify(customDutyRoles)
+          } ]).then((() => {}), (() => {}));
         }
-    } catch(e) { dutyAccessMatrix = {}; customDutyRoles = {}; }
-}
+      } else {
+        customDutyRoles = {
+          Jun88: [],
+          MK8: [],
+          VV72: [],
+          TH26: [],
+          K188: [],
+          BT678: [],
+          PG688: [],
+          JL69: [],
+          NM9: [],
+          F168: []
+        };
+        appDB.from('settings').upsert([ {
+          key: 'duty_custom_roles',
+          value: JSON.stringify(customDutyRoles)
+        } ]);
+      }
+    }
+  } catch (e) {
+    dutyAccessMatrix = {};
+    customDutyRoles = {};
+  }
+};
 
-// 🌟 [แก้บัค Realtime] flag บอกว่ามีการเปลี่ยนตอนไม่อยู่หน้านี้ (ตอนเข้ามาจะ reload ทันที)
 window._dutyPendingReload = false;
+
 window._dutyLastReloadTime = 0;
 
 window.subscribeDutyChanges = function() {
-    if(dutySubscription) { 
-        try { appDB.removeChannel(dutySubscription); } catch(e) {}
-        dutySubscription = null;
-    }
-    
-    dutySubscription = appDB.channel('duty-updates').on('broadcast', { event: 'force_reload' }, () => {
-        const dutyApp = document.getElementById('dutyApp');
-        const isOnDutyPage = dutyApp && !dutyApp.classList.contains('hidden');
-        
-        if (isOnDutyPage) {
-            // กัน reload ถี่เกิน (debounce 800ms) เผื่อ broadcast มาหลายครั้งติดกัน
-            const now = Date.now();
-            if (now - window._dutyLastReloadTime < 800) {
-                window._dutyPendingReload = true;
-                setTimeout(() => {
-                    if (window._dutyPendingReload && !document.getElementById('dutyApp').classList.contains('hidden')) {
-                        window._dutyPendingReload = false;
-                        window._dutyLastReloadTime = Date.now();
-                        window.refreshDutyData();
-                    }
-                }, 1000);
-                return;
-            }
-            window._dutyLastReloadTime = now;
+  if (dutySubscription) {
+    try {
+      appDB.removeChannel(dutySubscription);
+    } catch (e) {}
+    dutySubscription = null;
+  }
+  dutySubscription = appDB.channel('duty-updates').on('broadcast', {
+    event: 'force_reload'
+  }, (() => {
+    const dutyApp = document.getElementById('dutyApp');
+    const isOnDutyPage = dutyApp && !dutyApp.classList.contains('hidden');
+    if (isOnDutyPage) {
+      const now = Date.now();
+      if (now - window._dutyLastReloadTime < 800) {
+        window._dutyPendingReload = true;
+        setTimeout((() => {
+          if (window._dutyPendingReload && !document.getElementById('dutyApp').classList.contains('hidden')) {
+            window._dutyPendingReload = false;
+            window._dutyLastReloadTime = Date.now();
             window.refreshDutyData();
-        } else {
-            // ไม่ได้อยู่หน้านี้ → จำไว้ก่อน ตอนกลับมาเข้าจะ reload
-            window._dutyPendingReload = true;
-        }
-    }).subscribe();
-    
-    if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(dutySubscription);
-    // ปิด polling เมื่อ subscription ถูก unsubscribe ตอนออกจากหน้า (เดิม timer วิ่งค้างตลอด)
-    if (dutySubscription && !dutySubscription._dutyPatched) {
-        dutySubscription._dutyPatched = true;
-        const _origUnsub = dutySubscription.unsubscribe && dutySubscription.unsubscribe.bind(dutySubscription);
-        if (_origUnsub) dutySubscription.unsubscribe = function() {
-            if (window._dutyPollingTimer) { clearInterval(window._dutyPollingTimer); window._dutyPollingTimer = null; }
-            return _origUnsub.apply(this, arguments);
-        };
-    }
-    
-    // 🌟 [แก้บัค Realtime] Polling fallback ทุก 30 วิ — เผื่อ broadcast หลุด/เน็ตกระตุก
-    if (window._dutyPollingTimer) clearInterval(window._dutyPollingTimer);
-    window._dutyPollingTimer = setInterval(() => {
-        const dutyApp = document.getElementById('dutyApp');
-        // [FIX] ออกจากหน้าจัดหน้าที่แล้ว → หยุดตัวจับเวลา (เดิมวนต่อไปเรื่อยๆ ทั้งที่ไม่ได้ใช้)
-        if (!dutyApp) { clearInterval(window._dutyPollingTimer); window._dutyPollingTimer = null; return; }
-        if (dutyApp && !dutyApp.classList.contains('hidden')) {
-            // เช็คทุก 30 วิว่ามีของใหม่ไหม
-            // แท็บไม่ได้เปิดดูอยู่ → ไม่ต้องถาม (กลับมาที่แท็บเมื่อไหร่ เช็คให้ทันที)
-            if (document.hidden) return;
-            if (typeof window.refreshDutyData === 'function') {
-                window._dutyPollTick = true;
-                window.refreshDutyData();
-            }
-        }
-    }, 120000);   // ⚡ เดิม 30 วิ → 2 นาที (ระบบแจ้งสดยังส่งการเปลี่ยนแปลงทันทีเหมือนเดิม นี่เป็นแค่ตัวกันพลาด)
-    if (!window.__dutyVisBound) {
-        window.__dutyVisBound = true;
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden) return;
-            const dutyApp = document.getElementById('dutyApp');
-            if (dutyApp && !dutyApp.classList.contains('hidden') && typeof window.refreshDutyData === 'function') {
-                window._dutyPollTick = true;   // กลับมาที่แท็บ: เช็คของใหม่ ถ้าเหมือนเดิมไม่วาดซ้ำ
-                window.refreshDutyData();
-            }
-        });
-    }
-}
-
-window.applyDutyRoleUI = function() {
-    const isAdmin = window.isDutyAdmin();
-    const isTrainerDept = (currentUser.department === 'AMQL' || currentUser.department === 'ODQL' || (currentUser.department && currentUser.department.startsWith('TRAINER'))); 
-    const isTrainerRole = ['AMQL', 'ODQL', 'TRAINER'].includes(currentUser.department);
-
-    let canManageDuty = isAdmin;
-    
-    // 🚨 กฎเหล็กฮาร์ดโค้ด: ถ้ากำลังเปิดแท็บ "ผู้สอน" (AMQL, ODQL)
-    // คนที่จะมีสิทธิ์จัดการ/สุ่มเวรได้ ต้องเป็น 'admin' หรือ 'manager' เท่านั้น!
-    // ผู้สอน (trainer) จะถูกริบสิทธิ์ปุ่มจัดการทันที แม้ในหลังบ้านจะเผลอติ๊กสิทธิ์ไว้ก็ตาม
-    if (window.isTrainerDept()) {
-        if (!canPerm('duty_manage_amql') && !canPerm('duty_manage_odql')) {
-            canManageDuty = false; 
-        }
-    }
-    
-    const adminElements = document.querySelectorAll('.duty-admin-only');
-    const trainerBtn = document.getElementById('btnDutyTRAINER'); 
-    
-    if(trainerBtn) {
-        if(isAdmin || isTrainerDept || isTrainerRole) {
-            trainerBtn.classList.remove('hidden', 'no-perm-hidden'); trainerBtn.style.display = '';
-        } else trainerBtn.classList.add('hidden');
-    }
-    
-    if (!canManageDuty) {
-        adminElements.forEach(el => { el.style.display = 'none'; el.classList.add('hidden'); });
-        const shiftSelect = document.getElementById('dutyShiftSelect');
-        if (shiftSelect && currentUser.allowed_shift !== 'all') shiftSelect.value = currentUser.allowed_shift;
-        const indicator = document.getElementById('staffShiftIndicator');
-        if (indicator) {
-            indicator.classList.remove('hidden', 'no-perm-hidden'); indicator.style.display = '';
-            document.getElementById('staffShiftLabel').innerText = (currentUser.allowed_shift || 'ไม่ระบุกะ');
-        }
+          }
+        }), 1e3);
+        return;
+      }
+      window._dutyLastReloadTime = now;
+      window.refreshDutyData();
     } else {
-        adminElements.forEach(el => { el.style.display = ''; el.classList.remove('hidden', 'no-perm-hidden'); });
-        const indicator = document.getElementById('staffShiftIndicator');
-        if(indicator) indicator.classList.add('hidden');
+      window._dutyPendingReload = true;
     }
-}
-
-window.switchDutyTab = function(tabName) {
-    document.getElementById('dutyTabRoster')?.classList.add('hidden');
-    document.getElementById('dutyTabRoster')?.classList.remove('flex');
-    document.getElementById('dutyTabSettings')?.classList.add('hidden');
-    document.getElementById('dutyTabSettings')?.classList.remove('flex');
-    
-    // 🎨 แท็บหัวหน้าแบบใหม่ (สไตล์อยู่ใน duty.html: .dh-tab / .dh-tab.active)
-    const resetClass = 'dh-tab';
-    const activeClass = 'dh-tab active';
-    
-    const btnRoster = document.getElementById('tabBtnRoster');
-    const btnSettings = document.getElementById('tabBtnSettings');
-    
-    if (btnRoster) btnRoster.className = resetClass;
-    if (btnSettings) btnSettings.className = resetClass;
-    
-    if (tabName === 'roster') {
-        document.getElementById('dutyTabRoster').classList.remove('hidden');
-        document.getElementById('dutyTabRoster').classList.add('flex');
-        if (btnRoster) btnRoster.className = activeClass;
-        window.renderDutyRequirements();
-        if(window.isDutyAdmin()) window.updateDutyStats();
-    } else {
-        document.getElementById('dutyTabSettings').classList.remove('hidden');
-        document.getElementById('dutyTabSettings').classList.add('flex');
-        if (btnSettings) btnSettings.className = activeClass;
+  })).subscribe();
+  if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(dutySubscription);
+  if (dutySubscription && !dutySubscription._dutyPatched) {
+    dutySubscription._dutyPatched = true;
+    const _origUnsub = dutySubscription.unsubscribe && dutySubscription.unsubscribe.bind(dutySubscription);
+    if (_origUnsub) dutySubscription.unsubscribe = function() {
+      if (window._dutyPollingTimer) {
+        clearInterval(window._dutyPollingTimer);
+        window._dutyPollingTimer = null;
+      }
+      return _origUnsub.apply(this, arguments);
+    };
+  }
+  if (window._dutyPollingTimer) clearInterval(window._dutyPollingTimer);
+  window._dutyPollingTimer = setInterval((() => {
+    const dutyApp = document.getElementById('dutyApp');
+    if (!dutyApp) {
+      clearInterval(window._dutyPollingTimer);
+      window._dutyPollingTimer = null;
+      return;
     }
-}
-
-window.switchDutyDept = function(dept) {
-    currentDutyDept = dept;
-    if (typeof window.fillRotationGapInput === 'function') window.fillRotationGapInput();   // 🔁 ค่าเว้นวันของแผนกนี้
-    
-    document.getElementById('btnDutyAM')?.classList.remove('active'); 
-    document.getElementById('btnDutyOD')?.classList.remove('active');
-    document.getElementById('btnDutyAMQL')?.classList.remove('active'); 
-    document.getElementById('btnDutyODQL')?.classList.remove('active');
-    document.getElementById('btnDutyTRAINER_AM')?.classList.remove('active'); 
-    document.getElementById('btnDutyTRAINER_OD')?.classList.remove('active');
-    
-    document.getElementById(`btnDuty${dept}`)?.classList.add('active');
-    let labelText = dept;
-    if (dept === 'AMQL') labelText = 'ผู้สอน AM';
-    else if (dept === 'ODQL') labelText = 'ผู้สอน OD';
-    else if (dept.startsWith('TRAINER')) {
-        labelText = dept.replace('TRAINER_', 'ผู้สอน '); 
+    if (dutyApp && !dutyApp.classList.contains('hidden')) {
+      if (document.hidden) return;
+      if (typeof window.refreshDutyData === 'function') {
+        window._dutyPollTick = true;
+        window.refreshDutyData();
+      }
     }
-    const labelEl = document.getElementById('dutyDeptLabel'); 
-    if(labelEl) labelEl.innerText = labelText;
-    
-    const filterTrainer = document.getElementById('trainerDeptFilterContainer');
-    
-    // โชว์ตัวกรองแผนกผู้สอนตามปกติ
-    if (window.isTrainerDept(dept)) {
-        if (filterTrainer) filterTrainer.classList.remove('hidden');
-    } else {
-        if (filterTrainer) filterTrainer.classList.add('hidden');
-    }
-    
-    // บังคับซ่อนช่องเลือกหมวดตลอดเวลา
-    const taskModeContainer = document.getElementById('trainerTaskModeContainer');
-    if (taskModeContainer) { taskModeContainer.classList.add('hidden'); taskModeContainer.classList.remove('flex'); }
-    
-    const grid = document.getElementById('dutyResultGrid');
-    if (grid) grid.innerHTML = `<div class="col-span-full flex flex-col items-center justify-center py-20 text-gray-400"><span class="material-icons animate-spin text-5xl text-indigo-500 mb-2">sync</span><span class="font-bold text-sm">กำลังจัดเตรียมตาราง...</span></div>`;
-    
-    setTimeout(() => {
-        window.syncTeamOrder(); window.applyDutyRoleUI(); window.renderDutyAccessTable(); window.renderDutyRequirements(); window.refreshDutyData(); 
-    }, 50);
+  }), 12e4);
+  if (!window.__dutyVisBound) {
+    window.__dutyVisBound = true;
+    document.addEventListener('visibilitychange', (() => {
+      if (document.hidden) return;
+      const dutyApp = document.getElementById('dutyApp');
+      if (dutyApp && !dutyApp.classList.contains('hidden') && typeof window.refreshDutyData === 'function') {
+        window._dutyPollTick = true;
+        window.refreshDutyData();
+      }
+    }));
+  }
 };
 
-// ลบการแนบค่า Telegram ลงท้ายชื่อไฟล์เซฟตาราง
+window.applyDutyRoleUI = function() {
+  const isAdmin = window.isDutyAdmin();
+  const isTrainerDept = currentUser.department === 'AMQL' || currentUser.department === 'ODQL' || currentUser.department && currentUser.department.startsWith('TRAINER');
+  const isTrainerRole = [ 'AMQL', 'ODQL', 'TRAINER' ].includes(currentUser.department);
+  let canManageDuty = isAdmin;
+  if (window.isTrainerDept()) {
+    if (!canPerm('duty_manage_amql') && !canPerm('duty_manage_odql')) {
+      canManageDuty = false;
+    }
+  }
+  const adminElements = document.querySelectorAll('.duty-admin-only');
+  const trainerBtn = document.getElementById('btnDutyTRAINER');
+  if (trainerBtn) {
+    if (isAdmin || isTrainerDept || isTrainerRole) {
+      trainerBtn.classList.remove('hidden', 'no-perm-hidden');
+      trainerBtn.style.display = '';
+    } else trainerBtn.classList.add('hidden');
+  }
+  if (!canManageDuty) {
+    adminElements.forEach((el => {
+      el.style.display = 'none';
+      el.classList.add('hidden');
+    }));
+    const shiftSelect = document.getElementById('dutyShiftSelect');
+    if (shiftSelect && currentUser.allowed_shift !== 'all') shiftSelect.value = currentUser.allowed_shift;
+    const indicator = document.getElementById('staffShiftIndicator');
+    if (indicator) {
+      indicator.classList.remove('hidden', 'no-perm-hidden');
+      indicator.style.display = '';
+      document.getElementById('staffShiftLabel').innerText = currentUser.allowed_shift || 'ไม่ระบุกะ';
+    }
+  } else {
+    adminElements.forEach((el => {
+      el.style.display = '';
+      el.classList.remove('hidden', 'no-perm-hidden');
+    }));
+    const indicator = document.getElementById('staffShiftIndicator');
+    if (indicator) indicator.classList.add('hidden');
+  }
+};
+
+window.switchDutyTab = function(tabName) {
+  document.getElementById('dutyTabRoster')?.classList.add('hidden');
+  document.getElementById('dutyTabRoster')?.classList.remove('flex');
+  document.getElementById('dutyTabSettings')?.classList.add('hidden');
+  document.getElementById('dutyTabSettings')?.classList.remove('flex');
+  const resetClass = 'dh-tab';
+  const activeClass = 'dh-tab active';
+  const btnRoster = document.getElementById('tabBtnRoster');
+  const btnSettings = document.getElementById('tabBtnSettings');
+  if (btnRoster) btnRoster.className = resetClass;
+  if (btnSettings) btnSettings.className = resetClass;
+  if (tabName === 'roster') {
+    document.getElementById('dutyTabRoster').classList.remove('hidden');
+    document.getElementById('dutyTabRoster').classList.add('flex');
+    if (btnRoster) btnRoster.className = activeClass;
+    window.renderDutyRequirements();
+    if (window.isDutyAdmin()) window.updateDutyStats();
+  } else {
+    document.getElementById('dutyTabSettings').classList.remove('hidden');
+    document.getElementById('dutyTabSettings').classList.add('flex');
+    if (btnSettings) btnSettings.className = activeClass;
+  }
+};
+
+window.switchDutyDept = function(dept) {
+  currentDutyDept = dept;
+  if (typeof window.fillRotationGapInput === 'function') window.fillRotationGapInput();
+  document.getElementById('btnDutyAM')?.classList.remove('active');
+  document.getElementById('btnDutyOD')?.classList.remove('active');
+  document.getElementById('btnDutyAMQL')?.classList.remove('active');
+  document.getElementById('btnDutyODQL')?.classList.remove('active');
+  document.getElementById('btnDutyTRAINER_AM')?.classList.remove('active');
+  document.getElementById('btnDutyTRAINER_OD')?.classList.remove('active');
+  document.getElementById(`btnDuty${dept}`)?.classList.add('active');
+  let labelText = dept;
+  if (dept === 'AMQL') labelText = 'ผู้สอน AM'; else if (dept === 'ODQL') labelText = 'ผู้สอน OD'; else if (dept.startsWith('TRAINER')) {
+    labelText = dept.replace('TRAINER_', 'ผู้สอน ');
+  }
+  const labelEl = document.getElementById('dutyDeptLabel');
+  if (labelEl) labelEl.innerText = labelText;
+  const filterTrainer = document.getElementById('trainerDeptFilterContainer');
+  if (window.isTrainerDept(dept)) {
+    if (filterTrainer) filterTrainer.classList.remove('hidden');
+  } else {
+    if (filterTrainer) filterTrainer.classList.add('hidden');
+  }
+  const taskModeContainer = document.getElementById('trainerTaskModeContainer');
+  if (taskModeContainer) {
+    taskModeContainer.classList.add('hidden');
+    taskModeContainer.classList.remove('flex');
+  }
+  const grid = document.getElementById('dutyResultGrid');
+  if (grid) grid.innerHTML = `<div class="col-span-full flex flex-col items-center justify-center py-20 text-gray-400"><span class="material-icons animate-spin text-5xl text-indigo-500 mb-2">sync</span><span class="font-bold text-sm">กำลังจัดเตรียมตาราง...</span></div>`;
+  setTimeout((() => {
+    window.syncTeamOrder();
+    window.applyDutyRoleUI();
+    window.renderDutyAccessTable();
+    window.renderDutyRequirements();
+    window.refreshDutyData();
+  }), 50);
+};
+
 function getDutySaveKey(date, shift) {
-    return `duty_roster_${currentDutyDept}_${date}_${shift}`;
+  return `duty_roster_${currentDutyDept}_${date}_${shift}`;
 }
 
-window.currentDutyLeaveData = []; 
+window.currentDutyLeaveData = [];
 
 window.refreshDutyData = async function() {
+  try {
+    window.ensureImportantTasksContainer();
+    const targetDateInput = document.getElementById('dutyDate');
+    const shiftFilterInput = document.getElementById('dutyShiftSelect');
+    if (!targetDateInput || !shiftFilterInput) return;
+    const targetDate = targetDateInput.value;
+    const shiftFilter = shiftFilterInput.value;
+    if (!targetDate) return;
+    const saveKey = getDutySaveKey(targetDate, shiftFilter);
+    const impListKey = `duty_important_tasks_list_${currentDutyDept}_${shiftFilter}`;
+    const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
+    const impLockKey = `duty_important_permanent_lock_${currentDutyDept}_${shiftFilter}`;
+    const impCfgKey = `duty_important_task_cfg_${currentDutyDept}_${shiftFilter}`;
+    const stayPinKey = `duty_stay_pins_${currentDutyDept}`;
+    const supportKey = `duty_support_${currentDutyDept}_${targetDate}_${shiftFilter}`;
+    const mergeKey = window.dutyMergeKey(targetDate, shiftFilter, currentDutyDept);
+    const mergeKeyOld = window.dutyMergeKeyLegacy(targetDate, shiftFilter);
+    const webGroupKey = 'break_web_groups';
+    const backupKey = `backup_${saveKey}`;
+    const taskDayStart = `${targetDate}T00:00:00+07:00`;
+    const taskDayEnd = `${targetDate}T23:59:59+07:00`;
+    const [leavesRes, schedulesRes, settingsRes, swapRes] = await Promise.all([ appDB.from('leave_requests').select('user_id, reason, user_name').eq('leave_date', targetDate), appDB.from('schedules').select('staff_name, time_slot').eq('work_date', targetDate).eq('shift_name', shiftFilter), appDB.from('settings').select('value, key').in('key', [ saveKey, impListKey, impAssignKey, impLockKey, impCfgKey, stayPinKey, supportKey, mergeKey, mergeKeyOld, webGroupKey, backupKey ]), appDB.from('scheduled_tasks').select('payload, scheduled_for, status').eq('task_type', 'individual_shift_update').gte('scheduled_for', taskDayStart).lte('scheduled_for', taskDayEnd) ]);
     try {
-        window.ensureImportantTasksContainer(); // 🌟 NEW: สร้างโครงสร้างกล่องงานพิเศษ
-
-        const targetDateInput = document.getElementById('dutyDate');
-        const shiftFilterInput = document.getElementById('dutyShiftSelect');
-        
-        if (!targetDateInput || !shiftFilterInput) return; 
-        
-        const targetDate = targetDateInput.value;
-        const shiftFilter = shiftFilterInput.value;
-        if(!targetDate) return;
-
-        // 🚀 คำนวณคีย์ทั้งหมดก่อน เพื่อยิง 3 query ขนานกันได้ในรอบเดียว
-        const saveKey = getDutySaveKey(targetDate, shiftFilter);
-        const impListKey = `duty_important_tasks_list_${currentDutyDept}_${shiftFilter}`;
-        const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
-        const impLockKey = `duty_important_permanent_lock_${currentDutyDept}_${shiftFilter}`;
-        const impCfgKey = `duty_important_task_cfg_${currentDutyDept}_${shiftFilter}`;   // ⭐ จำนวนคน หลัก/ซัพพอร์ต ต่อหน้าที่
-        const stayPinKey = `duty_stay_pins_${currentDutyDept}`;   // 📌 คนที่ถูกล็อกให้อยู่เว็บเดิมข้ามวัน
-        const supportKey = `duty_support_${currentDutyDept}_${targetDate}_${shiftFilter}`;  // 🤝 ตารางซัพพอร์ตข้ามเว็บ
-        const mergeKey = window.dutyMergeKey(targetDate, shiftFilter, currentDutyDept);   // 🏠 ผลรวมห้อง Discord (แยกตามฝั่ง)
-        const mergeKeyOld = window.dutyMergeKeyLegacy(targetDate, shiftFilter);            // ⏳ คีย์เก่าที่ไม่มีฝั่ง
-        const webGroupKey = 'break_web_groups';   // 🔗 กลุ่มเว็บที่รวมการ์ด+โควตาพัก (แยกตามแผนก+กะ)
-        const backupKey = `backup_${saveKey}`;                               // 💾 สำเนาตารางก่อนล้าง (ย้ายจาก localStorage มาเก็บ DB)
-
-        // 🚀 ดึง 3 ชุดข้อมูลขนานกัน (leaves + schedules + settings) ลด latency 3 เท่า
-        // [FIX] ดึง scheduled_tasks ของวันนั้นมาด้วย เพื่อแยกทิศทางของ XX
-        // XX ใน leave_requests มี 2 ความหมาย แยกจากตัวมันเองไม่ได้:
-        //   เช้า→ดึก : task ตรงวัน XX + target_shift = กะดึก  → วันนั้น "เข้าดึก 20:00" = ทำงาน ต้องจัดหน้าที่
-        //   ดึก→เช้า : task ช้ากว่า XX 1 วัน + target_shift = กะเช้า → วันนั้นหยุดจริง ไม่ต้องจัด
-        // ต้องระบุ +07:00 ให้ชัด — scheduled_for เก็บเป็น timestamptz (UTC)
-        // task ของวันที่ 1 ส.ค. 05:00 ไทย ถูกเก็บเป็น 2026-07-31T22:00Z
-        // ถ้าไม่ใส่โซน จะถูกตีความเป็น UTC แล้ว task หลุดออกจากช่วงทันที
-        const taskDayStart = `${targetDate}T00:00:00+07:00`;
-        const taskDayEnd = `${targetDate}T23:59:59+07:00`;
-        const [leavesRes, schedulesRes, settingsRes, swapRes] = await Promise.all([
-            appDB.from('leave_requests').select('user_id, reason, user_name').eq('leave_date', targetDate),
-            appDB.from('schedules').select('staff_name, time_slot').eq('work_date', targetDate).eq('shift_name', shiftFilter),
-            appDB.from('settings').select('value, key').in('key', [saveKey, impListKey, impAssignKey, impLockKey, impCfgKey, stayPinKey, supportKey, mergeKey, mergeKeyOld, webGroupKey, backupKey]),
-            appDB.from('scheduled_tasks').select('payload, scheduled_for, status')
-                .eq('task_type', 'individual_shift_update')
-                .gte('scheduled_for', taskDayStart).lte('scheduled_for', taskDayEnd)
-        ]);
-
-        // ⚡ [ประหยัด] รอบเช็คอัตโนมัติ: ข้อมูลเหมือนรอบก่อนทุกอย่าง → ไม่ต้องวาดกระดานใหม่
-        //    (การเปลี่ยนจริงยังเห็นทันทีผ่านระบบแจ้งสด — รอบนี้เป็นแค่ตัวกันพลาด)
+      const _sig = JSON.stringify([ targetDate, shiftFilter, currentDutyDept, leavesRes && leavesRes.data, schedulesRes && schedulesRes.data, settingsRes && settingsRes.data, swapRes && swapRes.data ]);
+      const _isPoll = window._dutyPollTick === true;
+      window._dutyPollTick = false;
+      if (_isPoll && window._dutyLastSig === _sig) return;
+      window._dutyLastSig = _sig;
+    } catch (e) {}
+    window.currentDutyShiftToday = {};
+    const swapToNightIds = new Set;
+    (swapRes && swapRes.data ? swapRes.data : []).forEach((t => {
+      let pl = t.payload;
+      if (typeof pl === 'string') {
         try {
-            const _sig = JSON.stringify([targetDate, shiftFilter, currentDutyDept, leavesRes && leavesRes.data, schedulesRes && schedulesRes.data, settingsRes && settingsRes.data, swapRes && swapRes.data]);
-            const _isPoll = window._dutyPollTick === true; window._dutyPollTick = false;
-            if (_isPoll && window._dutyLastSig === _sig) return;
-            window._dutyLastSig = _sig;
+          pl = JSON.parse(pl);
+        } catch (e) {
+          pl = {};
+        }
+      }
+      if (!pl || !pl.user_id) return;
+      const uid = String(pl.user_id);
+      if (pl.target_shift && pl.target_shift !== 'คงเดิม') {
+        window.currentDutyShiftToday[uid] = pl.target_shift;
+        if (pl.target_shift === 'กะดึก') swapToNightIds.add(uid);
+      }
+    }));
+    const leaves = leavesRes && leavesRes.data;
+    currentDutyLeaves = new Set;
+    if (leaves) leaves.forEach((l => {
+      const uid = String(l.user_id);
+      if (l.reason === 'XX' && swapToNightIds.has(uid)) return;
+      currentDutyLeaves.add(uid);
+    }));
+    window.currentDutySchedules = schedulesRes && schedulesRes.data ? schedulesRes.data : [];
+    const relevantLeaves = [];
+    if (leaves && typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST.length > 0) {
+      leaves.forEach((l => {
+        if (l.reason === 'XX' && swapToNightIds.has(String(l.user_id))) return;
+        let userObj = GLOBAL_USER_LIST.find((u => String(u.id) === String(l.user_id) || u.username === l.user_name));
+        if (userObj) {
+          let uDept = userObj.department || 'AM';
+          if (uDept === 'TRAINER') uDept = 'AMQL';
+          if (uDept === currentDutyDept) {
+            relevantLeaves.push({
+              user_id: userObj.id,
+              username: userObj.username,
+              reason: l.reason,
+              originalShift: userObj.allowed_shift || 'all'
+            });
+          }
+        }
+      }));
+    }
+    window.currentDutyLeaveData = relevantLeaves;
+    window.renderDutyLeaveBox();
+    if (typeof window.loadBreakMinRemainCfg === 'function') window.loadBreakMinRemainCfg();
+    if (typeof window.updateDutyStats === 'function') window.updateDutyStats();
+    let savedRoster = null;
+    window.globalImportantTasks = [];
+    window.currentImportantAssigns = {};
+    window.lockedImportantTasks = {};
+    window.importantTaskCfg = {};
+    window.dutyStayPins = {};
+    window.currentSupportData = {};
+    window.savedMergeRooms = [];
+    try {
+      const data = settingsRes && settingsRes.data;
+      const wgRow = data ? data.find((d => d.key === webGroupKey)) : null;
+      try {
+        window._breakWebGroups = wgRow && wgRow.value ? JSON.parse(wgRow.value) : {};
+      } catch (e) {
+        window._breakWebGroups = {};
+      }
+      const mergeRow = data ? data.find((d => d.key === mergeKey)) || data.find((d => d.key === mergeKeyOld)) : null;
+      if (mergeRow && mergeRow.value) {
+        try {
+          const m = JSON.parse(mergeRow.value);
+          window.savedMergeRooms = Array.isArray(m) ? m : [];
         } catch (e) {}
-
-        // ── หาคนที่ "วันนี้เปลี่ยนไปเข้ากะดึก" (เช้า→ดึก) ──
-        window.currentDutyShiftToday = {};   // user_id -> กะที่ต้องทำงานจริงวันนั้น
-        const swapToNightIds = new Set();
-        (swapRes && swapRes.data ? swapRes.data : []).forEach(t => {
-            let pl = t.payload;
-            if (typeof pl === 'string') { try { pl = JSON.parse(pl); } catch(e) { pl = {}; } }
-            if (!pl || !pl.user_id) return;
-            const uid = String(pl.user_id);
-            if (pl.target_shift && pl.target_shift !== 'คงเดิม') {
-                window.currentDutyShiftToday[uid] = pl.target_shift;
-                if (pl.target_shift === 'กะดึก') swapToNightIds.add(uid);
+      } else {
+        const legacy = window.safeGetItem(mergeKey, null);
+        if (legacy) {
+          try {
+            const m = JSON.parse(legacy);
+            if (Array.isArray(m) && m.length > 0) {
+              window.savedMergeRooms = m;
+              window.clearSettingCache();
+              appDB.from('settings').upsert([ {
+                key: mergeKey,
+                value: legacy
+              } ]).then((() => {
+                try {
+                  localStorage.removeItem(mergeKey);
+                } catch (e) {}
+              }), (() => {}));
             }
-        });
-
-        // ประมวลผล leaves
-        const leaves = leavesRes && leavesRes.data;
-        currentDutyLeaves = new Set();
-        if (leaves) leaves.forEach(l => {
-            const uid = String(l.user_id);
-            // XX ของคนที่วันนี้ย้ายไปเข้าดึก = วันทำงาน ไม่ใช่วันหยุด
-            if (l.reason === 'XX' && swapToNightIds.has(uid)) return;
-            currentDutyLeaves.add(uid);
-        });
-
-        // ประมวลผล schedules
-        window.currentDutySchedules = (schedulesRes && schedulesRes.data) ? schedulesRes.data : [];
-
-        const relevantLeaves = [];
-        if (leaves && typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST.length > 0) {
-            leaves.forEach(l => {
-                // ข้ามคนที่ XX แล้ววันนี้ย้ายไปเข้าดึก — เขาทำงาน ไม่ควรอยู่ในกล่องลาหยุด
-                if (l.reason === 'XX' && swapToNightIds.has(String(l.user_id))) return;
-                let userObj = GLOBAL_USER_LIST.find(u => String(u.id) === String(l.user_id) || u.username === l.user_name);
-                if (userObj) {
-                    let uDept = userObj.department || 'AM';
-                    if (uDept === 'TRAINER') uDept = 'AMQL';
-                    if (uDept === currentDutyDept) {
-                        relevantLeaves.push({ user_id: userObj.id, username: userObj.username, reason: l.reason, originalShift: userObj.allowed_shift || 'all' });
-                    }
-                }
-            });
+          } catch (e) {}
         }
-        window.currentDutyLeaveData = relevantLeaves;
-        window.renderDutyLeaveBox();
-        // ⚙️ โหลดค่า "เฝ้า≥" มาเตรียมไว้ให้ป้ายเตือนบนการ์ดใช้ (ไม่ block)
-        if (typeof window.loadBreakMinRemainCfg === 'function') window.loadBreakMinRemainCfg();
-        // 🔗 [FIX เลขไม่ตรง] ข้อมูลลาเพิ่งมาถึง = จำนวนคนว่างเปลี่ยน → คำนวณแถบสถานะ+ช่องส่วนกลางใหม่ทันที
-        // (เดิมไม่มีใครเรียก ทำให้แถบเขียวค้างเลขเก่า 18 ทั้งที่ MIKA ลาดึกเหลือ 17)
-        if (typeof window.updateDutyStats === 'function') window.updateDutyStats();
-
-        let savedRoster = null;
-        window.globalImportantTasks = [];
-        window.currentImportantAssigns = {};
-        window.lockedImportantTasks = {};
-        window.importantTaskCfg = {};
-        window.dutyStayPins = {};
-        window.currentSupportData = {};
-        window.savedMergeRooms = [];
-
-        try {
-            const data = settingsRes && settingsRes.data;
-
-            // 🏠 ผลรวมห้อง Discord — เดิมเก็บ localStorage (เห็นแค่เครื่องเดียว) ย้ายมา DB
-            // ถ้า DB ยังไม่มีแต่เครื่องนี้เคยบันทึกไว้ใน localStorage ให้ย้ายขึ้น DB ให้อัตโนมัติครั้งเดียว
-            // 🔗 กลุ่มเว็บ — ต้องโหลดก่อนวาดการ์ด ไม่งั้นการ์ดที่จับกลุ่มไว้จะไม่รวมกัน
-            const wgRow = data ? data.find(d => d.key === webGroupKey) : null;
-            try { window._breakWebGroups = wgRow && wgRow.value ? JSON.parse(wgRow.value) : {}; } catch (e) { window._breakWebGroups = {}; }
-
-            const mergeRow = data ? (data.find(d => d.key === mergeKey) || data.find(d => d.key === mergeKeyOld)) : null;
-            if (mergeRow && mergeRow.value) {
-                try { const m = JSON.parse(mergeRow.value); window.savedMergeRooms = Array.isArray(m) ? m : []; } catch (e) {}
-            } else {
-                const legacy = window.safeGetItem(mergeKey, null);
-                if (legacy) {
-                    try {
-                        const m = JSON.parse(legacy);
-                        if (Array.isArray(m) && m.length > 0) {
-                            window.savedMergeRooms = m;
-                            window.clearSettingCache();
-                            appDB.from('settings').upsert([{ key: mergeKey, value: legacy }]).then(() => { try { localStorage.removeItem(mergeKey); } catch (e) {} }, () => {});
-                        }
-                    } catch (e) {}
-                }
-            }
-
-            if (data && data.length > 0) {
-                const rosterRow = data.find(d => d.key === saveKey);
-                if (rosterRow && rosterRow.value) savedRoster = rosterRow;
-
-                const listRow = data.find(d => d.key === impListKey);
-                if (listRow && listRow.value) window.globalImportantTasks = JSON.parse(listRow.value);
-
-                const assignRow = data.find(d => d.key === impAssignKey);
-                if (assignRow && assignRow.value) window.currentImportantAssigns = JSON.parse(assignRow.value);
-
-                // ⭐ แปลงข้อมูลรูปแบบเก่า { งาน: "ชื่อ" } → { งาน: { main:[ชื่อ], support:[] } } ให้อัตโนมัติ
-                if (typeof window.impNormMap === 'function') window.currentImportantAssigns = window.impNormMap(window.currentImportantAssigns);
-
-                const cfgRow = data.find(d => d.key === impCfgKey);
-                if (cfgRow && cfgRow.value) {
-                    try { const c = JSON.parse(cfgRow.value); window.importantTaskCfg = (c && !Array.isArray(c)) ? c : {}; } catch (e) {}
-                }
-
-                const lockRow = data.find(d => d.key === impLockKey);
-                if (lockRow && lockRow.value) {
-                    let parsedLock = JSON.parse(lockRow.value);
-                    // 🌟 แก้บั๊ก: ป้องกันโครงสร้างข้อมูลเก่าตีกัน (ถ้าของเก่าเป็น Array ให้ล้างทิ้งเป็น Object)
-                    if (Array.isArray(parsedLock)) {
-                        window.lockedImportantTasks = {};
-                    } else {
-                        window.lockedImportantTasks = parsedLock || {};
-                    }
-                    if (typeof window.impNormMap === 'function') window.lockedImportantTasks = window.impNormMap(window.lockedImportantTasks);
-                }
-
-                // 📌 คนที่ถูกล็อกให้อยู่เว็บเดิมข้ามวัน — ตัดตัวที่หมดอายุทิ้งตั้งแต่ตอนโหลด
-                const stayPinRow = data.find(d => d.key === stayPinKey);
-                if (stayPinRow && stayPinRow.value) {
-                    try {
-                        const parsedPins = JSON.parse(stayPinRow.value);
-                        window.dutyStayPins = (parsedPins && !Array.isArray(parsedPins)) ? parsedPins : {};
-                        window.prunePins(window.dutyStayPins);
-                    } catch (e) { window.dutyStayPins = {}; }
-                }
-
-                // 🤝 ตารางซัพพอร์ตข้ามเว็บของวัน+กะนี้
-                const supportRow = data.find(d => d.key === supportKey);
-                if (supportRow && supportRow.value) {
-                    try {
-                        const parsed = JSON.parse(supportRow.value);
-                        // ผ่าน normalize เสมอ เพื่อรองรับข้อมูลรูปแบบเก่าที่ key ด้วยเว็บเป้าหมาย
-                        window.currentSupportData = (parsed && !Array.isArray(parsed))
-                            ? window.normalizeSupportData(parsed) : {};
-                    } catch (e) { window.currentSupportData = {}; }
-                }
-            }
-            
-            // 🌟 ดึงคนที่ถูกล็อค มายัดใส่ในตารางอัตโนมัติ (เฉพาะวันนี้และอนาคต ป้องกันประวัติอดีตหาย)
-            let needSave = false;
-            
-            // สร้างวันที่ปัจจุบัน (อิงตามเวลาท้องถิ่น)
-            const t = new Date();
-            const todayStr = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
-            
-            // ถ้าย้อนไปดูอดีต จะไม่เอาระบบล็อคปัจจุบันไปทับเด็ดขาด (ทำงานเฉพาะเป้าหมาย >= วันนี้)
-            if (targetDate >= todayStr) {
-                // 🔒 ล็อกรายคน: ใส่คนที่ล็อกไว้ลงงาน/บทบาทของตัวเอง โดยไม่ลบคนอื่นที่จัดไว้แล้ว
-                if (typeof window.impApplyLocks === 'function' && window.impApplyLocks()) needSave = true;
-            }
-
-            // ถ้ายัดชื่อเข้าตารางใหม่ ให้บันทึกเพื่อจองตัวในวันนั้นๆ ไปเลย
-            if (needSave && targetDate) {
-                appDB.from('settings').upsert([{ key: impAssignKey, value: JSON.stringify(window.currentImportantAssigns) }]);
-            }
-            
-        } catch(e) { console.log(e); }
-        
-        window.renderImportantTasksPanel();
-        // ----------------------------------------------------
-
-        const btnGen = document.getElementById('btnGenerateRoster');
-        const grid = document.getElementById('dutyResultGrid');
-        const matrixGrid = document.getElementById('dutyMatrixGrid');
-
-        if (savedRoster && savedRoster.value) {
-            const parsedRoster = JSON.parse(savedRoster.value);
-            window.isRosterPreview = false;
-            // 🔧 [FIX] ถ้าวาดตารางพัง (ข้อมูลเก่าผิดรูป ฯลฯ) เดิมจะเหลือหน้าขาว ๆ โดยไม่บอกอะไร
-            Promise.resolve(window.renderRosterGrid(parsedRoster)).catch(err => {
-                console.error('[duty] วาดตารางไม่สำเร็จ:', err);
-                if (grid) grid.innerHTML = `<div class="col-span-full flex flex-col items-center justify-center py-16 text-red-400"><span class="material-icons text-5xl mb-2">error_outline</span><span class="font-bold">โหลดตารางวันนี้ไม่สำเร็จ</span><span class="text-xs opacity-80 mt-1">${String(err && err.message || err)}</span><span class="text-[11px] opacity-60 mt-2">ข้อมูลยังอยู่ในระบบ ลองรีเฟรชหน้า หรือส่งข้อความนี้ให้ผู้ดูแล</span></div>`;
-            });
-            if (btnGen) {
-                btnGen.disabled = true; btnGen.innerHTML = '<span class="material-icons text-base">lock</span> จัดแล้ว (ต้องล้างก่อน)';
-                btnGen.classList.replace('bg-indigo-600', 'bg-gray-500'); btnGen.classList.replace('hover:bg-indigo-700', 'hover:bg-gray-600');
-            }
-        } else {
-            // 📌 ยังไม่ได้จัดเวรวันนี้ แต่ถ้ามีคนถูกล็อก "อยู่ต่อ" ให้โชว์ชื่อเขาไว้ก่อนเลย
-            // จะได้เห็นทันทีที่เลื่อนวันที่ ไม่ต้องรอกดสุ่ม
-            // ตั้งใจ "ไม่บันทึก" ลง DB เพราะถ้าบันทึกปุ๊บ ปุ่มสุ่มจะถูกล็อกเป็น "จัดแล้ว"
-            // แล้วจะจัดคนที่เหลือไม่ได้เลย — อันนี้เป็นแค่ภาพตัวอย่าง
-            //
-            // ⚠️ เฉพาะฝ่ายจัดเวรเท่านั้น — ต่อให้ซ่อนป้าย 📌 บนการ์ดไปแล้ว
-            // ภาพตัวอย่างเองก็ยังฟ้อง เพราะพนักงานจะเห็นชื่อตัวเองโผล่อยู่ในเว็บ
-            // ของวันข้างหน้าที่ยังไม่ได้จัด ซึ่งเป็นไปได้ทางเดียวคือถูกล็อกไว้
-            const preview = window.canManageStayPin()
-                ? window.buildStayPinPreview(targetDate, shiftFilter)
-                : { roster: {}, count: 0 };
-
-            if (preview.count > 0) {
-                window.isRosterPreview = true;
-                window.renderRosterGrid(preview.roster);
-            } else {
-                window.isRosterPreview = false;
-                if(grid) grid.innerHTML = '<div class="col-span-full flex flex-col items-center justify-center py-20 text-gray-400 opacity-50"><span class="material-icons text-6xl mb-2">event_busy</span><span class="font-bold text-lg">ยังไม่มีการจัดเวรในกะนี้</span></div>';
-                if(matrixGrid) matrixGrid.innerHTML = '<div class="flex flex-col items-center justify-center py-20 text-gray-400 opacity-50 h-full"><span class="material-icons text-6xl mb-2">event_busy</span><span class="font-bold text-lg">ยังไม่มีการจัดเวรในกะนี้</span></div>';
-            }
-
-            if (btnGen) {
-                btnGen.disabled = false; btnGen.innerHTML = '<span class="material-icons text-base">casino</span> สุ่มจัดหน้าที่';
-                btnGen.classList.replace('bg-gray-500', 'bg-indigo-600'); btnGen.classList.replace('hover:bg-gray-600', 'hover:bg-indigo-700');
-            }
+      }
+      if (data && data.length > 0) {
+        const rosterRow = data.find((d => d.key === saveKey));
+        if (rosterRow && rosterRow.value) savedRoster = rosterRow;
+        const listRow = data.find((d => d.key === impListKey));
+        if (listRow && listRow.value) window.globalImportantTasks = JSON.parse(listRow.value);
+        const assignRow = data.find((d => d.key === impAssignKey));
+        if (assignRow && assignRow.value) window.currentImportantAssigns = JSON.parse(assignRow.value);
+        if (typeof window.impNormMap === 'function') window.currentImportantAssigns = window.impNormMap(window.currentImportantAssigns);
+        const cfgRow = data.find((d => d.key === impCfgKey));
+        if (cfgRow && cfgRow.value) {
+          try {
+            const c = JSON.parse(cfgRow.value);
+            window.importantTaskCfg = c && !Array.isArray(c) ? c : {};
+          } catch (e) {}
         }
-
-        // 🤝 วาดแผงซัพพอร์ตซ้ำ "หลัง" ตารางถูกโหลดเข้า currentRosterData แล้ว
-        // renderImportantTasksPanel ด้านบนถูกเรียกก่อน renderRosterGrid
-        // แผงจึงนับจำนวนคนจากข้อมูลเก่า ทำให้ทุกเว็บขึ้นว่า "ว่าง"
-        if (currentDutyDept === 'AM' && typeof window.renderHelpCalcPanel === 'function') {
-            window.renderHelpCalcPanel();
+        const lockRow = data.find((d => d.key === impLockKey));
+        if (lockRow && lockRow.value) {
+          let parsedLock = JSON.parse(lockRow.value);
+          if (Array.isArray(parsedLock)) {
+            window.lockedImportantTasks = {};
+          } else {
+            window.lockedImportantTasks = parsedLock || {};
+          }
+          if (typeof window.impNormMap === 'function') window.lockedImportantTasks = window.impNormMap(window.lockedImportantTasks);
         }
-
-        // 💾 [FIX] backup อ่านจาก DB ก่อน (กู้ได้จากทุกเครื่อง) ถ้าไม่มีค่อยดู localStorage ของเครื่องนี้
-        const backupRow = (settingsRes && settingsRes.data) ? settingsRes.data.find(d => d.key === backupKey) : null;
-        const backupData = (backupRow && backupRow.value) || window.safeGetItem(backupKey, null);
-        const btnRestore = document.getElementById('btnRestoreRoster');
-        if (btnRestore) {
-            if (backupData && (!savedRoster || !savedRoster.value)) btnRestore.classList.remove('hidden');
-            else btnRestore.classList.add('hidden');
+        const stayPinRow = data.find((d => d.key === stayPinKey));
+        if (stayPinRow && stayPinRow.value) {
+          try {
+            const parsedPins = JSON.parse(stayPinRow.value);
+            window.dutyStayPins = parsedPins && !Array.isArray(parsedPins) ? parsedPins : {};
+            window.prunePins(window.dutyStayPins);
+          } catch (e) {
+            window.dutyStayPins = {};
+          }
         }
-
-        if (window.isDutyAdmin()) window.updateDutyStats();
-        window.updateStayPinButton();
-    } catch (err) { console.error("Refresh Duty Data Error:", err); }
+        const supportRow = data.find((d => d.key === supportKey));
+        if (supportRow && supportRow.value) {
+          try {
+            const parsed = JSON.parse(supportRow.value);
+            window.currentSupportData = parsed && !Array.isArray(parsed) ? window.normalizeSupportData(parsed) : {};
+          } catch (e) {
+            window.currentSupportData = {};
+          }
+        }
+      }
+      let needSave = false;
+      const t = new Date;
+      const todayStr = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+      if (targetDate >= todayStr) {
+        if (typeof window.impApplyLocks === 'function' && window.impApplyLocks()) needSave = true;
+      }
+      if (needSave && targetDate) {
+        appDB.from('settings').upsert([ {
+          key: impAssignKey,
+          value: JSON.stringify(window.currentImportantAssigns)
+        } ]);
+      }
+    } catch (e) {
+      console.log(e);
+    }
+    window.renderImportantTasksPanel();
+    const btnGen = document.getElementById('btnGenerateRoster');
+    const grid = document.getElementById('dutyResultGrid');
+    const matrixGrid = document.getElementById('dutyMatrixGrid');
+    if (savedRoster && savedRoster.value) {
+      const parsedRoster = JSON.parse(savedRoster.value);
+      window.isRosterPreview = false;
+      Promise.resolve(window.renderRosterGrid(parsedRoster)).catch((err => {
+        console.error('[duty] วาดตารางไม่สำเร็จ:', err);
+        if (grid) grid.innerHTML = `<div class="col-span-full flex flex-col items-center justify-center py-16 text-red-400"><span class="material-icons text-5xl mb-2">error_outline</span><span class="font-bold">โหลดตารางวันนี้ไม่สำเร็จ</span><span class="text-xs opacity-80 mt-1">${String(err && err.message || err)}</span><span class="text-[11px] opacity-60 mt-2">ข้อมูลยังอยู่ในระบบ ลองรีเฟรชหน้า หรือส่งข้อความนี้ให้ผู้ดูแล</span></div>`;
+      }));
+      if (btnGen) {
+        btnGen.disabled = true;
+        btnGen.innerHTML = '<span class="material-icons text-base">lock</span> จัดแล้ว (ต้องล้างก่อน)';
+        btnGen.classList.replace('bg-indigo-600', 'bg-gray-500');
+        btnGen.classList.replace('hover:bg-indigo-700', 'hover:bg-gray-600');
+      }
+    } else {
+      const preview = window.canManageStayPin() ? window.buildStayPinPreview(targetDate, shiftFilter) : {
+        roster: {},
+        count: 0
+      };
+      if (preview.count > 0) {
+        window.isRosterPreview = true;
+        window.renderRosterGrid(preview.roster);
+      } else {
+        window.isRosterPreview = false;
+        if (grid) grid.innerHTML = '<div class="col-span-full flex flex-col items-center justify-center py-20 text-gray-400 opacity-50"><span class="material-icons text-6xl mb-2">event_busy</span><span class="font-bold text-lg">ยังไม่มีการจัดเวรในกะนี้</span></div>';
+        if (matrixGrid) matrixGrid.innerHTML = '<div class="flex flex-col items-center justify-center py-20 text-gray-400 opacity-50 h-full"><span class="material-icons text-6xl mb-2">event_busy</span><span class="font-bold text-lg">ยังไม่มีการจัดเวรในกะนี้</span></div>';
+      }
+      if (btnGen) {
+        btnGen.disabled = false;
+        btnGen.innerHTML = '<span class="material-icons text-base">casino</span> สุ่มจัดหน้าที่';
+        btnGen.classList.replace('bg-gray-500', 'bg-indigo-600');
+        btnGen.classList.replace('hover:bg-gray-600', 'hover:bg-indigo-700');
+      }
+    }
+    if (currentDutyDept === 'AM' && typeof window.renderHelpCalcPanel === 'function') {
+      window.renderHelpCalcPanel();
+    }
+    const backupRow = settingsRes && settingsRes.data ? settingsRes.data.find((d => d.key === backupKey)) : null;
+    const backupData = backupRow && backupRow.value || window.safeGetItem(backupKey, null);
+    const btnRestore = document.getElementById('btnRestoreRoster');
+    if (btnRestore) {
+      if (backupData && (!savedRoster || !savedRoster.value)) btnRestore.classList.remove('hidden'); else btnRestore.classList.add('hidden');
+    }
+    if (window.isDutyAdmin()) window.updateDutyStats();
+    window.updateStayPinButton();
+  } catch (err) {
+    console.error("Refresh Duty Data Error:", err);
+  }
 };
 
 window.renderDutyLeaveBox = function() {
-    const leaveContainer = document.getElementById('dutyLeaveList');
-    const leaveBadge = document.getElementById('leaveCountBadge');
-    if (!leaveContainer) return;
-
-    const shiftFilterEl = document.getElementById('dutyLeaveShiftFilter');
-    const typeFilterEl = document.getElementById('dutyLeaveTypeFilter');
-    const shiftFilter = shiftFilterEl ? shiftFilterEl.value : 'all';
-    const typeFilter = typeFilterEl ? typeFilterEl.value : 'all';
-
-    let filteredLeaves = [...window.currentDutyLeaveData];
-
-    if (shiftFilter !== 'all') {
-        if (shiftFilter === 'all_shift') filteredLeaves = filteredLeaves.filter(l => l.originalShift === 'all');
-        else filteredLeaves = filteredLeaves.filter(l => l.originalShift === shiftFilter);
-    }
-
-    if (typeFilter !== 'all') {
-        filteredLeaves = filteredLeaves.filter(l => {
-            const rsn = l.reason || 'X';
-            if (typeFilter === 'X') return rsn === 'X' || rsn === 'Table-Booking';
-            if (typeFilter === 'TL') return rsn === 'TL' || rsn === 'TX';
-            return rsn === typeFilter;
-        });
-    }
-
-    leaveBadge.innerText = filteredLeaves.length;
-
-    // 🏖️ จัดกลุ่มตามประเภทการลา: หัวกลุ่มบอกจำนวน · แต่ละชื่อมีแถบสีตามประเภท
-    const LV_META = [
-        { key: 'X',  label: 'หยุดปกติ',     color: '#ef4444', match: r => r === 'X' || r === 'Table-Booking' },
-        { key: 'XX', label: 'เปลี่ยนกะ',     color: '#eab308', match: r => r === 'XX' },
-        { key: 'X4', label: 'ลาครึ่งวัน',    color: '#ec4899', match: r => r === 'X4' },
-        { key: 'KL', label: 'ลากิจ',        color: '#22c55e', match: r => r === 'KL' },
-        { key: 'TL', label: 'สลับวันหยุด',   color: '#3b82f6', match: r => r === 'TL' || r === 'TX' },
-        { key: 'PN', label: 'พักร้อน',       color: '#d97706', match: r => r === 'PN' }
-    ];
-    if (filteredLeaves.length === 0) {
-        leaveContainer.innerHTML = `<div class="lv-empty">ไม่มีคนลาตามตัวกรองนี้</div>`;
-        return;
-    }
-    const used = new Set();
-    let leaveHtml = '';
-    const rowOf = (l, color) => {
-        const sh = l.originalShift && l.originalShift !== '?' ? (l.originalShift === 'all' ? 'อิสระ' : String(l.originalShift).replace('กะ', '')) : '';
-        return `<div class="lv-row" style="--c:${color}" onclick="restoreFromLeave('${l.user_id}', '${window.escapeJsAttr(l.username)}')" title="คลิกเพื่อดึงกลับมาทำงาน">
-            <b>${window.escapeHtml(l.username)}</b>${sh ? `<span class="lv-sh">${sh}</span>` : ''}<span class="lv-back"><span class="material-icons">settings_backup_restore</span>ดึงกลับ</span>
-        </div>`;
-    };
-    LV_META.forEach(m => {
-        const list = filteredLeaves.filter(l => m.match(l.reason || 'X')).sort((a, b) => a.username.localeCompare(b.username));
-        if (!list.length) return;
-        list.forEach(l => used.add(l));
-        leaveHtml += `<div class="lv-grp"><div class="lv-gh" style="--c:${m.color}"><i></i>${m.label}<span>${list.length}</span></div>${list.map(l => rowOf(l, m.color)).join('')}</div>`;
-    });
-    const others = filteredLeaves.filter(l => !used.has(l)).sort((a, b) => a.username.localeCompare(b.username));
-    if (others.length) leaveHtml += `<div class="lv-grp"><div class="lv-gh" style="--c:#64748b"><i></i>อื่นๆ<span>${others.length}</span></div>${others.map(l => rowOf(l, '#64748b')).join('')}</div>`;
-    leaveContainer.innerHTML = leaveHtml;
+  const leaveContainer = document.getElementById('dutyLeaveList');
+  const leaveBadge = document.getElementById('leaveCountBadge');
+  if (!leaveContainer) return;
+  const shiftFilterEl = document.getElementById('dutyLeaveShiftFilter');
+  const typeFilterEl = document.getElementById('dutyLeaveTypeFilter');
+  const shiftFilter = shiftFilterEl ? shiftFilterEl.value : 'all';
+  const typeFilter = typeFilterEl ? typeFilterEl.value : 'all';
+  let filteredLeaves = [ ...window.currentDutyLeaveData ];
+  if (shiftFilter !== 'all') {
+    if (shiftFilter === 'all_shift') filteredLeaves = filteredLeaves.filter((l => l.originalShift === 'all')); else filteredLeaves = filteredLeaves.filter((l => l.originalShift === shiftFilter));
+  }
+  if (typeFilter !== 'all') {
+    filteredLeaves = filteredLeaves.filter((l => {
+      const rsn = l.reason || 'X';
+      if (typeFilter === 'X') return rsn === 'X' || rsn === 'Table-Booking';
+      if (typeFilter === 'TL') return rsn === 'TL' || rsn === 'TX';
+      return rsn === typeFilter;
+    }));
+  }
+  leaveBadge.innerText = filteredLeaves.length;
+  const LV_META = [ {
+    key: 'X',
+    label: 'หยุดปกติ',
+    color: '#ef4444',
+    match: r => r === 'X' || r === 'Table-Booking'
+  }, {
+    key: 'XX',
+    label: 'เปลี่ยนกะ',
+    color: '#eab308',
+    match: r => r === 'XX'
+  }, {
+    key: 'X4',
+    label: 'ลาครึ่งวัน',
+    color: '#ec4899',
+    match: r => r === 'X4'
+  }, {
+    key: 'KL',
+    label: 'ลากิจ',
+    color: '#22c55e',
+    match: r => r === 'KL'
+  }, {
+    key: 'TL',
+    label: 'สลับวันหยุด',
+    color: '#3b82f6',
+    match: r => r === 'TL' || r === 'TX'
+  }, {
+    key: 'PN',
+    label: 'พักร้อน',
+    color: '#d97706',
+    match: r => r === 'PN'
+  } ];
+  if (filteredLeaves.length === 0) {
+    leaveContainer.innerHTML = `<div class="lv-empty">ไม่มีคนลาตามตัวกรองนี้</div>`;
+    return;
+  }
+  const used = new Set;
+  let leaveHtml = '';
+  const rowOf = (l, color) => {
+    const sh = l.originalShift && l.originalShift !== '?' ? l.originalShift === 'all' ? 'อิสระ' : String(l.originalShift).replace('กะ', '') : '';
+    return `<div class="lv-row" style="--c:${color}" onclick="restoreFromLeave('${l.user_id}', '${window.escapeJsAttr(l.username)}')" title="คลิกเพื่อดึงกลับมาทำงาน">\n            <b>${window.escapeHtml(l.username)}</b>${sh ? `<span class="lv-sh">${sh}</span>` : ''}<span class="lv-back"><span class="material-icons">settings_backup_restore</span>ดึงกลับ</span>\n        </div>`;
+  };
+  LV_META.forEach((m => {
+    const list = filteredLeaves.filter((l => m.match(l.reason || 'X'))).sort(((a, b) => a.username.localeCompare(b.username)));
+    if (!list.length) return;
+    list.forEach((l => used.add(l)));
+    leaveHtml += `<div class="lv-grp"><div class="lv-gh" style="--c:${m.color}"><i></i>${m.label}<span>${list.length}</span></div>${list.map((l => rowOf(l, m.color))).join('')}</div>`;
+  }));
+  const others = filteredLeaves.filter((l => !used.has(l))).sort(((a, b) => a.username.localeCompare(b.username)));
+  if (others.length) leaveHtml += `<div class="lv-grp"><div class="lv-gh" style="--c:#64748b"><i></i>อื่นๆ<span>${others.length}</span></div>${others.map((l => rowOf(l, '#64748b'))).join('')}</div>`;
+  leaveContainer.innerHTML = leaveHtml;
 };
 
 window.restoreFromLeave = async function(userId, username) {
-    const canRestore = window.isDutyAdmin();
-    
-    if (!canRestore) {
-        return Swal.fire({
-            icon: 'error',
-            title: 'ไม่มีสิทธิ์ทำรายการ',
-            text: 'เฉพาะ Admin, Manager และ Trainer เท่านั้น ที่สามารถดึงพนักงานกลับมาทำงานได้ครับ!',
-            confirmButtonColor: '#d33',
-            customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
-        });
-    }
-    
-    let optionsHtml = '<option value="" disabled selected>-- เลือกเว็บที่จะให้ไปทำ --</option>';
-    sortedTeams.forEach(t => { optionsHtml += `<option value="${t}">${t}</option>`; });
-
-    const { value: selectedTeam } = await Swal.fire({
-        title: `<div class="text-xl font-black text-blue-500 mt-2">ดึงพนักงานกลับมาทำงาน</div>`,
-        html: `
-            <div class="mb-4 text-sm text-gray-500 dark:text-gray-400">ดึง <b class="text-slate-800 dark:text-white text-lg">${username}</b> ออกจากช่องลาหยุด<br>ต้องการให้ไปลงหน้าที่เว็บไหนครับ?</div>
-            <select id="swal-restore-team" class="w-full p-3.5 rounded-xl border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold outline-none focus:ring-2 focus:ring-blue-500 shadow-inner cursor-pointer text-sm transition">
-                ${optionsHtml}
-            </select>
-        `,
-        showCancelButton: true, confirmButtonColor: '#3b82f6', cancelButtonColor: '#64748b', confirmButtonText: 'ยืนยัน (ดึงกลับ)', cancelButtonText: 'ยกเลิก',
-        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl border border-slate-700 shadow-2xl' },
-        preConfirm: () => {
-            const select = document.getElementById('swal-restore-team');
-            if (!select.value) { Swal.showValidationMessage('กรุณาเลือกเว็บด้วยครับ!'); return false; }
-            return select.value;
-        }
+  const canRestore = window.isDutyAdmin();
+  if (!canRestore) {
+    return Swal.fire({
+      icon: 'error',
+      title: 'ไม่มีสิทธิ์ทำรายการ',
+      text: 'เฉพาะ Admin, Manager และ Trainer เท่านั้น ที่สามารถดึงพนักงานกลับมาทำงานได้ครับ!',
+      confirmButtonColor: '#d33',
+      customClass: {
+        popup: 'dark:bg-slate-800 dark:text-white rounded-3xl'
+      }
     });
-
-    if (selectedTeam) {
-        Swal.fire({title: 'กำลังย้ายข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
-        try {
-            const targetDate = document.getElementById('dutyDate').value;
-            const shiftFilter = document.getElementById('dutyShiftSelect').value;
-
-            await appDB.from('leave_requests').delete().eq('user_id', userId).eq('leave_date', targetDate);
-
-            const fullUserObj = GLOBAL_USER_LIST.find(u => String(u.id) === String(userId));
-            if (fullUserObj) {
-                if(!currentRosterData[selectedTeam]) currentRosterData[selectedTeam] = [];
-                // 🧍 เอาออกจากเว็บอื่นก่อน กันชื่อโผล่ 2 ที่
-                const movedFrom = window.dutyRemoveFromOtherTeams(currentRosterData, userId, selectedTeam);
-                const isExist = currentRosterData[selectedTeam].some(u => String(u.id) === String(userId));
-                if (!isExist) currentRosterData[selectedTeam].push({
-                    ...fullUserObj,
-                    assigned_by: currentUser.username,
-                    assigned_at: new Date().toISOString()
-                });
-                
-                const saveKey = getDutySaveKey(targetDate, shiftFilter);
-                if (typeof window.dutyDedupeRoster === "function") window.dutyDedupeRoster(currentRosterData);   // 🛡️ กันชื่อซ้ำก่อนบันทึก
-                window.clearSettingCache(); await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
-            }
-
-            await appDB.from('system_logs').insert([{ action_type: 'ย้ายหน้าที่', performed_by: currentUser.username, target_details: `ดึง ${username} กลับจากการลา ไปใส่เว็บ [${selectedTeam}] วันที่: ${targetDate}` }]);
-            window.debouncedBroadcast('duty-updates', 'force_reload');
-            await window.refreshDutyData();
-
-            Swal.fire({icon: 'success', title: 'ดึงกลับสำเร็จ!', text: `${movedFrom.length ? 'ย้ายจาก ' + movedFrom.join(', ') + ' — ' : ''}${username} ไปอยู่เว็บ ${selectedTeam} แล้ว`, timer: 1500, showConfirmButton: false});
-        } catch (err) { Swal.fire('เกิดข้อผิดพลาด', err.message, 'error'); }
+  }
+  let optionsHtml = '<option value="" disabled selected>-- เลือกเว็บที่จะให้ไปทำ --</option>';
+  sortedTeams.forEach((t => {
+    optionsHtml += `<option value="${t}">${t}</option>`;
+  }));
+  const {value: selectedTeam} = await Swal.fire({
+    title: `<div class="text-xl font-black text-blue-500 mt-2">ดึงพนักงานกลับมาทำงาน</div>`,
+    html: `\n            <div class="mb-4 text-sm text-gray-500 dark:text-gray-400">ดึง <b class="text-slate-800 dark:text-white text-lg">${username}</b> ออกจากช่องลาหยุด<br>ต้องการให้ไปลงหน้าที่เว็บไหนครับ?</div>\n            <select id="swal-restore-team" class="w-full p-3.5 rounded-xl border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold outline-none focus:ring-2 focus:ring-blue-500 shadow-inner cursor-pointer text-sm transition">\n                ${optionsHtml}\n            </select>\n        `,
+    showCancelButton: true,
+    confirmButtonColor: '#3b82f6',
+    cancelButtonColor: '#64748b',
+    confirmButtonText: 'ยืนยัน (ดึงกลับ)',
+    cancelButtonText: 'ยกเลิก',
+    customClass: {
+      popup: 'dark:bg-slate-800 dark:text-white rounded-3xl border border-slate-700 shadow-2xl'
+    },
+    preConfirm: () => {
+      const select = document.getElementById('swal-restore-team');
+      if (!select.value) {
+        Swal.showValidationMessage('กรุณาเลือกเว็บด้วยครับ!');
+        return false;
+      }
+      return select.value;
     }
-};
-
-// 🔁 บันทึก "เว้นกี่วันก่อนกลับมาเว็บเดิม" — ⚠️ เก็บแยกตามแผนกที่กำลังจัดอยู่ (AM/OD/ผู้สอน ไม่ปนกัน)
-window.saveRotationGap = async function(v) {
-    const n = Math.max(0, Math.min(30, parseInt(v) || 0));
-    const dept = currentDutyDept || 'AM';
+  });
+  if (selectedTeam) {
+    Swal.fire({
+      title: 'กำลังย้ายข้อมูล...',
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading()
+    });
     try {
-        // อ่านค่าเดิมทุกแผนกมาก่อน แล้วแก้เฉพาะแผนกนี้ (กันทับของแผนกอื่น)
-        let cfg = {};
-        try {
-            const raw = (typeof SETTINGS !== 'undefined') ? SETTINGS.duty_rotation_gap : null;
-            const parsed = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : {};
-            if (parsed && typeof parsed === 'object') cfg = parsed;
-            else if (!isNaN(parseInt(parsed))) { const L = parseInt(parsed); cfg = { AM: L, OD: L, AMQL: L, ODQL: L }; }   // ค่าเก่าแบบตัวเลขเดี่ยว → กระจายให้ทุกแผนก
-        } catch (e) { cfg = {}; }
-
-        cfg[dept] = n;
-        const val = JSON.stringify(cfg);
-        await appDB.from('settings').upsert([{ key: 'duty_rotation_gap', value: val }]);
-        if (typeof SETTINGS !== 'undefined') SETTINGS.duty_rotation_gap = val;
-        // วาดตารางใหม่ ให้ประวัติย้อนหลังโชว์ตามจำนวนวันที่เพิ่งตั้ง
-        try { window._ydRosterCache = null; if (typeof window.renderRosterGrid === 'function' && typeof currentRosterData !== 'undefined' && currentRosterData) window.renderRosterGrid(currentRosterData); } catch (e) {}
-
-        const depLabel = dept === 'AMQL' ? 'ผู้สอน AM' : dept === 'ODQL' ? 'ผู้สอน OD' : dept;
-        Swal.fire({ icon: 'success',
-            title: n > 0 ? `${depLabel}: เว้น ${n} วันก่อนกลับเว็บเดิม` : `${depLabel}: ปิดการเว้นวันแล้ว`,
-            text: n > 0 ? 'ค่านี้ใช้เฉพาะแผนกนี้ แผนกอื่นไม่กระทบ' : '', timer: 2000, showConfirmButton: false });
-    } catch (e) { Swal.fire('บันทึกไม่สำเร็จ', e.message, 'error'); }
+      const targetDate = document.getElementById('dutyDate').value;
+      const shiftFilter = document.getElementById('dutyShiftSelect').value;
+      await appDB.from('leave_requests').delete().eq('user_id', userId).eq('leave_date', targetDate);
+      const fullUserObj = GLOBAL_USER_LIST.find((u => String(u.id) === String(userId)));
+      if (fullUserObj) {
+        if (!currentRosterData[selectedTeam]) currentRosterData[selectedTeam] = [];
+        const movedFrom = window.dutyRemoveFromOtherTeams(currentRosterData, userId, selectedTeam);
+        const isExist = currentRosterData[selectedTeam].some((u => String(u.id) === String(userId)));
+        if (!isExist) currentRosterData[selectedTeam].push({
+          ...fullUserObj,
+          assigned_by: currentUser.username,
+          assigned_at: (new Date).toISOString()
+        });
+        const saveKey = getDutySaveKey(targetDate, shiftFilter);
+        if (typeof window.dutyDedupeRoster === "function") window.dutyDedupeRoster(currentRosterData);
+        window.clearSettingCache();
+        await appDB.from('settings').upsert([ {
+          key: saveKey,
+          value: JSON.stringify(currentRosterData)
+        } ]);
+      }
+      await appDB.from('system_logs').insert([ {
+        action_type: 'ย้ายหน้าที่',
+        performed_by: currentUser.username,
+        target_details: `ดึง ${username} กลับจากการลา ไปใส่เว็บ [${selectedTeam}] วันที่: ${targetDate}`
+      } ]);
+      window.debouncedBroadcast('duty-updates', 'force_reload');
+      await window.refreshDutyData();
+      Swal.fire({
+        icon: 'success',
+        title: 'ดึงกลับสำเร็จ!',
+        text: `${movedFrom.length ? 'ย้ายจาก ' + movedFrom.join(', ') + ' — ' : ''}${username} ไปอยู่เว็บ ${selectedTeam} แล้ว`,
+        timer: 1500,
+        showConfirmButton: false
+      });
+    } catch (err) {
+      Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
+    }
+  }
 };
 
-// เติมค่าของ "แผนกที่กำลังดูอยู่" ลงช่อง (เรียกตอนเปิดหน้า + ทุกครั้งที่สลับแผนก)
+window.saveRotationGap = async function(v) {
+  const n = Math.max(0, Math.min(30, parseInt(v) || 0));
+  const dept = currentDutyDept || 'AM';
+  try {
+    let cfg = {};
+    try {
+      const raw = typeof SETTINGS !== 'undefined' ? SETTINGS.duty_rotation_gap : null;
+      const parsed = raw ? typeof raw === 'string' ? JSON.parse(raw) : raw : {};
+      if (parsed && typeof parsed === 'object') cfg = parsed; else if (!isNaN(parseInt(parsed))) {
+        const L = parseInt(parsed);
+        cfg = {
+          AM: L,
+          OD: L,
+          AMQL: L,
+          ODQL: L
+        };
+      }
+    } catch (e) {
+      cfg = {};
+    }
+    cfg[dept] = n;
+    const val = JSON.stringify(cfg);
+    await appDB.from('settings').upsert([ {
+      key: 'duty_rotation_gap',
+      value: val
+    } ]);
+    if (typeof SETTINGS !== 'undefined') SETTINGS.duty_rotation_gap = val;
+    try {
+      window._ydRosterCache = null;
+      if (typeof window.renderRosterGrid === 'function' && typeof currentRosterData !== 'undefined' && currentRosterData) window.renderRosterGrid(currentRosterData);
+    } catch (e) {}
+    const depLabel = dept === 'AMQL' ? 'ผู้สอน AM' : dept === 'ODQL' ? 'ผู้สอน OD' : dept;
+    Swal.fire({
+      icon: 'success',
+      title: n > 0 ? `${depLabel}: เว้น ${n} วันก่อนกลับเว็บเดิม` : `${depLabel}: ปิดการเว้นวันแล้ว`,
+      text: n > 0 ? 'ค่านี้ใช้เฉพาะแผนกนี้ แผนกอื่นไม่กระทบ' : '',
+      timer: 2e3,
+      showConfirmButton: false
+    });
+  } catch (e) {
+    Swal.fire('บันทึกไม่สำเร็จ', e.message, 'error');
+  }
+};
+
 window.fillRotationGapInput = function() {
-    const el = document.getElementById('rotGapInput');
-    if (!el) return;
-    el.value = (typeof window.getRotationGapDays === 'function') ? window.getRotationGapDays(currentDutyDept) : 3;
-    const depLabel = currentDutyDept === 'AMQL' ? 'ผู้สอน AM' : currentDutyDept === 'ODQL' ? 'ผู้สอน OD' : currentDutyDept;
-    const box = el.closest('div');
-    if (box) box.title = `เว้นซ้ำเว็บของแผนก ${depLabel} — ทำเว็บนี้แล้วต้องเว้นกี่วันถึงกลับมาได้อีก (แต่ละแผนกตั้งแยกกัน)`;
-    const tag = document.getElementById('rotGapDept');
-    if (tag) tag.textContent = depLabel;
+  const el = document.getElementById('rotGapInput');
+  if (!el) return;
+  el.value = typeof window.getRotationGapDays === 'function' ? window.getRotationGapDays(currentDutyDept) : 3;
+  const depLabel = currentDutyDept === 'AMQL' ? 'ผู้สอน AM' : currentDutyDept === 'ODQL' ? 'ผู้สอน OD' : currentDutyDept;
+  const box = el.closest('div');
+  if (box) box.title = `เว้นซ้ำเว็บของแผนก ${depLabel} — ทำเว็บนี้แล้วต้องเว้นกี่วันถึงกลับมาได้อีก (แต่ละแผนกตั้งแยกกัน)`;
+  const tag = document.getElementById('rotGapDept');
+  if (tag) tag.textContent = depLabel;
 };
 
 window.addStaffToRoster = async function() {
-    if (window.blockIfPreview()) return;   // โหมดตัวอย่าง: ห้ามเขียนตารางลง DB
-    // 👥 โหลดรายชื่อล่าสุดก่อนเปิดกล่อง — คนที่เพิ่งเพิ่ม/แก้กะ/แก้แผนกจะได้อยู่ในรายการ
-    if (typeof fetchUsers === 'function') { try { await fetchUsers(); } catch (e) {} }
-    const targetDate = document.getElementById('dutyDate').value;
-    const shiftFilter = document.getElementById('dutyShiftSelect').value;
-    if (!targetDate) return Swal.fire('!', 'กรุณาเลือกวันที่ก่อน', 'warning');
-
-    if (typeof GLOBAL_USER_LIST === 'undefined' || !GLOBAL_USER_LIST || GLOBAL_USER_LIST.length === 0) {
-        return Swal.fire('!', 'ยังโหลดรายชื่อพนักงานไม่เสร็จ กรุณารอสักครู่แล้วลองใหม่', 'warning');
-    }
-
-    // 1. หาคนที่อยู่ใน roster อยู่แล้ว (ไม่ต้องโชว์ในรายการให้เลือก)
-    const alreadyAssignedIds = new Set();
-    for (const team in currentRosterData) {
-        (currentRosterData[team] || []).forEach(u => {
-            if (u && u.id) alreadyAssignedIds.add(String(u.id));
-        });
-    }
-
-    // 2. คัดกรองพนักงานที่:
-    //    - แผนกตรงกับ currentDutyDept (สำหรับ AMQL/ODQL ผ่อนเงื่อนไข)
-    //    - กะตรงกับ shiftFilter (หรือ allowed_shift = 'all')
-    //    - ไม่ลาหยุด
-    //    - ไม่อยู่ใน roster อยู่แล้ว
-    //    - ไม่ใช่ admin/manager/trainer
-    const candidates = GLOBAL_USER_LIST.filter(u => {
-        if (!u || !u.username) return false;
-        if (alreadyAssignedIds.has(String(u.id))) return false;
-        if (currentDutyLeaves && currentDutyLeaves.has(String(u.id))) return false;
-
-        const role = (u.role || 'staff').toLowerCase();
-        if (['admin', 'manager'].includes(role)) return false;
-
-        // เช็คแผนก
-        let uDept = u.department || 'AM';
-        if (uDept === 'TRAINER') uDept = 'AMQL';
-        if (uDept !== currentDutyDept) return false;
-
-        // เช็คกะ (ใช้กะจริงของวันนั้น เผื่อคนที่สลับเช้า→ดึกวันนี้)
-        if (!window.isDutyShiftMatch(u, shiftFilter)) return false;
-
-        return true;
-    }).sort((a, b) => a.username.localeCompare(b.username, 'th'));
-
-    // 🔄 ชุดที่ 2: "ทุกกะ" (เงื่อนไขเดียวกันแต่ไม่เช็คกะ) — ไว้ดึงคนโยกเปลี่ยนกะกลางคัน/กันตกหล่น
-    const candidatesAll = GLOBAL_USER_LIST.filter(u => {
-        if (!u || !u.username) return false;
-        if (alreadyAssignedIds.has(String(u.id))) return false;
-        if (currentDutyLeaves && currentDutyLeaves.has(String(u.id))) return false;
-        const role = (u.role || 'staff').toLowerCase();
-        if (['admin', 'manager'].includes(role)) return false;
-        let uDept = u.department || 'AM';
-        if (uDept === 'TRAINER') uDept = 'AMQL';
-        if (uDept !== currentDutyDept) return false;
-        return true;
-    }).sort((a, b) => a.username.localeCompare(b.username, 'th'));
-
-    if (candidates.length === 0 && candidatesAll.length === 0) {
-        return Swal.fire({
-            icon: 'info',
-            title: 'ไม่มีพนักงานให้เพิ่ม',
-            html: `ไม่พบพนักงานที่:<br>• แผนก <b>${currentDutyDept}</b><br>• กะ <b>${shiftFilter}</b><br>• ยังไม่อยู่ในตาราง / ไม่ลาหยุด`,
-            customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
-        });
-    }
-
-    // 3. เตรียม dropdown เว็บ — ใช้ลำดับเดียวกับหน้าจอ
-    // [FIX] เดิมประกาศ const sortedTeams ทับตัว global แล้วเรียง A-Z ทำให้ลำดับไม่ตรงกับการ์ด
-    const teamChoices = (sortedTeams && sortedTeams.length)
-        ? [...sortedTeams]
-        : (typeof TEAM_LIST !== 'undefined' ? [...TEAM_LIST] : Object.keys(currentRosterData));
-    if (teamChoices.length === 0) {
-        return Swal.fire('!', 'ไม่มีรายชื่อเว็บ/ทีมในระบบ', 'warning');
-    }
-
-    const _optOf = (list) => {
-        let h = '<option value="" disabled selected>-- เลือกพนักงาน --</option>';
-        list.forEach(u => {
-            const shiftTag = (u.allowed_shift && u.allowed_shift !== 'all') ? ` [${u.allowed_shift.replace('กะ','')}]` : ' [อิสระ]';
-            h += `<option value="${u.id}">${window.escapeHtml(u.username)}${shiftTag}</option>`;
-        });
-        return h;
-    };
-    const userOptionsHtml = _optOf(candidates);
-    window._pullStaffOpts = { match: userOptionsHtml, all: _optOf(candidatesAll) };   // ให้ติ๊ก "ทุกกะ" สลับรายชื่อได้
-
-    let teamOptionsHtml = '<option value="" disabled selected>-- เลือกเว็บหลัก --</option>';
-    let subOptionsHtml = '<option value="">— ไม่ใส่เว็บรอง —</option>';
-    teamChoices.forEach(t => {
-        const cnt = (currentRosterData[t] || []).length;
-        teamOptionsHtml += `<option value="${t}">${t} (${cnt} คน)</option>`;
-        subOptionsHtml += `<option value="${t}">${t}</option>`;
-    });
-
-    // 4. เปิด Modal ให้เลือก
-    const result = await Swal.fire({
-        title: `<div class="text-xl font-black text-emerald-500 mt-2">🫳 ดึงคนเข้างาน</div>`,
-        html: `
-            <div class="text-left text-xs text-gray-500 dark:text-gray-400 mb-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 p-2.5 rounded-lg">
-                <span class="material-icons text-[14px] align-middle text-emerald-500">info</span>
-                <span class="align-middle">วันที่: <b class="text-slate-800 dark:text-white">${targetDate}</b> | กะ: <b class="text-slate-800 dark:text-white">${shiftFilter}</b> | แผนก: <b class="text-slate-800 dark:text-white">${currentDutyDept}</b></span>
-            </div>
-            <div class="text-left mb-1 flex items-center justify-between">
-                <label class="text-xs font-bold text-gray-600 dark:text-gray-300">พนักงาน (ที่ยังไม่อยู่ในตาราง):</label>
-                <label class="flex items-center gap-1.5 cursor-pointer text-[11px] font-bold text-amber-500 select-none">
-                    <input type="checkbox" id="swal-add-allshift" class="w-3.5 h-3.5 accent-amber-500 cursor-pointer"
-                        onchange="document.getElementById('swal-add-user').innerHTML = this.checked ? window._pullStaffOpts.all : window._pullStaffOpts.match">
-                    รวมทุกกะ (โยกกลางคัน)
-                </label>
-            </div>
-            <select id="swal-add-user" class="w-full p-3 rounded-xl border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer text-sm mb-3">
-                ${userOptionsHtml}
-            </select>
-            <div class="text-left mb-2"><label class="text-xs font-bold text-gray-600 dark:text-gray-300">เว็บหลัก:</label></div>
-            <select id="swal-add-team" class="w-full p-3 rounded-xl border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer text-sm mb-3">
-                ${teamOptionsHtml}
-            </select>
-            <div class="text-left mb-2"><label class="text-xs font-bold text-gray-600 dark:text-gray-300">เว็บรอง <span class="text-gray-400 font-normal">(ไม่บังคับ)</span>:</label></div>
-            <select id="swal-add-subteam" class="w-full p-3 rounded-xl border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer text-sm">
-                ${subOptionsHtml}
-            </select>
-        `,
-        showCancelButton: true,
-        confirmButtonColor: '#10b981',
-        cancelButtonColor: '#64748b',
-        confirmButtonText: '🫳 ดึงเข้างานเลย',
-        cancelButtonText: 'ยกเลิก',
-        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl border border-slate-700 shadow-2xl' },
-        preConfirm: () => {
-            const userId = document.getElementById('swal-add-user').value;
-            const team = document.getElementById('swal-add-team').value;
-            const subTeam = document.getElementById('swal-add-subteam').value || '';
-            if (!userId) { Swal.showValidationMessage('กรุณาเลือกพนักงาน'); return false; }
-            if (!team) { Swal.showValidationMessage('กรุณาเลือกเว็บหลัก'); return false; }
-            if (subTeam && subTeam === team) { Swal.showValidationMessage('เว็บรองต้องไม่ซ้ำกับเว็บหลัก'); return false; }
-            return { userId, team, subTeam };
-        }
-    });
-
-    if (!result.isConfirmed || !result.value) return;
-    const { userId, team, subTeam } = result.value;
-
-    // 5. ทำการ save
-    Swal.fire({title: 'กำลังเพิ่ม...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+  if (window.blockIfPreview()) return;
+  if (typeof fetchUsers === 'function') {
     try {
-        const fullUserObj = GLOBAL_USER_LIST.find(u => String(u.id) === String(userId));
-        if (!fullUserObj) throw new Error('ไม่พบข้อมูลพนักงาน');
-
-        if (!currentRosterData[team]) currentRosterData[team] = [];
-        const isExist = currentRosterData[team].some(u => String(u.id) === String(userId));
-        if (isExist) {
-            return Swal.fire('ซ้ำ!', `${fullUserObj.username} อยู่ในเว็บ ${team} อยู่แล้ว`, 'info');
-        }
-        // 🧍 อยู่เว็บอื่นอยู่แล้ว = ย้ายมา ไม่ใช่เพิ่มซ้ำ
-        const movedFrom2 = window.dutyRemoveFromOtherTeams(currentRosterData, userId, team);
-        currentRosterData[team].push({
-            ...fullUserObj,
-            secondary_team: subTeam || null,   // 🫳 เว็บรองที่เลือกในกล่อง (ไม่เลือก = ไม่มีรอง)
-            assigned_by: currentUser.username,
-            assigned_at: new Date().toISOString()
-        });
-
-        const saveKey = getDutySaveKey(targetDate, shiftFilter);
-        if (typeof window.dutyDedupeRoster === "function") window.dutyDedupeRoster(currentRosterData);   // 🛡️ กันชื่อซ้ำก่อนบันทึก
-        window.clearSettingCache(); const { error: _upsertErr } = await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
-        if (_upsertErr) throw _upsertErr;
-
-        await appDB.from('system_logs').insert([{
-            action_type: 'ย้ายหน้าที่',
-            performed_by: currentUser.username,
-            target_details: `ดึง ${fullUserObj.username} เข้างาน → หลัก [${team}]${subTeam ? ` + รอง [${subTeam}]` : ''} (${currentDutyDept}, ${shiftFilter}, ${targetDate})`
-        }]);
-
-        try { window.debouncedBroadcast('duty-updates', 'force_reload'); } catch(e) {}
-        await window.refreshDutyData();
-
-        Swal.fire({
-            icon: 'success',
-            title: 'เพิ่มสำเร็จ!',
-            text: `${movedFrom2.length ? 'ย้ายจาก ' + movedFrom2.join(', ') + ' — ' : ''}${fullUserObj.username} → หลัก ${team}${subTeam ? ' + รอง ' + subTeam : ''} เรียบร้อย`,
-            timer: 1500,
-            showConfirmButton: false
-        });
-    } catch (err) {
-        console.error('addStaffToRoster error:', err);
-        Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
+      await fetchUsers();
+    } catch (e) {}
+  }
+  const targetDate = document.getElementById('dutyDate').value;
+  const shiftFilter = document.getElementById('dutyShiftSelect').value;
+  if (!targetDate) return Swal.fire('!', 'กรุณาเลือกวันที่ก่อน', 'warning');
+  if (typeof GLOBAL_USER_LIST === 'undefined' || !GLOBAL_USER_LIST || GLOBAL_USER_LIST.length === 0) {
+    return Swal.fire('!', 'ยังโหลดรายชื่อพนักงานไม่เสร็จ กรุณารอสักครู่แล้วลองใหม่', 'warning');
+  }
+  const alreadyAssignedIds = new Set;
+  for (const team in currentRosterData) {
+    (currentRosterData[team] || []).forEach((u => {
+      if (u && u.id) alreadyAssignedIds.add(String(u.id));
+    }));
+  }
+  const candidates = GLOBAL_USER_LIST.filter((u => {
+    if (!u || !u.username) return false;
+    if (alreadyAssignedIds.has(String(u.id))) return false;
+    if (currentDutyLeaves && currentDutyLeaves.has(String(u.id))) return false;
+    const role = (u.role || 'staff').toLowerCase();
+    if ([ 'admin', 'manager' ].includes(role)) return false;
+    let uDept = u.department || 'AM';
+    if (uDept === 'TRAINER') uDept = 'AMQL';
+    if (uDept !== currentDutyDept) return false;
+    if (!window.isDutyShiftMatch(u, shiftFilter)) return false;
+    return true;
+  })).sort(((a, b) => a.username.localeCompare(b.username, 'th')));
+  const candidatesAll = GLOBAL_USER_LIST.filter((u => {
+    if (!u || !u.username) return false;
+    if (alreadyAssignedIds.has(String(u.id))) return false;
+    if (currentDutyLeaves && currentDutyLeaves.has(String(u.id))) return false;
+    const role = (u.role || 'staff').toLowerCase();
+    if ([ 'admin', 'manager' ].includes(role)) return false;
+    let uDept = u.department || 'AM';
+    if (uDept === 'TRAINER') uDept = 'AMQL';
+    if (uDept !== currentDutyDept) return false;
+    return true;
+  })).sort(((a, b) => a.username.localeCompare(b.username, 'th')));
+  if (candidates.length === 0 && candidatesAll.length === 0) {
+    return Swal.fire({
+      icon: 'info',
+      title: 'ไม่มีพนักงานให้เพิ่ม',
+      html: `ไม่พบพนักงานที่:<br>• แผนก <b>${currentDutyDept}</b><br>• กะ <b>${shiftFilter}</b><br>• ยังไม่อยู่ในตาราง / ไม่ลาหยุด`,
+      customClass: {
+        popup: 'dark:bg-slate-800 dark:text-white rounded-3xl'
+      }
+    });
+  }
+  const teamChoices = sortedTeams && sortedTeams.length ? [ ...sortedTeams ] : typeof TEAM_LIST !== 'undefined' ? [ ...TEAM_LIST ] : Object.keys(currentRosterData);
+  if (teamChoices.length === 0) {
+    return Swal.fire('!', 'ไม่มีรายชื่อเว็บ/ทีมในระบบ', 'warning');
+  }
+  const _optOf = list => {
+    let h = '<option value="" disabled selected>-- เลือกพนักงาน --</option>';
+    list.forEach((u => {
+      const shiftTag = u.allowed_shift && u.allowed_shift !== 'all' ? ` [${u.allowed_shift.replace('กะ', '')}]` : ' [อิสระ]';
+      h += `<option value="${u.id}">${window.escapeHtml(u.username)}${shiftTag}</option>`;
+    }));
+    return h;
+  };
+  const userOptionsHtml = _optOf(candidates);
+  window._pullStaffOpts = {
+    match: userOptionsHtml,
+    all: _optOf(candidatesAll)
+  };
+  let teamOptionsHtml = '<option value="" disabled selected>-- เลือกเว็บหลัก --</option>';
+  let subOptionsHtml = '<option value="">— ไม่ใส่เว็บรอง —</option>';
+  teamChoices.forEach((t => {
+    const cnt = (currentRosterData[t] || []).length;
+    teamOptionsHtml += `<option value="${t}">${t} (${cnt} คน)</option>`;
+    subOptionsHtml += `<option value="${t}">${t}</option>`;
+  }));
+  const result = await Swal.fire({
+    title: `<div class="text-xl font-black text-emerald-500 mt-2">🫳 ดึงคนเข้างาน</div>`,
+    html: `\n            <div class="text-left text-xs text-gray-500 dark:text-gray-400 mb-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 p-2.5 rounded-lg">\n                <span class="material-icons text-[14px] align-middle text-emerald-500">info</span>\n                <span class="align-middle">วันที่: <b class="text-slate-800 dark:text-white">${targetDate}</b> | กะ: <b class="text-slate-800 dark:text-white">${shiftFilter}</b> | แผนก: <b class="text-slate-800 dark:text-white">${currentDutyDept}</b></span>\n            </div>\n            <div class="text-left mb-1 flex items-center justify-between">\n                <label class="text-xs font-bold text-gray-600 dark:text-gray-300">พนักงาน (ที่ยังไม่อยู่ในตาราง):</label>\n                <label class="flex items-center gap-1.5 cursor-pointer text-[11px] font-bold text-amber-500 select-none">\n                    <input type="checkbox" id="swal-add-allshift" class="w-3.5 h-3.5 accent-amber-500 cursor-pointer"\n                        onchange="document.getElementById('swal-add-user').innerHTML = this.checked ? window._pullStaffOpts.all : window._pullStaffOpts.match">\n                    รวมทุกกะ (โยกกลางคัน)\n                </label>\n            </div>\n            <select id="swal-add-user" class="w-full p-3 rounded-xl border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer text-sm mb-3">\n                ${userOptionsHtml}\n            </select>\n            <div class="text-left mb-2"><label class="text-xs font-bold text-gray-600 dark:text-gray-300">เว็บหลัก:</label></div>\n            <select id="swal-add-team" class="w-full p-3 rounded-xl border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer text-sm mb-3">\n                ${teamOptionsHtml}\n            </select>\n            <div class="text-left mb-2"><label class="text-xs font-bold text-gray-600 dark:text-gray-300">เว็บรอง <span class="text-gray-400 font-normal">(ไม่บังคับ)</span>:</label></div>\n            <select id="swal-add-subteam" class="w-full p-3 rounded-xl border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer text-sm">\n                ${subOptionsHtml}\n            </select>\n        `,
+    showCancelButton: true,
+    confirmButtonColor: '#10b981',
+    cancelButtonColor: '#64748b',
+    confirmButtonText: '🫳 ดึงเข้างานเลย',
+    cancelButtonText: 'ยกเลิก',
+    customClass: {
+      popup: 'dark:bg-slate-800 dark:text-white rounded-3xl border border-slate-700 shadow-2xl'
+    },
+    preConfirm: () => {
+      const userId = document.getElementById('swal-add-user').value;
+      const team = document.getElementById('swal-add-team').value;
+      const subTeam = document.getElementById('swal-add-subteam').value || '';
+      if (!userId) {
+        Swal.showValidationMessage('กรุณาเลือกพนักงาน');
+        return false;
+      }
+      if (!team) {
+        Swal.showValidationMessage('กรุณาเลือกเว็บหลัก');
+        return false;
+      }
+      if (subTeam && subTeam === team) {
+        Swal.showValidationMessage('เว็บรองต้องไม่ซ้ำกับเว็บหลัก');
+        return false;
+      }
+      return {
+        userId: userId,
+        team: team,
+        subTeam: subTeam
+      };
     }
+  });
+  if (!result.isConfirmed || !result.value) return;
+  const {userId: userId, team: team, subTeam: subTeam} = result.value;
+  Swal.fire({
+    title: 'กำลังเพิ่ม...',
+    allowOutsideClick: false,
+    didOpen: () => Swal.showLoading()
+  });
+  try {
+    const fullUserObj = GLOBAL_USER_LIST.find((u => String(u.id) === String(userId)));
+    if (!fullUserObj) throw new Error('ไม่พบข้อมูลพนักงาน');
+    if (!currentRosterData[team]) currentRosterData[team] = [];
+    const isExist = currentRosterData[team].some((u => String(u.id) === String(userId)));
+    if (isExist) {
+      return Swal.fire('ซ้ำ!', `${fullUserObj.username} อยู่ในเว็บ ${team} อยู่แล้ว`, 'info');
+    }
+    const movedFrom2 = window.dutyRemoveFromOtherTeams(currentRosterData, userId, team);
+    currentRosterData[team].push({
+      ...fullUserObj,
+      secondary_team: subTeam || null,
+      assigned_by: currentUser.username,
+      assigned_at: (new Date).toISOString()
+    });
+    const saveKey = getDutySaveKey(targetDate, shiftFilter);
+    if (typeof window.dutyDedupeRoster === "function") window.dutyDedupeRoster(currentRosterData);
+    window.clearSettingCache();
+    const {error: _upsertErr} = await appDB.from('settings').upsert([ {
+      key: saveKey,
+      value: JSON.stringify(currentRosterData)
+    } ]);
+    if (_upsertErr) throw _upsertErr;
+    await appDB.from('system_logs').insert([ {
+      action_type: 'ย้ายหน้าที่',
+      performed_by: currentUser.username,
+      target_details: `ดึง ${fullUserObj.username} เข้างาน → หลัก [${team}]${subTeam ? ` + รอง [${subTeam}]` : ''} (${currentDutyDept}, ${shiftFilter}, ${targetDate})`
+    } ]);
+    try {
+      window.debouncedBroadcast('duty-updates', 'force_reload');
+    } catch (e) {}
+    await window.refreshDutyData();
+    Swal.fire({
+      icon: 'success',
+      title: 'เพิ่มสำเร็จ!',
+      text: `${movedFrom2.length ? 'ย้ายจาก ' + movedFrom2.join(', ') + ' — ' : ''}${fullUserObj.username} → หลัก ${team}${subTeam ? ' + รอง ' + subTeam : ''} เรียบร้อย`,
+      timer: 1500,
+      showConfirmButton: false
+    });
+  } catch (err) {
+    console.error('addStaffToRoster error:', err);
+    Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
+  }
 };
 
-// 🧍 [กติกา] 1 คน อยู่ได้เว็บเดียวต่อกะ
-//   ก่อนใส่ใครลงเว็บ ต้องเอาเขาออกจากเว็บอื่นก่อน ไม่งั้นชื่อโผล่ 2 ที่
-//   คืนชื่อเว็บเดิมที่ถูกเอาออก (ถ้ามี) ไว้บอกแอดมิน
-// 🛡️ [ตาข่ายกันซ้ำ] กันไว้ก่อนบันทึกทุกครั้ง — 1 คน ต้องอยู่เว็บเดียวเท่านั้น
-//   ถ้าเจอคนเดียวกันหลายเว็บ เก็บรายการที่ถูกใส่ล่าสุดไว้ (assigned_at ใหม่สุด)
-//   ไม่ว่าจะพลาดมาจากทางไหน ข้อมูลที่ลงฐานข้อมูลจะไม่มีชื่อซ้ำ
 window.dutyDedupeRoster = function(rosterData) {
-    if (!rosterData || typeof rosterData !== "object") return { data: rosterData, removed: [] };
-    const best = {};   // id -> { team, at }
-    Object.entries(rosterData).forEach(([team, list]) => {
-        (list || []).forEach(u => {
-            if (!u || !u.id) return;                       // ช่อง "ขาดคน" ไม่มี id ปล่อยผ่าน
-            const id = String(u.id);
-            const at = String(u.assigned_at || "");
-            if (!best[id] || at >= best[id].at) best[id] = { team, at };
+  if (!rosterData || typeof rosterData !== "object") return {
+    data: rosterData,
+    removed: []
+  };
+  const best = {};
+  Object.entries(rosterData).forEach((([team, list]) => {
+    (list || []).forEach((u => {
+      if (!u || !u.id) return;
+      const id = String(u.id);
+      const at = String(u.assigned_at || "");
+      if (!best[id] || at >= best[id].at) best[id] = {
+        team: team,
+        at: at
+      };
+    }));
+  }));
+  const removed = [];
+  Object.entries(rosterData).forEach((([team, list]) => {
+    rosterData[team] = (list || []).filter((u => {
+      if (!u || !u.id) return true;
+      const id = String(u.id);
+      if (best[id] && best[id].team !== team) {
+        removed.push({
+          username: u.username,
+          from: team,
+          keep: best[id].team
         });
-    });
-    const removed = [];
-    Object.entries(rosterData).forEach(([team, list]) => {
-        rosterData[team] = (list || []).filter(u => {
-            if (!u || !u.id) return true;
-            const id = String(u.id);
-            if (best[id] && best[id].team !== team) {
-                removed.push({ username: u.username, from: team, keep: best[id].team });
-                return false;
-            }
-            return true;
-        });
-    });
-    if (removed.length) console.warn("[กันชื่อซ้ำ] ตัดออก", removed);
-    return { data: rosterData, removed };
+        return false;
+      }
+      return true;
+    }));
+  }));
+  if (removed.length) console.warn("[กันชื่อซ้ำ] ตัดออก", removed);
+  return {
+    data: rosterData,
+    removed: removed
+  };
 };
 
 window.dutyRemoveFromOtherTeams = function(rosterData, userId, keepTeam) {
-    const removed = [];
-    Object.keys(rosterData || {}).forEach(team => {
-        if (team === keepTeam) return;
-        const before = (rosterData[team] || []).length;
-        rosterData[team] = (rosterData[team] || []).filter(u => !u || String(u.id) !== String(userId));
-        if (rosterData[team].length < before) removed.push(team);
-    });
-    return removed;
+  const removed = [];
+  Object.keys(rosterData || {}).forEach((team => {
+    if (team === keepTeam) return;
+    const before = (rosterData[team] || []).length;
+    rosterData[team] = (rosterData[team] || []).filter((u => !u || String(u.id) !== String(userId)));
+    if (rosterData[team].length < before) removed.push(team);
+  }));
+  return removed;
 };
 
 window.clearDutyRoster = async function() {
-    const targetDate = document.getElementById('dutyDate').value;
-    const shiftFilter = document.getElementById('dutyShiftSelect').value;
-    if(!targetDate) return Swal.fire('!', 'กรุณาเลือกวันที่ก่อน', 'warning');
-
-    Swal.fire({
-        title: 'ยืนยันการล้างตาราง?', text: `คุณต้องการลบตารางงานวันที่ ${targetDate} (${shiftFilter}) ใช่หรือไม่? (หน้าที่ประจำที่ล็อคไว้จะไม่หาย)`, icon: 'warning',
-        showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'ล้างเลย', cancelButtonText: 'ยกเลิก'
-    }).then(async (result) => {
-        if (result.isConfirmed) {
-            Swal.fire({title: 'กำลังล้างข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
-            const saveKey = getDutySaveKey(targetDate, shiftFilter);
-            const reportKey = `report_${currentDutyDept}_${targetDate}_${shiftFilter}`; 
-            const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`; 
-            
-            try {
-                let currentDataVal = null;
-                const { data: currentData } = await appDB.from('settings').select('value').eq('key', saveKey);
-                if (currentData && currentData.length > 0) currentDataVal = currentData[0].value;
-                
-                if (currentDataVal) {
-                    // 💾 [FIX] เก็บสำเนาลง DB ด้วย (เดิม localStorage อย่างเดียว กู้ได้แค่เครื่องที่กดล้าง)
-                    window.safeSetItem(`backup_${saveKey}`, currentDataVal);
-                    await appDB.from('settings').upsert([{ key: `backup_${saveKey}`, value: currentDataVal }]);
-                }
-                
-                await appDB.from('settings').delete().eq('key', saveKey);
-                
-                // 🌟 เก็บคนที่โดนล็อคไว้ ไม่ลบทิ้ง
-                const keysKept = Object.keys(window.lockedImportantTasks);
-                keysKept.forEach(k => {
-                    if (!window.globalImportantTasks.includes(k)) delete window.currentImportantAssigns[k];
-                });
-                
-                let newAssigns = {};
-                for (const [k, v] of Object.entries(window.lockedImportantTasks)) {
-                    if (window.globalImportantTasks.includes(k)) newAssigns[k] = v;
-                }
-                
-                window.clearSettingCache(); await appDB.from('settings').upsert([{ key: impAssignKey, value: JSON.stringify(newAssigns) }]);
-                if (window.isTrainerDept()) await appDB.from('settings').delete().eq('key', reportKey);
-                
-                await appDB.from('system_logs').insert([{ action_type: 'ล้างตารางงาน', performed_by: currentUser.username, target_details: `ล้างตาราง ${currentDutyDept} (${shiftFilter}, ${targetDate})` }]);
-                window.debouncedBroadcast('duty-updates', 'force_reload');
-                
-                Swal.fire({ icon: 'success', title: 'ล้างตารางเรียบร้อย', showConfirmButton: false, timer: 1500 });
-                if(typeof window.refreshDutyData === 'function') window.refreshDutyData(); 
-            } catch (e) { Swal.fire('Error', e.message, 'error'); }
+  const targetDate = document.getElementById('dutyDate').value;
+  const shiftFilter = document.getElementById('dutyShiftSelect').value;
+  if (!targetDate) return Swal.fire('!', 'กรุณาเลือกวันที่ก่อน', 'warning');
+  Swal.fire({
+    title: 'ยืนยันการล้างตาราง?',
+    text: `คุณต้องการลบตารางงานวันที่ ${targetDate} (${shiftFilter}) ใช่หรือไม่? (หน้าที่ประจำที่ล็อคไว้จะไม่หาย)`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    confirmButtonText: 'ล้างเลย',
+    cancelButtonText: 'ยกเลิก'
+  }).then((async result => {
+    if (result.isConfirmed) {
+      Swal.fire({
+        title: 'กำลังล้างข้อมูล...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
+      const saveKey = getDutySaveKey(targetDate, shiftFilter);
+      const reportKey = `report_${currentDutyDept}_${targetDate}_${shiftFilter}`;
+      const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
+      try {
+        let currentDataVal = null;
+        const {data: currentData} = await appDB.from('settings').select('value').eq('key', saveKey);
+        if (currentData && currentData.length > 0) currentDataVal = currentData[0].value;
+        if (currentDataVal) {
+          window.safeSetItem(`backup_${saveKey}`, currentDataVal);
+          await appDB.from('settings').upsert([ {
+            key: `backup_${saveKey}`,
+            value: currentDataVal
+          } ]);
         }
-    });
+        await appDB.from('settings').delete().eq('key', saveKey);
+        const keysKept = Object.keys(window.lockedImportantTasks);
+        keysKept.forEach((k => {
+          if (!window.globalImportantTasks.includes(k)) delete window.currentImportantAssigns[k];
+        }));
+        let newAssigns = {};
+        for (const [k, v] of Object.entries(window.lockedImportantTasks)) {
+          if (window.globalImportantTasks.includes(k)) newAssigns[k] = v;
+        }
+        window.clearSettingCache();
+        await appDB.from('settings').upsert([ {
+          key: impAssignKey,
+          value: JSON.stringify(newAssigns)
+        } ]);
+        if (window.isTrainerDept()) await appDB.from('settings').delete().eq('key', reportKey);
+        await appDB.from('system_logs').insert([ {
+          action_type: 'ล้างตารางงาน',
+          performed_by: currentUser.username,
+          target_details: `ล้างตาราง ${currentDutyDept} (${shiftFilter}, ${targetDate})`
+        } ]);
+        window.debouncedBroadcast('duty-updates', 'force_reload');
+        Swal.fire({
+          icon: 'success',
+          title: 'ล้างตารางเรียบร้อย',
+          showConfirmButton: false,
+          timer: 1500
+        });
+        if (typeof window.refreshDutyData === 'function') window.refreshDutyData();
+      } catch (e) {
+        Swal.fire('Error', e.message, 'error');
+      }
+    }
+  }));
 };
 
 window.generateDutyRoster = async function() {
-    // 👥 สุ่มจากรายชื่อล่าสุดเสมอ (คนที่เพิ่งเพิ่มเข้าระบบจะได้ถูกจัดด้วย)
-    if (typeof fetchUsers === 'function') { try { await fetchUsers(); } catch (e) {} }
-    const targetDate = document.getElementById('dutyDate').value;
-    const shiftFilter = document.getElementById('dutyShiftSelect').value;
-    if(!targetDate) return Swal.fire('!', 'กรุณาเลือกวันที่ก่อน', 'warning');
-
-    const saveKeyCheck = getDutySaveKey(targetDate, shiftFilter);
-    
-    let checkExistVal = null;
+  if (typeof fetchUsers === 'function') {
     try {
-        const { data: checkExist } = await appDB.from('settings').select('value').eq('key', saveKeyCheck);
-        if (checkExist && checkExist.length > 0) checkExistVal = checkExist[0].value;
-    } catch(e) {}
-    
-    if (checkExistVal) {
-         window.refreshDutyData(); 
-         return Swal.fire('ป้องกันการจัดซ้ำ!', 'กะนี้มีการจัดหน้าที่ไปแล้ว กรุณากดปุ่ม "ล้างตาราง" ก่อนสุ่มใหม่ครับ', 'warning');
-    }
-
-    const activeStaff = window.getDutyActiveStaff(shiftFilter);
-    
-    let requiredCount = 0; document.querySelectorAll('.req-input').forEach(i => requiredCount += (parseInt(i.value) || 0));
-
-    if(activeStaff.length === 0) return Swal.fire('ข้อมูลไม่พอ', `ไม่มีพนักงานมาทำงานในกะนี้เลย (ลองเช็คสิทธิ์หรือรายชื่ออีกครั้ง)`, 'error');
-
-    // 🔧 [FIX] ถ้ายังไม่ได้ระบุจำนวนคนต่อเว็บ (ทุกช่องเป็น 0) ระบบเดิมจะวนลูปไม่จัดใครเลย
-    // แล้วไปฟ้องว่า "ไม่ได้ติ๊กสิทธิ์" ทั้งที่สิทธิ์ครบ → ให้คำนวณยอดออโต้ให้ก่อน แล้วค่อยจัด
-    if (requiredCount === 0) {
-        const ask = await Swal.fire({
-            icon: 'question',
-            title: 'ยังไม่ได้ระบุจำนวนคนต่อเว็บ',
-            html: `ช่องจำนวนคนทุกเว็บเป็น <b>0</b> อยู่ ระบบจึงจัดใครลงเว็บไม่ได้<br><br>ให้ระบบ <b>คำนวณยอดคนออโต้</b> (${activeStaff.length} คน) แล้วจัดหน้าที่ต่อเลยไหมครับ?`,
-            showCancelButton: true,
-            confirmButtonText: '⚡ คำนวณออโต้แล้วจัดเลย',
-            cancelButtonText: 'ยกเลิก ไปกรอกเอง'
+      await fetchUsers();
+    } catch (e) {}
+  }
+  const targetDate = document.getElementById('dutyDate').value;
+  const shiftFilter = document.getElementById('dutyShiftSelect').value;
+  if (!targetDate) return Swal.fire('!', 'กรุณาเลือกวันที่ก่อน', 'warning');
+  const saveKeyCheck = getDutySaveKey(targetDate, shiftFilter);
+  let checkExistVal = null;
+  try {
+    const {data: checkExist} = await appDB.from('settings').select('value').eq('key', saveKeyCheck);
+    if (checkExist && checkExist.length > 0) checkExistVal = checkExist[0].value;
+  } catch (e) {}
+  if (checkExistVal) {
+    window.refreshDutyData();
+    return Swal.fire('ป้องกันการจัดซ้ำ!', 'กะนี้มีการจัดหน้าที่ไปแล้ว กรุณากดปุ่ม "ล้างตาราง" ก่อนสุ่มใหม่ครับ', 'warning');
+  }
+  const activeStaff = window.getDutyActiveStaff(shiftFilter);
+  let requiredCount = 0;
+  document.querySelectorAll('.req-input').forEach((i => requiredCount += parseInt(i.value) || 0));
+  if (activeStaff.length === 0) return Swal.fire('ข้อมูลไม่พอ', `ไม่มีพนักงานมาทำงานในกะนี้เลย (ลองเช็คสิทธิ์หรือรายชื่ออีกครั้ง)`, 'error');
+  if (requiredCount === 0) {
+    const ask = await Swal.fire({
+      icon: 'question',
+      title: 'ยังไม่ได้ระบุจำนวนคนต่อเว็บ',
+      html: `ช่องจำนวนคนทุกเว็บเป็น <b>0</b> อยู่ ระบบจึงจัดใครลงเว็บไม่ได้<br><br>ให้ระบบ <b>คำนวณยอดคนออโต้</b> (${activeStaff.length} คน) แล้วจัดหน้าที่ต่อเลยไหมครับ?`,
+      showCancelButton: true,
+      confirmButtonText: '⚡ คำนวณออโต้แล้วจัดเลย',
+      cancelButtonText: 'ยกเลิก ไปกรอกเอง'
+    });
+    if (!ask.isConfirmed) return;
+    window.autoSuggestRequirements();
+    requiredCount = 0;
+    document.querySelectorAll('.req-input').forEach((i => requiredCount += parseInt(i.value) || 0));
+    if (requiredCount === 0) return;
+  }
+  if (requiredCount > activeStaff.length) return Swal.fire('ขาดคน!', `คุณจัดงาน ${requiredCount} คน แต่มีคนว่างแค่ ${activeStaff.length} คน (กรุณาลดจำนวน)`, 'error');
+  Swal.fire({
+    title: 'กำลังจัดตารางหลัก...',
+    text: 'ระบบกำลังจัดหน้าที่หลัก โดยจะยังไม่แจกงานรอง...',
+    allowOutsideClick: false,
+    didOpen: () => Swal.showLoading()
+  });
+  try {
+    const rotation = await window.loadDutyRotationHistory(targetDate, shiftFilter);
+    const yestTeamMap = {};
+    Object.entries(rotation.lastTeam).forEach((([uid, v]) => {
+      yestTeamMap[uid] = v.team;
+    }));
+    const requirements = {};
+    const reqsToSave = {};
+    document.querySelectorAll('.req-input').forEach((input => {
+      const team = input.id.replace('req_', '');
+      const count = parseInt(input.value) || 0;
+      requirements[team] = count;
+      reqsToSave[input.id] = count;
+    }));
+    window.safeSetItem(`duty_reqs_${currentDutyDept}`, JSON.stringify(reqsToSave));
+    let unassignedPool = [ ...activeStaff ];
+    const rosterResult = {};
+    sortedTeams.forEach((t => rosterResult[t] = []));
+    let remainingReqs = {
+      ...requirements
+    };
+    await window.loadStayPins();
+    const pinnedPlaced = [];
+    const pinnedIds = new Set;
+    const pinnedSkipped = [];
+    const pinnedOverQuota = [];
+    Object.keys(window.dutyStayPins || {}).forEach((uid => {
+      const pin = window.getActiveStayPin(uid, targetDate);
+      if (!pin || !pin.team) return;
+      if (!sortedTeams.includes(pin.team)) return;
+      const u = unassignedPool.find((x => String(x.id) === String(uid)));
+      if (!u) {
+        pinnedSkipped.push({
+          username: pin.username,
+          team: pin.team
         });
-        if (!ask.isConfirmed) return;
-        window.autoSuggestRequirements();
-        requiredCount = 0; document.querySelectorAll('.req-input').forEach(i => requiredCount += (parseInt(i.value) || 0));
-        if (requiredCount === 0) return; // autoSuggest ฟ้อง error ไปแล้ว (เช่น ไม่มีใครมีสิทธิ์เลย)
+        return;
+      }
+      if ((remainingReqs[pin.team] || 0) <= 0) pinnedOverQuota.push(`${window.escapeHtml(pin.username)} (${pin.team})`);
+      rosterResult[pin.team].push({
+        ...u,
+        secondary_team: null,
+        assigned_by: currentUser.username,
+        assigned_at: (new Date).toISOString(),
+        stay_pinned: true
+      });
+      remainingReqs[pin.team] = Math.max(0, (remainingReqs[pin.team] || 0) - 1);
+      unassignedPool = unassignedPool.filter((x => String(x.id) !== String(uid)));
+      pinnedPlaced.push(`${window.escapeHtml(pin.username)} → ${pin.team}`);
+      pinnedIds.add(String(uid));
+    }));
+    const rotationStats = {
+      fresh: 0,
+      rotated: 0,
+      repeated: 0,
+      repeatedNames: []
+    };
+    while (true) {
+      let teamsNeedingPeople = sortedTeams.filter((t => remainingReqs[t] > 0));
+      if (teamsNeedingPeople.length === 0) break;
+      let teamStats = teamsNeedingPeople.map((team => {
+        const withAccess = unassignedPool.filter((u => (dutyAccessMatrix[String(u.id)] || []).includes(team)));
+        let eligible = withAccess.filter((u => {
+          const cycleLen = (dutyAccessMatrix[String(u.id)] || []).length;
+          return window.dutyDaysAgoOnTeam(rotation, u.id, team) >= cycleLen;
+        }));
+        if (eligible.length === 0) {
+          eligible = withAccess.filter((u => yestTeamMap[String(u.id)] !== team));
+        }
+        if (eligible.length === 0) {
+          eligible = withAccess;
+        }
+        return {
+          team: team,
+          eligibleCount: eligible.length,
+          eligibleUsers: eligible
+        };
+      }));
+      teamStats.sort(((a, b) => a.eligibleCount - b.eligibleCount));
+      let target = teamStats[0];
+      let teamToFill = target.team;
+      if (target.eligibleCount === 0) {
+        rosterResult[teamToFill].push({
+          username: 'ขาดคน (ไม่มีสิทธิ์)'
+        });
+        remainingReqs[teamToFill]--;
+        continue;
+      }
+      let userOptions = target.eligibleUsers.map((u => {
+        const uid = String(u.id);
+        const access = dutyAccessMatrix[uid] || [];
+        const viableTeamsCount = access.filter((t => remainingReqs[t] > 0)).length;
+        return {
+          user: u,
+          flexibility: viableTeamsCount,
+          access: access,
+          daysAgo: window.dutyDaysAgoOnTeam(rotation, uid, teamToFill),
+          timesOnTeam: rotation.counts[uid] && rotation.counts[uid][teamToFill] || 0
+        };
+      }));
+      userOptions.sort(((a, b) => {
+        if (a.daysAgo !== b.daysAgo) {
+          if (a.daysAgo === Infinity) return -1;
+          if (b.daysAgo === Infinity) return 1;
+          return b.daysAgo - a.daysAgo;
+        }
+        if (a.timesOnTeam !== b.timesOnTeam) return a.timesOnTeam - b.timesOnTeam;
+        if (a.flexibility !== b.flexibility) return a.flexibility - b.flexibility;
+        return Math.random() - .5;
+      }));
+      const chosen = userOptions[0];
+      let pickedUser = {
+        ...chosen.user
+      };
+      pickedUser.secondary_team = null;
+      pickedUser.assigned_by = currentUser.username;
+      pickedUser.assigned_at = (new Date).toISOString();
+      rosterResult[teamToFill].push(pickedUser);
+      remainingReqs[teamToFill]--;
+      unassignedPool = unassignedPool.filter((u => u.id !== pickedUser.id));
     }
-    if(requiredCount > activeStaff.length) return Swal.fire('ขาดคน!', `คุณจัดงาน ${requiredCount} คน แต่มีคนว่างแค่ ${activeStaff.length} คน (กรุณาลดจำนวน)`, 'error');
-
-    Swal.fire({title: 'กำลังจัดตารางหลัก...', text: 'ระบบกำลังจัดหน้าที่หลัก โดยจะยังไม่แจกงานรอง...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
-
+    const lockedIds = pinnedIds;
+    const repairSwaps = window.repairRosterRotation(rosterResult, rotation, lockedIds);
+    Object.entries(rosterResult).forEach((([team, list]) => {
+      (list || []).forEach((u => {
+        if (!u || !u.id) return;
+        if (lockedIds.has(String(u.id))) return;
+        const ago = window.dutyDaysAgoOnTeam(rotation, u.id, team);
+        const cycleLen = (dutyAccessMatrix[String(u.id)] || []).length;
+        if (ago === Infinity) rotationStats.fresh++; else if (ago >= cycleLen) rotationStats.rotated++; else {
+          rotationStats.repeated++;
+          rotationStats.repeatedNames.push(`${window.escapeHtml(u.username)} → ${team} (เพิ่งทำเมื่อ ${ago} วันก่อน)`);
+        }
+      }));
+    }));
+    rotationStats.repairSwaps = repairSwaps;
+    const saveKey = getDutySaveKey(targetDate, shiftFilter);
+    if (typeof window.dutyDedupeRoster === "function") window.dutyDedupeRoster(rosterResult);
+    window.clearSettingCache();
+    const {error: _upsertErr2} = await appDB.from('settings').upsert([ {
+      key: saveKey,
+      value: JSON.stringify(rosterResult)
+    } ]);
+    if (_upsertErr2) throw _upsertErr2;
+    if (currentDutyDept === 'OD') {
+      try {
+        const _rooms = window.getOdDiscordRooms();
+        const _roomMap = window.assignOdRooms(rosterResult, _rooms);
+        await appDB.from('settings').upsert([ {
+          key: `duty_od_rooms_${targetDate}_${shiftFilter}`,
+          value: JSON.stringify(_roomMap)
+        } ]);
+        window._odRoomCache = null;
+      } catch (e) {
+        console.warn('จัดห้องดิส OD ไม่สำเร็จ:', e);
+      }
+    }
     try {
-        // 🔄 อ่านประวัติย้อนหลังหลายวัน (แทนของเดิมที่ดูแค่เมื่อวานวันเดียว)
-        // เพื่อให้รู้ว่าใครยังไม่เคยไปเว็บไหน จะได้หมุนให้ครบทุกเว็บ
-        const rotation = await window.loadDutyRotationHistory(targetDate, shiftFilter);
-
-        // เว็บของ "วันล่าสุดที่มีตาราง" — ใช้แทน yestTeamMap เดิม
-        // ถ้าเว้นวันไป (ไม่ได้จัดเวร/หยุดยาว) ตัวนี้ยังหาเจอ ต่างจากของเดิมที่มองแค่ -1 วัน
-        const yestTeamMap = {};
-        Object.entries(rotation.lastTeam).forEach(([uid, v]) => { yestTeamMap[uid] = v.team; });
-
-        const requirements = {}; const reqsToSave = {};
-        document.querySelectorAll('.req-input').forEach(input => {
-            const team = input.id.replace('req_', ''); const count = parseInt(input.value) || 0;
-            requirements[team] = count; reqsToSave[input.id] = count;
-        });
-        window.safeSetItem(`duty_reqs_${currentDutyDept}`, JSON.stringify(reqsToSave));
-
-        let unassignedPool = [...activeStaff];
-        const rosterResult = {};
-        sortedTeams.forEach(t => rosterResult[t] = []);
-        let remainingReqs = { ...requirements };
-
-        // 📌 ขั้นที่ 0: วางคนที่ถูกล็อก "อยู่ต่อ" ลงเว็บเดิมก่อนสุ่ม
-        // ต้องมาก่อนลูปสุ่ม เพราะเป็นคำสั่งตรงจากแอดมิน — ถ้าปล่อยให้ลูปจัด
-        // กฎ "ห้ามทำเว็บเดิมซ้ำกับเมื่อวาน" (yestTeamMap) จะเขี่ยเขาออกจากเว็บนั้นทันที
-        // ดึง pin สดจาก DB อีกรอบ เผื่อแอดมินอีกคนเพิ่ง/เพิ่งยกเลิกการล็อกไประหว่างที่หน้านี้เปิดค้างอยู่
-        await window.loadStayPins();
-
-        const pinnedPlaced = [];
-        const pinnedIds = new Set();       // ใช้กันไม่ให้รอบซ่อมสลับคนที่ถูกล็อกออกจากเว็บ
-        const pinnedSkipped = [];
-        const pinnedOverQuota = [];
-        Object.keys(window.dutyStayPins || {}).forEach(uid => {
-            // getActiveStayPin คุมกติกาช่วงวัน+กะไว้ที่เดียว จะได้ไม่หลุดกันคนละที่
-            const pin = window.getActiveStayPin(uid, targetDate);
-            if (!pin || !pin.team) return;
-            if (!sortedTeams.includes(pin.team)) return;   // เว็บถูกลบไปแล้ว
-
-            const u = unassignedPool.find(x => String(x.id) === String(uid));
-            if (!u) {
-                // ติดลาหยุด / สลับกะ / ย้ายแผนก → ข้ามเฉพาะวันนี้ ตัว pin ยังอยู่ใช้วันถัดไปได้
-                // เก็บเว็บไว้ด้วย จะได้บอกแอดมินทีหลังว่าใครถูกดึงมาแทนที่เว็บนั้น
-                pinnedSkipped.push({ username: pin.username, team: pin.team });
-                return;
-            }
-
-            if ((remainingReqs[pin.team] || 0) <= 0) pinnedOverQuota.push(`${window.escapeHtml(pin.username)} (${pin.team})`);
-
-            rosterResult[pin.team].push({
-                ...u,
-                secondary_team: null,
-                assigned_by: currentUser.username,
-                assigned_at: new Date().toISOString(),
-                stay_pinned: true
-            });
-            remainingReqs[pin.team] = Math.max(0, (remainingReqs[pin.team] || 0) - 1);
-            unassignedPool = unassignedPool.filter(x => String(x.id) !== String(uid));
-            pinnedPlaced.push(`${window.escapeHtml(pin.username)} → ${pin.team}`);
-            pinnedIds.add(String(uid));
-        });
-
-        const rotationStats = { fresh: 0, rotated: 0, repeated: 0, repeatedNames: [] };
-
-        while (true) {
-            let teamsNeedingPeople = sortedTeams.filter(t => remainingReqs[t] > 0);
-            if (teamsNeedingPeople.length === 0) break; 
-
-            let teamStats = teamsNeedingPeople.map(team => {
-                const withAccess = unassignedPool.filter(u => (dutyAccessMatrix[String(u.id)] || []).includes(team));
-
-                // 🔄 ชั้นที่ 1 (เข้มสุด): ต้องวนเว็บอื่นครบรอบก่อน ถึงจะกลับมาเว็บนี้ได้
-                // cycleLen = จำนวนเว็บที่คนนั้นมีสิทธิ์ → ห่างจากครั้งล่าสุดอย่างน้อยเท่านั้นวัน
-                // คนที่ไม่เคยทำเว็บนี้เลย (Infinity) ผ่านด่านนี้เสมอ
-                let eligible = withAccess.filter(u => {
-                    const cycleLen = (dutyAccessMatrix[String(u.id)] || []).length;
-                    return window.dutyDaysAgoOnTeam(rotation, u.id, team) >= cycleLen;
-                });
-                // 🛟 ชั้นที่ 2: ผ่อนเหลือแค่ "ไม่ใช่เว็บล่าสุดของเขา" (เท่ากับกฎเดิม)
-                if (eligible.length === 0) {
-                    eligible = withAccess.filter(u => yestTeamMap[String(u.id)] !== team);
-                }
-
-                // 🛟 ชั้นที่ 3: ยอมให้ซ้ำ เพื่อไม่ให้ตารางขาดคน
-                if (eligible.length === 0) { eligible = withAccess; }
-
-                return { team: team, eligibleCount: eligible.length, eligibleUsers: eligible };
-            });
-
-            teamStats.sort((a, b) => a.eligibleCount - b.eligibleCount);
-            let target = teamStats[0];
-            let teamToFill = target.team;
-
-            if (target.eligibleCount === 0) {
-                rosterResult[teamToFill].push({ username: 'ขาดคน (ไม่มีสิทธิ์)' });   // เก็บเป็นข้อความล้วน ตอนวาดการ์ดจะแต่งสีให้เอง (เดิมยัด HTML ไว้แล้วโดน escape เป็นโค้ดโชว์)
-                remainingReqs[teamToFill]--;
-                continue;
-            }
-
-            let userOptions = target.eligibleUsers.map(u => {
-                const uid = String(u.id);
-                const access = dutyAccessMatrix[uid] || [];
-                const viableTeamsCount = access.filter(t => remainingReqs[t] > 0).length;
-                return {
-                    user: u,
-                    flexibility: viableTeamsCount,
-                    access: access,
-                    daysAgo: window.dutyDaysAgoOnTeam(rotation, uid, teamToFill),
-                    timesOnTeam: (rotation.counts[uid] && rotation.counts[uid][teamToFill]) || 0
-                };
-            });
-
-            userOptions.sort((a, b) => {
-                // 1) ห่างจากเว็บนี้นานสุดมาก่อน — คนที่ไม่เคยทำเลย (Infinity) ได้ก่อนเสมอ
-                //    ต้องดัก Infinity แยก เพราะ Infinity - Infinity = NaN จะทำให้ sort เพี้ยน
-                if (a.daysAgo !== b.daysAgo) {
-                    if (a.daysAgo === Infinity) return -1;
-                    if (b.daysAgo === Infinity) return 1;
-                    return b.daysAgo - a.daysAgo;
-                }
-                // 2) เคยลงเว็บนี้น้อยครั้งกว่ามาก่อน — เกลี่ยให้ทั่วถึง
-                if (a.timesOnTeam !== b.timesOnTeam) return a.timesOnTeam - b.timesOnTeam;
-                // 3) คนที่เลือกได้น้อยเว็บมาก่อน — กันไม่ให้เว็บที่หาคนยากขาดคนทีหลัง
-                if (a.flexibility !== b.flexibility) return a.flexibility - b.flexibility;
-                return Math.random() - 0.5;
-            });
-
-            // 🌟 พระเอกอยู่ตรงนี้: ตอนดึงคนมาลง เราบังคับเคลียร์งานรอง (ความจำเก่า) ทิ้งให้เป็น null เสมอ!
-            const chosen = userOptions[0];
-            let pickedUser = { ...chosen.user };
-            pickedUser.secondary_team = null;
-            pickedUser.assigned_by = currentUser.username;
-            pickedUser.assigned_at = new Date().toISOString();
-
-            rosterResult[teamToFill].push(pickedUser);
-            remainingReqs[teamToFill]--;
-            unassignedPool = unassignedPool.filter(u => u.id !== pickedUser.id);
+      const summaryParts = [];
+      let totalAssigned = 0;
+      for (const team of Object.keys(rosterResult).sort(((a, b) => a.localeCompare(b)))) {
+        const names = (rosterResult[team] || []).filter((u => !u.username.includes('ขาดคน'))).map((u => u.username));
+        if (names.length > 0) {
+          summaryParts.push(`[${team}] ${names.join(', ')}`);
+          totalAssigned += names.length;
         }
-
-        // 🔧 รอบซ่อม: สลับคู่ที่สลับแล้วดีขึ้น เก็บกวาดเคสซ้ำเว็บเดิมที่หลุดมาจากขั้นสุดท้าย
-        // คนที่ถูกล็อก "อยู่ต่อ" ต้องไม่โดนสลับ ไม่งั้นจะขัดกับคำสั่งแอดมิน
-        const lockedIds = pinnedIds;
-        const repairSwaps = window.repairRosterRotation(rosterResult, rotation, lockedIds);
-
-        // นับสถิติหลังซ่อมเสร็จ ตัวเลขจะได้ตรงกับตารางที่บันทึกจริง
-        Object.entries(rosterResult).forEach(([team, list]) => {
-            (list || []).forEach(u => {
-                if (!u || !u.id) return;
-                if (lockedIds.has(String(u.id))) return;        // คนถูกล็อกไม่นับ เพราะไม่ได้ผ่านการหมุน
-                const ago = window.dutyDaysAgoOnTeam(rotation, u.id, team);
-                const cycleLen = (dutyAccessMatrix[String(u.id)] || []).length;
-                if (ago === Infinity)      rotationStats.fresh++;
-                else if (ago >= cycleLen)  rotationStats.rotated++;
-                else {
-                    rotationStats.repeated++;
-                    rotationStats.repeatedNames.push(`${window.escapeHtml(u.username)} → ${team} (เพิ่งทำเมื่อ ${ago} วันก่อน)`);
-                }
-            });
-        });
-        rotationStats.repairSwaps = repairSwaps;
-
-        const saveKey = getDutySaveKey(targetDate, shiftFilter);
-        if (typeof window.dutyDedupeRoster === "function") window.dutyDedupeRoster(rosterResult);   // 🛡️ กันชื่อซ้ำก่อนบันทึก
-        window.clearSettingCache(); const { error: _upsertErr2 } = await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(rosterResult) }]);
-        if (_upsertErr2) throw _upsertErr2;
-
-        // 🎧 [OD] จัดห้อง Discord อัตโนมัติพร้อมเวร — เว็บเดียวกันห้องเดียวกัน เฉลี่ยหัวให้สมดุล
-        if (currentDutyDept === 'OD') {
-            try {
-                const _rooms = window.getOdDiscordRooms();
-                const _roomMap = window.assignOdRooms(rosterResult, _rooms);
-                await appDB.from('settings').upsert([{ key: `duty_od_rooms_${targetDate}_${shiftFilter}`, value: JSON.stringify(_roomMap) }]);
-                window._odRoomCache = null;   // ล้าง cache ให้วาดรอบใหม่เห็นผังล่าสุด
-            } catch (e) { console.warn('จัดห้องดิส OD ไม่สำเร็จ:', e); }
-        }
-
-        try {
-            // 🌟 สร้าง summary ของผู้ที่ถูกจัดเข้าแต่ละเว็บ
-            const summaryParts = [];
-            let totalAssigned = 0;
-            for (const team of Object.keys(rosterResult).sort((a,b) => a.localeCompare(b))) {
-                const names = (rosterResult[team] || [])
-                    .filter(u => !u.username.includes('ขาดคน'))
-                    .map(u => u.username);
-                if (names.length > 0) {
-                    summaryParts.push(`[${team}] ${names.join(', ')}`);
-                    totalAssigned += names.length;
-                }
-            }
-            const detailText = `จัดเวรแผนก ${currentDutyDept} (กะ: ${shiftFilter}, วันที่: ${targetDate}) — รวม ${totalAssigned} คน
-${summaryParts.join(' | ')}`;
-
-            await appDB.from('system_logs').insert([{ action_type: 'สุ่มจัดหน้าที่', performed_by: currentUser.username, target_details: detailText }]);
-            if(appDB.channel) window.debouncedBroadcast('duty-updates', 'force_reload');
-        } catch(logError) {}
-
-        window.refreshDutyData();
-
-        // 🔄 สรุปผลการหมุนเวียนเว็บ ให้แอดมินเห็นว่าหมุนได้ดีแค่ไหน
-        let pinSummary = '';
-        const totalPicked = rotationStats.fresh + rotationStats.rotated + rotationStats.repeated;
-        if (totalPicked > 0) {
-            pinSummary += `<div style="margin-top:12px;text-align:left;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.35);border-radius:12px;padding:10px 12px;font-size:12px;color:#047857">
-                <b>🔄 การหมุนเวียนเว็บ</b> <span style="font-size:10.5px;opacity:.75">(ดูประวัติย้อนหลัง ${rotation.lookback} วัน พบตาราง ${rotation.daysFound} วัน)</span><br>
-                • ได้เว็บที่ <b>ไม่เคยทำเลย</b> — ${rotationStats.fresh} คน<br>
-                • ได้เว็บที่ <b>วนครบรอบแล้ว</b> — ${rotationStats.rotated} คน
-                ${rotationStats.repeated > 0 ? `<br>• <span style="color:#b45309">ยังต้องทำซ้ำก่อนครบรอบ — ${rotationStats.repeated} คน</span>` : ''}
-                ${rotationStats.repairSwaps > 0 ? `<br><span style="font-size:10.5px;opacity:.8">🔧 ปรับสลับให้อีก ${rotationStats.repairSwaps} คู่ เพื่อลดการซ้ำเว็บ</span>` : ''}
-            </div>`;
-        }
-        if (rotationStats.repeated > 0) {
-            pinSummary += `<div style="margin-top:8px;text-align:left;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);border-radius:12px;padding:10px 12px;font-size:11px;color:#92400e;max-height:140px;overflow-y:auto">
-                คนที่ยังหมุนไม่ครบรอบ (เพราะสิทธิ์หลังบ้านจำกัด หรือคนไม่พอ):<br>${rotationStats.repeatedNames.join('<br>')}</div>`;
-        }
-
-        // 📌 สรุปผลของคนที่ถูกล็อกอยู่ต่อ ให้แอดมินเห็นว่าระบบทำอะไรให้บ้าง
-        if (pinnedPlaced.length > 0) {
-            pinSummary += `<div style="margin-top:12px;text-align:left;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.35);border-radius:12px;padding:10px 12px;font-size:12px;color:#b45309">
-                <b>📌 อยู่ต่อจากที่ล็อกไว้ ${pinnedPlaced.length} คน</b><br>${pinnedPlaced.join('<br>')}</div>`;
-        }
-        if (pinnedOverQuota.length > 0) {
-            pinSummary += `<div style="margin-top:8px;text-align:left;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:12px;padding:10px 12px;font-size:11.5px;color:#b91c1c">
-                ⚠️ เว็บเหล่านี้มีคนล็อกไว้เกินโควตาที่ตั้ง — ยอดคนจะเกินที่ระบุ:<br><b>${pinnedOverQuota.join(', ')}</b></div>`;
-        }
-        if (pinnedSkipped.length > 0) {
-            // บอกให้รู้ว่าใครถูกดึงมาแทน แต่ไม่ไปบังคับล็อกคนแทนไว้
-            // "คนมาแทน" = คนที่วันนี้อยู่เว็บนั้น แต่เมื่อวานไม่ได้อยู่
-            const lines = pinnedSkipped.map(s => {
-                const newFaces = (rosterResult[s.team] || [])
-                    .filter(u => u && u.id && yestTeamMap[String(u.id)] !== s.team)
-                    .map(u => u.username);
-                return `• <b>${window.escapeHtml(s.username)}</b> (ล็อกไว้ที่ ${s.team}) → `
-                    + (newFaces.length
-                        ? `วันนี้ <b>${s.team}</b> ได้ <b>${newFaces.join(', ')}</b> มาแทน`
-                        : `วันนี้ <b>${s.team}</b> ใช้คนเดิมทั้งหมด`);
-            });
-            pinSummary += `<div style="margin-top:8px;text-align:left;background:rgba(148,163,184,.12);border:1px solid rgba(148,163,184,.3);border-radius:12px;padding:10px 12px;font-size:11.5px;color:var(--k-mute);line-height:1.8">
-                ℹ️ <b>คนที่ถูกล็อกแต่วันนี้ไม่ได้ทำงาน</b> (ลาหยุด / สลับกะ) — การล็อกยังอยู่ ใช้ต่อวันถัดไปได้<br>
-                ${lines.join('<br>')}
-                <div style="margin-top:6px;opacity:.8">คนที่มาแทนไม่ได้ถูกล็อกไว้ พรุ่งนี้จะหมุนตามปกติ ถ้าอยากให้อยู่ต่อให้กด 📌 เอง</div>
-            </div>`;
-        }
-
-        if (unassignedPool.length > 0) {
-            // 🔧 [FIX] แยกสาเหตุให้ชัด: ไม่มีสิทธิ์เว็บไหนเลย vs มีสิทธิ์แต่โควตาเว็บเต็มแล้ว
-            const noAccess = unassignedPool.filter(u => !(dutyAccessMatrix[String(u.id)] || []).some(t => sortedTeams.includes(t)));
-            const quotaFull = unassignedPool.filter(u => !noAccess.includes(u));
-            let reasonHtml = '';
-            if (quotaFull.length > 0) {
-                reasonHtml += `<div style="margin-top:6px">มีสิทธิ์แต่<b>โควตาเว็บเต็ม</b> (ตั้งจำนวนรวม ${requiredCount} คน แต่มาทำ ${activeStaff.length} คน) <b>${quotaFull.length} คน</b>:<br><span class="text-amber-500 font-bold">${quotaFull.map(u => window.escapeHtml(u.username)).join(', ')}</span><br><span style="font-size:11px;opacity:.8">→ เพิ่มจำนวนคนต่อเว็บ หรือกด "คำนวณยอดคนออโต้" แล้วล้างตารางจัดใหม่</span></div>`;
-            }
-            if (noAccess.length > 0) {
-                reasonHtml += `<div style="margin-top:6px">ไม่ได้ติ๊กสิทธิ์หลังบ้านเว็บไหนเลย <b>${noAccess.length} คน</b>:<br><span class="text-red-500 font-bold">${noAccess.map(u => window.escapeHtml(u.username)).join(', ')}</span></div>`;
-            }
-            Swal.fire({ icon: 'warning', title: `จัดหลักสำเร็จ! (มีคนเหลือ)`, html: `เหลือพนักงานไม่ได้ลงเว็บ <b>${unassignedPool.length} คน</b>${reasonHtml}${pinSummary}` });
-        } else if (pinSummary) {
-            Swal.fire({ icon: 'success', title: `จัดตำแหน่งหลักสำเร็จ!`, html: `กรุณากดปุ่มสายฟ้า (จัดตำแหน่งรองด่วน) เพื่อจับคู่เวลาพักครับ${pinSummary}` });
-        } else {
-            Swal.fire({ icon: 'success', title: `จัดตำแหน่งหลักสำเร็จ!`, text: 'กรุณากดปุ่มสายฟ้า (จัดตำแหน่งรองด่วน) เพื่อจับคู่เวลาพักครับ', timer: 2500, showConfirmButton: false });
-        }
-    } catch(e) { Swal.fire('Error', e.message, 'error'); }
+      }
+      const detailText = `จัดเวรแผนก ${currentDutyDept} (กะ: ${shiftFilter}, วันที่: ${targetDate}) — รวม ${totalAssigned} คน\n${summaryParts.join(' | ')}`;
+      await appDB.from('system_logs').insert([ {
+        action_type: 'สุ่มจัดหน้าที่',
+        performed_by: currentUser.username,
+        target_details: detailText
+      } ]);
+      if (appDB.channel) window.debouncedBroadcast('duty-updates', 'force_reload');
+    } catch (logError) {}
+    window.refreshDutyData();
+    let pinSummary = '';
+    const totalPicked = rotationStats.fresh + rotationStats.rotated + rotationStats.repeated;
+    if (totalPicked > 0) {
+      pinSummary += `<div style="margin-top:12px;text-align:left;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.35);border-radius:12px;padding:10px 12px;font-size:12px;color:#047857">\n                <b>🔄 การหมุนเวียนเว็บ</b> <span style="font-size:10.5px;opacity:.75">(ดูประวัติย้อนหลัง ${rotation.lookback} วัน พบตาราง ${rotation.daysFound} วัน)</span><br>\n                • ได้เว็บที่ <b>ไม่เคยทำเลย</b> — ${rotationStats.fresh} คน<br>\n                • ได้เว็บที่ <b>วนครบรอบแล้ว</b> — ${rotationStats.rotated} คน\n                ${rotationStats.repeated > 0 ? `<br>• <span style="color:#b45309">ยังต้องทำซ้ำก่อนครบรอบ — ${rotationStats.repeated} คน</span>` : ''}\n                ${rotationStats.repairSwaps > 0 ? `<br><span style="font-size:10.5px;opacity:.8">🔧 ปรับสลับให้อีก ${rotationStats.repairSwaps} คู่ เพื่อลดการซ้ำเว็บ</span>` : ''}\n            </div>`;
+    }
+    if (rotationStats.repeated > 0) {
+      pinSummary += `<div style="margin-top:8px;text-align:left;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);border-radius:12px;padding:10px 12px;font-size:11px;color:#92400e;max-height:140px;overflow-y:auto">\n                คนที่ยังหมุนไม่ครบรอบ (เพราะสิทธิ์หลังบ้านจำกัด หรือคนไม่พอ):<br>${rotationStats.repeatedNames.join('<br>')}</div>`;
+    }
+    if (pinnedPlaced.length > 0) {
+      pinSummary += `<div style="margin-top:12px;text-align:left;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.35);border-radius:12px;padding:10px 12px;font-size:12px;color:#b45309">\n                <b>📌 อยู่ต่อจากที่ล็อกไว้ ${pinnedPlaced.length} คน</b><br>${pinnedPlaced.join('<br>')}</div>`;
+    }
+    if (pinnedOverQuota.length > 0) {
+      pinSummary += `<div style="margin-top:8px;text-align:left;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:12px;padding:10px 12px;font-size:11.5px;color:#b91c1c">\n                ⚠️ เว็บเหล่านี้มีคนล็อกไว้เกินโควตาที่ตั้ง — ยอดคนจะเกินที่ระบุ:<br><b>${pinnedOverQuota.join(', ')}</b></div>`;
+    }
+    if (pinnedSkipped.length > 0) {
+      const lines = pinnedSkipped.map((s => {
+        const newFaces = (rosterResult[s.team] || []).filter((u => u && u.id && yestTeamMap[String(u.id)] !== s.team)).map((u => u.username));
+        return `• <b>${window.escapeHtml(s.username)}</b> (ล็อกไว้ที่ ${s.team}) → ` + (newFaces.length ? `วันนี้ <b>${s.team}</b> ได้ <b>${newFaces.join(', ')}</b> มาแทน` : `วันนี้ <b>${s.team}</b> ใช้คนเดิมทั้งหมด`);
+      }));
+      pinSummary += `<div style="margin-top:8px;text-align:left;background:rgba(148,163,184,.12);border:1px solid rgba(148,163,184,.3);border-radius:12px;padding:10px 12px;font-size:11.5px;color:var(--k-mute);line-height:1.8">\n                ℹ️ <b>คนที่ถูกล็อกแต่วันนี้ไม่ได้ทำงาน</b> (ลาหยุด / สลับกะ) — การล็อกยังอยู่ ใช้ต่อวันถัดไปได้<br>\n                ${lines.join('<br>')}\n                <div style="margin-top:6px;opacity:.8">คนที่มาแทนไม่ได้ถูกล็อกไว้ พรุ่งนี้จะหมุนตามปกติ ถ้าอยากให้อยู่ต่อให้กด 📌 เอง</div>\n            </div>`;
+    }
+    if (unassignedPool.length > 0) {
+      const noAccess = unassignedPool.filter((u => !(dutyAccessMatrix[String(u.id)] || []).some((t => sortedTeams.includes(t)))));
+      const quotaFull = unassignedPool.filter((u => !noAccess.includes(u)));
+      let reasonHtml = '';
+      if (quotaFull.length > 0) {
+        reasonHtml += `<div style="margin-top:6px">มีสิทธิ์แต่<b>โควตาเว็บเต็ม</b> (ตั้งจำนวนรวม ${requiredCount} คน แต่มาทำ ${activeStaff.length} คน) <b>${quotaFull.length} คน</b>:<br><span class="text-amber-500 font-bold">${quotaFull.map((u => window.escapeHtml(u.username))).join(', ')}</span><br><span style="font-size:11px;opacity:.8">→ เพิ่มจำนวนคนต่อเว็บ หรือกด "คำนวณยอดคนออโต้" แล้วล้างตารางจัดใหม่</span></div>`;
+      }
+      if (noAccess.length > 0) {
+        reasonHtml += `<div style="margin-top:6px">ไม่ได้ติ๊กสิทธิ์หลังบ้านเว็บไหนเลย <b>${noAccess.length} คน</b>:<br><span class="text-red-500 font-bold">${noAccess.map((u => window.escapeHtml(u.username))).join(', ')}</span></div>`;
+      }
+      Swal.fire({
+        icon: 'warning',
+        title: `จัดหลักสำเร็จ! (มีคนเหลือ)`,
+        html: `เหลือพนักงานไม่ได้ลงเว็บ <b>${unassignedPool.length} คน</b>${reasonHtml}${pinSummary}`
+      });
+    } else if (pinSummary) {
+      Swal.fire({
+        icon: 'success',
+        title: `จัดตำแหน่งหลักสำเร็จ!`,
+        html: `กรุณากดปุ่มสายฟ้า (จัดตำแหน่งรองด่วน) เพื่อจับคู่เวลาพักครับ${pinSummary}`
+      });
+    } else {
+      Swal.fire({
+        icon: 'success',
+        title: `จัดตำแหน่งหลักสำเร็จ!`,
+        text: 'กรุณากดปุ่มสายฟ้า (จัดตำแหน่งรองด่วน) เพื่อจับคู่เวลาพักครับ',
+        timer: 2500,
+        showConfirmButton: false
+      });
+    }
+  } catch (e) {
+    Swal.fire('Error', e.message, 'error');
+  }
 };
 
 window.renderRosterGrid = async function(rosterData) {
-    const cardGrid = document.getElementById('dutyResultGrid'); 
-    const matrixGrid = document.getElementById('dutyMatrixGrid'); 
-    
-    if(!cardGrid) return;
-    
-    if (currentDutyDept === 'ODQL' || currentDutyDept === 'TRAINER_OD') {
-        cardGrid.classList.add('hidden');
-        if (matrixGrid) matrixGrid.classList.remove('hidden');
-        
-        if (typeof window.renderTrainerOdMatrix === 'function') {
-            window.renderTrainerOdMatrix(rosterData); 
-        }
-        return; 
-    } 
-    else {
-        cardGrid.classList.remove('hidden');
-        if (matrixGrid) matrixGrid.classList.add('hidden');
+  const cardGrid = document.getElementById('dutyResultGrid');
+  const matrixGrid = document.getElementById('dutyMatrixGrid');
+  if (!cardGrid) return;
+  if (currentDutyDept === 'ODQL' || currentDutyDept === 'TRAINER_OD') {
+    cardGrid.classList.add('hidden');
+    if (matrixGrid) matrixGrid.classList.remove('hidden');
+    if (typeof window.renderTrainerOdMatrix === 'function') {
+      window.renderTrainerOdMatrix(rosterData);
     }
-
-    cardGrid.innerHTML = '';
-    let finalGridHtml = '';
-    const _dmItems = [];
-    // 🙋 หาว่า "ตัวเรา" อยู่เว็บไหน (เทียบ id ก่อน ไม่มีค่อยเทียบชื่อ)
-    const _me = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : null;
-    const _isMe = u => !!(_me && u && ((u.id != null && _me.id != null && String(u.id) === String(_me.id)) || (u.username && _me.username && String(u.username).toLowerCase() === String(_me.username).toLowerCase())));   // 🗂️ รายการเว็บด้านซ้าย (แบบรายการเว็บ + รายละเอียด)
-
-    currentRosterData = rosterData;
-    // ในโหมดตัวอย่าง ตัดสิทธิ์แก้ไขทั้งหมด เพราะยังไม่มีตารางจริงให้แก้
-    const isAdmin = window.isDutyAdmin() && !window.isRosterPreview;
-
-    if (window.isRosterPreview) {
-        finalGridHtml += `
-        <div class="col-span-full bg-amber-50 dark:bg-amber-900/20 border-2 border-dashed border-amber-400 dark:border-amber-700 rounded-2xl p-3 flex items-center gap-3">
-            <span class="material-icons text-amber-500 text-2xl shrink-0">push_pin</span>
-            <div class="flex-1 min-w-0">
-                <div class="font-black text-sm text-amber-800 dark:text-amber-300">ภาพตัวอย่าง — ยังไม่ได้จัดเวรวันนี้</div>
-                <div class="text-[11px] text-amber-700 dark:text-amber-400/80 mt-0.5">
-                    ที่เห็นคือคนที่ถูกล็อก "อยู่ต่อ" ไว้ล่วงหน้า ยังไม่ได้บันทึกลงระบบ —
-                    กด <b>"สุ่มจัดหน้าที่"</b> เพื่อจัดคนที่เหลือให้ครบ แล้วชื่อเหล่านี้จะถูกวางที่เดิมให้อัตโนมัติ
-                </div>
-            </div>
-        </div>`;
-    }
-
-    let trainerReports = {};
-    const targetDate = document.getElementById('dutyDate') ? document.getElementById('dutyDate').value : '';
-    const shiftFilter = document.getElementById('dutyShiftSelect') ? document.getElementById('dutyShiftSelect').value : '';
-    const subFilter = document.getElementById('trainerDeptFilter') ? document.getElementById('trainerDeptFilter').value : 'ALL';
-
-    if (window.isTrainerDept() && targetDate) {
-        const reportKey = `report_${currentDutyDept}_${targetDate}_${shiftFilter}`;
-        try {
-            let reportDataVal = null;
-            const { data: reportData } = await appDB.from('settings').select('value').eq('key', reportKey);
-            if (reportData && reportData.length > 0) reportDataVal = reportData[0].value;
-            if (reportDataVal) trainerReports = JSON.parse(reportDataVal);
-        } catch(e) {}
-    }
-
-    window.currentStandbyData = {};
-    let standbyData = {};
-    sortedTeams.forEach(t => standbyData[t] = []);
-    
-    for (const primaryTeam in rosterData) {
-        if (!rosterData[primaryTeam]) continue;
-        rosterData[primaryTeam].forEach(u => {
-            if (u.secondary_team && sortedTeams.includes(u.secondary_team) && !u.username.includes('ขาดคน')) {
-                standbyData[u.secondary_team].push({
-                    name:       u.username,
-                    fromTeam:   primaryTeam,
-                });
-            }
+    return;
+  } else {
+    cardGrid.classList.remove('hidden');
+    if (matrixGrid) matrixGrid.classList.add('hidden');
+  }
+  cardGrid.innerHTML = '';
+  let finalGridHtml = '';
+  const _dmItems = [];
+  const _me = typeof currentUser !== 'undefined' && currentUser ? currentUser : null;
+  const _isMe = u => !!(_me && u && (u.id != null && _me.id != null && String(u.id) === String(_me.id) || u.username && _me.username && String(u.username).toLowerCase() === String(_me.username).toLowerCase()));
+  currentRosterData = rosterData;
+  const isAdmin = window.isDutyAdmin() && !window.isRosterPreview;
+  if (window.isRosterPreview) {
+    finalGridHtml += `\n        <div class="col-span-full bg-amber-50 dark:bg-amber-900/20 border-2 border-dashed border-amber-400 dark:border-amber-700 rounded-2xl p-3 flex items-center gap-3">\n            <span class="material-icons text-amber-500 text-2xl shrink-0">push_pin</span>\n            <div class="flex-1 min-w-0">\n                <div class="font-black text-sm text-amber-800 dark:text-amber-300">ภาพตัวอย่าง — ยังไม่ได้จัดเวรวันนี้</div>\n                <div class="text-[11px] text-amber-700 dark:text-amber-400/80 mt-0.5">\n                    ที่เห็นคือคนที่ถูกล็อก "อยู่ต่อ" ไว้ล่วงหน้า ยังไม่ได้บันทึกลงระบบ —\n                    กด <b>"สุ่มจัดหน้าที่"</b> เพื่อจัดคนที่เหลือให้ครบ แล้วชื่อเหล่านี้จะถูกวางที่เดิมให้อัตโนมัติ\n                </div>\n            </div>\n        </div>`;
+  }
+  let trainerReports = {};
+  const targetDate = document.getElementById('dutyDate') ? document.getElementById('dutyDate').value : '';
+  const shiftFilter = document.getElementById('dutyShiftSelect') ? document.getElementById('dutyShiftSelect').value : '';
+  const subFilter = document.getElementById('trainerDeptFilter') ? document.getElementById('trainerDeptFilter').value : 'ALL';
+  if (window.isTrainerDept() && targetDate) {
+    const reportKey = `report_${currentDutyDept}_${targetDate}_${shiftFilter}`;
+    try {
+      let reportDataVal = null;
+      const {data: reportData} = await appDB.from('settings').select('value').eq('key', reportKey);
+      if (reportData && reportData.length > 0) reportDataVal = reportData[0].value;
+      if (reportDataVal) trainerReports = JSON.parse(reportDataVal);
+    } catch (e) {}
+  }
+  window.currentStandbyData = {};
+  let standbyData = {};
+  sortedTeams.forEach((t => standbyData[t] = []));
+  for (const primaryTeam in rosterData) {
+    if (!rosterData[primaryTeam]) continue;
+    rosterData[primaryTeam].forEach((u => {
+      if (u.secondary_team && sortedTeams.includes(u.secondary_team) && !u.username.includes('ขาดคน')) {
+        standbyData[u.secondary_team].push({
+          name: u.username,
+          fromTeam: primaryTeam
         });
-    }
-    window.currentStandbyData = standbyData; 
-
-    // 🎧 [OD] โหลดผังห้องดิสของวัน/กะนี้ + สลับปุ่มตั้งค่าห้องให้โผล่เฉพาะ OD
-    let odRoomOf = {}; let odRoomIdx = {};
-    { const _bt = document.getElementById('odRoomsBtn'); if (_bt) _bt.style.display = (currentDutyDept === 'OD') ? '' : 'none'; }
-    if (currentDutyDept === 'OD' && targetDate) {
-        try {
-            const _rk = `duty_od_rooms_${targetDate}_${shiftFilter}`;
-            if (window._odRoomCache && window._odRoomCache.key === _rk) {
-                odRoomOf = window._odRoomCache.map;
-            } else {
-                const { data: _rd } = await appDB.from('settings').select('value').eq('key', _rk).maybeSingle();
-                if (_rd && _rd.value) odRoomOf = JSON.parse(_rd.value);
-                window._odRoomCache = { key: _rk, map: odRoomOf };
-            }
-            window.getOdDiscordRooms().forEach((r, i) => { odRoomIdx[r] = i; });
-
-            // 🔧 [FIX] เว็บที่ "ไม่มีห้อง" ทั้งที่มีคน — เกิดเมื่อตอนกดสุ่มเว็บนั้นยังว่าง (0 คน)
-            // แล้วแอดมินค่อยลาก/เพิ่มคนเข้าไปทีหลัง ผังห้องถูกคำนวณครั้งเดียวตอนสุ่มจึงไม่มีเว็บนี้
-            // วิธีแก้: ตอนวาด ถ้าเว็บไหนมีคนแต่ไม่มีห้อง ให้หยิบห้องที่คนน้อยสุดใส่ให้ แล้วบันทึกลง DB
-            try {
-                const _rooms = window.getOdDiscordRooms();
-                if (_rooms.length) {
-                    const _load = {}; _rooms.forEach(r => _load[r] = 0);
-                    const _cnt = t => (rosterData[t] || []).filter(u => u && u.username && !String(u.username).includes('ขาดคน')).length;
-                    Object.keys(odRoomOf).forEach(t => { if (_load[odRoomOf[t]] !== undefined) _load[odRoomOf[t]] += _cnt(t); });
-                    let _changed = false;
-                    sortedTeams.filter(t => _cnt(t) > 0 && !odRoomOf[t]).forEach(t => {
-                        const _best = _rooms.reduce((a, b) => _load[b] < _load[a] ? b : a, _rooms[0]);
-                        odRoomOf[t] = _best; _load[_best] += _cnt(t); _changed = true;
-                    });
-                    if (_changed) {
-                        window._odRoomCache = { key: _rk, map: odRoomOf };
-                        appDB.from('settings').upsert([{ key: _rk, value: JSON.stringify(odRoomOf) }]).then(() => {});
-                    }
-                }
-            } catch (e) { console.warn('[odRooms] เติมห้องให้เว็บที่ตกหล่นไม่สำเร็จ:', e); }
-        } catch (e) { odRoomOf = {}; }
-    }
-
-    // 🕘 [ป้ายย้อนหลัง] ดึงตารางเวร 3 วันก่อนหน้า (แผนก+กะเดียวกัน) มายิงครั้งเดียว
-    //    เพื่อโชว์ป้าย "เมื่อวานทำ X · 2 วันก่อน Y · 3 วันก่อน Z" ต่อท้ายชื่อพนักงาน
-    //    historyTeamOf[ชื่อ] = [{ ago, main, sec }, ...] เรียงจากวันล่าสุดไปเก่าสุด
-    // ย้อนหลังกี่วัน = ตามค่า "เว้นซ้ำเว็บ" ของแผนกนี้ (ตั้ง 1 = เมื่อวานอย่างเดียว · 2 = 2 วัน · ...) อย่างน้อย 1 สูงสุด 7
-    const DUTY_HISTORY_DAYS = Math.max(1, Math.min(7, (typeof window.getRotationGapDays === 'function') ? (window.getRotationGapDays(currentDutyDept) || 1) : 3));
-    const HIST_SHIFTS = ['กะเช้า', 'กะกลาง', 'กะดึก'];   // ดูข้ามกะ เพราะคนสลับกะกันบ่อย
-    let historyTeamOf = {};
-    if (targetDate) {
-        try {
-            const histKeys = [], metaOf = {};
-            for (let k = 1; k <= DUTY_HISTORY_DAYS; k++) {
-                const dd = new Date(targetDate + 'T00:00:00');
-                dd.setDate(dd.getDate() - k);
-                const ds = `${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, '0')}-${String(dd.getDate()).padStart(2, '0')}`;
-                HIST_SHIFTS.forEach(sh => {
-                    const key = `duty_roster_${currentDutyDept}_${ds}_${sh}`;
-                    histKeys.push(key);
-                    metaOf[key] = { ago: k, shift: sh };
-                });
-            }
-            const cacheKey = histKeys.join('|');
-            if (window._ydRosterCache && window._ydRosterCache.key === cacheKey) {
-                historyTeamOf = window._ydRosterCache.map;
-            } else {
-                const { data: histData } = await appDB.from('settings').select('key, value').in('key', histKeys);
-                const byDay = {};   // ชื่อ -> { วันที่ย้อนหลัง -> รายการ }
-                (histData || []).forEach(row => {
-                    const meta = metaOf[row.key];
-                    if (!meta) return;   // กันแถวที่ไม่ใช่ตารางย้อนหลัง
-                    let roster = null;
-                    try { roster = JSON.parse(row.value); } catch (e) { return; }
-                    for (const t in roster) {
-                        (roster[t] || []).forEach(u => {
-                            if (!u || !u.username || String(u.username).includes('ขาดคน')) return;
-                            const slot = (byDay[u.username] = byDay[u.username] || {});
-                            const cur = slot[meta.ago];
-                            // วันเดียวกันเจอหลายกะ -> เอากะเดียวกับที่กำลังดูอยู่ก่อน
-                            if (!cur || (cur.shift !== shiftFilter && meta.shift === shiftFilter)) {
-                                slot[meta.ago] = { ago: meta.ago, shift: meta.shift, main: t, sec: u.secondary_team || null };
-                            }
-                        });
-                    }
-                });
-                Object.keys(byDay).forEach(n => {
-                    historyTeamOf[n] = Object.values(byDay[n]).sort((a, b) => a.ago - b.ago);
-                });
-                window._ydRosterCache = { key: cacheKey, map: historyTeamOf };
-            }
-        } catch (e) { console.error('โหลดตารางย้อนหลังไม่สำเร็จ:', e); }
-    }
-
-    sortedTeams.forEach(team => {
-        // 🔧 [FIX] ข้อมูลเก่าบางวันมีรายการที่ username ว่าง/null → a.username.includes() พัง ทั้งกระดานเลยขาว
-        // 🔗 [กลุ่มเว็บ] เว็บที่ถูกจับกลุ่มไว้ = วาดการ์ดใบเดียวรวมกัน
-        //   ใบหลักของกลุ่มคือเว็บที่มาก่อนในลำดับ ตัวที่เหลือข้ามไป (ไม่วาดซ้ำ)
-        const _pool = (typeof window.getBreakWebPool === 'function')
-            ? window.getBreakWebPool(currentDutyDept, team, (document.getElementById('dutyShiftSelect') || {}).value || '')
-            : { members: [team], grouped: false };
-        const _grpTeams = _pool.grouped ? sortedTeams.filter(t => _pool.members.includes(t)) : [team];
-        if (_pool.grouped && _grpTeams.length > 1 && _grpTeams[0] !== team) return;   // ไม่ใช่ใบหลัก ข้าม
-        const _isGrp = _grpTeams.length > 1;
-        const _title = _grpTeams.join(' + ');
-
-        // คนในการ์ด = รวมทุกเว็บในกลุ่ม
-        let assignees = _grpTeams.flatMap(t => (rosterData[t] || []).filter(a => a && typeof a.username === 'string'));
-        // card เว็บแสดงเสมอ แม้จะไม่มีพนักงาน
-        
-        if (window.isTrainerDept()) {
+      }
+    }));
+  }
+  window.currentStandbyData = standbyData;
+  let odRoomOf = {};
+  let odRoomIdx = {};
+  {
+    const _bt = document.getElementById('odRoomsBtn');
+    if (_bt) _bt.style.display = currentDutyDept === 'OD' ? '' : 'none';
+  }
+  if (currentDutyDept === 'OD' && targetDate) {
+    try {
+      const _rk = `duty_od_rooms_${targetDate}_${shiftFilter}`;
+      if (window._odRoomCache && window._odRoomCache.key === _rk) {
+        odRoomOf = window._odRoomCache.map;
+      } else {
+        const {data: _rd} = await appDB.from('settings').select('value').eq('key', _rk).maybeSingle();
+        if (_rd && _rd.value) odRoomOf = JSON.parse(_rd.value);
+        window._odRoomCache = {
+          key: _rk,
+          map: odRoomOf
+        };
+      }
+      window.getOdDiscordRooms().forEach(((r, i) => {
+        odRoomIdx[r] = i;
+      }));
+      try {
+        const _rooms = window.getOdDiscordRooms();
+        if (_rooms.length) {
+          const _load = {};
+          _rooms.forEach((r => _load[r] = 0));
+          const _cnt = t => (rosterData[t] || []).filter((u => u && u.username && !String(u.username).includes('ขาดคน'))).length;
+          Object.keys(odRoomOf).forEach((t => {
+            if (_load[odRoomOf[t]] !== undefined) _load[odRoomOf[t]] += _cnt(t);
+          }));
+          let _changed = false;
+          sortedTeams.filter((t => _cnt(t) > 0 && !odRoomOf[t])).forEach((t => {
+            const _best = _rooms.reduce(((a, b) => _load[b] < _load[a] ? b : a), _rooms[0]);
+            odRoomOf[t] = _best;
+            _load[_best] += _cnt(t);
+            _changed = true;
+          }));
+          if (_changed) {
+            window._odRoomCache = {
+              key: _rk,
+              map: odRoomOf
+            };
+            appDB.from('settings').upsert([ {
+              key: _rk,
+              value: JSON.stringify(odRoomOf)
+            } ]).then((() => {}));
+          }
         }
-        
-        const rolesForThisTeam = [...new Set(_grpTeams.flatMap(t => customDutyRoles[t] || []))];
-        const colorClass = TEAM_COLORS[team] || TEAM_COLORS['DEFAULT'];
-        let rolesTags = rolesForThisTeam.map(r => `<span class="${colorClass.lightBg} ${colorClass.lightText} px-1.5 py-0.5 rounded text-[9px] mr-1 mb-1 font-bold inline-block border ${colorClass.border} opacity-90">${r}</span>`).join('');
-        
-        let namesHtml = assignees.map(a => {
-            const isMissing = a.username.includes('ขาดคน');
-            const canDrag = !isMissing && a.id && isAdmin;
-            const dragAttrs = canDrag ? `draggable="true" ondragstart="handleDragStart(event, '${a.id}', '${window.escapeJsAttr(a.username)}', '${team}')"` : '';
-            const cursorClass = canDrag ? 'cursor-grab active:cursor-grabbing hover:shadow-md' : 'cursor-default';
-
-            // 🌟 NEW: สร้างป้ายโชว์เวลากินข้าว (อัปเดตให้ดึงมาทั้งหมด 2 ช่วง และปรับขนาดใหญ่ขึ้น)
-            let breakTimeHtml = '';
-            if (!isMissing) {
-                const mySchedules = (window.currentDutySchedules || []).filter(s => s.staff_name === a.username);
-                if (mySchedules && mySchedules.length > 0) {
-                    const slots = mySchedules.map(s => String(s.time_slot || '')).join(',').split(',').map(x => x.trim()).filter(Boolean).sort((t1, t2) => t1.localeCompare(t2));
-                    breakTimeHtml = `<span class="dc-break" title="เวลาพัก: ${slots.join(', ')}"><span class="material-icons">restaurant</span>${slots.map(x => `<b>${x.replace(/\s/g, '')}</b>`).join('')}</span>`;
-                } else {
-                    breakTimeHtml = `<span class="dc-break none"><span class="material-icons">schedule</span>ยังไม่ลงเวลาพัก</span>`;
-                }
-            }
-            // 🌟 -----------------------------------
-
-            let secHtml = '';
-            if (a.secondary_team && !isMissing) {
-                const sc2 = TEAM_COLORS[a.secondary_team] || TEAM_COLORS['DEFAULT'];
-                const actionClick = isAdmin ? `onclick="event.stopPropagation(); changeSecondaryTeam('${team}', '${a.id}', '${window.escapeJsAttr(a.username)}')"` : '';
-                secHtml = `<span ${actionClick} class="dc-sec ${isAdmin ? 'can' : ''}" title="${isAdmin ? 'งานรอง (สแตนด์บายช่วย) — คลิกเพื่อเปลี่ยน' : 'งานรองของคุณ: สแตนด์บายช่วยเว็บนี้'}">
-                    <span class="material-icons">transfer_within_a_station</span>รอง <b class="${sc2.bg} ${sc2.text}">${a.secondary_team}</b>${isAdmin ? '<span class="material-icons ed">edit</span>' : ''}</span>`;
-            } else if (!isMissing && isAdmin) {
-                secHtml = `<span onclick="event.stopPropagation(); changeSecondaryTeam('${team}', '${a.id}', '${window.escapeJsAttr(a.username)}')" class="dc-sec add" title="แจกงานรอง (สแตนด์บายช่วยเว็บอื่น)"><span class="material-icons">add</span>งานรอง</span>`;
-            }
-            const odTaskHtml = '';   // (ป้ายแจกโปร/เคส TG ถูกถอดออก)
-            // 📌 ป้าย/ปุ่ม "อยู่ต่ออีกกี่วัน"
-            // ใช้สิทธิ์ของฟีเจอร์นี้โดยเฉพาะ ไม่ใช่ isAdmin ที่ถูกตัดในโหมดตัวอย่าง
-            // เพราะการแก้/ยกเลิกการล็อกไม่ได้ไปแตะตารางเวร ทำได้ตลอด
-            const stayPinHtml = isMissing ? '' : window.renderStayPinHtml(a, team, window.canManageStayPin());
-
-            // 🤝 ถ้าคนนี้ถูกจัดไปช่วยเว็บอื่น ให้ขึ้นบนการ์ดว่าไปช่วยใคร ช่วงไหน
-            let supportHtml = '';
-            if (!isMissing && a.id) {
-                // คนเดียวอาจถูกจัดไปช่วยหลายเว็บคนละช่วง — โชว์ให้ครบทุกอัน
-                supportHtml = window.getSupportForUser(a.id).map(sup => {
-                    const c = TEAM_COLORS[sup.target] || TEAM_COLORS['DEFAULT'];
-                    return `<div title="ไปประจำเว็บ ${sup.target} ในช่วงเวลานี้"
-                        class="mt-1.5 flex items-center gap-1.5 text-xs font-bold text-cyan-700 bg-cyan-50 dark:bg-cyan-900/30 dark:text-cyan-300 px-2.5 py-1 rounded-md border border-cyan-300 dark:border-cyan-800/50 w-fit shadow-sm">
-                        <span class="material-icons text-[14px]">support_agent</span>
-                        ช่วย <span class="${c.lightBg} ${c.lightText} px-1.5 rounded font-black">${sup.target}</span>
-                        ${minToTime(sup.start)}–${minToTime(sup.end)}
-                    </div>`;
-                }).join('');
-            }
-
-            // 🕘 ประวัติ 3 วันย้อนหลัง: แถวเดียว ตัวเล็ก (เดิมเป็นป้ายสีใหญ่หลายอันจนรก)
-            const histHtml = (() => {
-                const hist = !isMissing ? (historyTeamOf[a.username] || []) : [];
-                if (!hist.length) return '';
-                const agoLabel = n => n === 1 ? 'เมื่อวาน' : n + ' วันก่อน';
-                const parts = hist.filter(h => h.main || h.sec).map(h => {
-                    const mc = TEAM_COLORS[h.main] || TEAM_COLORS['DEFAULT'];
-                    const shDiff = h.shift && h.shift !== shiftFilter ? ` <i>${String(h.shift).replace('กะ', '')}</i>` : '';
-                    const sec = h.sec ? `<em title="งานรอง ${h.sec}">+รอง ${h.sec}</em>` : '';
-                    return `<span class="dc-h" title="${agoLabel(h.ago)} งานหลัก ${h.main || '-'}${h.sec ? ' · งานรอง ' + h.sec : ''}${h.shift && h.shift !== shiftFilter ? ' (' + h.shift + ')' : ''}"><small>${agoLabel(h.ago)}</small>${h.main ? `<span class="dc-dot ${mc.bg}"></span>${h.main}` : ''}${shDiff}${sec}</span>`;
-                });
-                return parts.length ? `<div class="dc-hist"><span class="material-icons">history</span>${parts.join('')}</div>` : '';
-            })();
-            const nameTxt = window.escapeHtml(String(a.username).replace(/<[^>]*>/g, '').replace(/^\s*warning\s*/, '').trim());
-
-            return `
-            <div class="duty-user-card dc-card ${isMissing ? 'missing' : ''} ${_isMe(a) ? 'me' : ''} group ${cursorClass}" data-name="${window.escapeHtml((a.username || '').toLowerCase())}" ${dragAttrs}>
-                <div class="dc-top">
-                    <span class="dc-st ${isMissing ? 'bad' : ''}"></span>
-                    <span class="dc-name">${nameTxt}</span>${_isMe(a) ? '<span class="dc-me">ฉัน</span>' : ''}
-                    ${secHtml}
-                </div>
-                ${isMissing ? '' : `<div class="dc-mid">${breakTimeHtml}${stayPinHtml}</div>`}
-                ${supportHtml}
-                ${histHtml}
-                ${odTaskHtml}
-            </div>`;
-        }).join('');
-
-        let trainerReportHtml = '';
-        if (window.isTrainerDept()) {
-            const tr = trainerReports[team] || { missed: 0, checker: '-', score: '-', mistakes: [] };
-            const scoreNum = parseInt(tr.score);
-            let scoreColor = 'text-gray-500';
-            if(scoreNum >= 8) scoreColor = 'text-green-600';
-            else if(scoreNum >= 5) scoreColor = 'text-amber-500';
-            else if(scoreNum > 0) scoreColor = 'text-red-600';
-            const missedColor = parseInt(tr.missed) > 0 ? 'text-red-500 font-bold' : 'text-green-600';
-            
-            let behaviorHtml = '<span class="text-gray-400 mt-0.5 block">- ไม่มี -</span>';
-            if (tr.mistakes && tr.mistakes.length > 0) {
-                behaviorHtml = tr.mistakes.map(m => `
-                    <div class="mt-1 p-1.5 bg-red-50 dark:bg-red-900/30 rounded border border-red-100 dark:border-red-800 text-[10px]">
-                        <span class="font-bold text-red-600">${window.escapeHtml(m.empName)}</span>: <span class="text-slate-600 dark:text-slate-300">${window.escapeHtml(m.note || '-')}</span>
-                        <div class="flex gap-1 mt-1 overflow-x-auto">
-                            ${m.images && m.images.length > 0 ? m.images.map(img => `<img src="${img}" class="h-10 w-auto rounded shadow-sm border border-red-200 cursor-pointer" onclick="window.open('${img}','_blank')">`).join('') : ''}
-                        </div>
-                    </div>
-                `).join('');
-            } else if (tr.bad_behavior && tr.bad_behavior !== '-') { 
-                behaviorHtml = `<span class="text-red-600 bg-red-50 p-1 rounded font-bold block mt-0.5 break-words">${tr.bad_behavior}</span>`;
-            }
-
-            const isTrainerStaff = (currentUser.department === 'AMQL' || currentUser.department === 'ODQL' || (currentUser.department && currentUser.department.startsWith('TRAINER')));
-            const btnLogData = (isAdmin || isTrainerStaff) ? `<button onclick="openTrainerReportModal('${team}')" class="text-[9px] bg-amber-500 hover:bg-amber-600 text-white px-2 py-0.5 rounded shadow transition font-bold border border-amber-600">📝 ประเมิน</button>` : '';
-
-            trainerReportHtml = `
-            <div class="mt-2 bg-amber-50 dark:bg-amber-900/20 border-t border-amber-200 dark:border-amber-700/50 p-2 flex flex-col gap-1.5 shrink-0">
-                <div class="flex justify-between items-center mb-1 border-b border-amber-200/50 pb-1">
-                    <span class="text-[10px] font-extrabold text-amber-800 dark:text-amber-400 flex items-center gap-1"><span class="material-icons text-[12px]">assignment</span> สรุปรายงานดูแลเว็บ</span>
-                    ${btnLogData}
-                </div>
-                <div class="text-[10px] text-slate-700 dark:text-slate-300 leading-tight bg-white dark:bg-slate-800 p-2 rounded border border-gray-200 dark:border-slate-600 space-y-1">
-                    <div class="flex justify-between border-b border-gray-100 dark:border-slate-700 pb-1">
-                        <span class="font-bold">👮 คนเช็คชื่อ:</span> <span class="text-blue-600 font-bold">${tr.checker || '-'}</span>
-                    </div>
-                    <div class="flex justify-between border-b border-gray-100 dark:border-slate-700 pb-1">
-                        <span class="font-bold">🚨 แชทหลุด:</span> <span class="${missedColor}">${tr.missed} แชท</span>
-                    </div>
-                    <div class="flex justify-between border-b border-gray-100 dark:border-slate-700 pb-1">
-                        <span class="font-bold">⭐ คะแนนรวม:</span> <span class="font-extrabold text-[12px] ${scoreColor}">${tr.score !== '-' ? tr.score + '/10' : '-'}</span>
-                    </div>
-                    <div class="pt-1">
-                        <span class="font-bold text-red-500 flex items-center">⚠️ พฤติกรรมไม่ดี:</span>
-                        ${behaviorHtml}
-                    </div>
-                </div>
-            </div>`;
+      } catch (e) {
+        console.warn('[odRooms] เติมห้องให้เว็บที่ตกหล่นไม่สำเร็จ:', e);
+      }
+    } catch (e) {
+      odRoomOf = {};
+    }
+  }
+  const DUTY_HISTORY_DAYS = Math.max(1, Math.min(7, typeof window.getRotationGapDays === 'function' ? window.getRotationGapDays(currentDutyDept) || 1 : 3));
+  const HIST_SHIFTS = [ 'กะเช้า', 'กะกลาง', 'กะดึก' ];
+  let historyTeamOf = {};
+  if (targetDate) {
+    try {
+      const histKeys = [], metaOf = {};
+      for (let k = 1; k <= DUTY_HISTORY_DAYS; k++) {
+        const dd = new Date(targetDate + 'T00:00:00');
+        dd.setDate(dd.getDate() - k);
+        const ds = `${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, '0')}-${String(dd.getDate()).padStart(2, '0')}`;
+        HIST_SHIFTS.forEach((sh => {
+          const key = `duty_roster_${currentDutyDept}_${ds}_${sh}`;
+          histKeys.push(key);
+          metaOf[key] = {
+            ago: k,
+            shift: sh
+          };
+        }));
+      }
+      const cacheKey = histKeys.join('|');
+      if (window._ydRosterCache && window._ydRosterCache.key === cacheKey) {
+        historyTeamOf = window._ydRosterCache.map;
+      } else {
+        const {data: histData} = await appDB.from('settings').select('key, value').in('key', histKeys);
+        const byDay = {};
+        (histData || []).forEach((row => {
+          const meta = metaOf[row.key];
+          if (!meta) return;
+          let roster = null;
+          try {
+            roster = JSON.parse(row.value);
+          } catch (e) {
+            return;
+          }
+          for (const t in roster) {
+            (roster[t] || []).forEach((u => {
+              if (!u || !u.username || String(u.username).includes('ขาดคน')) return;
+              const slot = byDay[u.username] = byDay[u.username] || {};
+              const cur = slot[meta.ago];
+              if (!cur || cur.shift !== shiftFilter && meta.shift === shiftFilter) {
+                slot[meta.ago] = {
+                  ago: meta.ago,
+                  shift: meta.shift,
+                  main: t,
+                  sec: u.secondary_team || null
+                };
+              }
+            }));
+          }
+        }));
+        Object.keys(byDay).forEach((n => {
+          historyTeamOf[n] = Object.values(byDay[n]).sort(((a, b) => a.ago - b.ago));
+        }));
+        window._ydRosterCache = {
+          key: cacheKey,
+          map: historyTeamOf
+        };
+      }
+    } catch (e) {
+      console.error('โหลดตารางย้อนหลังไม่สำเร็จ:', e);
+    }
+  }
+  sortedTeams.forEach((team => {
+    const _pool = typeof window.getBreakWebPool === 'function' ? window.getBreakWebPool(currentDutyDept, team, (document.getElementById('dutyShiftSelect') || {}).value || '') : {
+      members: [ team ],
+      grouped: false
+    };
+    const _grpTeams = _pool.grouped ? sortedTeams.filter((t => _pool.members.includes(t))) : [ team ];
+    if (_pool.grouped && _grpTeams.length > 1 && _grpTeams[0] !== team) return;
+    const _isGrp = _grpTeams.length > 1;
+    const _title = _grpTeams.join(' + ');
+    let assignees = _grpTeams.flatMap((t => (rosterData[t] || []).filter((a => a && typeof a.username === 'string'))));
+    if (window.isTrainerDept()) {}
+    const rolesForThisTeam = [ ...new Set(_grpTeams.flatMap((t => customDutyRoles[t] || []))) ];
+    const colorClass = TEAM_COLORS[team] || TEAM_COLORS['DEFAULT'];
+    let rolesTags = rolesForThisTeam.map((r => `<span class="${colorClass.lightBg} ${colorClass.lightText} px-1.5 py-0.5 rounded text-[9px] mr-1 mb-1 font-bold inline-block border ${colorClass.border} opacity-90">${r}</span>`)).join('');
+    let namesHtml = assignees.map((a => {
+      const isMissing = a.username.includes('ขาดคน');
+      const canDrag = !isMissing && a.id && isAdmin;
+      const dragAttrs = canDrag ? `draggable="true" ondragstart="handleDragStart(event, '${a.id}', '${window.escapeJsAttr(a.username)}', '${team}')"` : '';
+      const cursorClass = canDrag ? 'cursor-grab active:cursor-grabbing hover:shadow-md' : 'cursor-default';
+      let breakTimeHtml = '';
+      if (!isMissing) {
+        const mySchedules = (window.currentDutySchedules || []).filter((s => s.staff_name === a.username));
+        if (mySchedules && mySchedules.length > 0) {
+          const slots = mySchedules.map((s => String(s.time_slot || ''))).join(',').split(',').map((x => x.trim())).filter(Boolean).sort(((t1, t2) => t1.localeCompare(t2)));
+          breakTimeHtml = `<span class="dc-break" title="เวลาพัก: ${slots.join(', ')}"><span class="material-icons">restaurant</span>${slots.map((x => `<b>${x.replace(/\s/g, '')}</b>`)).join('')}</span>`;
+        } else {
+          breakTimeHtml = `<span class="dc-break none"><span class="material-icons">schedule</span>ยังไม่ลงเวลาพัก</span>`;
         }
-
-        const primaryCount = assignees.filter(u => !u.username.includes('ขาดคน')).length;
-        const standbyList = _grpTeams.flatMap(t => standbyData[t] || []);
-        const standbyCount = standbyList.length;
-
-        // 🍽️ [กติกาพัก — ข้อเดียว] เตือนถ้าช่วงไหนคนพักพร้อมกันจนเหลือเฝ้าไม่พอ (รวมหลัก+รอง, เฝ้า≥ ตามตั้งค่า)
-        let breakWarnHtml = '';
-        {
-            const mainMembers = assignees.filter(u => u.id && !u.username.includes('ขาดคน')).map(u => u.username);
-            const secMembers = standbyList.map(s => s.name).filter(n => n && !mainMembers.includes(n));
-            const allMembers = [...mainMembers, ...secMembers];
-            const shiftSel = document.getElementById('dutyShiftSelect');
-            const raw = (typeof window.getBreakMinRemainRaw === 'function' && shiftSel)
-                ? _grpTeams.reduce((acc, t) => { const v = window.getBreakMinRemainRaw(currentDutyDept, shiftSel.value, t); return v === null ? acc : (acc === null ? v : Math.max(acc, v)); }, null) : null;
-            const minRemain = raw === null ? 1 : raw;
-            const cap = allMembers.length <= 1 ? allMembers.length : Math.max(0, allMembers.length - minRemain);
-            const warnLines = [];
-            if (allMembers.length >= 2) {
-                const perSlot = {};
-                (window.currentDutySchedules || []).forEach(sc => {
-                    if (!allMembers.includes(sc.staff_name)) return;
-                    String(sc.time_slot || '').split(',').map(x => x.trim()).filter(Boolean).forEach(slot => {
-                        (perSlot[slot] = perSlot[slot] || new Set()).add(sc.staff_name);
-                    });
-                });
-                Object.entries(perSlot).filter(([, set]) => set.size > cap)
-                    .sort((a, b) => a[0].localeCompare(b[0]))
-                    .forEach(([slot, set]) => warnLines.push(`<div class="ml-4 font-normal">[เหลือเฝ้าไม่พอ] ${slot} → พัก ${set.size}/${cap}: ${[...set].join(', ')}</div>`));
-            }
-            if (warnLines.length > 0) {
-                breakWarnHtml = `<div class="mx-2 mt-2 bg-red-50 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg px-2 py-1.5 text-[10px] font-bold text-red-600 dark:text-red-300 shrink-0">
-                    <div class="flex items-center gap-1"><span class="material-icons text-[13px]">warning</span> พักพร้อมกันเกินเพดาน (หลัก ${mainMembers.length} + รอง ${secMembers.length} คน · พักพร้อมกันได้สูงสุด ${cap} คน)</div>
-                    ${warnLines.join('')}
-                </div>`;
-            }
-        }
-
-        _dmItems.push({ team, title: _title, color: colorClass, count: primaryCount, standby: standbyCount, warn: !!breakWarnHtml, missing: assignees.some(u => String(u.username).includes('ขาดคน')) || primaryCount === 0,
-            standbyNames: standbyList.map(x => x.name),
-            people: assignees.map(a => {
-                const miss = String(a.username).includes('ขาดคน');
-                const slots = miss ? [] : (window.currentDutySchedules || []).filter(sc => sc.staff_name === a.username).map(sc => String(sc.time_slot || '')).join(',').split(',').map(x => x.trim()).filter(Boolean).sort();
-                // 📌 อยู่ต่อ (เฉพาะฝ่ายจัดเวร) · 🛟 ไปช่วยเว็บอื่น · 🕘 ประวัติ 3 วัน (โชว์ตอนชี้)
-                const pin = (!miss && a.id && typeof window.renderStayPinHtml === 'function') ? window.renderStayPinHtml(a, team, isAdmin) : '';
-                const sup = (!miss && a.id && typeof window.getSupportForUser === 'function') ? window.getSupportForUser(a.id).map(x => `ช่วย ${x.target} ${typeof minToTime === 'function' ? minToTime(x.start) + '–' + minToTime(x.end) : ''}`.trim()) : [];
-                const histArr = (!miss ? (historyTeamOf[a.username] || []) : []).filter(h => h.main || h.sec);
-                const hist = histArr.map(h => `${h.ago === 1 ? 'เมื่อวาน' : h.ago + ' วันก่อน'} ${h.main || '-'}${h.sec ? ' (รอง ' + h.sec + ')' : ''}`).join(' · ');
-                // 🕘 ประวัติ 3 วันแบบโชว์ในชิป: เมื่อวาน ■VV72 · 2 วันก่อน ■K188 · 3 วันก่อน ■NM9
-                const histHtml = histArr.map(h => {
-                    const mc = TEAM_COLORS[h.main] || TEAM_COLORS['DEFAULT'];
-                    return `<span class="ov-hi" title="${h.ago === 1 ? 'เมื่อวาน' : h.ago + ' วันก่อน'} ${h.main || '-'}${h.sec ? ' + รอง ' + h.sec : ''}"><small>${h.ago === 1 ? 'เมื่อวาน' : h.ago + ' วันก่อน'}</small><i class="ov-dot ${mc.bg}"></i>${h.main || '-'}${h.sec ? `<em>+รอง ${h.sec}</em>` : ''}</span>`;
-                }).join('');
-                return { id: a.id, name: String(a.username).replace(/<[^>]*>/g, '').trim(), miss, slots, sec: a.secondary_team || '', drag: !miss && a.id && isAdmin, me: _isMe(a), pin, sup, hist, histHtml };
-            }),
-            trainerBtn: (window.isTrainerDept && window.isTrainerDept() && (isAdmin || (currentUser && (currentUser.department === 'AMQL' || currentUser.department === 'ODQL' || String(currentUser.department || '').startsWith('TRAINER')))))
-                ? `<button type="button" class="ov-trbtn" onclick="openTrainerReportModal('${team}')" title="บันทึกประเมินการดูแลเว็บนี้">📝 ประเมิน</button>` : '' });
-        finalGridHtml += `
-            <div class="duty-site-card dc-site flex flex-col h-[500px] overflow-hidden w-full" data-team="${team}" style="--tc-border:currentColor">
-                <div class="dc-head ${colorClass.bg} ${colorClass.text}">
-                    <div class="dc-head-l">
-                        <h4 class="dc-team">${_title}</h4>
-                        ${_isGrp ? `<span class="dc-grp" title="สองเว็บนี้ถูกจับกลุ่มให้ทำงานรวมกัน">🔗 รวม ${_grpTeams.length} เว็บ</span>` : ''}
-                        ${(() => { const _room = odRoomOf[team]; if (!_room) return ''; return `<span class="dc-room" title="เข้าห้อง Discord: ${_room}"><span class="material-icons">headset_mic</span>${_room}</span>`; })()}
-                    </div>
-                    <div class="dc-head-r">
-                        <span class="dc-cnt" title="งานหลัก"><b>${primaryCount}</b> คน</span>
-                        <button onclick="viewStandbyList('${team}')" class="dc-cnt btn" title="คลิกดูรายชื่อสแตนด์บาย (งานรอง)">รอง <b>${standbyCount}</b></button>
-                    </div>
-                </div>
-                ${rolesTags ? `<div class="dc-roles">${rolesTags}</div>` : ''}
-                ${breakWarnHtml}
-                <div class="dc-list flex flex-col flex-1 overflow-y-auto custom-scrollbar content-start drop-zone" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${team}')">
-                    ${namesHtml || `
-                        <div class="flex flex-col items-center justify-center h-full py-6 pointer-events-none select-none opacity-40">
-                            <span class="material-icons text-3xl text-gray-400 mb-1">person_off</span>
-                            <span class="text-xs font-bold text-gray-400">ไม่มีพนักงาน</span>
-                            <span class="text-[10px] text-gray-400 mt-0.5">ลากคนมาวางได้เลย</span>
-                        </div>`}
-                </div>
-                ${trainerReportHtml}
-            </div>
-        `;
+      }
+      let secHtml = '';
+      if (a.secondary_team && !isMissing) {
+        const sc2 = TEAM_COLORS[a.secondary_team] || TEAM_COLORS['DEFAULT'];
+        const actionClick = isAdmin ? `onclick="event.stopPropagation(); changeSecondaryTeam('${team}', '${a.id}', '${window.escapeJsAttr(a.username)}')"` : '';
+        secHtml = `<span ${actionClick} class="dc-sec ${isAdmin ? 'can' : ''}" title="${isAdmin ? 'งานรอง (สแตนด์บายช่วย) — คลิกเพื่อเปลี่ยน' : 'งานรองของคุณ: สแตนด์บายช่วยเว็บนี้'}">\n                    <span class="material-icons">transfer_within_a_station</span>รอง <b class="${sc2.bg} ${sc2.text}">${a.secondary_team}</b>${isAdmin ? '<span class="material-icons ed">edit</span>' : ''}</span>`;
+      } else if (!isMissing && isAdmin) {
+        secHtml = `<span onclick="event.stopPropagation(); changeSecondaryTeam('${team}', '${a.id}', '${window.escapeJsAttr(a.username)}')" class="dc-sec add" title="แจกงานรอง (สแตนด์บายช่วยเว็บอื่น)"><span class="material-icons">add</span>งานรอง</span>`;
+      }
+      const odTaskHtml = '';
+      const stayPinHtml = isMissing ? '' : window.renderStayPinHtml(a, team, window.canManageStayPin());
+      let supportHtml = '';
+      if (!isMissing && a.id) {
+        supportHtml = window.getSupportForUser(a.id).map((sup => {
+          const c = TEAM_COLORS[sup.target] || TEAM_COLORS['DEFAULT'];
+          return `<div title="ไปประจำเว็บ ${sup.target} ในช่วงเวลานี้"\n                        class="mt-1.5 flex items-center gap-1.5 text-xs font-bold text-cyan-700 bg-cyan-50 dark:bg-cyan-900/30 dark:text-cyan-300 px-2.5 py-1 rounded-md border border-cyan-300 dark:border-cyan-800/50 w-fit shadow-sm">\n                        <span class="material-icons text-[14px]">support_agent</span>\n                        ช่วย <span class="${c.lightBg} ${c.lightText} px-1.5 rounded font-black">${sup.target}</span>\n                        ${minToTime(sup.start)}–${minToTime(sup.end)}\n                    </div>`;
+        })).join('');
+      }
+      const histHtml = (() => {
+        const hist = !isMissing ? historyTeamOf[a.username] || [] : [];
+        if (!hist.length) return '';
+        const agoLabel = n => n === 1 ? 'เมื่อวาน' : n + ' วันก่อน';
+        const parts = hist.filter((h => h.main || h.sec)).map((h => {
+          const mc = TEAM_COLORS[h.main] || TEAM_COLORS['DEFAULT'];
+          const shDiff = h.shift && h.shift !== shiftFilter ? ` <i>${String(h.shift).replace('กะ', '')}</i>` : '';
+          const sec = h.sec ? `<em title="งานรอง ${h.sec}">+รอง ${h.sec}</em>` : '';
+          return `<span class="dc-h" title="${agoLabel(h.ago)} งานหลัก ${h.main || '-'}${h.sec ? ' · งานรอง ' + h.sec : ''}${h.shift && h.shift !== shiftFilter ? ' (' + h.shift + ')' : ''}"><small>${agoLabel(h.ago)}</small>${h.main ? `<span class="dc-dot ${mc.bg}"></span>${h.main}` : ''}${shDiff}${sec}</span>`;
+        }));
+        return parts.length ? `<div class="dc-hist"><span class="material-icons">history</span>${parts.join('')}</div>` : '';
+      })();
+      const nameTxt = window.escapeHtml(String(a.username).replace(/<[^>]*>/g, '').replace(/^\s*warning\s*/, '').trim());
+      return `\n            <div class="duty-user-card dc-card ${isMissing ? 'missing' : ''} ${_isMe(a) ? 'me' : ''} group ${cursorClass}" data-name="${window.escapeHtml((a.username || '').toLowerCase())}" ${dragAttrs}>\n                <div class="dc-top">\n                    <span class="dc-st ${isMissing ? 'bad' : ''}"></span>\n                    <span class="dc-name">${nameTxt}</span>${_isMe(a) ? '<span class="dc-me">ฉัน</span>' : ''}\n                    ${secHtml}\n                </div>\n                ${isMissing ? '' : `<div class="dc-mid">${breakTimeHtml}${stayPinHtml}</div>`}\n                ${supportHtml}\n                ${histHtml}\n                ${odTaskHtml}\n            </div>`;
+    })).join('');
+    let trainerReportHtml = '';
+    if (window.isTrainerDept()) {
+      const tr = trainerReports[team] || {
+        missed: 0,
+        checker: '-',
+        score: '-',
+        mistakes: []
+      };
+      const scoreNum = parseInt(tr.score);
+      let scoreColor = 'text-gray-500';
+      if (scoreNum >= 8) scoreColor = 'text-green-600'; else if (scoreNum >= 5) scoreColor = 'text-amber-500'; else if (scoreNum > 0) scoreColor = 'text-red-600';
+      const missedColor = parseInt(tr.missed) > 0 ? 'text-red-500 font-bold' : 'text-green-600';
+      let behaviorHtml = '<span class="text-gray-400 mt-0.5 block">- ไม่มี -</span>';
+      if (tr.mistakes && tr.mistakes.length > 0) {
+        behaviorHtml = tr.mistakes.map((m => `\n                    <div class="mt-1 p-1.5 bg-red-50 dark:bg-red-900/30 rounded border border-red-100 dark:border-red-800 text-[10px]">\n                        <span class="font-bold text-red-600">${window.escapeHtml(m.empName)}</span>: <span class="text-slate-600 dark:text-slate-300">${window.escapeHtml(m.note || '-')}</span>\n                        <div class="flex gap-1 mt-1 overflow-x-auto">\n                            ${m.images && m.images.length > 0 ? m.images.map((img => `<img src="${img}" class="h-10 w-auto rounded shadow-sm border border-red-200 cursor-pointer" onclick="window.open('${img}','_blank')">`)).join('') : ''}\n                        </div>\n                    </div>\n                `)).join('');
+      } else if (tr.bad_behavior && tr.bad_behavior !== '-') {
+        behaviorHtml = `<span class="text-red-600 bg-red-50 p-1 rounded font-bold block mt-0.5 break-words">${tr.bad_behavior}</span>`;
+      }
+      const isTrainerStaff = currentUser.department === 'AMQL' || currentUser.department === 'ODQL' || currentUser.department && currentUser.department.startsWith('TRAINER');
+      const btnLogData = isAdmin || isTrainerStaff ? `<button onclick="openTrainerReportModal('${team}')" class="text-[9px] bg-amber-500 hover:bg-amber-600 text-white px-2 py-0.5 rounded shadow transition font-bold border border-amber-600">📝 ประเมิน</button>` : '';
+      trainerReportHtml = `\n            <div class="mt-2 bg-amber-50 dark:bg-amber-900/20 border-t border-amber-200 dark:border-amber-700/50 p-2 flex flex-col gap-1.5 shrink-0">\n                <div class="flex justify-between items-center mb-1 border-b border-amber-200/50 pb-1">\n                    <span class="text-[10px] font-extrabold text-amber-800 dark:text-amber-400 flex items-center gap-1"><span class="material-icons text-[12px]">assignment</span> สรุปรายงานดูแลเว็บ</span>\n                    ${btnLogData}\n                </div>\n                <div class="text-[10px] text-slate-700 dark:text-slate-300 leading-tight bg-white dark:bg-slate-800 p-2 rounded border border-gray-200 dark:border-slate-600 space-y-1">\n                    <div class="flex justify-between border-b border-gray-100 dark:border-slate-700 pb-1">\n                        <span class="font-bold">👮 คนเช็คชื่อ:</span> <span class="text-blue-600 font-bold">${tr.checker || '-'}</span>\n                    </div>\n                    <div class="flex justify-between border-b border-gray-100 dark:border-slate-700 pb-1">\n                        <span class="font-bold">🚨 แชทหลุด:</span> <span class="${missedColor}">${tr.missed} แชท</span>\n                    </div>\n                    <div class="flex justify-between border-b border-gray-100 dark:border-slate-700 pb-1">\n                        <span class="font-bold">⭐ คะแนนรวม:</span> <span class="font-extrabold text-[12px] ${scoreColor}">${tr.score !== '-' ? tr.score + '/10' : '-'}</span>\n                    </div>\n                    <div class="pt-1">\n                        <span class="font-bold text-red-500 flex items-center">⚠️ พฤติกรรมไม่ดี:</span>\n                        ${behaviorHtml}\n                    </div>\n                </div>\n            </div>`;
+    }
+    const primaryCount = assignees.filter((u => !u.username.includes('ขาดคน'))).length;
+    const standbyList = _grpTeams.flatMap((t => standbyData[t] || []));
+    const standbyCount = standbyList.length;
+    let breakWarnHtml = '';
+    {
+      const mainMembers = assignees.filter((u => u.id && !u.username.includes('ขาดคน'))).map((u => u.username));
+      const secMembers = standbyList.map((s => s.name)).filter((n => n && !mainMembers.includes(n)));
+      const allMembers = [ ...mainMembers, ...secMembers ];
+      const shiftSel = document.getElementById('dutyShiftSelect');
+      const raw = typeof window.getBreakMinRemainRaw === 'function' && shiftSel ? _grpTeams.reduce(((acc, t) => {
+        const v = window.getBreakMinRemainRaw(currentDutyDept, shiftSel.value, t);
+        return v === null ? acc : acc === null ? v : Math.max(acc, v);
+      }), null) : null;
+      const minRemain = raw === null ? 1 : raw;
+      const cap = allMembers.length <= 1 ? allMembers.length : Math.max(0, allMembers.length - minRemain);
+      const warnLines = [];
+      if (allMembers.length >= 2) {
+        const perSlot = {};
+        (window.currentDutySchedules || []).forEach((sc => {
+          if (!allMembers.includes(sc.staff_name)) return;
+          String(sc.time_slot || '').split(',').map((x => x.trim())).filter(Boolean).forEach((slot => {
+            (perSlot[slot] = perSlot[slot] || new Set).add(sc.staff_name);
+          }));
+        }));
+        Object.entries(perSlot).filter((([, set]) => set.size > cap)).sort(((a, b) => a[0].localeCompare(b[0]))).forEach((([slot, set]) => warnLines.push(`<div class="ml-4 font-normal">[เหลือเฝ้าไม่พอ] ${slot} → พัก ${set.size}/${cap}: ${[ ...set ].join(', ')}</div>`)));
+      }
+      if (warnLines.length > 0) {
+        breakWarnHtml = `<div class="mx-2 mt-2 bg-red-50 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg px-2 py-1.5 text-[10px] font-bold text-red-600 dark:text-red-300 shrink-0">\n                    <div class="flex items-center gap-1"><span class="material-icons text-[13px]">warning</span> พักพร้อมกันเกินเพดาน (หลัก ${mainMembers.length} + รอง ${secMembers.length} คน · พักพร้อมกันได้สูงสุด ${cap} คน)</div>\n                    ${warnLines.join('')}\n                </div>`;
+      }
+    }
+    _dmItems.push({
+      team: team,
+      title: _title,
+      color: colorClass,
+      count: primaryCount,
+      standby: standbyCount,
+      warn: !!breakWarnHtml,
+      missing: assignees.some((u => String(u.username).includes('ขาดคน'))) || primaryCount === 0,
+      standbyNames: standbyList.map((x => x.name)),
+      people: assignees.map((a => {
+        const miss = String(a.username).includes('ขาดคน');
+        const slots = miss ? [] : (window.currentDutySchedules || []).filter((sc => sc.staff_name === a.username)).map((sc => String(sc.time_slot || ''))).join(',').split(',').map((x => x.trim())).filter(Boolean).sort();
+        const pin = !miss && a.id && typeof window.renderStayPinHtml === 'function' ? window.renderStayPinHtml(a, team, isAdmin) : '';
+        const sup = !miss && a.id && typeof window.getSupportForUser === 'function' ? window.getSupportForUser(a.id).map((x => `ช่วย ${x.target} ${typeof minToTime === 'function' ? minToTime(x.start) + '–' + minToTime(x.end) : ''}`.trim())) : [];
+        const histArr = (!miss ? historyTeamOf[a.username] || [] : []).filter((h => h.main || h.sec));
+        const hist = histArr.map((h => `${h.ago === 1 ? 'เมื่อวาน' : h.ago + ' วันก่อน'} ${h.main || '-'}${h.sec ? ' (รอง ' + h.sec + ')' : ''}`)).join(' · ');
+        const histHtml = histArr.map((h => {
+          const mc = TEAM_COLORS[h.main] || TEAM_COLORS['DEFAULT'];
+          return `<span class="ov-hi" title="${h.ago === 1 ? 'เมื่อวาน' : h.ago + ' วันก่อน'} ${h.main || '-'}${h.sec ? ' + รอง ' + h.sec : ''}"><small>${h.ago === 1 ? 'เมื่อวาน' : h.ago + ' วันก่อน'}</small><i class="ov-dot ${mc.bg}"></i>${h.main || '-'}${h.sec ? `<em>+รอง ${h.sec}</em>` : ''}</span>`;
+        })).join('');
+        return {
+          id: a.id,
+          name: String(a.username).replace(/<[^>]*>/g, '').trim(),
+          miss: miss,
+          slots: slots,
+          sec: a.secondary_team || '',
+          drag: !miss && a.id && isAdmin,
+          me: _isMe(a),
+          pin: pin,
+          sup: sup,
+          hist: hist,
+          histHtml: histHtml
+        };
+      })),
+      trainerBtn: window.isTrainerDept && window.isTrainerDept() && (isAdmin || currentUser && (currentUser.department === 'AMQL' || currentUser.department === 'ODQL' || String(currentUser.department || '').startsWith('TRAINER'))) ? `<button type="button" class="ov-trbtn" onclick="openTrainerReportModal('${team}')" title="บันทึกประเมินการดูแลเว็บนี้">📝 ประเมิน</button>` : ''
     });
-
-    // 🗂️ แบบใหม่: ซ้าย = รายการเว็บ (กด = ดูเว็บนั้น · ลากคนมาวาง = ย้ายเข้าเว็บนั้น) · ขวา = รายละเอียดเว็บที่เลือก
-    const _cut = finalGridHtml.indexOf('<div class="duty-site-card');   // [FIX] ไม่มีเว็บเลย (-1) → เดิมตัดข้อความผิด
-    const _previewNote = window.isRosterPreview ? (_cut < 0 ? finalGridHtml : finalGridHtml.slice(0, _cut)) : '';
-    const _cards = window.isRosterPreview ? (_cut < 0 ? '' : finalGridHtml.slice(_cut)) : finalGridHtml;
-    // (รายการเว็บด้านซ้ายของแบบเดิม — เอาออกแล้ว)
-    // 📋 มุมมองภาพรวม: แถวละเว็บ — เห็นทุกเว็บในจอเดียว
-    // 🔁 ใครเปลี่ยนงานรองรายคนได้: แอดมินของแผนก หรือมีสิทธิ์ "เปลี่ยนงานรองรายคน"
-    const _canSec = (typeof window.isDutyAdmin === 'function' && window.isDutyAdmin()) || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('duty_secondary'));
-    const _ovRows = _dmItems.map(it => {
-        const st = it.missing ? ['bad', 'ขาดคน'] : (it.warn ? ['warn', 'พักชนกัน'] : ['ok', 'พร้อม']);
-        const chips = it.people.map(p => p.miss
-            ? `<span class="ov-p miss"><b>ขาดคน</b></span>`
-            : `<span class="ov-p duty-user-card ${p.drag ? 'can' : ''} ${p.me ? 'me' : ''}" data-name="${window.escapeHtml(p.name.toLowerCase())}" ${p.drag ? `draggable="true" ondragstart="handleDragStart(event, '${p.id}', '${window.escapeJsAttr(p.name)}', '${it.team}')"` : ''} title="${window.escapeHtml(p.name)}${p.sec ? ' · งานรอง ' + p.sec : ''}${p.hist ? '\nย้อนหลัง: ' + window.escapeHtml(p.hist) : ''}">
-                <span class="ov-top">
-                <b>${window.escapeHtml(p.name)}</b>${p.me ? '<span class="dc-me">ฉัน</span>' : ''}
-                <small class="${p.slots.length ? '' : 'none'}">${p.slots.length ? p.slots.map(x => x.split('-')[0]).join(' · ') : 'ยังไม่ลงพัก'}</small>
-                ${p.sec
-                    ? (_canSec ? `<button type="button" class="ov-sec" onclick="event.stopPropagation(); changeSecondaryTeam('${it.team}', '${p.id}', '${window.escapeJsAttr(p.name)}')" title="กดเพื่อเปลี่ยนงานรองของ ${window.escapeHtml(p.name)}">รอง ${p.sec}<span class="material-icons">edit</span></button>` : `<i>รอง ${p.sec}</i>`)
-                    : (_canSec && p.id ? `<button type="button" class="ov-sec add" onclick="event.stopPropagation(); changeSecondaryTeam('${it.team}', '${p.id}', '${window.escapeJsAttr(p.name)}')" title="แจกงานรองให้ ${window.escapeHtml(p.name)}">+ รอง</button>` : '')}
-                ${p.sup.map(t => `<i class="ov-sup">🛟 ${window.escapeHtml(t)}</i>`).join('')}
-                ${p.pin ? `<span class="ov-pin">${p.pin}</span>` : ''}
-                </span>
-                <span class="ov-imp" data-imp-name="${window.escapeHtml(p.name)}"></span>
-                ${p.histHtml ? `<span class="ov-hist"><span class="material-icons">history</span>${p.histHtml}</span>` : ''}
-            </span>`).join('') || '<span class="ov-empty">ยังไม่มีคน · ลากชื่อมาวางได้</span>';
-        return `<div class="ov-row" data-team="${it.team}" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${it.team}')">
-            <span class="ov-tint ${it.color.bg}" aria-hidden="true"></span>
-            <div class="ov-team">
-                <span class="ov-bar ${it.color.bg}"></span>
-                <span><b>${it.title}</b><small>${it.count} คน</small>
-                    <span class="ov-narrow"><span class="ov-stp ${st[0]}">${st[1]}</span>${it.standbyNames.length ? `<span class="ov-sbn" title="สแตนด์บายช่วยเว็บนี้">รอง: ${it.standbyNames.map(n => window.escapeHtml(n)).join(', ')}</span>` : ''}</span>
-                    ${it.trainerBtn || ''}</span>
-            </div>
-            <div class="ov-people">${chips}</div>
-            <div class="ov-sb">${it.standbyNames.length ? it.standbyNames.map(n => window.escapeHtml(n)).join(', ') : '—'}</div>
-            <div class="ov-st"><span class="${st[0]}">${st[1]}</span></div>
-        </div>`;
-    }).join('');
-    const _okN = _dmItems.filter(x => !x.missing).length, _missN = _dmItems.filter(x => x.missing).length;
-    const _overview = `<section class="ov-wrap">
-            <div class="ov-sum"><span>เว็บพร้อม <b>${_okN}/${_dmItems.length}</b></span>${_missN ? `<span class="bad">ขาดคน <b>${_missN}</b> เว็บ</span>` : ''}<span>คนทำงาน <b>${_dmItems.reduce((a, x) => a + x.count, 0)}</b></span></div>
-            <div class="ov-scroll custom-scrollbar"><div class="ov-table">
-                <div class="ov-row ov-h"><div>เว็บ</div><div>คนประจำ · เวลาพัก</div><div>สแตนด์บายช่วย</div><div style="text-align:right">สถานะ</div></div>
-                ${_ovRows}
-            </div></div>
-        </section>`;
-    // 🙋 แถบบอกตำแหน่งของเรา
-    let _meBar = '';
-    if (_me) {
-        const mine = _dmItems.find(it => it.people.some(p => p.me));
-        const leave = (window.currentDutyLeaveData || []).find(l => _isMe({ id: l.user_id, username: l.username }));
-        const sb = _dmItems.filter(it => it.standbyNames.some(n => _me.username && String(n).toLowerCase() === String(_me.username).toLowerCase())).map(it => it.title);
-        if (mine) {
-            const meP = mine.people.find(p => p.me);
-            _meBar = `<div class="dv-me">
-                <span class="material-icons">person_pin_circle</span>
-                <span>คุณ <b>${window.escapeHtml(_me.username)}</b> อยู่เว็บ <b class="dv-team ${mine.color.bg} ${mine.color.text}">${mine.title}</b>${meP.sec ? ` · งานรอง <b>${meP.sec}</b>` : ''}${meP.slots.length ? ` · พัก <b>${meP.slots.join(', ')}</b>` : ' · <em>ยังไม่ลงเวลาพัก</em>'}<span class="dv-imp" data-imp-name="${window.escapeHtml(_me.username)}" data-imp-bar="1"></span></span>
-            </div>`;
-        } else if (leave) {
-            _meBar = `<div class="dv-me off"><span class="material-icons">event_busy</span><span>คุณ <b>${window.escapeHtml(_me.username)}</b> ลาหยุดในกะนี้</span></div>`;
-        } else if (sb.length) {
-            _meBar = `<div class="dv-me"><span class="material-icons">transfer_within_a_station</span><span>คุณ <b>${window.escapeHtml(_me.username)}</b> สแตนด์บายช่วยเว็บ <b>${sb.join(', ')}</b></span></div>`;
-        } else if (_me.role === 'staff') {
-            _meBar = `<div class="dv-me off"><span class="material-icons">info</span><span>คุณ <b>${window.escapeHtml(_me.username)}</b> ยังไม่อยู่ในตารางกะนี้</span></div>`;
-        }
+    finalGridHtml += `\n            <div class="duty-site-card dc-site flex flex-col h-[500px] overflow-hidden w-full" data-team="${team}" style="--tc-border:currentColor">\n                <div class="dc-head ${colorClass.bg} ${colorClass.text}">\n                    <div class="dc-head-l">\n                        <h4 class="dc-team">${_title}</h4>\n                        ${_isGrp ? `<span class="dc-grp" title="สองเว็บนี้ถูกจับกลุ่มให้ทำงานรวมกัน">🔗 รวม ${_grpTeams.length} เว็บ</span>` : ''}\n                        ${(() => {
+      const _room = odRoomOf[team];
+      if (!_room) return '';
+      return `<span class="dc-room" title="เข้าห้อง Discord: ${_room}"><span class="material-icons">headset_mic</span>${_room}</span>`;
+    })()}\n                    </div>\n                    <div class="dc-head-r">\n                        <span class="dc-cnt" title="งานหลัก"><b>${primaryCount}</b> คน</span>\n                        <button onclick="viewStandbyList('${team}')" class="dc-cnt btn" title="คลิกดูรายชื่อสแตนด์บาย (งานรอง)">รอง <b>${standbyCount}</b></button>\n                    </div>\n                </div>\n                ${rolesTags ? `<div class="dc-roles">${rolesTags}</div>` : ''}\n                ${breakWarnHtml}\n                <div class="dc-list flex flex-col flex-1 overflow-y-auto custom-scrollbar content-start drop-zone" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${team}')">\n                    ${namesHtml || `\n                        <div class="flex flex-col items-center justify-center h-full py-6 pointer-events-none select-none opacity-40">\n                            <span class="material-icons text-3xl text-gray-400 mb-1">person_off</span>\n                            <span class="text-xs font-bold text-gray-400">ไม่มีพนักงาน</span>\n                            <span class="text-[10px] text-gray-400 mt-0.5">ลากคนมาวางได้เลย</span>\n                        </div>`}\n                </div>\n                ${trainerReportHtml}\n            </div>\n        `;
+  }));
+  const _cut = finalGridHtml.indexOf('<div class="duty-site-card');
+  const _previewNote = window.isRosterPreview ? _cut < 0 ? finalGridHtml : finalGridHtml.slice(0, _cut) : '';
+  const _cards = window.isRosterPreview ? _cut < 0 ? '' : finalGridHtml.slice(_cut) : finalGridHtml;
+  const _canSec = typeof window.isDutyAdmin === 'function' && window.isDutyAdmin() || typeof window.hasUserPerm === 'function' && window.hasUserPerm('duty_secondary');
+  const _ovRows = _dmItems.map((it => {
+    const st = it.missing ? [ 'bad', 'ขาดคน' ] : it.warn ? [ 'warn', 'พักชนกัน' ] : [ 'ok', 'พร้อม' ];
+    const chips = it.people.map((p => p.miss ? `<span class="ov-p miss"><b>ขาดคน</b></span>` : `<span class="ov-p duty-user-card ${p.drag ? 'can' : ''} ${p.me ? 'me' : ''}" data-name="${window.escapeHtml(p.name.toLowerCase())}" ${p.drag ? `draggable="true" ondragstart="handleDragStart(event, '${p.id}', '${window.escapeJsAttr(p.name)}', '${it.team}')"` : ''} title="${window.escapeHtml(p.name)}${p.sec ? ' · งานรอง ' + p.sec : ''}${p.hist ? '\nย้อนหลัง: ' + window.escapeHtml(p.hist) : ''}">\n                <span class="ov-top">\n                <b>${window.escapeHtml(p.name)}</b>${p.me ? '<span class="dc-me">ฉัน</span>' : ''}\n                <small class="${p.slots.length ? '' : 'none'}">${p.slots.length ? p.slots.map((x => x.split('-')[0])).join(' · ') : 'ยังไม่ลงพัก'}</small>\n                ${p.sec ? _canSec ? `<button type="button" class="ov-sec" onclick="event.stopPropagation(); changeSecondaryTeam('${it.team}', '${p.id}', '${window.escapeJsAttr(p.name)}')" title="กดเพื่อเปลี่ยนงานรองของ ${window.escapeHtml(p.name)}">รอง ${p.sec}<span class="material-icons">edit</span></button>` : `<i>รอง ${p.sec}</i>` : _canSec && p.id ? `<button type="button" class="ov-sec add" onclick="event.stopPropagation(); changeSecondaryTeam('${it.team}', '${p.id}', '${window.escapeJsAttr(p.name)}')" title="แจกงานรองให้ ${window.escapeHtml(p.name)}">+ รอง</button>` : ''}\n                ${p.sup.map((t => `<i class="ov-sup">🛟 ${window.escapeHtml(t)}</i>`)).join('')}\n                ${p.pin ? `<span class="ov-pin">${p.pin}</span>` : ''}\n                </span>\n                <span class="ov-imp" data-imp-name="${window.escapeHtml(p.name)}"></span>\n                ${p.histHtml ? `<span class="ov-hist"><span class="material-icons">history</span>${p.histHtml}</span>` : ''}\n            </span>`)).join('') || '<span class="ov-empty">ยังไม่มีคน · ลากชื่อมาวางได้</span>';
+    return `<div class="ov-row" data-team="${it.team}" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${it.team}')">\n            <span class="ov-tint ${it.color.bg}" aria-hidden="true"></span>\n            <div class="ov-team">\n                <span class="ov-bar ${it.color.bg}"></span>\n                <span><b>${it.title}</b><small>${it.count} คน</small>\n                    <span class="ov-narrow"><span class="ov-stp ${st[0]}">${st[1]}</span>${it.standbyNames.length ? `<span class="ov-sbn" title="สแตนด์บายช่วยเว็บนี้">รอง: ${it.standbyNames.map((n => window.escapeHtml(n))).join(', ')}</span>` : ''}</span>\n                    ${it.trainerBtn || ''}</span>\n            </div>\n            <div class="ov-people">${chips}</div>\n            <div class="ov-sb">${it.standbyNames.length ? it.standbyNames.map((n => window.escapeHtml(n))).join(', ') : '—'}</div>\n            <div class="ov-st"><span class="${st[0]}">${st[1]}</span></div>\n        </div>`;
+  })).join('');
+  const _okN = _dmItems.filter((x => !x.missing)).length, _missN = _dmItems.filter((x => x.missing)).length;
+  const _overview = `<section class="ov-wrap">\n            <div class="ov-sum"><span>เว็บพร้อม <b>${_okN}/${_dmItems.length}</b></span>${_missN ? `<span class="bad">ขาดคน <b>${_missN}</b> เว็บ</span>` : ''}<span>คนทำงาน <b>${_dmItems.reduce(((a, x) => a + x.count), 0)}</b></span></div>\n            <div class="ov-scroll custom-scrollbar"><div class="ov-table">\n                <div class="ov-row ov-h"><div>เว็บ</div><div>คนประจำ · เวลาพัก</div><div>สแตนด์บายช่วย</div><div style="text-align:right">สถานะ</div></div>\n                ${_ovRows}\n            </div></div>\n        </section>`;
+  let _meBar = '';
+  if (_me) {
+    const mine = _dmItems.find((it => it.people.some((p => p.me))));
+    const leave = (window.currentDutyLeaveData || []).find((l => _isMe({
+      id: l.user_id,
+      username: l.username
+    })));
+    const sb = _dmItems.filter((it => it.standbyNames.some((n => _me.username && String(n).toLowerCase() === String(_me.username).toLowerCase())))).map((it => it.title));
+    if (mine) {
+      const meP = mine.people.find((p => p.me));
+      _meBar = `<div class="dv-me">\n                <span class="material-icons">person_pin_circle</span>\n                <span>คุณ <b>${window.escapeHtml(_me.username)}</b> อยู่เว็บ <b class="dv-team ${mine.color.bg} ${mine.color.text}">${mine.title}</b>${meP.sec ? ` · งานรอง <b>${meP.sec}</b>` : ''}${meP.slots.length ? ` · พัก <b>${meP.slots.join(', ')}</b>` : ' · <em>ยังไม่ลงเวลาพัก</em>'}<span class="dv-imp" data-imp-name="${window.escapeHtml(_me.username)}" data-imp-bar="1"></span></span>\n            </div>`;
+    } else if (leave) {
+      _meBar = `<div class="dv-me off"><span class="material-icons">event_busy</span><span>คุณ <b>${window.escapeHtml(_me.username)}</b> ลาหยุดในกะนี้</span></div>`;
+    } else if (sb.length) {
+      _meBar = `<div class="dv-me"><span class="material-icons">transfer_within_a_station</span><span>คุณ <b>${window.escapeHtml(_me.username)}</b> สแตนด์บายช่วยเว็บ <b>${sb.join(', ')}</b></span></div>`;
+    } else if (_me.role === 'staff') {
+      _meBar = `<div class="dv-me off"><span class="material-icons">info</span><span>คุณ <b>${window.escapeHtml(_me.username)}</b> ยังไม่อยู่ในตารางกะนี้</span></div>`;
     }
-    // 📋 ใช้มุมมองภาพรวมอย่างเดียว (เอาแบบรายการเว็บ + ปุ่มสลับออกแล้ว)
-    cardGrid.innerHTML = `${_previewNote}
-        ${_meBar ? `<div class="dv-top" style="grid-column:1/-1">${_meBar}</div>` : ''}
-        <div class="dv-overview" style="grid-column:1/-1">${_overview}</div>`;
-    // ⭐ เติมป้าย "หน้าที่พิเศษ" ใต้ชื่อแต่ละคน (เฉพาะแท็บผู้สอน)
-    if (typeof window.impRefreshRosterTags === 'function') window.impRefreshRosterTags();
-    // 🔎 [FIX] วาดใหม่ (อัปเดตอัตโนมัติทุก 30 วิ / มีคนแก้จากเครื่องอื่น / หลังย้ายคน) แล้วคำค้นหาหลุด → ใส่กลับให้
-    const _si = document.getElementById('dutySearchInput');
-    if (_si && _si.value && typeof window.filterDutyResult === 'function') window.filterDutyResult();
+  }
+  cardGrid.innerHTML = `${_previewNote}\n        ${_meBar ? `<div class="dv-top" style="grid-column:1/-1">${_meBar}</div>` : ''}\n        <div class="dv-overview" style="grid-column:1/-1">${_overview}</div>`;
+  if (typeof window.impRefreshRosterTags === 'function') window.impRefreshRosterTags();
+  const _si = document.getElementById('dutySearchInput');
+  if (_si && _si.value && typeof window.filterDutyResult === 'function') window.filterDutyResult();
 };
 
-
 window.selectSecOption = function(el, val) {
-    document.querySelectorAll('.secx-opt').forEach(o => o.classList.toggle('on', o === el));
-    document.getElementById('swal-sec-val').value = val;
+  document.querySelectorAll('.secx-opt').forEach((o => o.classList.toggle('on', o === el)));
+  document.getElementById('swal-sec-val').value = val;
 };
 
 window.changeSecondaryTeam = async function(primaryTeam, userId, username) {
-    if (window.blockIfPreview()) return;   // โหมดตัวอย่าง: ห้ามเขียนตารางลง DB
-    const uidStr = String(userId);
-    const access = dutyAccessMatrix[uidStr] || dutyAccessMatrix[Number(userId)] || [];
-    let possibleSecondary = access.filter(t => t !== primaryTeam && sortedTeams.includes(t));
-
-    if (possibleSecondary.length === 0) {
-        return Swal.fire({ icon: 'warning', title: 'ไม่มีสิทธิ์เข้าเว็บอื่น', text: `${username} ไม่มีสิทธิ์หลังบ้านเว็บไหนเลย (นอกจากเว็บหลัก) จึงแจกงานรองไม่ได้ กรุณาไปเพิ่มสิทธิ์ในหน้าตั้งค่าก่อนครับ`, confirmButtonColor: '#3b82f6' });
-    }
-
-    let currentUserData = currentRosterData[primaryTeam].find(u => String(u.id) === String(userId));
-    let currentSec = currentUserData ? currentUserData.secondary_team : null;
-
-    // 🎨 กล่องเลือกงานรองแบบใหม่: ปุ่มเว็บเป็นตาราง 2 คอลัมน์ ขนาดเท่ากัน · แถบสีประจำเว็บด้านซ้าย · เลือกแล้วขอบทอง + ✓
-    if (!document.getElementById('secx-css')) {
-        const st = document.createElement('style'); st.id = 'secx-css';
-        st.textContent = `
-        .secx-wrap{display:flex;flex-direction:column;gap:10px;margin-top:6px;text-align:left}
-        .secx-none{display:flex;align-items:center;gap:12px;padding:12px 14px !important;border-radius:12px;border:1px solid var(--k-line2);background:var(--k-panel2);cursor:pointer;transition:border-color .15s,background .15s}
-        .secx-none .material-icons{font-size:20px;color:var(--k-red-tx)}
-        .secx-none b{display:block;font-size:13.5px;font-weight:900;color:var(--k-tx-strong)}
-        .secx-none small{display:block;font-size:11.5px;font-weight:600;color:var(--k-mute)}
-        .secx-none.on{border-color:#ef4444;background:var(--k-red-bg)}
-        .secx-lbl{font-size:11.5px;font-weight:800;color:var(--k-mute);margin:2px 2px -2px}
-        .secx-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:46vh;overflow-y:auto;padding:2px}
-        .secx-opt{position:relative;display:flex;align-items:center;gap:10px;height:52px;padding:0 12px 0 16px;border-radius:12px;border:1px solid var(--k-line2);background:var(--k-card);cursor:pointer;overflow:hidden;transition:border-color .15s,background .15s,transform .08s}
-        .secx-opt:hover{border-color:var(--k-line4)}
-        .secx-opt:active{transform:scale(.98)}
-        .secx-bar{position:absolute;left:0;top:0;bottom:0;width:5px}
-        .secx-opt b{flex:1;min-width:0;font-size:15px;font-weight:900;color:var(--k-tx-strong);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-        .secx-ck{width:22px;height:22px;border-radius:7px;border:2px solid var(--k-line3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:transparent;flex:none}
-        .secx-opt.on{border-color:#E8C15A;background:color-mix(in srgb,#E8C15A 10%,var(--k-card));box-shadow:0 0 0 2px rgba(232,193,90,.25)}
-        .secx-opt.on .secx-ck{background:#E8C15A;border-color:#E8C15A;color:#1b1406}
-        .secx-cur{font-size:10px;font-weight:800;padding:1px 7px;border-radius:999px;background:rgba(232,193,90,.15);color:var(--k-gold-tx);border:1px solid rgba(232,193,90,.4)}
-        .secx-confirm{color:#1b1406 !important;font-weight:900 !important}
-        @media (max-width:420px){ .secx-grid{grid-template-columns:1fr} }`;
-        document.head.appendChild(st);
-    }
-    let htmlContent = `<div class="secx-wrap">
-        <div onclick="selectSecOption(this, 'none')" class="secx-opt secx-none ${!currentSec ? 'on' : ''}" style="height:auto">
-            <span class="material-icons">block</span>
-            <div><b>ไม่มีงานรอง</b><small>ไม่ต้องสแตนด์บายช่วยเว็บอื่น</small></div>
-        </div>
-        <div class="secx-lbl">หรือเลือกเว็บที่จะสแตนด์บายช่วย</div>
-        <div class="secx-grid custom-scrollbar">`;
-    possibleSecondary.forEach(t => {
-        const teamColor = TEAM_COLORS[t] || TEAM_COLORS['DEFAULT'];
-        const on = currentSec === t;
-        htmlContent += `<div onclick="selectSecOption(this, '${t}')" class="secx-opt ${on ? 'on' : ''}" title="สแตนด์บายช่วยแชทเว็บ ${t}">
-                <span class="secx-bar ${teamColor.bg}"></span>
-                <b>${t}</b>${on ? '<span class="secx-cur">ตอนนี้</span>' : ''}
-                <span class="secx-ck">✓</span>
-            </div>`;
+  if (window.blockIfPreview()) return;
+  const uidStr = String(userId);
+  const access = dutyAccessMatrix[uidStr] || dutyAccessMatrix[Number(userId)] || [];
+  let possibleSecondary = access.filter((t => t !== primaryTeam && sortedTeams.includes(t)));
+  if (possibleSecondary.length === 0) {
+    return Swal.fire({
+      icon: 'warning',
+      title: 'ไม่มีสิทธิ์เข้าเว็บอื่น',
+      text: `${username} ไม่มีสิทธิ์หลังบ้านเว็บไหนเลย (นอกจากเว็บหลัก) จึงแจกงานรองไม่ได้ กรุณาไปเพิ่มสิทธิ์ในหน้าตั้งค่าก่อนครับ`,
+      confirmButtonColor: '#3b82f6'
     });
-    htmlContent += `</div></div>`;
-    htmlContent += `<input type="hidden" id="swal-sec-val" value="${currentSec || 'none'}">`;
-
-    const { isConfirmed } = await Swal.fire({
-        title: `<div style="font-size:19px;font-weight:900">งานรองของ ${window.escapeHtml(username)}</div><div style="font-size:12px;font-weight:600;color:var(--k-mute);margin-top:4px">เว็บหลัก: ${window.escapeHtml(primaryTeam)} · เลือกเว็บที่จะสแตนด์บายช่วย</div>`, html: htmlContent,
-        showCancelButton: true, confirmButtonText: 'บันทึกงานรอง', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#E8C15A', cancelButtonColor: '#64748b', reverseButtons: true, width: 520,
-        customClass: { popup: 'rounded-3xl', confirmButton: 'secx-confirm' },
-        preConfirm: () => document.getElementById('swal-sec-val').value
-    });
-
-    if (isConfirmed) {
-        const selectedSec = document.getElementById('swal-sec-val').value;
-        let userIndex = currentRosterData[primaryTeam].findIndex(u => String(u.id) === String(userId));
-
-        if(userIndex > -1) {
-            const prevSec = currentRosterData[primaryTeam][userIndex].secondary_team || null;
-            const newSec = selectedSec === 'none' ? null : selectedSec;
-            currentRosterData[primaryTeam][userIndex].secondary_team = newSec;
-            const targetDate = document.getElementById('dutyDate').value; const shiftFilter = document.getElementById('dutyShiftSelect').value;
-            const saveKey = getDutySaveKey(targetDate, shiftFilter);
-
-            Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen:()=>Swal.showLoading()});
-            if (typeof window.dutyDedupeRoster === "function") window.dutyDedupeRoster(currentRosterData);   // 🛡️ กันชื่อซ้ำก่อนบันทึก
-            window.clearSettingCache(); await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
-
-            // 🟢 บันทึก log การเปลี่ยนงานรอง (สแตนด์บาย)
-            let logDetail;
-            if (!prevSec && newSec) logDetail = `แจกงานรองให้ ${username} (เว็บหลัก: ${primaryTeam}) → สแตนด์บายช่วย [${newSec}]`;
-            else if (prevSec && !newSec) logDetail = `ปลดงานรอง ${username} (ออกจากการสแตนด์บายช่วย [${prevSec}])`;
-            else if (prevSec !== newSec) logDetail = `เปลี่ยนงานรอง ${username}: [${prevSec}] → [${newSec}]`;
-            if (logDetail) {
-                await appDB.from('system_logs').insert([{
-                    action_type: 'ย้ายหน้าที่',
-                    performed_by: currentUser.username,
-                    target_details: `${logDetail} (กะ: ${shiftFilter}, วันที่: ${targetDate})`
-                }]);
-            }
-
-            window.renderRosterGrid(currentRosterData);
-            if(appDB.channel) window.debouncedBroadcast('duty-updates', 'force_reload');
-            Swal.fire({icon: 'success', title: 'อัปเดตงานรองแล้ว!', timer: 1200, showConfirmButton: false});
-        }
+  }
+  let currentUserData = currentRosterData[primaryTeam].find((u => String(u.id) === String(userId)));
+  let currentSec = currentUserData ? currentUserData.secondary_team : null;
+  if (!document.getElementById('secx-css')) {
+    const st = document.createElement('style');
+    st.id = 'secx-css';
+    st.textContent = `\n        .secx-wrap{display:flex;flex-direction:column;gap:10px;margin-top:6px;text-align:left}\n        .secx-none{display:flex;align-items:center;gap:12px;padding:12px 14px !important;border-radius:12px;border:1px solid var(--k-line2);background:var(--k-panel2);cursor:pointer;transition:border-color .15s,background .15s}\n        .secx-none .material-icons{font-size:20px;color:var(--k-red-tx)}\n        .secx-none b{display:block;font-size:13.5px;font-weight:900;color:var(--k-tx-strong)}\n        .secx-none small{display:block;font-size:11.5px;font-weight:600;color:var(--k-mute)}\n        .secx-none.on{border-color:#ef4444;background:var(--k-red-bg)}\n        .secx-lbl{font-size:11.5px;font-weight:800;color:var(--k-mute);margin:2px 2px -2px}\n        .secx-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:46vh;overflow-y:auto;padding:2px}\n        .secx-opt{position:relative;display:flex;align-items:center;gap:10px;height:52px;padding:0 12px 0 16px;border-radius:12px;border:1px solid var(--k-line2);background:var(--k-card);cursor:pointer;overflow:hidden;transition:border-color .15s,background .15s,transform .08s}\n        .secx-opt:hover{border-color:var(--k-line4)}\n        .secx-opt:active{transform:scale(.98)}\n        .secx-bar{position:absolute;left:0;top:0;bottom:0;width:5px}\n        .secx-opt b{flex:1;min-width:0;font-size:15px;font-weight:900;color:var(--k-tx-strong);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}\n        .secx-ck{width:22px;height:22px;border-radius:7px;border:2px solid var(--k-line3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:transparent;flex:none}\n        .secx-opt.on{border-color:#E8C15A;background:color-mix(in srgb,#E8C15A 10%,var(--k-card));box-shadow:0 0 0 2px rgba(232,193,90,.25)}\n        .secx-opt.on .secx-ck{background:#E8C15A;border-color:#E8C15A;color:#1b1406}\n        .secx-cur{font-size:10px;font-weight:800;padding:1px 7px;border-radius:999px;background:rgba(232,193,90,.15);color:var(--k-gold-tx);border:1px solid rgba(232,193,90,.4)}\n        .secx-confirm{color:#1b1406 !important;font-weight:900 !important}\n        @media (max-width:420px){ .secx-grid{grid-template-columns:1fr} }`;
+    document.head.appendChild(st);
+  }
+  let htmlContent = `<div class="secx-wrap">\n        <div onclick="selectSecOption(this, 'none')" class="secx-opt secx-none ${!currentSec ? 'on' : ''}" style="height:auto">\n            <span class="material-icons">block</span>\n            <div><b>ไม่มีงานรอง</b><small>ไม่ต้องสแตนด์บายช่วยเว็บอื่น</small></div>\n        </div>\n        <div class="secx-lbl">หรือเลือกเว็บที่จะสแตนด์บายช่วย</div>\n        <div class="secx-grid custom-scrollbar">`;
+  possibleSecondary.forEach((t => {
+    const teamColor = TEAM_COLORS[t] || TEAM_COLORS['DEFAULT'];
+    const on = currentSec === t;
+    htmlContent += `<div onclick="selectSecOption(this, '${t}')" class="secx-opt ${on ? 'on' : ''}" title="สแตนด์บายช่วยแชทเว็บ ${t}">\n                <span class="secx-bar ${teamColor.bg}"></span>\n                <b>${t}</b>${on ? '<span class="secx-cur">ตอนนี้</span>' : ''}\n                <span class="secx-ck">✓</span>\n            </div>`;
+  }));
+  htmlContent += `</div></div>`;
+  htmlContent += `<input type="hidden" id="swal-sec-val" value="${currentSec || 'none'}">`;
+  const {isConfirmed: isConfirmed} = await Swal.fire({
+    title: `<div style="font-size:19px;font-weight:900">งานรองของ ${window.escapeHtml(username)}</div><div style="font-size:12px;font-weight:600;color:var(--k-mute);margin-top:4px">เว็บหลัก: ${window.escapeHtml(primaryTeam)} · เลือกเว็บที่จะสแตนด์บายช่วย</div>`,
+    html: htmlContent,
+    showCancelButton: true,
+    confirmButtonText: 'บันทึกงานรอง',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: '#E8C15A',
+    cancelButtonColor: '#64748b',
+    reverseButtons: true,
+    width: 520,
+    customClass: {
+      popup: 'rounded-3xl',
+      confirmButton: 'secx-confirm'
+    },
+    preConfirm: () => document.getElementById('swal-sec-val').value
+  });
+  if (isConfirmed) {
+    const selectedSec = document.getElementById('swal-sec-val').value;
+    let userIndex = currentRosterData[primaryTeam].findIndex((u => String(u.id) === String(userId)));
+    if (userIndex > -1) {
+      const prevSec = currentRosterData[primaryTeam][userIndex].secondary_team || null;
+      const newSec = selectedSec === 'none' ? null : selectedSec;
+      currentRosterData[primaryTeam][userIndex].secondary_team = newSec;
+      const targetDate = document.getElementById('dutyDate').value;
+      const shiftFilter = document.getElementById('dutyShiftSelect').value;
+      const saveKey = getDutySaveKey(targetDate, shiftFilter);
+      Swal.fire({
+        title: 'กำลังบันทึก...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
+      if (typeof window.dutyDedupeRoster === "function") window.dutyDedupeRoster(currentRosterData);
+      window.clearSettingCache();
+      await appDB.from('settings').upsert([ {
+        key: saveKey,
+        value: JSON.stringify(currentRosterData)
+      } ]);
+      let logDetail;
+      if (!prevSec && newSec) logDetail = `แจกงานรองให้ ${username} (เว็บหลัก: ${primaryTeam}) → สแตนด์บายช่วย [${newSec}]`; else if (prevSec && !newSec) logDetail = `ปลดงานรอง ${username} (ออกจากการสแตนด์บายช่วย [${prevSec}])`; else if (prevSec !== newSec) logDetail = `เปลี่ยนงานรอง ${username}: [${prevSec}] → [${newSec}]`;
+      if (logDetail) {
+        await appDB.from('system_logs').insert([ {
+          action_type: 'ย้ายหน้าที่',
+          performed_by: currentUser.username,
+          target_details: `${logDetail} (กะ: ${shiftFilter}, วันที่: ${targetDate})`
+        } ]);
+      }
+      window.renderRosterGrid(currentRosterData);
+      if (appDB.channel) window.debouncedBroadcast('duty-updates', 'force_reload');
+      Swal.fire({
+        icon: 'success',
+        title: 'อัปเดตงานรองแล้ว!',
+        timer: 1200,
+        showConfirmButton: false
+      });
     }
+  }
 };
 
 window.viewStandbyList = function(team) {
-    const list = window.currentStandbyData[team] || [];
-    if (list.length === 0) {
-        return Swal.fire({ icon: 'info', title: `ทีม ${team}`, text: 'ยังไม่มีพนักงานถูกสั่งให้มาสแตนด์บายช่วยเว็บนี้ครับ', confirmButtonColor: '#3b82f6', customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' } });
-    }
-
-    const teamColor = TEAM_COLORS[team] || TEAM_COLORS['DEFAULT'];
-    const namesHtml = list.map((item, i) => {
-        let breakTimeHtml = '';
-        const mySchedules = (window.currentDutySchedules || []).filter(s => s.staff_name === item.name);
-        
-        if (mySchedules && mySchedules.length > 0) {
-            const timeSlotsText = mySchedules.map(s => String(s.time_slot || '')).sort((t1, t2) => t1.localeCompare(t2)).join(', ');
-            // 🌟 ปรับขนาดป้ายเวลาพักให้ใหญ่ขึ้น (text-xs = 12px, px-2.5 py-1)
-            breakTimeHtml = `<span class="text-xs text-sky-600 dark:text-sky-400 font-bold bg-sky-50 dark:bg-sky-900/30 px-2.5 py-1 rounded-md flex items-center gap-1 border border-sky-200 dark:border-sky-800/50 shadow-sm"><span class="material-icons text-[14px]">restaurant</span> พัก: ${timeSlotsText}</span>`;
-        } else {
-            breakTimeHtml = `<span class="text-xs text-red-500 font-bold bg-red-50 dark:bg-red-900/30 px-2.5 py-1 rounded-md flex items-center gap-1 border border-red-200 dark:border-red-800/50 shadow-sm animate-pulse"><span class="material-icons text-[14px]">warning</span> ยังไม่ลงเวลา</span>`;
-        }
-
-        return `
-        <div class="p-3.5 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-600 shadow-sm flex items-center justify-between group hover:border-amber-400 transition mb-2.5">
-            <div class="flex items-center gap-4">
-                <div class="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center font-black text-sm shadow-inner shrink-0">${i + 1}</div>
-                <div class="text-left flex flex-col gap-1.5">
-                    <div class="font-black text-slate-800 dark:text-white text-[15px] uppercase tracking-wide">${window.escapeHtml(item.name)}</div>
-                    <div class="flex flex-wrap items-center gap-2">
-                        <div class="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-1">จากเว็บหลัก: <span class="font-bold text-blue-500 bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800/50">${item.fromTeam}</span></div>
-                        ${breakTimeHtml}
-                    </div>
-                </div>
-            </div>
-            <span class="material-icons text-amber-400 text-2xl opacity-40 group-hover:scale-110 transition shrink-0 ml-2">support_agent</span>
-        </div>
-        `;
-    }).join('');
-
-    Swal.fire({
-        title: `<div class="flex flex-col items-center gap-1.5"><span class="text-sm text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider">ทีมสแตนด์บายช่วย</span><span class="text-3xl font-black ${teamColor.text} ${teamColor.bg} px-5 py-1.5 rounded-xl shadow-md border-2 ${teamColor.border}">${team}</span></div>`,
-        html: `<div class="flex flex-col mt-4 max-h-[55vh] overflow-y-auto custom-scrollbar p-1">${namesHtml}</div>`,
-        confirmButtonText: 'ปิดหน้าต่าง', confirmButtonColor: '#64748b',
-        width: '500px', // 🌟 ขยายขนาดหน้าต่างให้กว้างขึ้น เพื่อให้ข้อความไม่เบียดกัน
-        customClass: { popup: 'dark:bg-slate-900 dark:text-white rounded-3xl' }
+  const list = window.currentStandbyData[team] || [];
+  if (list.length === 0) {
+    return Swal.fire({
+      icon: 'info',
+      title: `ทีม ${team}`,
+      text: 'ยังไม่มีพนักงานถูกสั่งให้มาสแตนด์บายช่วยเว็บนี้ครับ',
+      confirmButtonColor: '#3b82f6',
+      customClass: {
+        popup: 'dark:bg-slate-800 dark:text-white rounded-3xl'
+      }
     });
+  }
+  const teamColor = TEAM_COLORS[team] || TEAM_COLORS['DEFAULT'];
+  const namesHtml = list.map(((item, i) => {
+    let breakTimeHtml = '';
+    const mySchedules = (window.currentDutySchedules || []).filter((s => s.staff_name === item.name));
+    if (mySchedules && mySchedules.length > 0) {
+      const timeSlotsText = mySchedules.map((s => String(s.time_slot || ''))).sort(((t1, t2) => t1.localeCompare(t2))).join(', ');
+      breakTimeHtml = `<span class="text-xs text-sky-600 dark:text-sky-400 font-bold bg-sky-50 dark:bg-sky-900/30 px-2.5 py-1 rounded-md flex items-center gap-1 border border-sky-200 dark:border-sky-800/50 shadow-sm"><span class="material-icons text-[14px]">restaurant</span> พัก: ${timeSlotsText}</span>`;
+    } else {
+      breakTimeHtml = `<span class="text-xs text-red-500 font-bold bg-red-50 dark:bg-red-900/30 px-2.5 py-1 rounded-md flex items-center gap-1 border border-red-200 dark:border-red-800/50 shadow-sm animate-pulse"><span class="material-icons text-[14px]">warning</span> ยังไม่ลงเวลา</span>`;
+    }
+    return `\n        <div class="p-3.5 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-600 shadow-sm flex items-center justify-between group hover:border-amber-400 transition mb-2.5">\n            <div class="flex items-center gap-4">\n                <div class="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center font-black text-sm shadow-inner shrink-0">${i + 1}</div>\n                <div class="text-left flex flex-col gap-1.5">\n                    <div class="font-black text-slate-800 dark:text-white text-[15px] uppercase tracking-wide">${window.escapeHtml(item.name)}</div>\n                    <div class="flex flex-wrap items-center gap-2">\n                        <div class="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-1">จากเว็บหลัก: <span class="font-bold text-blue-500 bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800/50">${item.fromTeam}</span></div>\n                        ${breakTimeHtml}\n                    </div>\n                </div>\n            </div>\n            <span class="material-icons text-amber-400 text-2xl opacity-40 group-hover:scale-110 transition shrink-0 ml-2">support_agent</span>\n        </div>\n        `;
+  })).join('');
+  Swal.fire({
+    title: `<div class="flex flex-col items-center gap-1.5"><span class="text-sm text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider">ทีมสแตนด์บายช่วย</span><span class="text-3xl font-black ${teamColor.text} ${teamColor.bg} px-5 py-1.5 rounded-xl shadow-md border-2 ${teamColor.border}">${team}</span></div>`,
+    html: `<div class="flex flex-col mt-4 max-h-[55vh] overflow-y-auto custom-scrollbar p-1">${namesHtml}</div>`,
+    confirmButtonText: 'ปิดหน้าต่าง',
+    confirmButtonColor: '#64748b',
+    width: '500px',
+    customClass: {
+      popup: 'dark:bg-slate-900 dark:text-white rounded-3xl'
+    }
+  });
 };
 
 window.filterDutyResult = function() {
-    const term = document.getElementById('dutySearchInput').value.toLowerCase();
-    
-    // 🟢 1. จัดการค้นหาในรูปแบบ การ์ด (Card) ของพนักงาน AM / OD ปกติ
-    const siteCards = document.querySelectorAll('.duty-site-card');
-    
-    siteCards.forEach(card => {
-        const userCards = card.querySelectorAll('.duty-user-card');
-        let cardHasMatch = false;
-
-        userCards.forEach(uCard => {
-            const name = uCard.dataset.name;
-            if(name && name.includes(term)) { 
-                // ถ้าค้นหาเจอ ให้แสดงกล่องพนักงานนั้น และไฮไลต์สี
-                uCard.style.display = 'flex';
-                if(term !== '') {
-                    uCard.classList.add('ring-2', 'ring-amber-500', 'bg-amber-50'); 
-                    cardHasMatch = true; 
-                } else {
-                    uCard.classList.remove('ring-2', 'ring-amber-500', 'bg-amber-50'); 
-                }
-            } else { 
-                // ถ้าค้นหาไม่เจอ ให้ซ่อนกล่องพนักงานคนนั้นทิ้งไปเลย จะได้ไม่รกตา
-                uCard.style.display = term === '' ? 'flex' : 'none'; 
-                uCard.classList.remove('ring-2', 'ring-amber-500', 'bg-amber-50'); 
-            }
-        });
-
-        // ถ้าในเว็บนั้นไม่มีคนที่เราค้นหาเลย ก็ซ่อนการ์ดเว็บนั้นทิ้งไปเลย
-        if(term === '') {
-            card.style.display = 'flex'; 
-        } else { 
-            card.style.display = cardHasMatch ? 'flex' : 'none'; 
+  const term = document.getElementById('dutySearchInput').value.toLowerCase();
+  const siteCards = document.querySelectorAll('.duty-site-card');
+  siteCards.forEach((card => {
+    const userCards = card.querySelectorAll('.duty-user-card');
+    let cardHasMatch = false;
+    userCards.forEach((uCard => {
+      const name = uCard.dataset.name;
+      if (name && name.includes(term)) {
+        uCard.style.display = 'flex';
+        if (term !== '') {
+          uCard.classList.add('ring-2', 'ring-amber-500', 'bg-amber-50');
+          cardHasMatch = true;
+        } else {
+          uCard.classList.remove('ring-2', 'ring-amber-500', 'bg-amber-50');
         }
-    });
-    // 📋 มุมมองภาพรวม: ชิปที่ไม่ตรงคำค้นจาง · แถวเว็บที่ไม่มีคนที่ค้นซ่อน
-    document.querySelectorAll('#dutyResultGrid .ov-table .ov-row:not(.ov-h)').forEach(row => {
-        let hit = false;
-        row.querySelectorAll('.ov-p[data-name]').forEach(ch => {
-            const m = !term || ch.dataset.name.includes(term);
-            if (m && term) hit = true;
-            ch.style.opacity = m ? '' : '.3';
-            ch.style.outline = (m && term) ? '2px solid #E8C15A' : '';
-        });
-        row.style.display = (!term || hit) ? '' : 'none';
-    });
-
-    // 🟢 2. จัดการค้นหาในรูปแบบ ตาราง (Matrix) ของผู้สอน OD
-    const matrixGrid = document.getElementById('dutyMatrixGrid');
-    if (matrixGrid && !matrixGrid.classList.contains('hidden')) {
-        const trs = matrixGrid.querySelectorAll('tbody tr');
-        let currentShiftDisplay = null;
-        let visibleCountInShift = 0;
-
-        trs.forEach(tr => {
-            const nameCell = tr.querySelector('td:nth-child(2) span, td:nth-child(1) span'); 
-            if (!nameCell) return;
-            
-            const name = nameCell.innerText.toLowerCase();
-            const shiftCell = tr.querySelector('td[rowspan]');
-
-            // อัปเดตกะปัจจุบันที่กำลังประมวลผลอยู่
-            if (shiftCell) {
-                currentShiftDisplay = shiftCell;
-                visibleCountInShift = 0; // เริ่มนับคนในกะใหม่
-            }
-
-            if (term === '' || name.includes(term)) {
-                tr.style.display = 'table-row';
-                visibleCountInShift++;
-                
-                // ไฮไลต์ชื่อถ้าค้นหา
-                if (term !== '') nameCell.parentElement.classList.add('bg-amber-100', 'rounded', 'px-1');
-                else nameCell.parentElement.classList.remove('bg-amber-100', 'rounded', 'px-1');
-            } else {
-                tr.style.display = 'none';
-                nameCell.parentElement.classList.remove('bg-amber-100', 'rounded', 'px-1');
-            }
-
-            // จัดการอัปเดต rowspan ของกะ ให้พอดีกับจำนวนคนที่แสดงอยู่ (จะได้ไม่โบ๋)
-            if (shiftCell) {
-                shiftCell.rowSpan = 1; // ตั้งค่าเริ่มต้น
-            } else if (currentShiftDisplay && tr.style.display !== 'none') {
-                 currentShiftDisplay.rowSpan = visibleCountInShift;
-                 currentShiftDisplay.parentElement.style.display = 'table-row'; // ให้แน่ใจว่าแถวแม่ของกะแสดงอยู่
-            }
-            
-            // ถ้ากะนั้นไม่มีคนถูกค้นหาเจอเลย ก็ซ่อนแถวที่มีชื่อกะทิ้งไปเลย
-            if (currentShiftDisplay && visibleCountInShift === 0 && tr.style.display === 'none' && !tr.querySelector('td[rowspan]')) {
-                currentShiftDisplay.parentElement.style.display = 'none';
-            }
-        });
+      } else {
+        uCard.style.display = term === '' ? 'flex' : 'none';
+        uCard.classList.remove('ring-2', 'ring-amber-500', 'bg-amber-50');
+      }
+    }));
+    if (term === '') {
+      card.style.display = 'flex';
+    } else {
+      card.style.display = cardHasMatch ? 'flex' : 'none';
     }
-}
+  }));
+  document.querySelectorAll('#dutyResultGrid .ov-table .ov-row:not(.ov-h)').forEach((row => {
+    let hit = false;
+    row.querySelectorAll('.ov-p[data-name]').forEach((ch => {
+      const m = !term || ch.dataset.name.includes(term);
+      if (m && term) hit = true;
+      ch.style.opacity = m ? '' : '.3';
+      ch.style.outline = m && term ? '2px solid #E8C15A' : '';
+    }));
+    row.style.display = !term || hit ? '' : 'none';
+  }));
+  const matrixGrid = document.getElementById('dutyMatrixGrid');
+  if (matrixGrid && !matrixGrid.classList.contains('hidden')) {
+    const trs = matrixGrid.querySelectorAll('tbody tr');
+    let currentShiftDisplay = null;
+    let visibleCountInShift = 0;
+    trs.forEach((tr => {
+      const nameCell = tr.querySelector('td:nth-child(2) span, td:nth-child(1) span');
+      if (!nameCell) return;
+      const name = nameCell.innerText.toLowerCase();
+      const shiftCell = tr.querySelector('td[rowspan]');
+      if (shiftCell) {
+        currentShiftDisplay = shiftCell;
+        visibleCountInShift = 0;
+      }
+      if (term === '' || name.includes(term)) {
+        tr.style.display = 'table-row';
+        visibleCountInShift++;
+        if (term !== '') nameCell.parentElement.classList.add('bg-amber-100', 'rounded', 'px-1'); else nameCell.parentElement.classList.remove('bg-amber-100', 'rounded', 'px-1');
+      } else {
+        tr.style.display = 'none';
+        nameCell.parentElement.classList.remove('bg-amber-100', 'rounded', 'px-1');
+      }
+      if (shiftCell) {
+        shiftCell.rowSpan = 1;
+      } else if (currentShiftDisplay && tr.style.display !== 'none') {
+        currentShiftDisplay.rowSpan = visibleCountInShift;
+        currentShiftDisplay.parentElement.style.display = 'table-row';
+      }
+      if (currentShiftDisplay && visibleCountInShift === 0 && tr.style.display === 'none' && !tr.querySelector('td[rowspan]')) {
+        currentShiftDisplay.parentElement.style.display = 'none';
+      }
+    }));
+  }
+};
 
 window.searchDutyMyself = function() {
-    const searchInput = document.getElementById('dutySearchInput');
-    if(currentUser && currentUser.username) {
-        searchInput.value = currentUser.username; window.filterDutyResult();
-    }
-}
+  const searchInput = document.getElementById('dutySearchInput');
+  if (currentUser && currentUser.username) {
+    searchInput.value = currentUser.username;
+    window.filterDutyResult();
+  }
+};

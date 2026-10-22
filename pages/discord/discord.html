@@ -1,5 +1,5 @@
 <div id="dsApp" class="fade-in flex flex-col h-full rounded-2xl overflow-hidden">
-    <!-- 🎩 Premium Tab System — สีประจำแท็บอยู่ใน style="--acc" (JS เขียน className ทับได้ ไม่กระทบสี) -->
+    
     <style id="ds-premium-tabs">
         .ds-topbar{ background:linear-gradient(180deg,var(--k-panel2),var(--k-panel2)); border-bottom:1px solid rgba(232,193,90,0.12); padding:12px 14px; display:flex; align-items:center; gap:12px; flex-shrink:0; box-shadow:0 6px 24px -12px rgba(0,0,0,.7); }
         .ds-brand{ width:40px;height:40px;border-radius:13px;flex-shrink:0; background:linear-gradient(135deg,#4f46e5,#7c3aed); display:flex;align-items:center;justify-content:center; color:#fff; box-shadow:0 0 18px rgba(99,102,241,.45), inset 0 1px 0 rgba(255,255,255,.25); }
@@ -14,19 +14,18 @@
         .ds-tab-active .tab-chip .material-icons{ color:var(--k-tx-strong); }
         .ds-close{ display:inline-flex; align-items:center; gap:6px; padding:8px 14px; border-radius:12px; font-weight:800; font-size:13px; color:var(--k-red-tx); background:rgba(248,113,113,0.07); border:1px solid rgba(248,113,113,0.25); cursor:pointer; transition:all .16s; flex-shrink:0; white-space:nowrap; }
         .ds-close:hover{ background:rgba(248,113,113,0.16); color:var(--k-tx); box-shadow:0 0 14px rgba(248,113,113,.2); }
-        /* ── แท็บย่อยศูนย์เสียง ── */
+
         .tts-sub{ display:inline-flex; align-items:center; gap:7px; padding:8px 15px; border-radius:12px; font-weight:800; font-size:13px; color:var(--k-mute); background:color-mix(in srgb,var(--k-tx-strong) 3.0%,transparent); border:1px solid color-mix(in srgb,var(--k-tx-strong) 7.0%,transparent); cursor:pointer; transition:all .16s ease; white-space:nowrap; }
         .tts-sub .material-icons{ font-size:15px; color:color-mix(in srgb, var(--acc) 75%, transparent); transition:color .16s; }
         .tts-sub:hover{ color:var(--k-tx-strong); border-color:color-mix(in srgb, var(--acc) 40%, transparent); background:color-mix(in srgb, var(--acc) 7%, transparent); }
         .tts-sub-active{ color:var(--k-tx-strong); background:linear-gradient(135deg, color-mix(in srgb, var(--acc) 30%, var(--k-bg)), color-mix(in srgb, var(--acc) 10%, var(--k-bg))); border-color:color-mix(in srgb, var(--acc) 60%, transparent); box-shadow:0 0 16px color-mix(in srgb, var(--acc) 30%, transparent); }
         .tts-sub-active .material-icons{ color:var(--k-tx-strong); }
-    </style>
-
-    <!-- 🎨 Discord Tools — ระบบหน้าตาเดียวกันทั้ง 7 แท็บ (การ์ด / หัวการ์ด / ปุ่ม / ช่องกรอก / ตาราง) — ไม่แตะ id / onclick -->
+</style>
+    
     <style id="ds-skin">
         #dsApp{background:var(--k-bg);border:1px solid var(--k-line);color:var(--k-tx)}
         #dsApp .ds-body{background:var(--k-bg)}
-        /* แถบบน */
+
         #dsApp .ds-topbar{background:var(--k-panel) !important;border-bottom:1px solid var(--k-line) !important;box-shadow:none !important;padding:10px 12px !important}
         #dsApp .ds-brand{width:38px !important;height:38px !important;border-radius:11px !important;background:#5865F2 !important;box-shadow:0 6px 16px rgba(88,101,242,.3) !important}
         #dsApp .ds-tab{height:38px;padding:0 13px 0 7px !important;border-radius:11px !important;color:var(--k-mute) !important;transform:none !important}
@@ -37,32 +36,31 @@
         #dsApp .ds-close{height:36px;padding:0 13px !important;border-radius:10px !important;color:var(--k-tx2) !important;background:var(--k-btn) !important;border:1px solid var(--k-line3) !important}
         #dsApp .ds-close:hover{background:var(--k-red-bg) !important;border-color:var(--k-red-line) !important;color:var(--k-red-tx) !important;box-shadow:none !important}
 
-        /* การ์ดหลักของแต่ละแท็บ */
         #dsApp [id^="dsContent_"] :is(.bg-slate-800.rounded-2xl,.bg-slate-800.rounded-3xl,.bg-slate-800.rounded-xl){background:var(--k-panel) !important;border:1px solid var(--k-line) !important;border-radius:16px !important;box-shadow:none !important}
         #dsApp [id^="dsContent_"] > .bg-slate-800{overflow:hidden}
-        /* หัวการ์ด */
+
         #dsApp [id^="dsContent_"] h2{font-size:15px !important;font-weight:900 !important;color:var(--k-tx-strong) !important;display:flex;align-items:center;gap:10px !important}
         #dsApp [id^="dsContent_"] h2 > .material-icons{width:32px;height:32px;border-radius:9px;display:inline-flex !important;align-items:center;justify-content:center;font-size:18px !important;background:var(--k-btn-h);flex:none}
         #dsApp [id^="dsContent_"] h3{font-size:13.5px !important;font-weight:900 !important;color:var(--k-tx-strong)}
-        /* แถบหัว/แถบเครื่องมือในการ์ด */
+
         #dsApp [id^="dsContent_"] .bg-slate-900.border-b,#dsApp [id^="dsContent_"] .bg-slate-800.border-b{background:var(--k-panel2) !important;border-color:var(--k-line) !important}
         #dsApp [id^="dsContent_"] .border-slate-700,#dsApp [id^="dsContent_"] .border-slate-600,#dsApp [id^="dsContent_"] .border-slate-700\/50{border-color:var(--k-line) !important}
-        /* กล่องย่อยด้านใน */
+
         #dsApp [id^="dsContent_"] .bg-slate-900:not(input):not(select):not(button):not(thead){background:var(--k-panel2) !important}
         #dsApp [id^="dsContent_"] .rounded-2xl.bg-slate-900,#dsApp [id^="dsContent_"] .rounded-xl.bg-slate-900{border-color:var(--k-line) !important}
-        /* ช่องกรอก / ตัวเลือก */
+
         #dsApp :is(input[type=text],input[type=number],input[type=search],input[type=date],input[type=time],input[type=datetime-local],select,textarea){border-radius:10px !important;background:var(--k-field) !important;border:1px solid var(--k-line2) !important;color:var(--k-tx) !important;font-weight:700;outline:none;box-shadow:none !important}
         #dsApp :is(input[type=text],input[type=number],input[type=search],input[type=date],input[type=time],input[type=datetime-local],select){min-height:36px;padding-left:11px !important;padding-right:11px !important}
         #dsApp :is(input,select,textarea):focus{border-color:var(--k-gold) !important;box-shadow:0 0 0 3px rgba(232,193,90,.15) !important}
         #dsApp select option{background:var(--k-field);color:var(--k-tx)}
         #dsApp input::placeholder,#dsApp textarea::placeholder{color:var(--k-mute3) !important}
-        /* ปุ่ม: รูปทรงเดียวกันทั้งหน้า (ยังคงสีตามหน้าที่เดิม) */
+
         #dsApp [id^="dsContent_"] button{border-radius:10px !important;font-weight:800 !important;transition:background .15s,border-color .15s,color .15s,filter .15s,transform .08s !important}
         #dsApp [id^="dsContent_"] button:active{transform:scale(.97)}
         #dsApp [id^="dsContent_"] button:is([class*="bg-sky-"],[class*="bg-indigo-"],[class*="bg-blue-"],[class*="bg-emerald-"],[class*="bg-green-"],[class*="bg-amber-"],[class*="bg-teal-"],[class*="bg-violet-"],[class*="bg-purple-"],[class*="bg-fuchsia-"],[class*="bg-pink-"],[class*="bg-cyan-"]):not([class*="/"]){min-height:36px;box-shadow:none !important;border-color:transparent !important}
         #dsApp [id^="dsContent_"] button:is(.bg-slate-700,.bg-slate-800,.bg-slate-900,.bg-gray-700){background:var(--k-btn) !important;border:1px solid var(--k-line3) !important;color:var(--k-tx2) !important}
         #dsApp [id^="dsContent_"] button:is(.bg-slate-700,.bg-slate-800,.bg-slate-900,.bg-gray-700):hover{background:var(--k-btn-h) !important;color:var(--k-tx-strong) !important}
-        /* ตาราง */
+
         #dsApp table thead{background:var(--k-panel2) !important;border-color:var(--k-line) !important}
         #dsApp table thead th{font-size:11.5px !important;font-weight:800 !important;color:var(--k-mute) !important;padding-top:11px !important;padding-bottom:11px !important}
         #dsApp table thead th.text-amber-400{color:var(--k-amber-tx) !important}
@@ -71,12 +69,12 @@
         #dsApp table tbody tr{border-color:var(--k-line) !important}
         #dsApp table tbody tr:hover{background:var(--k-btn-h) !important}
         #dsApp :is(.divide-slate-700,.divide-slate-700\/50) > * + *{border-color:var(--k-line) !important}
-        /* ตัวอักษรเล็กเกินไป */
+
         #dsApp [id^="dsContent_"] .text-\[10px\]{font-size:11.5px !important}
         #dsApp [id^="dsContent_"] .text-\[9px\]{font-size:10.5px !important}
-        /* หน้าต่างรายละเอียดเช็คอิน */
+
         #dsApp #breaktrackModal > div{background:var(--k-panel) !important;border-color:var(--k-line) !important;border-radius:16px !important}
-    </style>
+</style>
     <div class="ds-topbar">
         <div class="ds-brand"><span class="material-icons">discord</span></div>
         <div class="ds-tabs-rail">
@@ -175,7 +173,7 @@
                                 <span class="material-icons text-[14px]">sync</span> ดึงรายชื่อใหม่
                             </button>
                         </div>
-                        <!-- [ซ่อนไว้] ฟังก์ชัน addStaff() ไม่มีอยู่จริงในโปรเจกต์ ปุ่มนี้กดแล้วไม่เกิดอะไร — เปิดคืนได้เมื่อเขียนฟังก์ชันแล้ว -->
+                        
                         <div style="display:none" class="flex gap-2 mb-3 shrink-0">
                             <input type="text" id="newStaffName" placeholder="พิมพ์ชื่อเพิ่มเอง..." class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl p-2.5 text-sm outline-none focus:border-sky-500">
                             <button onclick="addStaff()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition shadow">เพิ่ม</button>
@@ -203,13 +201,12 @@
                     <div class="bg-slate-900 p-5 rounded-2xl border border-slate-700 flex flex-col h-[650px] shadow-inner">
                         <div class="flex justify-between items-center mb-2 shrink-0">
                             <h3 class="text-emerald-400 font-bold flex items-center gap-1.5"><span class="material-icons text-[18px]">auto_awesome</span> จัดการกลุ่ม (กดดู/แก้ชื่อได้)</h3>
-                            <!-- [ซ่อนไว้] ฟังก์ชัน autoBuildGroups() ไม่มีอยู่จริงในโปรเจกต์ -->
+                            
                             <button style="display:none" onclick="autoBuildGroups()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition flex items-center gap-1" title="ดึงข้อมูลจากเว็บมาจัดกลุ่มให้ใหม่">
                                 <span class="material-icons text-[14px]">bolt</span> จัดกลุ่มออโต้
                             </button>
                         </div>
                         
-                        <!-- [ซ่อนไว้] ฟังก์ชัน createGroup() ไม่มีอยู่จริงในโปรเจกต์ -->
                         <div style="display:none" class="flex gap-2 mb-3 pb-3 border-b border-slate-700 shrink-0 mt-2">
                             <input type="text" id="newGroupName" placeholder="พิมพ์ชื่อกลุ่มใหม่เพื่อสร้างเอง..." class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl p-2.5 text-sm outline-none focus:border-emerald-500">
                             <button onclick="createGroup()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition shadow">สร้างกลุ่ม</button>
@@ -327,13 +324,10 @@
                 </div>
             </div>
         </div>
-    
-        
-
-      <!-- ===== TAB เช็คอิน ===== -->
+      
       <div id="dsContent_breaktrack" class="max-w-6xl mx-auto hidden fade-in pb-10">
         <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-lg">
-          <!-- Header -->
+          
           <div class="flex flex-wrap justify-between items-center mb-6 gap-3">
             <h2 class="text-emerald-400 font-black flex items-center gap-2 text-xl">
               <span class="material-icons">coffee</span> เช็คอิน
@@ -357,17 +351,14 @@
               <button onclick="window.toggleBreakGroupsPanel()" class="text-gray-400 hover:text-white flex items-center gap-1 text-sm bg-slate-900 px-3 py-2 rounded-xl border border-slate-600 transition">
                 <span class="material-icons text-sm">group</span> ตั้งค่ากลุ่ม
               </button>
-              <!-- [ซ่อนไว้] ฟังก์ชัน toggleParseRulesPanel() ไม่มีอยู่จริง แผง #parseRulesPanel จึงเปิดไม่ได้อยู่แล้ว -->
+              
               <button style="display:none" onclick="window.toggleParseRulesPanel()" class="text-gray-400 hover:text-white flex items-center gap-1 text-sm bg-slate-900 px-3 py-2 rounded-xl border border-slate-600 transition">
                 <span class="material-icons text-sm">manage_search</span> ตั้งค่าคำที่จับ
               </button>
 
             </div>
           </div>
-
-
-
-          <!-- ตั้งค่ากลุ่มเช็คอิน (แจ้งพัก) -->
+          
           <div id="breakGroupsPanel" class="hidden bg-slate-900 border border-slate-700 rounded-2xl p-4 mb-6">
             <div class="flex justify-between items-center mb-3">
               <h3 class="text-white font-black text-sm flex items-center gap-2">
@@ -387,8 +378,7 @@
               </button>
             </div>
           </div>
-
-          <!-- ═══════════ ตั้งค่าคำที่บอทจับ (Parse Rules) ═══════════ -->
+          
           <div id="parseRulesPanel" class="hidden bg-slate-900 border border-slate-700 rounded-2xl p-4 mb-6">
             <div class="flex justify-between items-center mb-3">
               <h3 class="text-white font-black text-sm flex items-center gap-2">
@@ -403,8 +393,7 @@
               ตั้งค่าว่าบอทจะแปลข้อความในกลุ่มเป็นกิจกรรมอะไร<br>
               <b class="text-amber-400">แก้แล้วบอทรับรู้เองภายในไม่กี่วินาที ไม่ต้องรีสตาร์ท</b> — แนะนำให้ทดลองในช่องล่างสุดก่อนกดบันทึกทุกครั้ง
             </p>
-
-            <!-- รายการกิจกรรม -->
+            
             <div class="mb-4">
               <div class="text-emerald-400 font-bold text-xs mb-2 flex items-center gap-1">
                 <span class="material-icons text-xs">list</span> กิจกรรมที่จับ
@@ -414,14 +403,12 @@
                 <span class="material-icons text-xs align-middle">add</span> เพิ่มกิจกรรมใหม่
               </button>
             </div>
-
-            <!-- คำว่ากลับที่นั่ง -->
+            
             <div class="mb-4">
               <label class="text-emerald-400 font-bold text-xs mb-1 block">คำที่ถือว่า "กลับมาแล้ว" (คั่นด้วยเครื่องหมายจุลภาค)</label>
               <input type="text" id="prReturnWords" class="w-full bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs outline-none focus:border-emerald-500">
             </div>
-
-            <!-- โหมดผู้เชี่ยวชาญ -->
+            
             <details class="mb-4 bg-slate-800/50 rounded-xl border border-slate-700">
               <summary class="cursor-pointer px-3 py-2 text-amber-400 font-bold text-xs select-none">
                 ⚠️ โครงประโยค (แก้เฉพาะเมื่อบอทอ่านไม่ออกแล้ว)
@@ -455,8 +442,7 @@
                 </div>
               </div>
             </details>
-
-            <!-- ช่องทดลอง -->
+            
             <div class="mb-4 bg-slate-800/50 rounded-xl border border-sky-500/30 p-3">
               <div class="text-sky-400 font-bold text-xs mb-2 flex items-center gap-1">
                 <span class="material-icons text-xs">science</span> ทดลองก่อนบันทึก
@@ -468,8 +454,7 @@
               </button>
               <div id="prTestResult" class="mt-3"></div>
             </div>
-
-            <!-- ปุ่มบันทึก -->
+            
             <div class="flex gap-2 flex-wrap">
               <button onclick="window.saveParseRules()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl font-bold text-xs transition active:scale-95">
                 <span class="material-icons text-xs align-middle">save</span> บันทึก
@@ -482,11 +467,9 @@
               </button>
             </div>
           </div>
-
-          <!-- สรุปตัวเลข -->
+          
           <div id="breaktrackSummary" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6"></div>
-
-          <!-- ตารางรายชื่อ -->
+          
           <div class="overflow-x-auto rounded-2xl border border-slate-700">
             <table class="w-full text-sm">
               <thead>
@@ -504,15 +487,13 @@
               <tbody id="breaktrackTableBody" class="divide-y divide-slate-700/50"></tbody>
             </table>
           </div>
-
-          <!-- Loading -->
+          
           <div id="breaktrackLoading" class="hidden text-center py-12 text-gray-400">
             <div class="animate-spin h-8 w-8 border-2 border-emerald-500 rounded-full border-t-transparent mx-auto mb-3"></div>
             <p class="font-bold">กำลังโหลด...</p>
           </div>
         </div>
-
-        <!-- Modal รายละเอียด -->
+        
         <div id="breaktrackModal" class="fixed inset-0 bg-black/70 z-50 hidden flex items-center justify-center p-4">
           <div class="bg-slate-800 rounded-3xl border border-slate-600 shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
             <div class="flex justify-between items-center px-6 py-4 border-b border-slate-700">
@@ -525,14 +506,11 @@
           </div>
         </div>
       </div>
-      <!-- ===== จบ TAB เช็คอิน ===== -->
-
-        <!-- 📊 นับแชท — เนื้อหาวาดโดย js/discord/chatcount.js -->
+        
         <div id="dsContent_chatcount" class="max-w-6xl mx-auto hidden fade-in pb-16"></div>
-        <!-- 🔊 ศูนย์ควบคุมเสียงแจ้งเตือน (พรีเมียม) -->
+        
         <div id="dsContent_ttsvoice" class="max-w-5xl mx-auto hidden fade-in pb-16">
-
-            <!-- แถบสถานะสด -->
+            
             <div class="relative overflow-hidden rounded-3xl border border-slate-700 bg-gradient-to-br from-slate-800 via-slate-800 to-indigo-950/40 p-5 mb-4 shadow-xl">
                 <div class="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-sky-500/10 blur-2xl"></div>
                 <div class="relative flex flex-wrap items-center justify-between gap-4">
@@ -550,8 +528,7 @@
                     </div>
                 </div>
             </div>
-
-            <!-- แท็บย่อย -->
+            
             <div class="flex items-center gap-2 mb-4 flex-wrap">
                 <button onclick="ttsSubTab('groups')" id="ttsSub_groups" class="tts-sub tts-sub-active" style="--acc:#0ea5e9"><span class="material-icons">groups</span> กลุ่ม &amp; กะ</button>
                 <button onclick="ttsSubTab('bots')" id="ttsSub_bots" class="tts-sub" style="--acc:#a78bfa"><span class="material-icons">smart_toy</span> กองบอท</button>
@@ -560,23 +537,20 @@
                 <button onclick="ttsSubTab('history')" id="ttsSub_history" class="tts-sub" style="--acc:#60a5fa"><span class="material-icons">history</span> ประวัติ</button>
                 <button onclick="ttsSubTab('settings')" id="ttsSub_settings" class="tts-sub" style="--acc:#E8C15A"><span class="material-icons">tune</span> ตั้งค่าเสียง</button>
             </div>
-
-            <!-- แผงเนื้อหา -->
+            
             <div id="ttsPane_groups" class="space-y-4"></div>
             <div id="ttsPane_bots" class="space-y-3 hidden"></div>
             <div id="ttsPane_telegram" class="space-y-4 hidden"></div>
             <div id="ttsPane_schedule" class="space-y-4 hidden"></div>
             <div id="ttsPane_history" class="hidden"></div>
             <div id="ttsPane_settings" class="hidden"></div>
-
-            <!-- ปุ่มบันทึก (ลอยล่าง) -->
+            
             <div class="sticky bottom-4 mt-6 flex justify-end">
                 <button onclick="ttsSaveConfig()" class="bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-400 hover:to-indigo-400 text-white px-8 py-3.5 rounded-2xl font-black transition shadow-2xl shadow-sky-500/30 flex items-center gap-2">
                     <span class="material-icons">save</span> บันทึกการตั้งค่า
                 </button>
             </div>
         </div>
-
 
 <div id="discordTemplates" class="hidden">
     <template id="tpl-ds-spy-row">
@@ -605,7 +579,6 @@
             <span class="font-bold text-gray-300 group-hover:text-white transition">{{name}}</span>
         </label>
     </template>
-    
 
     <template id="tpl-ds-manager-row">
         <div class="flex justify-between items-center p-3 bg-slate-900 rounded-xl border border-slate-700 shadow-sm mb-2 hover:border-sky-500 transition">
@@ -680,6 +653,5 @@
             <td class="p-3 font-bold text-indigo-300 truncate max-w-[150px]">{{room}}</td>
         </tr>
     </template>
-
     
 </div>

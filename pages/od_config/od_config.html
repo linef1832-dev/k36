@@ -1,4 +1,4 @@
-<!-- ⚙️ ตั้งค่าส่วนขยาย OD Form Bot (ออกแบบใหม่) — id / onclick เดิมครบ ใช้กับ js/od_config/* ได้เหมือนเดิม -->
+
 <div id="odConfigApp" class="fade-in k-auto-light">
 <style>
 #odConfigApp{--a:42,171,238;--at:#2AABEE;background:var(--k-bg);color:var(--k-tx);min-height:100%;display:flex;flex-direction:column}
@@ -44,13 +44,13 @@
 #odConfigApp .oc-btn.save{background:#10b981;border-color:#10b981;color:#fff;height:42px;padding:0 18px;font-size:14px}
 #odConfigApp .oc-btn.save:hover{filter:brightness(1.07)}
 #odConfigApp .oc-btn .material-icons{font-size:17px}
-/* บอท */
+
 #odConfigApp .oc-bot{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
 #odConfigApp .oc-tests{display:flex;flex-wrap:wrap;gap:8px;padding:14px 20px;border-top:1px dashed var(--k-line2);align-items:center}
 #odConfigApp .oc-tests .oc-label{margin:0 4px 0 0}
 #odConfigApp #odCfgBotInfo{margin:0 20px 18px;padding:12px 14px;border-radius:12px;background:var(--k-sunk);border:1px solid var(--k-line);color:var(--k-tx2);font-size:12.5px;font-family:ui-monospace,monospace;white-space:pre-wrap}
 #odConfigApp #odCfgBtnToggle{height:38px!important;padding:0 14px!important;border-radius:11px!important;font-size:13px!important}
-/* เว็บ + โปร */
+
 #odConfigApp .oc-webs{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:18px}
 #odConfigApp .oc-box{border:1px solid var(--k-line);border-radius:14px;background:var(--k-panel2);padding:12px;min-width:0}
 #odConfigApp .oc-box-h{display:flex;align-items:center;gap:8px;margin-bottom:10px}
@@ -59,14 +59,14 @@
 #odConfigApp #odCfgPromoList{display:flex;flex-wrap:wrap;gap:8px;min-height:120px;align-content:flex-start}
 #odConfigApp #odCfgReasonList{display:flex;flex-direction:column;gap:6px}
 #odConfigApp #odCfgNoteList{display:flex;flex-wrap:wrap;gap:8px}
-/* ฟอร์ม */
+
 #odConfigApp .oc-forms{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 #odConfigApp .oc-form{border:1px solid var(--k-line);border-radius:16px;background:var(--k-panel2);padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
 #odConfigApp .oc-form-h{display:flex;align-items:center;gap:10px}
 #odConfigApp .oc-form-h b{font-size:15px;font-weight:900;color:var(--k-tx-strong);margin-right:auto}
 #odConfigApp .oc-dot{width:10px;height:10px;border-radius:99px;background:var(--c);flex:none}
 #odConfigApp .oc-form.wide{grid-column:1/-1}
-/* รูปแบบข้อความ */
+
 #odConfigApp .oc-tabs{display:flex;flex-wrap:wrap;gap:6px;padding:14px 20px 0}
 #odConfigApp .oc-tab{height:36px;padding:0 14px;border-radius:999px;font-size:13px;font-weight:800;color:var(--k-tx3);background:var(--k-field);border:1px solid var(--k-line2);transition:background .15s,color .15s,border-color .15s}
 #odConfigApp .oc-tab:hover{color:var(--k-tx-strong);border-color:var(--k-line4)}
@@ -87,11 +87,11 @@
 #odConfigApp .oc-switch input:checked+span{background:#10b981}
 #odConfigApp .oc-switch input:checked+span::after{transform:translateX(18px)}
 #odConfigApp .oc-switch input:focus-visible+span{outline:2px solid rgb(var(--a));outline-offset:2px}
-/* แท็กกะ */
+
 #odConfigApp .oc-shift{border-radius:14px;padding:14px;border:1px solid var(--k-line);background:var(--k-panel2)}
 #odConfigApp .oc-shift-h{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:900;color:var(--k-tx-strong);margin-bottom:10px}
 #odConfigApp .oc-shift-h input{width:auto;padding:6px 10px;font-size:13px}
-/* ประวัติ */
+
 #odConfigApp .oc-filters{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:14px}
 #odConfigApp .oc-filters > div{display:flex;flex-direction:column}
 #odConfigApp .oc-filters .oc-input{padding:8px 10px;font-size:13px}
@@ -100,21 +100,20 @@
 #odConfigApp .oc-table thead th{background:var(--k-panel2);font-size:12px;font-weight:800;color:var(--k-mute);padding:10px 12px;text-align:left;border-bottom:1px solid var(--k-line)}
 #odConfigApp .odCfgHist-row{border-color:var(--k-line)!important}
 #odConfigApp .odCfgHist-row:hover{background:var(--k-btn-h)}
-/* แถบบันทึกค้างล่างจอ */
+
 #odConfigApp .oc-savebar{position:sticky;bottom:0;z-index:30;margin-top:auto;background:color-mix(in srgb,var(--k-panel) 92%,transparent);backdrop-filter:blur(8px);border-top:1px solid var(--k-line)}
 #odConfigApp .oc-savebar-in{max-width:1440px;margin:0 auto;padding:12px 22px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 #odConfigApp .oc-savebar-msg{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:800;color:var(--k-mute);margin-right:auto}
 #odConfigApp .oc-savebar-msg i{width:9px;height:9px;border-radius:99px;background:var(--k-mute2)}
 #odConfigApp .oc-savebar.dirty .oc-savebar-msg{color:var(--k-amber-tx)}
 #odConfigApp .oc-savebar.dirty .oc-savebar-msg i{background:#f59e0b;box-shadow:0 0 0 4px rgba(245,158,11,.2)}
-/* ข้อความแจ้งสถานะ: ลอยด้านบน */
+
 #odConfigApp #odCfgStatus{position:fixed;top:84px;left:50%;transform:translateX(-50%);z-index:9000;width:min(620px,calc(100vw - 32px));margin:0!important;box-shadow:0 14px 36px rgba(0,0,0,.35);backdrop-filter:blur(6px)}
 @media (max-width:1100px){ #odConfigApp .oc-nav{display:none} #odConfigApp .oc-webs,#odConfigApp .oc-tpl{grid-template-columns:1fr} }
 @media (max-width:760px){ #odConfigApp .oc-grid,#odConfigApp .oc-bot,#odConfigApp .oc-forms{grid-template-columns:1fr} #odConfigApp .oc-body{padding:14px 12px 110px} #odConfigApp .oc-sec-a{margin-left:0} }
 @media (prefers-reduced-motion:reduce){ #odConfigApp *{transition:none!important} }
 </style>
-
-    <!-- หัวหน้า -->
+    
     <div class="oc-head">
         <div class="oc-logo"><span class="material-icons">extension</span></div>
         <div style="margin-right:auto;min-width:0">
@@ -127,7 +126,7 @@
     <div id="odCfgStatus" class="hidden mx-4 mt-3 p-3 rounded-xl text-sm font-bold text-center"></div>
 
     <div class="oc-body">
-        <!-- เมนูซ้าย -->
+        
         <nav class="oc-nav" aria-label="หมวดการตั้งค่า">
             <button type="button" data-sec="ocSecBot" onclick="odCfg_go('ocSecBot')" class="on"><span class="material-icons">smart_toy</span>การเชื่อมต่อบอท</button>
             <button type="button" data-sec="ocSecWebs" onclick="odCfg_go('ocSecWebs')"><span class="material-icons">language</span>เว็บ &amp; รหัสโปร</button>
@@ -138,8 +137,7 @@
         </nav>
 
         <div class="oc-main">
-
-            <!-- ① การเชื่อมต่อบอท -->
+            
             <section id="ocSecBot" class="oc-sec">
                 <div class="oc-sec-h">
                     <span class="oc-sec-ic"><span class="material-icons">smart_toy</span></span>
@@ -181,8 +179,7 @@
                 </div>
                 <div id="odCfgBotInfo" class="hidden"></div>
             </section>
-
-            <!-- ② เว็บ & รหัสโปร -->
+            
             <section id="ocSecWebs" class="oc-sec" style="--c:#f59e0b">
                 <div class="oc-sec-h">
                     <span class="oc-sec-ic"><span class="material-icons">language</span></span>
@@ -203,8 +200,7 @@
                     </div>
                 </div>
             </section>
-
-            <!-- ③ ฟอร์ม & ห้องส่ง -->
+            
             <section id="ocSecForms" class="oc-sec" style="--c:#a855f7">
                 <div class="oc-sec-h">
                     <span class="oc-sec-ic"><span class="material-icons">dynamic_form</span></span>
@@ -236,8 +232,7 @@
                     </div>
                 </div>
             </section>
-
-            <!-- ④ รูปแบบข้อความ -->
+            
             <section id="ocSecTpl" class="oc-sec" style="--c:#10b981">
                 <div class="oc-sec-h">
                     <span class="oc-sec-ic"><span class="material-icons">chat</span></span>
@@ -336,8 +331,7 @@
                     </div>
                 </div>
             </section>
-
-            <!-- ⑤ แท็กคนตามกะ -->
+            
             <section id="ocSecTags" class="oc-sec" style="--c:#f43f5e">
                 <div class="oc-sec-h">
                     <span class="oc-sec-ic"><span class="material-icons">alternate_email</span></span>
@@ -360,8 +354,7 @@
                     </div>
                 </div>
             </section>
-
-            <!-- ⑥ ประวัติข้อความ -->
+            
             <section id="ocSecHist" class="oc-sec" style="--c:#6366f1">
                 <div class="oc-sec-h">
                     <span class="oc-sec-ic"><span class="material-icons">history</span></span>
@@ -394,16 +387,14 @@
 
         </div>
     </div>
-
-    <!-- แถบบันทึกค้างล่างจอ -->
+    
     <div class="oc-savebar" id="ocSaveBar">
         <div class="oc-savebar-in">
             <span class="oc-savebar-msg"><i></i><span id="ocSaveBarText">ค่าทั้งหมดบันทึกแล้ว</span></span>
             <button type="button" onclick="odCfg_save()" class="oc-btn save"><span class="material-icons">save</span>บันทึกทั้งหมด</button>
         </div>
     </div>
-
-    <!-- หน้าต่างแก้ไขข้อความ -->
+    
     <div id="odCfgEditModal" class="hidden fixed inset-0 z-[9999] items-center justify-center bg-black/60 p-4">
         <div style="width:100%;max-width:560px;background:var(--k-panel);border:1px solid var(--k-line3);border-radius:18px;box-shadow:0 24px 60px rgba(0,0,0,.45)">
             <div class="oc-sec-h" style="--c:#f59e0b"><span class="oc-sec-ic"><span class="material-icons">edit</span></span><h3 class="oc-sec-t" style="margin-right:auto">แก้ไขข้อความในกลุ่ม</h3><button type="button" onclick="odCfgHist_editClose()" class="oc-btn sm ghost" aria-label="ปิด"><span class="material-icons">close</span></button></div>

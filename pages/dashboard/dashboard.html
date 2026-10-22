@@ -1,8 +1,6 @@
 <div class="fade-in pb-10">
 <style>
 
-
-
 .row-edit-btn { transition: opacity .12s, color .12s; }
 
 </style>
@@ -12,7 +10,6 @@
 .staff-row:hover .row-edit-btn { opacity: 1 !important; }
 .row-edit-btn:hover { color:var(--text-pro) !important; }
 </style>
-
     
     <div id="mainContentArea" class="block w-full">
         <div style="position:relative;background:linear-gradient(120deg,rgba(59,130,246,0.14),color-mix(in srgb,var(--k-panel2) 60.0%,transparent) 40%,color-mix(in srgb,var(--k-panel2) 30.0%,transparent)),linear-gradient(165deg,var(--k-panel2),var(--k-panel2));border:1px solid rgba(59,130,246,0.28);border-radius:18px;padding:18px 20px;margin-bottom:24px;box-shadow:0 10px 32px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.06);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
@@ -59,8 +56,7 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div class="lg:col-span-4 bg-gray-50 dark:bg-slate-800 rounded-2xl shadow-sm sticky top-2 h-fit overflow-y-auto max-h-[calc(100vh-120px)] custom-scrollbar" style="padding:16px;border:1px solid rgba(148,163,184,.16);border-top:3px solid #3b82f6;background:linear-gradient(180deg,var(--k-panel),var(--k-panel2))">
-
-                <!-- 🎫 หัวแถวเดียว: ชื่อ + โควตา + ปุ่มกฎ (ทุกอย่างจบในบรรทัดเดียว ประหยัดที่) -->
+                
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">
                     <h4 style="display:flex;align-items:center;gap:6px;font-weight:900;font-size:14px;color:var(--k-gold-tx);margin:0;letter-spacing:0.03em;white-space:nowrap">
                         <span class="material-icons" style="font-size:16px">timer</span> ลงเวลาพัก
@@ -75,19 +71,16 @@
                         </button>
                     </div>
                 </div>
-
-                <!-- 📜 กฎฉบับเต็ม (ยุบไว้ กดปุ่ม "กฎ" เพื่อกาง) — เนื้อหาเดิมครบทุกตัวอักษร -->
+                
                 <div id="breakRulesPanel" class="hidden" style="margin-bottom:12px;background:linear-gradient(165deg,var(--k-panel2),var(--k-panel2));border:1px solid rgba(232,193,90,0.25);border-radius:14px;padding:10px 12px">
                     <p style="font-size:11.5px;font-weight:900;color:var(--k-gold-tx);margin:0 0 7px;display:flex;align-items:center;gap:5px">📌 กฎการพัก <span style="font-weight:600;color:var(--k-tx3);font-size:9.5px">· พักตามรอบ ลดความเสียหายหน้างาน</span></p>
-
-                    <!-- กฎ 4 ข้อ แบบแถวสั้นๆ สแกนตาจบใน 3 วิ -->
+                    
                     <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px">
                         <div style="display:flex;align-items:center;gap:7px;background:rgba(248,113,113,0.07);border:1px solid rgba(248,113,113,0.22);border-radius:9px;padding:5px 9px;font-size:10.5px;color:var(--k-tx)"><span>⏰</span> ชั่วโมงแรกหลังเข้างาน + ชั่วโมงสุดท้ายก่อนเลิก <b style="color:var(--k-red-tx)">พักไม่ได้</b></div>
                         <div style="display:flex;align-items:center;gap:7px;background:rgba(248,113,113,0.07);border:1px solid rgba(248,113,113,0.22);border-radius:9px;padding:5px 9px;font-size:10.5px;color:var(--k-tx)"><span>🚫</span> <b style="color:var(--k-red-tx)">ห้ามลงติดกัน</b> เช่น 13:00-13:30 แล้วต่อ 13:30-14:00 ไม่ได้</div>
                         <div style="display:flex;align-items:center;gap:7px;background:rgba(232,193,90,0.06);border:1px solid rgba(232,193,90,0.2);border-radius:9px;padding:5px 9px;font-size:10.5px;color:var(--k-tx)"><span>🛡️</span> คนเฝ้าเว็บไม่พอ = <b style="color:var(--k-red-tx)">จองไม่ผ่าน</b> (คนกดหลังสุดตอนเต็มถือว่าผิดกระบวนการ)</div>
                     </div>
-
-                    <!-- 📊 ตารางเพดาน: เว็บมีกี่คน → พักพร้อมกันได้กี่คน -->
+                    
                     <p style="font-size:10px;font-weight:800;color:var(--k-tx3);margin:0 0 4px">📊 เว็บมีกี่คน → พักพร้อมกันได้ไม่เกิน</p>
                     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:7px">
                         <div style="background:color-mix(in srgb,var(--k-panel2) 70.0%,transparent);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:var(--k-tx3)">≤4 คน</div><div style="font-size:11px;font-weight:900;color:light-dark(#054ea8,#60a5fa)">1</div></div><div style="background:color-mix(in srgb,var(--k-panel2) 70.0%,transparent);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:var(--k-tx3)">5-7 คน</div><div style="font-size:11px;font-weight:900;color:light-dark(#054ea8,#60a5fa)">2</div></div><div style="background:color-mix(in srgb,var(--k-panel2) 70.0%,transparent);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:var(--k-tx3)">8-10 คน</div><div style="font-size:11px;font-weight:900;color:light-dark(#054ea8,#60a5fa)">3</div></div><div style="background:color-mix(in srgb,var(--k-panel2) 70.0%,transparent);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:var(--k-tx3)">11-14 คน</div><div style="font-size:11px;font-weight:900;color:light-dark(#054ea8,#60a5fa)">4</div></div><div style="background:color-mix(in srgb,var(--k-panel2) 70.0%,transparent);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:var(--k-tx3)">15-20 คน</div><div style="font-size:11px;font-weight:900;color:light-dark(#054ea8,#60a5fa)">5</div></div><div style="background:color-mix(in srgb,var(--k-panel2) 70.0%,transparent);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:var(--k-tx3)">21-25 คน</div><div style="font-size:11px;font-weight:900;color:light-dark(#054ea8,#60a5fa)">6</div></div><div style="background:color-mix(in srgb,var(--k-panel2) 70.0%,transparent);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:var(--k-tx3)">26-30 คน</div><div style="font-size:11px;font-weight:900;color:light-dark(#054ea8,#60a5fa)">7</div></div><div style="background:color-mix(in srgb,var(--k-panel2) 70.0%,transparent);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:var(--k-tx3)">31-35 คน</div><div style="font-size:11px;font-weight:900;color:light-dark(#054ea8,#60a5fa)">8</div></div><div style="background:color-mix(in srgb,var(--k-panel2) 70.0%,transparent);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:var(--k-tx3)">36-40 คน</div><div style="font-size:11px;font-weight:900;color:light-dark(#054ea8,#60a5fa)">9</div></div><div style="background:color-mix(in srgb,var(--k-panel2) 70.0%,transparent);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:var(--k-tx3)">41-45 คน</div><div style="font-size:11px;font-weight:900;color:light-dark(#054ea8,#60a5fa)">10</div></div><div style="background:color-mix(in srgb,var(--k-panel2) 70.0%,transparent);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:var(--k-tx3)">46-50 คน</div><div style="font-size:11px;font-weight:900;color:light-dark(#054ea8,#60a5fa)">11</div></div><div style="background:color-mix(in srgb,var(--k-panel2) 70.0%,transparent);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:var(--k-tx3)">50+ คน</div><div style="font-size:11px;font-weight:900;color:light-dark(#054ea8,#60a5fa)">+1/5</div></div>
@@ -95,15 +88,11 @@
 
                     <p style="font-size:9.5px;color:var(--k-mute);margin:0;line-height:1.5">· เวลาพักอาจปรับตามความเหมาะสมของหน้างาน · ระบบคำนวณเพดานให้อัตโนมัติตามเวรของวันนั้น</p>
                 </div>
-
-                <!-- ⚡ ปุ่มลัด "ลงเหมือนเมื่อวาน" — เติมโดย initQuickRebook() (โผล่เฉพาะเมื่อเมื่อวานมีการลงพัก) -->
+                
                 <div id="quickRebookBox"></div>
-
-                <!-- 📝 ฟอร์มลงเวลา — กระชับ จบในจอเดียว ไม่ต้องเลื่อน -->
+                
                 <form onsubmit="saveMulti(event)" style="display:flex;flex-direction:column;gap:13px">
-
-                    <!-- 🧠 วันที่ทำงาน: ซ่อนไว้ (ระบบตั้งให้เองอัตโนมัติ รวมตรรกะกะดึกก่อน 8 โมง = วันเมื่อวาน)
-                         ทุกระบบยังอ่านค่าจากช่องนี้เหมือนเดิม แค่พนักงานไม่ต้องเห็น/ไม่ต้องยุ่ง -->
+                    
                     <input type="date" id="wDate" onchange="handleDateChange()" style="display:none">
                     <div>
                         <label style="display:block;font-size:9.5px;font-weight:800;color:light-dark(#0622a8,#a5b4fc);letter-spacing:.08em;margin-bottom:4px;text-transform:uppercase">ทีมที่ทำวันนี้</label>
@@ -112,14 +101,12 @@
                             style="padding:9px 10px;font-size:13.5px">
                         </select>
                     </div>
-
-                    <!-- กะ: ปุ่มแนวนอนกระชับ (เนื้อในสร้างโดย renderShiftButtons) -->
+                    
                     <div id="shiftSection">
                         <label style="display:block;font-size:9.5px;font-weight:800;color:var(--k-tx3);letter-spacing:.08em;margin-bottom:5px;text-transform:uppercase">เลือกกะ</label>
                         <div class="grid grid-cols-3 gap-2" id="shiftContainer"></div>
                     </div>
-
-                    <!-- รอบเวลา -->
+                    
                     <div>
                         <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:5px">
                             <label style="font-size:9.5px;font-weight:800;color:var(--k-tx3);letter-spacing:.08em;text-transform:uppercase">
@@ -127,7 +114,7 @@
                                 <span id="slotLoading" class="text-blue-500 hidden items-center gap-1" style="font-size:10px"><span class="animate-spin material-icons" style="font-size:11px">sync</span> อัปเดต...</span>
                             </label>
                         </div>
-                        <!-- 🧠 select ตัวเดิม = สมองของระบบ (ทุกโค้ดเดิมอ่าน/เขียนที่นี่) — แค่ซ่อนไว้ แล้วโชว์เป็นแผงปุ่มแทน -->
+                        
                         <select id="tSlot" style="display:none">
                             <option value="">-- กรุณาเลือกกะก่อน --</option>
                         </select>
@@ -153,7 +140,7 @@
                             .slot-chip.full:hover{border-color:rgba(248,113,113,.45);transform:none;background:color-mix(in srgb,var(--k-panel2) 40.0%,transparent);opacity:.55}
                             .slot-chip.full .t{color:var(--k-tx3);text-decoration:line-through;text-decoration-color:rgba(248,113,113,.7);text-decoration-thickness:1.5px}
                             .slot-chip .s b{font-weight:900}
-                            /* 📅 ช่องวันที่ของแผง "วันนี้" — โปร่งใสสนิททุกเบราว์เซอร์ (กันตัวเลขวันที่โผล่ซ้ำ) */
+
                             .mt-date-hidden{-webkit-appearance:none;appearance:none;color:transparent!important;font-size:0!important;text-shadow:none!important}
                             .mt-date-hidden::-webkit-datetime-edit,
                             .mt-date-hidden::-webkit-datetime-edit-fields-wrapper,
@@ -164,11 +151,11 @@
                             .mt-date-hidden::-webkit-inner-spin-button,
                             .mt-date-hidden::-webkit-clear-button{display:none!important;opacity:0!important;color:transparent!important}
                             .mt-date-hidden::-webkit-calendar-picker-indicator{opacity:0;width:100%;height:100%;position:absolute;inset:0;cursor:pointer}
-                            /* 🍚 เม็ดเวลาพักในแผง "วันนี้ของฉัน" + ปุ่มลบ */
+
                             .mt-break-pill:hover{ border-color:rgba(52,211,153,.7); box-shadow:0 4px 14px -5px rgba(16,185,129,.6); }
                             .mt-break-x:hover{ background:#ef4444 !important; color:#fff !important; transform:rotate(90deg); box-shadow:0 3px 10px -3px rgba(239,68,68,.7); }
                             .mt-break-x:active{ transform:rotate(90deg) scale(.88); }
-                            /* 📏 แถวตัวกรองรอบเวลา: บังคับอยู่แถวเดียวเสมอ — ปุ่มหดเท่าๆ กัน จอแคบมากค่อยเลื่อนซ้ายขวา */
+
                             .slotf-bar{display:flex;flex-wrap:nowrap;gap:5px;margin-bottom:8px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding:2px 0}
                             .slotf-bar::-webkit-scrollbar{display:none}
                             .slotf{flex:1 1 0;min-width:0;text-align:center;border:1px solid rgba(148,163,184,.3);background:color-mix(in srgb,var(--k-panel2) 60.0%,transparent);color:var(--k-tx3);border-radius:99px;padding:4px 6px;font-size:10.5px;font-weight:800;cursor:pointer;transition:all .14s;white-space:nowrap;letter-spacing:0}
@@ -177,7 +164,7 @@
                             .slotf:hover{color:var(--k-tx);border-color:#60a5fa}
                             .slotf.on{background:linear-gradient(135deg,#2563eb,#4f46e5);border-color:#93c5fd;color:#fff;box-shadow:0 4px 12px -5px rgba(59,130,246,.55)}
                             .slotc-empty{border:1px dashed rgba(148,163,184,.3);border-radius:12px;padding:16px 10px;text-align:center;font-size:11.5px;color:var(--k-tx3)}
-                        </style>
+</style>
                         <div id="tSlotChips"><div class="slotc-empty">☝️ เลือกกะก่อน แล้วรอบเวลาจะขึ้นให้เลือกตรงนี้</div></div>
                     </div>
 
@@ -190,17 +177,15 @@
             </div>
 
             <div class="lg:col-span-8 flex flex-col gap-6">
-                <!-- 🆕 [หน้าหลักแบบใหม่] วันนี้ของฉัน — เห็นของตัวเองก่อน (วาดด้วย JS: renderMyToday) -->
+                
                 <div id="myTodayPanel" style="display:flex;flex-direction:column;gap:14px">
                     <div style="text-align:center;color:var(--k-mute);font-size:12px;padding:20px">กำลังโหลดข้อมูลของคุณ...</div>
                 </div>
 
-
             </div>
         </div>
     </div>
-
-    <!-- 🛠️ แผงผู้ดูแลระบบ (ออกแบบใหม่) — id / onclick เดิมทุกตัว -->
+    
     <style>
         #adminPanel{background:var(--k-bg);border:1px solid var(--k-line);color:var(--k-tx)}
         #adminPanel .ap-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:6px;border-radius:16px;background:var(--k-panel);border:1px solid var(--k-line)}
@@ -227,7 +212,6 @@
         #adminPanel .ap-btn.add .material-icons{color:#fff;font-size:20px}
         #adminPanel .ap-btn.add:hover{background:#15803d}
 
-        /* การ์ด */
         #adminPanel .ap-card{background:var(--k-panel);border:1px solid var(--k-line);border-radius:16px;overflow:hidden}
         #adminPanel .ap-ch{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--k-line)}
         #adminPanel .ap-ct{display:flex;align-items:center;gap:10px;margin-right:auto;min-width:0}
@@ -236,7 +220,6 @@
         #adminPanel .ap-hint{font-size:11.5px;font-weight:600;color:var(--k-mute)}
         #adminPanel .ap-cb{padding:14px 16px}
 
-        /* KPI กะ */
         #adminPanel .ap-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
         #adminPanel .ap-kpi{--c:#fb923c;display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:16px;background:var(--k-panel);border:1px solid var(--k-line);border-left:3px solid var(--c)}
         #adminPanel .ap-kpi-ic{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none;background:color-mix(in srgb,var(--c) 16%,transparent);color:var(--c)}
@@ -248,7 +231,6 @@
         #adminPanel .ap-chip.am{color:light-dark(#1d4ed8,#93c5fd);border-color:rgba(59,130,246,.35);background:rgba(59,130,246,.08)}
         #adminPanel .ap-chip.od{color:light-dark(#be185d,#f9a8d4);border-color:rgba(236,72,153,.35);background:rgba(236,72,153,.08)}
 
-        /* ฟอร์มเพิ่ม */
         #adminPanel .ap-add{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px}
         #adminPanel .ap-lbl{display:block;font-size:11.5px;font-weight:800;color:var(--k-tx3);margin-bottom:5px}
         #adminPanel .ap-in{width:100%;height:38px;padding:0 11px;border-radius:10px;background:var(--k-field);border:1px solid var(--k-line2);color:var(--k-tx);font-size:13px;font-weight:700;outline:none;transition:border-color .15s}
@@ -261,7 +243,6 @@
         #adminPanel .ap-ids .ap-in{font-family:ui-monospace,Menlo,monospace;font-size:12px}
         #adminPanel .ap-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 
-        /* แถบกรอง + จัดการที่เลือก */
         #adminPanel .ap-tool{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 16px;border-bottom:1px solid var(--k-line);background:var(--k-panel2)}
         #adminPanel .ap-search{position:relative;flex:1 1 200px;min-width:160px}
         #adminPanel .ap-search .material-icons{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:18px;color:var(--k-mute);pointer-events:none}
@@ -271,7 +252,6 @@
         #adminPanel .ap-bulk .ap-in{height:32px;width:auto;font-size:12px}
         #adminPanel .ap-sep{width:1px;height:22px;background:var(--k-line2);margin:0 2px}
 
-        /* ตาราง */
         #adminPanel .ap-tbl thead th{position:sticky;top:0;z-index:5;background:var(--k-panel2);color:var(--k-mute);font-size:11.5px;font-weight:800;padding:10px 12px;border-bottom:1px solid var(--k-line)}
         #adminPanel .ap-tbl tbody td{border-color:var(--k-line) !important;padding:10px 12px !important}
         #adminPanel .ap-tbl tbody tr:hover{background:var(--k-btn-h) !important}
@@ -279,7 +259,7 @@
 
         @media (max-width:1100px){ #adminPanel .ap-add{grid-template-columns:1fr} }
         @media (max-width:760px){ #adminPanel .ap-kpis{grid-template-columns:1fr} #adminPanel .ap-acts{margin-left:0;width:100%} #adminPanel .ap-acts .ap-btn{flex:1} }
-    </style>
+</style>
     <div id="adminPanel" class="hidden flex-col gap-5 w-full animate-fade-in p-4 md:p-6 rounded-3xl shadow-2xl min-h-[80vh]">
 
         <div class="ap-bar">
@@ -369,7 +349,7 @@
                                         <option value="AM">เฉพาะ AM</option>
                                         <option value="OD">เฉพาะ OD</option>
                                         <option value="AMQL">เฉพาะ AMQL</option>
-                                        <!-- 🧩 รายการแผนกจริงจะถูกเติมทับด้วย populateClearScheduleDept() ใน js/system/admin.js -->
+                                        
                                     </select>
                                 </div>
                                 <div>
@@ -408,8 +388,7 @@
                                     <span class="text-xs font-bold text-gray-300 flex items-center gap-2"><span class="material-icons text-sm text-red-400">event</span> ต่อวัน (ครั้ง):</span>
                                     <input type="number" id="dailyLimitInput" class="w-16 bg-slate-800 border border-slate-600 text-white p-1.5 rounded-lg text-center font-bold outline-none focus:border-red-400">
                                 </div>
-
-                                <!-- ⏳ ระยะห่างขั้นต่ำระหว่างรอบพักของคนเดียวกัน -->
+                                
                                 <div class="bg-slate-900 p-3 rounded-xl border border-slate-700/80">
                                     <div class="flex items-center justify-between gap-2">
                                         <span class="text-xs font-bold text-gray-300 flex items-center gap-2"><span class="material-icons text-sm text-amber-400">hourglass_bottom</span> เว้นระยะอย่างน้อย:</span>
@@ -423,8 +402,7 @@
                                     </div>
                                     <p class="text-[10px] text-gray-500 mt-2 leading-relaxed">ห่างจาก<b class="text-gray-400">รอบที่ตัวเองลงไว้</b> (นับจากจบรอบก่อน ถึงเริ่มรอบใหม่) · <b class="text-amber-400">0 = ห้ามติดกันเฉยๆ</b> (ค่าเดิม) · เช่น 60 นาที = ลง 13:30 แล้วรอบถัดไปต้อง 14:30 ขึ้นไป</p>
                                 </div>
-
-                                <!-- 💾 ปุ่มบันทึกของการ์ดนี้ (เซฟทั้งโควตา/วัน และระยะห่าง) -->
+                                
                                 <button type="button" onclick="saveDailyLimit()" class="w-full bg-gradient-to-r from-red-600 to-rose-600 hover:brightness-110 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition active:scale-95 shadow-lg border border-red-400/50">
                                     <span class="material-icons text-sm">save</span> บันทึกขีดจำกัด
                                 </button>
@@ -543,8 +521,7 @@
                     </div>
                 </div>
             </div>
-
-            <!-- 🧹 [ชั่วคราว] ปุ่มย่อรูปเก่าใน Storage — ทำครบแล้วถอดออกได้ -->
+            
             <div class="bg-[#151f32] p-5 rounded-2xl border border-amber-700/50 shadow-lg mt-4">
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
                     <div>
@@ -561,7 +538,7 @@
         </div> 
 
         <div id="adminView_users" class="hidden flex-col gap-5 w-full animate-fade-in">
-            <!-- จำนวนพนักงานแต่ละกะ -->
+            
             <div class="ap-kpis">
                 <div class="ap-kpi" style="--c:#fb923c">
                     <div class="ap-kpi-ic"><span class="material-icons">wb_sunny</span></div>
@@ -588,8 +565,7 @@
                     </div>
                 </div>
             </div>
-
-            <!-- เพิ่มพนักงาน -->
+            
             <section class="ap-card">
                 <div class="ap-ch">
                     <div class="ap-ct">
@@ -620,8 +596,7 @@
                     </div>
                 </div>
             </section>
-
-            <!-- รายชื่อพนักงาน -->
+            
             <section class="ap-card">
                 <div class="ap-ch">
                     <div class="ap-ct">
@@ -648,7 +623,7 @@
                     </div>
                 </div>
                 <div>
-                    <!-- คงคลาส max-h-[500px] ไว้: ตัวแบ่งหน้าใช้หาตำแหน่งตาราง -->
+                    
                     <div class="max-h-[560px] max-h-[500px] overflow-y-auto custom-scrollbar" style="max-height:560px">
                         <table class="ap-tbl w-full text-sm text-left border-collapse whitespace-nowrap">
                             <thead>
@@ -682,7 +657,6 @@
             </section>
         </div>
 
-
         <div id="adminView_quotalog" class="hidden flex-col gap-4 w-full animate-fade-in">
             <div class="bg-[#151f32] p-5 rounded-2xl border border-slate-700 shadow-lg flex flex-col">
                 <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-3">
@@ -695,8 +669,7 @@
                 <div id="quotaHistoryContainer" class="overflow-y-auto custom-scrollbar p-1 max-h-[70vh]"></div>
             </div>
         </div>
-
-        <!-- 🆕 ตั้งค่า "ช่องทางติดต่อหัวหน้า" ที่โชว์บนหน้าหลักของทุกคน -->
+        
         <div id="adminView_contacts" class="hidden flex-col gap-4 w-full animate-fade-in">
             <div class="bg-[#151f32] p-5 rounded-2xl border border-slate-700 shadow-lg flex flex-col">
                 <div class="flex justify-between items-center mb-3 border-b border-slate-700 pb-3 flex-wrap gap-3">
@@ -756,7 +729,7 @@
                 </div>
                 <div>
                     <label class="block text-[10px] text-gray-400 mb-1">เว็บ:</label>
-                    <!-- 🆕 ตัวเลือกเว็บ — เติมรายชื่อจาก TEAM_LIST อัตโนมัติตอนเปิดหน้า -->
+                    
                     <select id="logTeam" onchange="fetchLogs()" class="w-full bg-slate-900 border border-slate-600 text-white p-2.5 rounded-lg text-xs outline-none focus:border-blue-500 shadow-inner cursor-pointer">
                         <option value="">ทุกเว็บ</option>
                     </select>
@@ -765,7 +738,7 @@
                     <label class="block text-[10px] text-gray-400 mb-1">ค้นหาคนทำ (พิมพ์แล้วขึ้นเลย):</label>
                     <div class="relative">
                         <span class="material-icons absolute left-2 top-2.5 text-gray-500 text-sm">search</span>
-                        <!-- 🆕 พิมพ์แล้วค้นหาทันที (หน่วง 300ms กันยิงถี่) ไม่ต้องกดปุ่ม -->
+                        
                         <input type="text" id="logUser" oninput="debounceFetchLogs()" placeholder="ชื่อพนักงาน..." class="w-full pl-8 pr-2 py-2.5 bg-slate-900 border border-slate-600 text-white rounded-lg text-xs outline-none focus:border-blue-500 shadow-inner">
                     </div>
                 </div>
@@ -804,7 +777,7 @@
         </div>
         
         <form onsubmit="submitChangePin(event)" class="p-6 space-y-5">
-            <!-- 🔐 [SECURITY] ต้องกรอก PIN เดิมก่อนเปลี่ยน -->
+            
             <div>
                 <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1.5">รหัสผ่านเดิม</label>
                 <div class="relative">

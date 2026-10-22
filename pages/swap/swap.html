@@ -1,4 +1,4 @@
-<!-- 🔄 หน้าตารางสลับกะประจำเดือน (ออกแบบใหม่) — id / onclick / template เดิมครบ ใช้กับ js/swap/* ได้เหมือนเดิม -->
+
 <div id="swapPage" class="fade-in flex flex-col h-full sw-root rounded-2xl overflow-hidden">
 
     <div class="k-pagehead text-white p-4 shrink-0 flex justify-between items-center z-10" style="--acc:249,115,22;background:linear-gradient(120deg,rgba(var(--acc),0.22),color-mix(in srgb,var(--k-panel2) 55.0%,transparent) 45%,color-mix(in srgb,var(--k-panel2) 20.0%,transparent)),var(--k-panel2);border-bottom:1px solid rgba(var(--acc),0.4);box-shadow:0 6px 24px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.06)">
@@ -13,14 +13,12 @@
 
     <div class="flex-1 overflow-y-auto custom-scrollbar" id="autoSwapModalBody">
         <div class="sw-wrap">
-
-            <!-- แท็บหลัก: ดูตาราง / สร้างตารางใหม่ (แท็บสร้างโผล่เฉพาะคนมีสิทธิ์ swap_manage) -->
+            
             <div class="sw-maintabs" id="swMainTabs">
                 <button data-tab="list" class="on" onclick="swapSetMainTab('list')"><span class="material-icons">event_note</span>ตารางสลับกะ</button>
                 <button data-tab="create" id="swTabCreate" style="display:none" onclick="swapSetMainTab('create')"><span class="material-icons">auto_fix_high</span>สร้างตารางใหม่</button>
             </div>
-
-            <!-- ════════ แท็บ 1: ตารางสลับกะ ════════ -->
+            
             <section id="staffSwapView">
                 <div class="sw-card sw-toolbar">
                     <div class="sw-tb-row">
@@ -47,8 +45,7 @@
                         <button onclick="filterSwapToMyself()" class="sw-btn sw-btn-soft"><span class="material-icons">person</span>ของฉัน</button>
                     </div>
                 </div>
-
-                <!-- แถบผู้จัดการ: ตัวกรองตามประเภท + จัดการ -->
+                
                 <div id="managerSwapToolbar" style="display:none" class="sw-statbar">
                     <div class="sw-stats">
                         <button onclick="setSwapTypeFilter('all')" id="btnFilterSwapall" class="swap-filter-btn sw-stat on"><span class="sw-stat-l">ทั้งหมด</span><b id="statSwapAll">0</b></button>
@@ -67,8 +64,7 @@
                     <div class="sw-empty"><span class="material-icons sw-spin">sync</span>กำลังโหลดข้อมูล…</div>
                 </div>
             </section>
-
-            <!-- ════════ แท็บ 2: สร้างตารางใหม่ (ผู้จัดการ) ════════ -->
+            
             <section id="adminSwapControls" style="display:none">
                 <div class="sw-create">
                     <div class="sw-card sw-pane">
@@ -208,7 +204,7 @@
 </div>
 
 <style>
-/* ═════ หน้าสลับกะ — ใช้ตัวแปรธีม --k-* (สลับมืด/สว่างได้เอง) ═════ */
+
 #swapPage { --sw-m:234,88,12; --sw-n:124,58,237; --sw-a:217,119,6; --sw-ok:5,150,105; --sw-mt:#c2410c; --sw-nt:#6d28d9; --sw-okt:#047857; --sw-y:202,138,4; --sw-yt:#a16207;
     background:var(--k-bg); border:1px solid var(--k-line); }
 html.dark #swapPage { --sw-mt:#fb923c; --sw-nt:#a78bfa; --sw-okt:#34d399; --sw-yt:#facc15; }
@@ -218,14 +214,12 @@ html.dark #swapPage { --sw-mt:#fb923c; --sw-nt:#a78bfa; --sw-okt:#34d399; --sw-y
 #swapPage .sw-card { background:var(--k-panel); border:1px solid var(--k-line); border-radius:18px; box-shadow:var(--k-shadow); }
 #swapPage .sw-wrap .material-icons { font-size:18px; }
 
-/* แท็บหลัก */
 #swapPage .sw-maintabs { display:flex; gap:6px; padding:5px; background:var(--k-sunk); border:1px solid var(--k-line); border-radius:16px; width:fit-content; max-width:100%; }
 #swapPage .sw-maintabs button { display:inline-flex; align-items:center; gap:7px; padding:9px 18px; border-radius:12px; font-weight:800; font-size:14px; color:var(--k-mute); transition:background .15s,color .15s; }
 #swapPage .sw-maintabs button:hover { color:var(--k-tx-strong); }
 #swapPage .sw-maintabs button.on { background:var(--k-panel); color:var(--k-tx-strong); box-shadow:0 2px 10px rgba(0,0,0,.18); }
 #swapPage .sw-maintabs button.on .material-icons { color:rgb(var(--sw-m)); }
 
-/* แถบเครื่องมือ */
 #swapPage .sw-toolbar { padding:12px; display:flex; flex-direction:column; gap:10px; }
 #swapPage .sw-tb-row { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; }
 #swapPage .sw-seg { display:inline-flex; flex-wrap:wrap; gap:3px; padding:4px; background:var(--k-sunk); border:1px solid var(--k-line); border-radius:13px; }
@@ -250,7 +244,6 @@ html.dark #swapPage { --sw-mt:#fb923c; --sw-nt:#a78bfa; --sw-okt:#34d399; --sw-y
 #swapPage .sw-btn-danger { background:transparent; border-color:var(--k-red-line); color:var(--k-red-tx); }
 #swapPage .sw-btn-danger:hover { background:var(--k-red-bg); border-color:var(--k-red-line-h); color:var(--k-red-tx); }
 
-/* แถบสถิติ/ตัวกรองของผู้จัดการ */
 #swapPage .sw-statbar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; }
 #swapPage .sw-stats { display:flex; flex-wrap:wrap; gap:8px; }
 #swapPage .sw-stat { display:inline-flex; align-items:center; gap:7px; height:40px; padding:0 8px 0 14px; border-radius:12px; border:1px solid var(--k-line); background:var(--k-panel); color:var(--k-tx2); font-weight:800; font-size:13px; transition:border-color .15s, background .15s; }
@@ -262,7 +255,6 @@ html.dark #swapPage { --sw-mt:#fb923c; --sw-nt:#a78bfa; --sw-okt:#34d399; --sw-y
 #swapPage .sw-stat-m.on { border-color:rgba(var(--sw-m),.7); box-shadow:inset 0 0 0 1px rgba(var(--sw-m),.7); } #swapPage .sw-stat-m.on b { background:rgb(var(--sw-m)); color:#fff; }
 #swapPage .sw-actions { display:flex; flex-wrap:wrap; gap:8px; }
 
-/* รายการ: แบ่งกลุ่มตามวัน */
 #swapPage .sw-list { display:flex; flex-direction:column; gap:18px; }
 #swapPage .sw-group-h { display:flex; align-items:center; gap:10px; margin:0 2px 10px; }
 #swapPage .sw-group-date { display:inline-flex; align-items:center; gap:8px; font-weight:800; font-size:15px; color:var(--k-tx-strong); }
@@ -286,7 +278,7 @@ html.dark #swapPage { --sw-mt:#fb923c; --sw-nt:#a78bfa; --sw-okt:#34d399; --sw-y
 #swapPage .sw-item-steps { display:flex; flex-wrap:wrap; align-items:center; gap:5px; margin-top:9px; }
 #swapPage .sw-st { font-size:12px; font-weight:700; padding:4px 9px; border-radius:8px; background:var(--k-sunk); border:1px solid var(--k-line); color:var(--k-tx2); }
 #swapPage .sw-st.last { box-shadow:inset 0 0 0 1px currentColor; }
-/* สีวันที่ตามความหมาย: ส้ม = เช้า · ม่วง = ดึก · เหลือง = หยุดพัก · เขียว = เริ่มกะใหม่ (เช้า) */
+
 #swapPage .sw-c-o { color:var(--sw-mt); background:rgba(var(--sw-m),.12); border-color:rgba(var(--sw-m),.35); }
 #swapPage .sw-c-p { color:var(--sw-nt); background:rgba(var(--sw-n),.13); border-color:rgba(var(--sw-n),.38); }
 #swapPage .sw-c-y { color:var(--sw-yt); background:rgba(var(--sw-y),.13); border-color:rgba(var(--sw-y),.38); }
@@ -309,7 +301,6 @@ html.dark #swapPage { --sw-mt:#fb923c; --sw-nt:#a78bfa; --sw-okt:#34d399; --sw-y
 #swapPage .sw-spin { animation:swSpin 1s linear infinite; }
 @keyframes swSpin { to { transform:rotate(360deg); } }
 
-/* แท็บสร้าง */
 #swapPage .sw-create { display:grid; grid-template-columns:minmax(0,5fr) minmax(0,7fr); gap:14px; }
 @media (max-width:1023px){ #swapPage .sw-create { grid-template-columns:1fr; } }
 #swapPage .sw-pane { padding:18px; display:flex; flex-direction:column; }
@@ -333,7 +324,7 @@ html.dark #swapPage { --sw-mt:#fb923c; --sw-nt:#a78bfa; --sw-okt:#34d399; --sw-y
 #swapPage .sw-range label > span { font-size:11px; font-weight:800; color:var(--k-mute); }
 #swapPage .sw-range input { background:transparent; border:0; outline:none; font-weight:800; font-size:14px; color:var(--k-tx-strong); cursor:pointer; color-scheme:light dark; }
 #swapPage .sw-range-arrow { color:var(--k-mute); }
-#swapPage .sw-range .k36dp-field { font-weight:800; font-size:14px; color:var(--k-tx-strong); padding-top:2px; }   /* ช่องวันที่ที่ปฏิทินกลางของเว็บครอบทับ */
+#swapPage .sw-range .k36dp-field { font-weight:800; font-size:14px; color:var(--k-tx-strong); padding-top:2px; }
 #swapPage .sw-locks { display:grid; grid-template-columns:1fr 1fr; gap:12px; flex:1; }
 @media (max-width:640px){ #swapPage .sw-locks { grid-template-columns:1fr; } }
 #swapPage .sw-lock { display:flex; flex-direction:column; padding:12px; border-radius:14px; border:1px solid var(--k-line); background:var(--k-sunk); }
@@ -358,7 +349,6 @@ html.dark #swapPage { --sw-mt:#fb923c; --sw-nt:#a78bfa; --sw-okt:#34d399; --sw-y
 #swapPage .sw-cta:hover { filter:brightness(1.06); } #swapPage .sw-cta:active { transform:scale(.99); }
 #swapPage .sw-cta .material-icons { font-size:22px; }
 
-/* ตัวอย่างแผน */
 #swapPage #swapPlanPreview { margin-top:6px; }
 #swapPage .sw-prev-head { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin:10px 0 12px; }
 #swapPage .sw-prev-head h4 { display:flex; align-items:center; gap:7px; font-size:17px; font-weight:900; color:var(--k-tx-strong); margin-right:auto; }

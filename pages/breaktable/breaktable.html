@@ -1,4 +1,4 @@
-<!-- 📊 ตารางลงเวลาพัก (ใครลงกินข้าวกี่โมง) — แบบการ์ดตามช่วงเวลา + กดดูรายละเอียด -->
+
 <div class="w-full animate-fade-in pb-10" id="btPage">
     <style>
         #btPage .bt-card{background:var(--k-panel2);border:1px solid rgba(148,163,184,.14);border-radius:12px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:66px;transition:border-color .15s,background .15s}
@@ -24,17 +24,16 @@
         .bt-det{grid-column:1/-1;font-size:11.5px;color:var(--k-tx3);padding:0 8px 6px 46px;display:none;line-height:1.6}
         .bt-row.open .bt-det{display:block}
         .bt-tag{display:inline-block;background:var(--k-card);color:var(--k-tx);border:1px solid var(--k-line2);padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700}
-        /* 🔴 ไฮไลต์รอบที่กำลังเดินอยู่ตอนนี้ */
+
         #btPage .bt-card.bt-now{border-color:#22d3ee;background:linear-gradient(135deg,rgba(34,211,238,.10),rgba(16,185,129,.06));box-shadow:0 0 0 1px rgba(34,211,238,.35),0 0 18px rgba(34,211,238,.25);opacity:1}
         #btPage .bt-now-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(34,211,238,.15);border:1px solid rgba(34,211,238,.45);color:light-dark(#0794a7,#67e8f9);font-size:10px;font-weight:900;padding:1px 8px;border-radius:99px;margin-left:6px;white-space:nowrap}
         #btPage .bt-now-dot{width:6px;height:6px;border-radius:50%;background:#22d3ee;animation:btPulse 1.2s infinite}
         @keyframes btPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
-        /* 🟠 ป้ายยังไม่ลงพัก */
+
         .bt-missing-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);color:var(--k-amber-tx);font-size:11.5px;font-weight:800;padding:4px 12px;border-radius:99px;cursor:pointer;transition:background .15s}
         .bt-missing-badge:hover{background:rgba(245,158,11,.25)}
-    </style>
-
-    <!-- หัว: ชื่อหน้า + ตัวเลื่อนวัน + รีเฟรช -->
+</style>
+    
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-[#151f32] p-4 rounded-2xl border border-slate-700 shadow-xl">
         <div>
             <h2 class="text-xl font-black text-white flex items-center gap-2"><span class="material-icons text-cyan-400">restaurant</span> ลงเวลากินข้าว</h2>
@@ -48,16 +47,14 @@
             <button onclick="btRender(true)" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-1"><span class="material-icons text-sm">refresh</span> รีเฟรช</button>
         </div>
     </div>
-
-    <!-- ตัวกรอง -->
+    
     <div class="bg-[#0f172a] mt-3 p-3 rounded-2xl border border-slate-700 flex flex-wrap gap-3 items-end">
         <div><div class="text-[10px] text-gray-400 font-bold mb-1">แผนก</div><select id="btDept" class="bt-sel" onchange="btRender()"><option value="all">ทุกแผนก</option></select></div>
         <div><div class="text-[10px] text-gray-400 font-bold mb-1">เว็บ</div><select id="btTeam" class="bt-sel" onchange="btRender()"><option value="all">ทุกเว็บ</option></select></div>
         <div><div class="text-[10px] text-gray-400 font-bold mb-1">กะ</div><select id="btShift" class="bt-sel" onchange="btRender()"><option value="all">ทุกกะ</option><option value="กะเช้า">☀️ กะเช้า</option><option value="กะกลาง">🌤️ กะกลาง</option><option value="กะดึก">🌙 กะดึก</option></select></div>
         <div class="flex-1 min-w-[160px]"><div class="text-[10px] text-gray-400 font-bold mb-1">ค้นหาชื่อ</div><input id="btSearch" oninput="btRender()" placeholder="พิมพ์ชื่อ..." class="bt-sel w-full"></div>
     </div>
-
-    <!-- สรุป + การ์ดช่วงเวลา -->
+    
     <div class="flex items-center justify-between mt-4 mb-1">
         <div class="text-lg font-black text-white" id="btDateTitle">—</div>
         <div class="flex items-center gap-2"><span id="btMissing"></span><span class="text-[12px] text-gray-400" id="btTotal">จองแล้ว 0 คน</span></div>

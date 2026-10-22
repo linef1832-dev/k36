@@ -1,4 +1,4 @@
-<!-- 🗂️ การ์ดเว็บ + การ์ดพนักงาน (ออกแบบใหม่: อ่านง่าย ไม่รก) -->
+
 <style id="dc-style">
     #dutyApp .dc-site{background:var(--k-panel);border:1px solid var(--k-line);border-radius:16px;box-shadow:var(--k-shadow)}
     #dutyApp .dc-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;flex-shrink:0}
@@ -15,7 +15,6 @@
     #dutyApp .dc-roles{padding:6px 8px;border-bottom:1px solid var(--k-line);background:var(--k-panel2);flex-shrink:0}
     #dutyApp .dc-list{padding:8px;gap:6px}
 
-    /* การ์ดพนักงาน */
     #dutyApp .dc-card{display:flex;flex-direction:column;gap:6px;padding:10px 11px;border-radius:12px;background:var(--k-card);border:1px solid var(--k-line);flex-shrink:0;transition:border-color .15s,box-shadow .15s}
     #dutyApp .dc-card:hover{border-color:var(--k-line4);box-shadow:0 4px 14px rgba(0,0,0,.18)}
     #dutyApp .dc-card.missing{border-color:var(--k-red-line);background:var(--k-red-bg)}
@@ -24,7 +23,7 @@
     #dutyApp .dc-st.bad{background:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.2)}
     #dutyApp .dc-name{flex:1;min-width:0;font-size:14px;font-weight:900;letter-spacing:.02em;color:var(--k-tx-strong);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
     #dutyApp .dc-card.missing .dc-name{color:var(--k-red-tx)}
-    /* งานรอง */
+
     #dutyApp .dc-sec{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 4px 0 7px;border-radius:999px;font-size:11px;font-weight:800;color:var(--k-tx3);background:var(--k-panel2);border:1px solid var(--k-line2);white-space:nowrap;flex:none}
     #dutyApp .dc-sec .material-icons{font-size:13px}
     #dutyApp .dc-sec b{font-size:10.5px;font-weight:900;padding:1px 7px;border-radius:999px}
@@ -35,22 +34,22 @@
     #dutyApp .dc-card:hover .dc-sec.add{opacity:1}
     #dutyApp .dc-sec.add:hover{color:var(--k-gold-tx);border-color:var(--k-gold)}
     @media (hover:none){ #dutyApp .dc-sec.add{opacity:1} }
-    /* แถวกลาง: เวลาพัก + อยู่ต่อ */
+
     #dutyApp .dc-mid{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
     #dutyApp .dc-break{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 8px 0 6px;border-radius:7px;font-size:11px;font-weight:800;color:light-dark(#0369a1,#7dd3fc);background:rgba(14,165,233,.1);border:1px solid rgba(14,165,233,.3)}
     #dutyApp .dc-break .material-icons{font-size:13px}
     #dutyApp .dc-break b{font-weight:900;font-variant-numeric:tabular-nums}
     #dutyApp .dc-break b + b::before{content:'·';margin:0 4px;opacity:.6}
     #dutyApp .dc-break.none{color:var(--k-red-tx);background:var(--k-red-bg);border-color:var(--k-red-line)}
-    /* ปุ่ม/ป้าย อยู่ต่อ (มาจาก support.js) — ทำให้กะทัดรัดเท่าชิปอื่น */
+
     #dutyApp .dc-mid > [onclick*="openStayPinModal"]{margin:0 !important;height:24px;padding:0 8px !important;border-radius:7px !important;font-size:11px !important;box-shadow:none !important}
     #dutyApp .dc-mid > [onclick*="openStayPinModal"] .material-icons{font-size:13px !important}
     #dutyApp .dc-mid > [onclick*="openStayPinModal"].border-dashed{opacity:0;transition:opacity .15s}
     #dutyApp .dc-card:hover .dc-mid > [onclick*="openStayPinModal"].border-dashed{opacity:1}
     @media (hover:none){ #dutyApp .dc-mid > [onclick*="openStayPinModal"].border-dashed{opacity:1} }
-    /* ช่วยเว็บอื่น (มาจาก support) */
+
     #dutyApp .dc-card > [title^="ไปประจำเว็บ"]{margin:0 !important;height:24px;padding:0 8px !important;border-radius:7px !important;font-size:11px !important;box-shadow:none !important}
-    /* ประวัติย้อนหลัง: แถวเดียว ตัวเล็ก */
+
     #dutyApp .dc-hist{display:flex;align-items:center;gap:4px 10px;flex-wrap:wrap;padding-top:6px;border-top:1px dashed var(--k-line);font-size:11px;font-weight:700;color:var(--k-tx3)}
     #dutyApp .dc-hist > .material-icons{font-size:13px;color:var(--k-mute3)}
     #dutyApp .dc-h{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;pointer-events:auto}
@@ -58,7 +57,7 @@
     #dutyApp .dc-h i{font-style:normal;font-size:10px;color:var(--k-amber-tx)}
     #dutyApp .dc-h em{font-style:normal;font-size:10px;color:var(--k-mute)}
     #dutyApp .dc-dot{width:8px;height:8px;border-radius:3px;display:inline-block;flex:none}
-    /* 🙋 ตำแหน่งของฉัน */
+
     #dutyApp .dv-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
     #dutyApp .dv-me{display:inline-flex;align-items:center;gap:8px;min-height:42px;padding:6px 12px 6px 10px;border-radius:12px;background:var(--k-gold-bg);border:1px solid rgba(232,193,90,.55);color:var(--k-tx2);font:inherit;font-size:13px;font-weight:600;text-align:left;cursor:pointer}
     #dutyApp div.dv-me{cursor:default}
@@ -72,22 +71,22 @@
     #dutyApp .dc-me{display:inline-flex;align-items:center;height:18px;padding:0 7px;border-radius:999px;background:#E8C15A;color:#1b1406;font-size:10px;font-weight:900;flex:none;margin-left:2px}
     #dutyApp .dc-card.me{border-color:#E8C15A;box-shadow:0 0 0 2px rgba(232,193,90,.25)}
     #dutyApp .ov-p.me{border-color:#E8C15A;background:var(--k-gold-bg)}
-    /* 📋 ภาพรวม */
+
     #dutyApp .ov-wrap{display:flex;flex-direction:column;gap:10px}
     #dutyApp .ov-sum{display:flex;gap:8px;flex-wrap:wrap}
     #dutyApp .ov-sum span{padding:6px 12px;border-radius:10px;background:var(--k-panel);border:1px solid var(--k-line);font-size:12.5px;font-weight:700;color:var(--k-tx2)}
     #dutyApp .ov-sum span b{color:var(--k-tx-strong);font-size:14px}
     #dutyApp .ov-sum span.bad{background:var(--k-red-bg);border-color:var(--k-red-line);color:var(--k-red-tx)}
     #dutyApp .ov-sum span.bad b{color:var(--k-red-tx)}
-    /* 📐 ตารางหน้าใหญ่เสมอ: ย่อหน้าต่าง/ซูม ไม่จัดหน้าใหม่ — เลื่อนซ้าย-ขวาแทน */
+
     #dutyApp .ov-scroll{overflow-x:auto;border-radius:16px}
     #dutyApp .ov-scroll > .ov-table{min-width:1100px}
-    /* แถวเว็บมีพื้นสีจางๆ ตามสีเว็บ ดูแยกเว็บง่าย */
+
     #dutyApp .ov-row{position:relative}
     #dutyApp .ov-row > *{position:relative;z-index:1}
     #dutyApp .ov-row > .ov-tint{position:absolute;inset:0;z-index:0;opacity:.08;pointer-events:none}
     #dutyApp .ov-row:hover > .ov-tint{opacity:.11}
-    /* ห้ามคลุมข้อความในตาราง — กันลากผิดเป็นข้อความทั้งแถว */
+
     #dutyApp .ov-table{-webkit-user-select:none;user-select:none;border-radius:16px;background:var(--k-panel);border:1px solid var(--k-line);overflow:hidden}
     #dutyApp .ov-row{display:grid;grid-template-columns:150px minmax(0,1fr) 170px 96px;gap:14px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--k-line)}
     #dutyApp .ov-row:last-child{border-bottom:0}
@@ -109,7 +108,7 @@
     #dutyApp .ov-team b{display:block;font-size:15px;font-weight:900;color:var(--k-tx-strong)}
     #dutyApp .ov-team small{display:block;font-size:11.5px;font-weight:700;color:var(--k-mute)}
     #dutyApp .ov-people{display:flex;flex-wrap:wrap;gap:6px;min-width:0}
-    /* ชิปไม่หักบรรทัดข้างใน (เดิมเวลาพักถูกบีบเป็นแนวตั้ง) — ทั้งชิปค่อยขึ้นบรรทัดใหม่แทน */
+
     #dutyApp .ov-p{white-space:nowrap;flex-shrink:0}
     #dutyApp .ov-narrow{display:none}
     #dutyApp .ov-stp{padding:1px 8px;border-radius:999px;font-size:10px;font-weight:900}
@@ -119,8 +118,7 @@
     #dutyApp .ov-sbn{display:block;font-size:10.5px;font-weight:800;color:var(--k-tx3);white-space:normal;margin-top:3px}
     #dutyApp .ov-p{display:inline-flex !important;flex-direction:column;align-items:flex-start;gap:5px;padding:7px 10px;border-radius:10px;background:var(--k-card);border:1px solid var(--k-line2);max-width:100%}
     #dutyApp .ov-top{display:flex;align-items:center;gap:7px}
-    /* 🕘 ประวัติ 3 วันในชิป (บรรทัดล่าง) */
-    /* 🕘 ประวัติใต้ชื่อ: เมื่อวาน ■VV72 · 2 วันก่อน ■K188 · 3 วันก่อน ■NM9 */
+
     #dutyApp .ov-hist{display:flex;align-items:center;gap:9px;padding-top:4px;border-top:1px dashed var(--k-line);font-size:10.5px;font-weight:800;color:var(--k-tx3);align-self:stretch}
     #dutyApp .ov-hist > .material-icons{font-size:12px;color:var(--k-mute3)}
     #dutyApp .ov-hist > .material-icons{font-size:12px;color:var(--k-mute3)}
@@ -142,17 +140,16 @@
     #dutyApp .ov-st .ok{background:var(--k-green-bg);color:var(--k-green-tx);border:1px solid var(--k-green-line)}
     #dutyApp .ov-st .warn{background:rgba(245,158,11,.12);color:var(--k-amber-tx);border:1px solid rgba(245,158,11,.4)}
     #dutyApp .ov-st .bad{background:#dc2626;color:#fff}
-    /* 📌 อยู่ต่อ / 🛟 ไปช่วย / 📝 ประเมิน ในตารางภาพรวม */
+
     #dutyApp .ov-pin{display:inline-flex}
     #dutyApp .ov-pin > [onclick*="openStayPinModal"]{margin:0 !important;height:22px;padding:0 7px !important;border-radius:999px !important;font-size:10.5px !important;box-shadow:none !important;display:inline-flex !important;align-items:center;gap:3px}
     #dutyApp .ov-pin > [onclick*="openStayPinModal"] .material-icons{font-size:12px !important}
-    /* [FIX] เดิมปุ่ม "อยู่ต่อ…" / "+ รอง" โผล่ตอนชี้ → ชิปกว้างขึ้น → ชิปเลื่อนหนีเมาส์ → กระพริบไปมา
-       ตอนนี้แสดงตลอดเป็นไอคอนเล็กขนาดคงที่ ชี้แล้วแค่เปลี่ยนสี ไม่ขยับ */
+
     #dutyApp .ov-pin > .border-dashed{font-size:0 !important;width:22px;justify-content:center;padding:0 !important;opacity:.45}
     #dutyApp .ov-pin > .border-dashed .material-icons{font-size:13px !important}
     #dutyApp .ov-pin > .border-dashed:hover{opacity:1}
     #dutyApp .ov-sup{font-style:normal;font-size:10.5px;font-weight:800;padding:1px 7px;border-radius:999px;color:light-dark(#0e7490,#67e8f9);background:rgba(6,182,212,.12);border:1px solid rgba(6,182,212,.35)}
-    /* ⭐ ป้ายหน้าที่พิเศษใต้ชื่อ (แท็บผู้สอน) — หลัก = เขียว · ซัพ = ฟ้า · ล็อกประจำ = กรอบทอง */
+
     #dutyApp .ov-imp{display:flex;flex-direction:column;align-items:flex-start;gap:3px}
     #dutyApp .ov-imp:empty{display:none}
     #dutyApp .ov-it{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:800;padding:1px 8px 1px 6px;border-radius:999px;line-height:1.6;white-space:nowrap}
@@ -167,7 +164,7 @@
     #dutyApp .dv-it.main{color:light-dark(#047857,#6ee7b7);background:rgba(16,185,129,.12)}
     #dutyApp .dv-it.sup{color:light-dark(#0369a1,#7dd3fc);background:rgba(14,165,233,.12)}
     #dutyApp .ov-trbtn{display:inline-flex;margin-top:4px;height:22px;padding:0 8px;border-radius:7px;border:1px solid rgba(245,158,11,.5);background:rgba(245,158,11,.12);color:var(--k-amber-tx);font:inherit;font-size:10.5px;font-weight:900;cursor:pointer}
-    /* 🔁 ปุ่มงานรองในชิป */
+
     #dutyApp .ov-sec{display:inline-flex;align-items:center;gap:3px;height:22px;padding:0 8px;border-radius:999px;border:1px solid var(--k-line3);background:var(--k-panel2);color:var(--k-tx3);font:inherit;font-size:10.5px;font-weight:900;cursor:pointer;white-space:nowrap}
     #dutyApp .ov-sec .material-icons{font-size:11px;opacity:.6}
     #dutyApp .ov-sec:hover{border-color:#E8C15A;color:var(--k-gold-tx)}
@@ -180,7 +177,7 @@
 <div id="dutyApp" class="k-auto-light fade-in flex flex-col h-full relative rounded-2xl overflow-hidden" style="background:var(--k-bg)">
 
     <div class="fade-in flex flex-col h-full relative pb-10 w-full max-w-full">
-        <!-- 🏷️ หัวหน้าระบบจัดหน้าที่ (ออกแบบใหม่) — id/onclick เดิมทุกตัว -->
+        
         <style>
             #dutyApp .dh{margin:16px 16px 0;padding:14px 16px 0;border-radius:16px 16px 0 0;background:var(--k-panel);border:1px solid var(--k-line);border-bottom:0;color:var(--k-tx);position:relative;z-index:30}
             #dutyApp .dh-top{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
@@ -194,7 +191,7 @@
             #dutyApp .dh-btn .material-icons{font-size:17px;color:var(--k-tx3)}
             #dutyApp .dh-btn:hover{background:var(--k-btn-h);border-color:var(--k-line4);color:var(--k-tx-strong)}
             #dutyApp .dh-btn:focus-visible,#dutyApp .dh-tab:focus-visible,#dutyApp .dh .dept-segment-btn:focus-visible{outline:2px solid #E8C15A;outline-offset:2px}
-            /* แถวล่างของหัว: เลือกแผนก (ซ้าย) + แท็บมุมมอง (ขวา) */
+
             #dutyApp .dh-nav{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:14px;border-bottom:1px solid var(--k-line)}
             #dutyApp .dh .dept-segment-container{display:flex;gap:2px;padding:3px;margin-bottom:10px;border-radius:11px;background:var(--k-sunk);border:1px solid var(--k-line);box-shadow:none;transform:none}
             #dutyApp .dh .dept-segment-btn{height:32px;padding:0 14px;border-radius:8px;font-size:13px;font-weight:800;color:var(--k-mute);gap:6px}
@@ -209,7 +206,7 @@
             #dutyApp .dh-tab.active .material-icons{color:var(--k-gold-tx)}
             #dutyApp .dh .hidden{display:none !important}
             @media (max-width:640px){ #dutyApp .dh-act{margin-left:0;width:100%} #dutyApp .dh .dept-segment-container{overflow-x:auto;max-width:100%} }
-        </style>
+</style>
 
         <div class="dh shrink-0">
             <div class="dh-top">
@@ -218,7 +215,7 @@
                     <h1 class="dh-title">ระบบจัดหน้าที่ <span id="dutyDeptLabel" class="dh-dept">AM</span></h1>
                 </div>
                 <div class="dh-act">
-                    <!-- เปิดให้ทุกคนดูประวัติได้ (ไม่ใช่ duty-admin-only) -->
+                    
                     <button onclick="openDutyHistoryModal()" id="tabBtnHistory" class="dh-btn" title="ดูตารางหน้าที่ย้อนหลัง">
                         <span class="material-icons">history</span> ประวัติ
                     </button>
@@ -244,25 +241,25 @@
         </div>
 
         <div id="dutyTabRoster" class="flex-1 overflow-hidden flex flex-col mx-4 bg-white dark:bg-slate-900 border-x border-b shadow-sm rounded-b-xl w-auto" style="border-color:var(--k-line)">
-            <!-- 🧭 แถบเครื่องมือจัดหน้าที่ (จัดกลุ่มใหม่: เลือกวัน/กะ → จัดตาราง → การเวียน → ล้าง) — id/onclick เดิมทุกตัว -->
+            
             <style>
                 #dutyApp .dt-bar{background:var(--k-panel);border-bottom:1px solid var(--k-line);padding:10px 12px;display:flex;flex-direction:column;gap:10px;position:relative;z-index:20}
                 #dutyApp .dt-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
                 #dutyApp .dt-grow{flex:1 1 auto}
-                /* กล่องกลุ่ม */
+
                 #dutyApp .dt-grp{display:flex;align-items:center;gap:6px;padding:5px 6px 5px 10px;border-radius:12px;background:var(--k-sunk);border:1px solid var(--k-line)}
                 #dutyApp .dt-cap{font-size:11px;font-weight:800;color:var(--k-mute2);margin-right:4px;white-space:nowrap;display:flex;align-items:center;gap:4px}
                 #dutyApp .dt-cap .material-icons{font-size:14px;color:var(--k-mute3)}
                 #dutyApp .dt-grp.danger{border-color:var(--k-red-line);background:var(--k-red-bg)}
                 #dutyApp .dt-grp.danger .dt-cap{color:var(--k-red-tx)}
                 #dutyApp .dt-grp.danger .dt-cap .material-icons{color:var(--k-red-tx)}
-                /* ช่องเลือก */
+
                 #dutyApp .dt-field{display:flex;align-items:center;gap:6px;height:36px;padding:0 10px;border-radius:10px;background:var(--k-field);border:1px solid var(--k-line2);color:var(--k-tx)}
                 #dutyApp .dt-field .material-icons{font-size:17px;color:var(--k-gold-tx)}
                 #dutyApp .dt-field input,#dutyApp .dt-field select{background:transparent;border:0;outline:none;color:var(--k-tx);font-weight:800;font-size:13.5px;cursor:pointer}
                 #dutyApp .dt-field select option{background:var(--k-field);color:var(--k-tx)}
                 #dutyApp .dt-field:focus-within{border-color:#E8C15A;box-shadow:0 0 0 3px rgba(232,193,90,.16)}
-                /* ปุ่ม */
+
                 #dutyApp .dt-btn{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 13px;border-radius:9px;font-size:13px;font-weight:800;white-space:nowrap;cursor:pointer;
                     border:1px solid var(--k-line3);background:var(--k-btn);color:var(--k-tx2);transition:background .15s,border-color .15s,color .15s,transform .08s}
                 #dutyApp .dt-btn .material-icons{font-size:17px}
@@ -293,7 +290,7 @@
                 #dutyApp .dt-search input:focus{width:240px;border-color:#E8C15A;box-shadow:0 0 0 3px rgba(232,193,90,.16)}
                 #dutyApp .dt-shiftchip{display:flex;align-items:center;gap:6px;height:36px;padding:0 12px;border-radius:10px;background:var(--k-field);border:1px solid var(--k-line2);color:var(--k-tx);font-size:13px;font-weight:800}
                 #dutyApp .dt-shiftchip .material-icons{font-size:17px;color:var(--k-gold-tx)}
-                /* JS ใช้คลาส hidden ซ่อน/โชว์ → ต้องชนะ display ของคลาสข้างบน */
+
                 #dutyApp .dt-bar .hidden{display:none !important}
                 @media (max-width:640px){
                     #dutyApp .dt-search input,#dutyApp .dt-search input:focus{width:100%}
@@ -301,10 +298,10 @@
                     #dutyApp .dt-grp{flex-wrap:wrap}
                 }
                 @media (prefers-reduced-motion:reduce){ #dutyApp .dt-btn,#dutyApp .dt-search input{transition:none} }
-            </style>
+</style>
 
             <div class="dt-bar shrink-0">
-                <!-- แถวบน: ดูวันไหน กะไหน + หาตัวเอง -->
+                
                 <div class="dt-row">
                     <label class="dt-field" title="วันที่ของตารางหน้าที่">
                         <span class="material-icons">event</span>
@@ -319,8 +316,7 @@
                             <option value="กะดึก">🌙 กะดึก</option>
                         </select>
                     </label>
-
-                    <!-- พนักงานทั่วไป: โชว์กะของตัวเองแทนช่องเลือกกะ -->
+                    
                     <div id="staffShiftIndicator" class="hidden dt-shiftchip">
                         <span class="material-icons">schedule</span> <span id="staffShiftLabel">...</span>
                     </div>
@@ -335,8 +331,7 @@
                         <input type="text" id="dutySearchInput" onkeyup="onDutySearch()" placeholder="ค้นหาชื่อพนักงาน">
                     </div>
                 </div>
-
-                <!-- แถวล่าง: เครื่องมือแอดมิน แยกเป็นกลุ่มตามงาน -->
+                
                 <div class="dt-row">
                     <div class="duty-admin-only dt-grp">
                         <span class="dt-cap"><span class="material-icons">grid_view</span>จัดตาราง</span>
@@ -356,7 +351,7 @@
                         <span class="dt-unit">เว้นซ้ำเว็บ <span id="rotGapDept" class="dt-gaptag">AM</span></span>
                         <input type="number" min="0" max="30" id="rotGapInput" onchange="saveRotationGap(this.value)" class="dt-num">
                         <span class="dt-unit">วัน</span>
-                        <!-- สิทธิ์ของปุ่มนี้แยกต่างหาก (duty_stay_pin) — updateStayPinButton() เป็นคนซ่อน/โชว์ -->
+                        
                         <button id="btnStayPinList" onclick="openStayPinListModal()" title="ดูรายชื่อคนที่ถูกล็อกให้อยู่เว็บเดิมต่อ" style="display:none" class="opacity-60 dt-btn pin">
                             <span class="material-icons">push_pin</span> อยู่ต่อ <span id="stayPinCount" class="dt-badge">0</span>
                         </button>
@@ -382,8 +377,7 @@
             <div id="dutyStatusBar" class="duty-admin-only p-2 text-center text-xs font-bold transition-colors duration-300 bg-gray-200 text-gray-600 border-b border-gray-300 dark:border-slate-700">
                 กำลังโหลดข้อมูลบุคลากร...
             </div>
-
-            <!-- 👥 จำนวนคนต่อเว็บ (ออกแบบใหม่) -->
+            
             <div id="dutyRequirementsWrapper" class="duty-admin-only dq shrink-0">
                 <div class="dq-head">
                     <div class="dq-title">
@@ -422,7 +416,6 @@
                     </div>
                 </div>
                 
-                <!-- 🏖️ แผงลาหยุด (ออกแบบใหม่) — id / onchange เดิม -->
                 <div class="lv-panel w-full md:w-64 flex flex-col shrink-0" ondragover="handleDragOver(event)" ondrop="handleDrop(event, 'leaveList')">
                     <div class="lv-head">
                         <span class="lv-ic"><span class="material-icons">event_busy</span></span>
@@ -485,9 +478,8 @@
             #dutyApp .lv-empty{padding:30px 10px;text-align:center;font-size:12px;font-weight:700;color:var(--k-mute)}
             #dutyApp .lv-foot{display:flex;align-items:center;justify-content:center;gap:5px;padding:8px;border-top:1px dashed var(--k-line);font-size:10.5px;font-weight:700;color:var(--k-mute);pointer-events:none}
             #dutyApp .lv-foot .material-icons{font-size:14px}
-        </style>
-
-        <!-- ⚙️ แท็บตั้งค่าสิทธิ์และหัวข้อ (ออกแบบใหม่ + ติกทั้งแถว/ทั้งคอลัมน์/ทั้งหมด) — id เดิมทุกตัว -->
+</style>
+        
         <style>
             #dutyApp .ds{background:var(--k-panel2);border:1px solid var(--k-line);border-top:0;border-radius:0 0 16px 16px;padding:14px;gap:14px}
             #dutyApp .ds-panel{background:var(--k-panel);border:1px solid var(--k-line);border-radius:14px;display:flex;flex-direction:column;overflow:hidden;min-height:0}
@@ -514,7 +506,6 @@
             #dutyApp .ds-bulk{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 14px;border-bottom:1px solid var(--k-line);background:var(--k-panel2);font-size:12px;font-weight:700;color:var(--k-mute)}
             #dutyApp .ds-bulk .dt-btn{height:30px;font-size:12px;padding:0 11px}
 
-            /* ── ตาราง ── */
             #dutyApp .ds-scroll{flex:1;overflow:auto;min-height:0}
             #dutyApp .ds-tbl{border-collapse:separate;border-spacing:0;width:100%;font-size:12.5px}
             #dutyApp .ds-tbl th,#dutyApp .ds-tbl td{border-bottom:1px solid var(--k-line)}
@@ -540,7 +531,6 @@
             #dutyApp .ds-rowcnt{font-size:11px;font-weight:800;color:var(--k-mute2);font-variant-numeric:tabular-nums;min-width:34px;text-align:right}
             #dutyApp .ds-rowcnt.full{color:var(--k-green-tx)}
 
-            /* ช่องติก */
             #dutyApp .ds-ck{appearance:none;-webkit-appearance:none;width:22px;height:22px;border-radius:7px;border:1.5px solid var(--k-line3);background:var(--k-sunk);cursor:pointer;position:relative;vertical-align:middle;transition:background .12s,border-color .12s,transform .08s}
             #dutyApp .ds-ck:hover{border-color:#E8C15A}
             #dutyApp .ds-ck:active{transform:scale(.9)}
@@ -554,7 +544,6 @@
             #dutyApp .ds-ck.sm:indeterminate::after{left:3.5px;top:7px;width:8px}
             #dutyApp .ds-empty{padding:40px;text-align:center;color:var(--k-mute2);font-weight:700}
 
-            /* ── หัวข้องาน ── */
             #dutyApp .ds-roles{width:100%}
             @media (min-width:1024px){ #dutyApp .ds-roles{width:340px;flex:none} }
             #dutyApp .ds-addrow{display:flex;gap:8px;padding:12px 14px;border-bottom:1px solid var(--k-line);flex-direction:column}
@@ -567,7 +556,7 @@
             #dutyApp #roleEditorList > div span{color:var(--k-tx) !important;font-size:12.5px !important}
             #dutyApp #roleEditorList > div button{color:var(--k-red-tx) !important}
             @media (max-width:640px){ #dutyApp .ds-search .ds-in{width:100%} #dutyApp .ds-search{flex:1} #dutyApp .ds-tbl .ds-namecol{min-width:150px} }
-        </style>
+</style>
 
         <div id="dutyTabSettings" class="ds hidden flex-1 overflow-hidden flex-col lg:flex-row mx-4">
             <div class="ds-panel flex-1 w-full">
@@ -628,10 +617,7 @@
                 <div id="roleEditorList" class="flex-1 overflow-y-auto custom-scrollbar"></div>
             </div>
         </div>
-
-        <!-- (ลบแท็บ "งานรอง" ออกแล้ว — ไม่ได้ใช้ หัวข้อที่สุ่มไม่ถูกแสดงผลที่ไหน) -->
+        
     </div>
-
-    <!-- (ลบ modal รวมห้องแบบเก่าออก — ใช้แผง "การรวมห้อง Discord" ด้านซ้ายของตารางแทน) -->
 
 </div>

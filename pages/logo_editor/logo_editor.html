@@ -1,10 +1,9 @@
 <style>
   #logoEditorApp { font-family: inherit; }
-  
-  /* 🌟 บังคับ sidebar scroll ทำงานแน่นอน */
-  #logoEditorApp aside { 
-    height: 100% !important; 
-    min-height: 0 !important; 
+
+  #logoEditorApp aside {
+    height: 100% !important;
+    min-height: 0 !important;
     max-height: 100% !important;
     display: flex !important;
     flex-direction: column !important;
@@ -15,15 +14,15 @@
     overflow-y: auto !important;
     overflow-x: hidden !important;
   }
-  /* scrollbar ให้เห็นชัดเลย */
+
   #logoEditorApp aside ::-webkit-scrollbar { width: 8px; }
   #logoEditorApp aside ::-webkit-scrollbar-track { background:color-mix(in srgb,var(--k-panel2) 20.0%,transparent); }
-  #logoEditorApp aside ::-webkit-scrollbar-thumb { 
-    background:rgba(168, 85, 247, 0.5); 
+  #logoEditorApp aside ::-webkit-scrollbar-thumb {
+    background:rgba(168, 85, 247, 0.5);
     border-radius: 4px;
   }
   #logoEditorApp aside ::-webkit-scrollbar-thumb:hover { background:rgba(168, 85, 247, 0.8); }
-  
+
   #leCanvasArea {
     background-color:var(--k-panel);
     background-image:linear-gradient(45deg, var(--k-card) 25%, transparent 25%),
@@ -46,8 +45,7 @@
   .le-btn-download { background:linear-gradient(135deg, #6366f1, #06b6d4); }
   .le-btn-amber { background:linear-gradient(135deg, #f59e0b, #d97706); }
   .le-btn-cyan { background:linear-gradient(135deg, #06b6d4, #0891b2); }
-  
-  /* Tab nav แนวนอน */
+
   .le-tab-nav {
     background:color-mix(in srgb,var(--k-panel2) 40.0%,transparent);
     border-bottom:1px solid color-mix(in srgb,var(--k-tx-strong) 8.0%,transparent);
@@ -84,7 +82,7 @@
     border-bottom-color:#a855f7;
   }
   .le-tab-btn .material-icons { font-size: 18px; }
-  
+
   .le-zoom-btn { background:color-mix(in srgb,var(--k-tx-strong) 8.0%,transparent); transition: all 0.15s; }
   .le-zoom-btn:hover { background:color-mix(in srgb,var(--k-tx-strong) 18.0%,transparent); }
   .le-floating-toolbar {
@@ -125,13 +123,12 @@
     animation: leDash 0.5s linear infinite;
   }
   @keyframes leDash { to { stroke-dashoffset: -16; } }
-  
+
   .le-logo-preview {
     background:rgba(16, 185, 129, 0.1);
     border:2px solid rgba(16, 185, 129, 0.4);
   }
-  
-  /* Slider แบบสวย */
+
   .le-slider {
     -webkit-appearance: none;
     appearance: none;
@@ -150,8 +147,7 @@
     border:2px solid #fff;
     box-shadow: 0 2px 6px rgba(0,0,0,0.3);
   }
-  
-  /* Text overlay draggable */
+
   .le-text-overlay {
     position: absolute;
     cursor: move;
@@ -168,7 +164,7 @@
 </style>
 
 <div id="logoEditorApp" class="fade-in flex flex-col h-full relative bg-slate-950 rounded-2xl shadow-sm border border-slate-700 overflow-hidden">
-    <!-- Header -->
+    
     <div class="bg-gradient-to-r from-fuchsia-800 via-purple-800 to-indigo-900 text-white px-4 py-2 shadow-lg shrink-0 flex justify-between items-center z-30 relative">
         <div class="flex items-center gap-3">
             <div class="bg-white/15 p-1.5 rounded-xl border border-white/20">
@@ -184,11 +180,9 @@
     </div>
 
     <div class="flex-1 flex relative" style="min-height:0; height:100%; max-height:100%;">
-
-        <!-- Sidebar -->
+        
         <aside class="le-tool-panel w-72 shrink-0 flex flex-col text-white" style="height:100%; min-height:0; max-height:100%;">
             
-            <!-- ───── Tab Navigation ───── -->
             <div class="le-tab-nav flex">
                 <button onclick="leSwitchTab('replace')" id="leTabReplace" class="le-tab-btn active">
                     <span class="material-icons">auto_fix_high</span>
@@ -228,10 +222,8 @@
                 </button>
             </div>
             
-            <!-- Content แต่ละ tab -->
             <div class="flex-1 overflow-y-auto custom-scrollbar" style="min-height:0; overflow-y:auto !important; overscroll-behavior: contain;">
                 
-                <!-- Step 1: เลือกรูป (โชว์ทุก tab) -->
                 <div class="p-3 border-b border-white/5 bg-fuchsia-950/10">
                     <div class="flex items-center gap-2 mb-2">
                         <span class="bg-gradient-to-br from-fuchsia-500 to-purple-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black shadow">1</span>
@@ -242,10 +234,9 @@
                         <input type="file" accept="image/*" class="hidden" onchange="leLoadBaseImage(event)">
                     </label>
                 </div>
-
-                <!-- ═══════════ TAB: ลบโลโก้ ═══════════ -->
+                
                 <div id="leTabContent_replace" class="le-tab-content">
-                    <!-- Mode toggle -->
+                    
                     <div class="p-3 border-b border-white/5 bg-fuchsia-950/10">
                         <label class="block text-[10px] font-black text-fuchsia-300 uppercase mb-2 flex items-center gap-1">
                             <span class="material-icons text-sm">tune</span> โหมด
@@ -266,7 +257,6 @@
                         </div>
                     </div>
                     
-                    <!-- 🪶 Brush Eraser controls (โหมดแปรง) -->
                     <div id="leBrushSection" class="hidden p-3 border-b border-white/5 bg-rose-950/10">
                         <h4 class="text-[11px] font-black text-rose-300 mb-2 flex items-center gap-1">
                             <span class="material-icons text-sm">brush</span> ขนาดแปรงทาสี
@@ -280,8 +270,7 @@
                             🎨 ลากแปรงทับสิ่งที่อยากลบ — ระบบลบให้ทันที (เหมือนทาสี)
                         </p>
                     </div>
-
-                    <!-- ลบโลโก้ -->
+                    
                     <div id="leEraseSection" class="p-3 border-b border-white/5">
                         <div class="flex items-center gap-2 mb-2">
                             <span class="bg-gradient-to-br from-rose-500 to-red-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black shadow">2</span>
@@ -314,8 +303,7 @@
                             <span class="text-[10px] text-slate-400 flex-1">สี (โหมดทึบ)</span>
                         </div>
                     </div>
-
-                    <!-- ใส่โลโก้ใหม่ -->
+                    
                     <div id="leAddLogoSection" class="p-3 border-b border-white/5">
                         <div class="flex items-center gap-2 mb-2">
                             <span class="bg-gradient-to-br from-emerald-500 to-teal-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black shadow">3</span>
@@ -361,7 +349,6 @@
                                 <input type="range" id="leLogoOpacity" min="0" max="100" value="100" oninput="leUpdateLogoOpacity()" class="w-full le-slider accent-emerald-500">
                             </div>
                             
-                            <!-- 🌟 ใหม่: เปลี่ยนสีตัวอักษรในโลโก้ -->
                             <div class="border-t border-emerald-900/40 pt-2">
                                 <label class="flex items-center justify-between text-[10px] font-black text-emerald-300 uppercase mb-1.5 cursor-pointer">
                                     <span class="flex items-center gap-1">
@@ -370,14 +357,13 @@
                                     <input type="checkbox" id="leLogoRecolor" class="w-4 h-4 accent-emerald-500">
                                 </label>
                                 <div id="leLogoRecolorControls" class="hidden space-y-2 mt-1">
-                                    <!-- โหมด -->
+                                    
                                     <label class="block text-[9px] font-black text-emerald-300/70 uppercase mb-1">โหมด</label>
                                     <select id="leRecolorMode" class="w-full text-[11px] p-1.5 rounded bg-slate-800 text-white border border-white/10 outline-none mb-2">
                                         <option value="all">🎨 เปลี่ยนสีทั้งหมด</option>
                                         <option value="selective">🎯 เปลี่ยนเฉพาะสีที่เลือก</option>
                                     </select>
                                     
-                                    <!-- โหมด selective: เลือกสีต้นทาง -->
                                     <div id="leSelectiveControls" class="hidden mb-2 bg-slate-900/50 rounded p-2 border border-white/5">
                                         <label class="block text-[9px] font-black text-amber-300 uppercase mb-1">1. สีที่จะถูกเปลี่ยน</label>
                                         <div class="flex gap-2 items-center mb-1.5">
@@ -401,7 +387,7 @@
                                         <input type="color" id="leLogoNewColor" value="#ec4899" class="w-12 h-9 rounded-lg cursor-pointer border border-white/10">
                                         <div class="flex-1 text-[10px] text-emerald-200/70">เลือกสีที่ต้องการ</div>
                                     </div>
-                                    <!-- preset สี -->
+                                    
                                     <div class="grid grid-cols-6 gap-1">
                                         <button onclick="void(0)" disabled style="background:#ffffff" class="h-6 rounded border border-white/20 hover:scale-110 transition" title="ขาว"></button>
                                         <button onclick="void(0)" disabled style="background:var(--k-panel2)" class="h-6 rounded border border-white/20 hover:scale-110 transition" title="ดำ"></button>
@@ -425,8 +411,7 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- ═══════════ TAB: AI Background Remover ═══════════ -->
+                
                 <div id="leTabContent_aibg" class="le-tab-content hidden">
                     
                     <div class="p-3 border-b border-white/5">
@@ -441,8 +426,7 @@
                         </ul>
                     </div>
                 </div>
-
-                <!-- ═══════════ TAB: แยกชิ้นโลโก้ (Logo Splitter) ═══════════ -->
+                
                 <div id="leTabContent_split" class="le-tab-content hidden">
                     <div class="p-3 border-b border-white/5">
                         <div class="flex items-center gap-2 mb-3">
@@ -465,7 +449,6 @@
                             </label>
                         </button>
                         
-                        <!-- ตั้งค่าการแยก -->
                         <div id="leSplitSettings" class="hidden bg-slate-800/40 border border-white/10 rounded-lg p-2 mb-2 space-y-2">
                             <h4 class="text-[10px] font-black text-pink-300 uppercase">⚙️ ตั้งค่าการแยก</h4>
                             
@@ -497,7 +480,6 @@
                             </button>
                         </div>
                         
-                        <!-- Progress -->
                         <div id="leSplitProgress" class="hidden bg-pink-950/40 border border-pink-900/40 rounded-lg p-2 mb-2">
                             <div class="flex items-center gap-2">
                                 <span class="material-icons animate-spin text-pink-400 text-sm">sync</span>
@@ -506,7 +488,6 @@
                         </div>
                     </div>
                     
-                    <!-- รายการชิ้นที่แยกได้ -->
                     <div id="leSplitPartsContainer" class="p-3 border-b border-white/5 hidden">
                         <h4 class="font-black text-xs text-pink-300 mb-2 flex items-center gap-1">
                             <span class="material-icons text-base">layers</span>
@@ -516,14 +497,12 @@
                         <div id="leSplitPartsList" class="space-y-1.5"></div>
                     </div>
                     
-                    <!-- Editor ของชิ้นที่เลือก -->
                     <div id="leSplitEditor" class="hidden p-3 border-b border-white/5 bg-pink-950/10">
                         <h4 class="font-black text-xs text-pink-300 mb-2 flex items-center gap-1">
                             <span class="material-icons text-base">edit</span>
                             แก้ไขชิ้นที่เลือก
                         </h4>
                         
-                        <!-- เปลี่ยนสี -->
                         <div class="mb-3">
                             <label class="block text-[9px] font-black text-pink-200 uppercase mb-1.5">🎨 สี</label>
                             <div class="flex gap-2 items-center mb-1.5">
@@ -546,7 +525,6 @@
                             </div>
                         </div>
                         
-                        <!-- ขนาด/ตำแหน่ง -->
                         <div class="mb-3">
                             <label class="block text-[9px] font-black text-pink-200 uppercase mb-1.5">📐 ขนาด</label>
                             <div>
@@ -558,7 +536,6 @@
                             </div>
                         </div>
                         
-                        <!-- แทนตัวอักษร -->
                         <div class="mb-3">
                             <label class="block text-[9px] font-black text-pink-200 uppercase mb-1.5">✏️ แทนด้วยตัวอักษร</label>
                             <p class="text-[9px] text-slate-400 mb-1">ลบชิ้นนี้แล้วใส่ตัวอักษรแทน (เช่น P → O)</p>
@@ -571,7 +548,6 @@
                             <p class="text-[9px] text-slate-500 mt-1">💡 พิมพ์ตัวอักษรใหม่ (ใช้สี+ขนาดเดียวกับชิ้นเดิม)</p>
                         </div>
                         
-                        <!-- ปุ่มเสริม -->
                         <div class="grid grid-cols-2 gap-2">
                             <button onclick="leSplitDuplicate()" class="bg-blue-600 hover:bg-blue-500 text-white px-2 py-1.5 rounded-lg font-bold text-[10px]">
                                 <span class="material-icons text-xs align-middle">content_copy</span> Copy
@@ -582,7 +558,6 @@
                         </div>
                     </div>
                     
-                    <!-- Merge & ส่งออก -->
                     <div id="leSplitMerge" class="hidden p-3 border-b border-white/5">
                         <button onclick="leSplitFinalize()" class="le-btn-download w-full text-white px-3 py-2.5 rounded-lg font-black text-xs shadow border border-white/10">
                             <span class="material-icons text-sm align-middle">check_circle</span> ยืนยัน — รวมเป็นโลโก้ใหม่
@@ -590,8 +565,7 @@
                         <p class="text-[9px] text-slate-400 mt-1.5 text-center">💡 รวมทุกชิ้นเป็นรูปเดียวเพื่อนำไปใช้ต่อ</p>
                     </div>
                 </div>
-
-                <!-- ═══════════ TAB: Template สำเร็จรูป ═══════════ -->
+                
                 <div id="leTabContent_template" class="le-tab-content hidden">
                     <div class="p-3 border-b border-white/5">
                         <div class="flex items-center gap-2 mb-3">
@@ -684,8 +658,7 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- ═══════════ TAB: ใส่ข้อความ ═══════════ -->
+                
                 <div id="leTabContent_text" class="le-tab-content hidden">
                     <div class="p-3 border-b border-white/5">
                         <div class="flex items-center gap-2 mb-3">
@@ -747,7 +720,6 @@
                             <input type="range" id="leTextStroke" min="0" max="20" value="0" class="w-full le-slider mb-2">
                         </div>
                         
-                        <!-- Shadow -->
                         <label class="flex items-center gap-2 cursor-pointer bg-cyan-950/30 rounded-lg p-2 border border-cyan-900/30 mb-2">
                             <input type="checkbox" id="leTextShadow" class="w-4 h-4 accent-cyan-500">
                             <div class="text-[11px] font-black text-cyan-300">เพิ่มเงา</div>
@@ -758,14 +730,12 @@
                         </button>
                     </div>
                     
-                    <!-- รายการข้อความที่มี -->
                     <div id="leTextList" class="p-3 border-b border-white/5 hidden">
                         <h4 class="font-black text-xs text-slate-300 mb-2">ข้อความบนรูป (<span id="leTextCount">0</span>)</h4>
                         <div id="leTextItems" class="space-y-1"></div>
                     </div>
                 </div>
-
-                <!-- ═══════════ TAB: วาดฟรีมือ ═══════════ -->
+                
                 <div id="leTabContent_draw" class="le-tab-content hidden">
                     <div class="p-3 border-b border-white/5">
                         <div class="flex items-center gap-2 mb-3">
@@ -773,7 +743,6 @@
                             <h3 class="font-black text-sm">วาดฟรีมือ</h3>
                         </div>
                         
-                        <!-- เครื่องมือ -->
                         <label class="block text-[9px] font-black text-slate-400 uppercase mb-1.5">เครื่องมือ</label>
                         <div class="grid grid-cols-4 gap-1.5 mb-3">
                             <button onclick="leSetDrawTool('pen')" id="leDrawPen" class="le-shape-btn active rounded-lg p-2 flex flex-col items-center gap-0.5" title="ปากกา">
@@ -810,7 +779,6 @@
                             </button>
                         </div>
                         
-                        <!-- สี -->
                         <label class="block text-[9px] font-black text-slate-400 uppercase mb-1">สี</label>
                         <div class="flex gap-2 items-center mb-2">
                             <input type="color" id="leDrawColor" value="#ef4444" class="w-12 h-9 rounded-lg cursor-pointer border border-white/10">
@@ -824,7 +792,6 @@
                             </div>
                         </div>
                         
-                        <!-- ความหนา -->
                         <div>
                             <div class="flex justify-between text-[9px] font-black uppercase mb-1">
                                 <span class="text-slate-400">ความหนา</span>
@@ -833,15 +800,13 @@
                             <input type="range" id="leDrawSize" min="1" max="50" value="8" class="w-full le-slider mb-2">
                         </div>
                         
-                        <!-- เปิด/ปิด โหมดวาด -->
                         <button onclick="leToggleDrawMode()" id="leDrawToggleBtn" class="le-btn-amber w-full text-white px-3 py-2.5 rounded-lg font-black text-xs shadow border border-white/10">
                             <span class="material-icons text-sm align-middle">play_arrow</span> เริ่มวาด
                         </button>
                         <p class="text-[10px] text-orange-200/70 mt-2 text-center">💡 กดเริ่มแล้วลากเมาส์บนรูปได้เลย</p>
                     </div>
                 </div>
-
-                <!-- ═══════════ TAB: สติกเกอร์ ═══════════ -->
+                
                 <div id="leTabContent_sticker" class="le-tab-content hidden">
                     <div class="p-3 border-b border-white/5">
                         <div class="flex items-center gap-2 mb-3">
@@ -850,7 +815,6 @@
                         </div>
                         <p class="text-[10px] text-slate-400 mb-2">คลิกที่สติกเกอร์เพื่อวางลงบนรูป (ลากย้ายได้)</p>
                         
-                        <!-- หมวด emoji -->
                         <h4 class="text-[10px] font-black text-yellow-300 uppercase mb-1.5 mt-2">🎉 ทั่วไป</h4>
                         <div class="grid grid-cols-6 gap-1 mb-3" id="leEmojiGeneral"></div>
                         
@@ -867,14 +831,12 @@
                         <div class="grid grid-cols-6 gap-1 mb-3" id="leEmojiMoney"></div>
                     </div>
                     
-                    <!-- รายการสติกเกอร์ที่วางบนรูป -->
                     <div id="leStickerList" class="p-3 border-b border-white/5 hidden">
                         <h4 class="font-black text-xs text-slate-300 mb-2">สติกเกอร์บนรูป (<span id="leStickerCount">0</span>)</h4>
                         <div id="leStickerItems" class="space-y-1"></div>
                     </div>
                 </div>
-
-                <!-- ═══════════ TAB: Layer System ═══════════ -->
+                
                 <div id="leTabContent_layer" class="le-tab-content hidden">
                     <div class="p-3 border-b border-white/5">
                         <div class="flex items-center gap-2 mb-3">
@@ -963,7 +925,6 @@
                         </button>
                     </div>
                     
-                    <!-- Filter presets -->
                     <div class="p-3 border-b border-white/5">
                         <h4 class="font-black text-xs text-slate-300 mb-2">🎬 ฟิลเตอร์สำเร็จรูป</h4>
                         <div class="grid grid-cols-3 gap-1.5">
@@ -986,8 +947,7 @@
                         <p class="text-[9px] text-slate-400 mt-1.5 text-center">💡 กดเพื่อบันทึกผลก่อนทำขั้นถัดไป</p>
                     </div>
                 </div>
-
-                <!-- ═══════════ TAB: จัดการรูป ═══════════ -->
+                
                 <div id="leTabContent_adjust" class="le-tab-content hidden">
                     <div class="p-3 border-b border-white/5">
                         <h3 class="font-black text-sm mb-3 flex items-center gap-1">
@@ -1040,8 +1000,7 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- ═══════════ TAB: ขยาย/รีไซส์ ═══════════ -->
+                
                 <div id="leTabContent_resize" class="le-tab-content hidden">
                     <div class="p-3 border-b border-white/5">
                         <div class="flex items-center gap-2 mb-3">
@@ -1085,8 +1044,7 @@
                         </button>
                     </div>
                 </div>
-
-                <!-- ═══════════ TAB: Watermark ═══════════ -->
+                
                 <div id="leTabContent_watermark" class="le-tab-content hidden">
                     <div class="p-3 border-b border-white/5">
                         <h3 class="font-black text-sm mb-3 flex items-center gap-1">
@@ -1142,8 +1100,7 @@
 
                 <div class="h-4"></div>
             </div>
-
-            <!-- Sticky bottom -->
+            
             <div class="shrink-0 p-3 bg-black/40 border-t-2 border-white/10 space-y-2">
                 <div class="grid grid-cols-2 gap-2">
                     <button onclick="leUndoLast()" class="bg-white/5 hover:bg-white/10 text-white px-2 py-2 rounded-lg font-bold text-[11px] border border-white/10 flex items-center justify-center gap-1">
@@ -1158,8 +1115,7 @@
                 </button>
             </div>
         </aside>
-
-        <!-- Canvas -->
+        
         <main id="leCanvasArea" class="flex-1 relative overflow-auto custom-scrollbar">
             <div id="leEmptyState" class="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div class="text-center px-6">
@@ -1179,9 +1135,9 @@
                         <img id="leLogoImg" src="" class="block pointer-events-none" draggable="false">
                         <div id="leLogoHandle" class="absolute -bottom-2 -right-2 w-5 h-5 bg-emerald-500 rounded-full border-2 border-white cursor-se-resize shadow-lg ring-2 ring-emerald-500/30"></div>
                     </div>
-                    <!-- Text overlays จะถูกสร้าง dynamic ที่นี่ -->
+                    
                     <div id="leTextOverlayContainer" class="absolute inset-0 pointer-events-none"></div>
-                    <!-- Crop overlay -->
+                    
                     <div id="leCropOverlay" class="hidden absolute border-2 border-amber-400 bg-amber-500/10 pointer-events-none" style="box-shadow: 0 0 0 9999px rgba(0,0,0,0.6);"></div>
                 </div>
             </div>
