@@ -190,7 +190,8 @@ window.exportSummaryToExcel = async function() {
                 }
             });
 
-            ws.views = [{ state: 'frozen', xSplit: B0, ySplit: 2 }];
+            // 🔍 เปิดไฟล์มาแล้วซูม 80% (จอโน้ตบุ๊คเห็นได้มากขึ้น) + ไม่โชว์เส้นตารางสีเทาของ Excel ในส่วนที่ไม่ใช่ตาราง (ตารางเรายังมีเส้นของตัวเอง)
+            ws.views = [{ state: 'frozen', xSplit: B0, ySplit: 2, zoomScale: 80, zoomScaleNormal: 80, showGridLines: false }];
 
             const sortedEmps = Object.values(empGroups).sort((a, b) => b.totalApproved - a.totalApproved);
             let rowIndex = 1;
