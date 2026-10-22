@@ -212,7 +212,7 @@ window.executeSaveSettings = async function() {
     });
     const {error: error} = await appDB.from('settings').upsert(updates);
     if (error) throw error;
-    appDB.channel('settings-updates').send({
+    (typeof settingsSubscription !== 'undefined' && settingsSubscription ? settingsSubscription : appDB.channel('settings-updates')).send({
       type: 'broadcast',
       event: 'force_leave_reload'
     });
@@ -255,11 +255,7 @@ window.exportLeaveToExcel = async function() {
       const daysInMonth = new Date(year, month + 1, 0).getDate();
       const monthNamesThai = [ "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม" ];
       const monthName = `${monthNamesThai[month]} ${year}`;
-      const staffList = GLOBAL_USER_LIST.filter((u => {
-        const uDept = u.department || 'AM';
-        if (currentViewDept === 'TRAINER') return uDept === 'TRAINER';
-        return u.role === 'staff' && uDept === currentViewDept;
-      })).sort(((a, b) => a.username.localeCompare(b.username)));
+      const staffList = window.leaveDeptUsers().slice().sort(((a, b) => a.username.localeCompare(b.username)));
       if (staffList.length === 0) {
         Swal.close();
         return Swal.fire('ไม่มีข้อมูล', `ไม่มีรายชื่อพนักงานในแผนก ${currentViewDept}`, 'warning');
@@ -457,8 +453,8 @@ window.exportLeaveToExcel = async function() {
       link.download = `ตารางวันหยุด_${currentViewDept}_${monthName}.xlsx`;
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      link.remove();
+      setTimeout((() => URL.revokeObjectURL(url)), 2e3);
       Swal.fire({
         icon: 'success',
         title: 'ดาวน์โหลดไฟล์ Excel สำเร็จ!',
@@ -524,7 +520,7 @@ window.fetchHistoryLogs = async function() {
   if (window.historyFilterType === 'จอง') query = query.ilike('action_type', 'จอง%'); else if (window.historyFilterType === 'ยกเลิก') query = query.eq('action_type', 'ยกเลิก');
   const {data: data, error: error} = await query;
   if (error || !data || data.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="4" class="text-center p-10 text-gray-400 font-bold flex flex-col items-center"><span class="material-icons text-5xl opacity-20 mb-2">search_off</span>ไม่พบข้อมูลประวัติ</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="4" class="text-center p-10 text-gray-400 font-bold"><span class="material-icons text-5xl opacity-20 mb-2">${error ? 'error_outline' : 'search_off'}</span><br>${error ? 'โหลดประวัติไม่สำเร็จ: ' + window.escapeHtml(error.message) : 'ไม่พบข้อมูลประวัติ'}</td></tr>`;
     return;
   }
   const thaiMonths = [ "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค." ];
@@ -554,7 +550,7 @@ window.fetchHistoryLogs = async function() {
       rowClass = 'bg-red-50/40 dark:bg-red-900/10 hover:bg-red-50 dark:hover:bg-red-900/20 transition duration-200';
       actionBadge = `<div class="flex items-center gap-1.5"><span class="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/50 px-2 py-1 rounded-md text-[11px] font-black flex items-center gap-1 shadow-sm"><span class="material-icons text-[14px]">event_busy</span> ยกเลิก</span></div>`;
     }
-    let actorHtml = log.actor_name !== log.username ? `<div class="text-[10px] text-orange-500 dark:text-orange-400 mt-1 flex items-center gap-1 font-bold"><span class="material-icons text-[12px]">support_agent</span> แอดมิน ${log.actor_name} กดให้</div>` : `<div class="text-[10px] text-gray-400 mt-1 flex items-center gap-1"><span class="material-icons text-[12px]">touch_app</span> กดด้วยตัวเอง</div>`;
+    let actorHtml = log.actor_name !== log.username ? `<div class="text-[10px] text-orange-500 dark:text-orange-400 mt-1 flex items-center gap-1 font-bold"><span class="material-icons text-[12px]">support_agent</span> แอดมิน ${window.escapeHtml(log.actor_name)} กดให้</div>` : `<div class="text-[10px] text-gray-400 mt-1 flex items-center gap-1"><span class="material-icons text-[12px]">touch_app</span> กดด้วยตัวเอง</div>`;
     rows += `<tr class="${rowClass}"><td class="px-4 py-3 align-top"><div class="font-mono text-xs font-black text-indigo-500 dark:text-indigo-400">${timeStr} น.</div><div class="text-[10px] text-gray-500 font-bold mt-0.5">${dateStr}</div></td><td class="px-4 py-3 align-top"><div class="font-black text-sm text-slate-800 dark:text-white tracking-wide">${window.escapeHtml(log.username)}</div>${actorHtml}</td><td class="px-4 py-3 align-top">${actionBadge}</td><td class="px-4 py-3 align-top"><div class="font-extrabold text-xs text-slate-700 dark:text-gray-200 bg-white dark:bg-slate-900 inline-block px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-1.5 w-fit"><span class="material-icons text-gray-400 text-[14px]">today</span> ${displayLeaveDate}</div></td></tr>`;
   }));
   tbody.innerHTML = rows;
@@ -574,12 +570,6 @@ window.toggleLeaveStatus = async function(isChecked) {
       key: `${_saveDept}_is_open`,
       value: statusValue
     } ];
-    if (_saveDept !== currentViewDept) {
-      upsertRows.push({
-        key: `${currentViewDept}_is_open`,
-        value: statusValue
-      });
-    }
     const {error: error} = await appDB.from('settings').upsert(upsertRows);
     if (error) throw error;
     if (deptSettings[_saveDept]) deptSettings[_saveDept].isOpen = isChecked;
@@ -597,52 +587,6 @@ window.toggleLeaveStatus = async function(isChecked) {
     if (document.getElementById('setForceOpen')) document.getElementById('setForceOpen').checked = !isChecked;
   }
 };
-
-window.loadLeaveStatusConfig = async function() {
-  try {
-    if (!window.leaveStatusConfig) window.leaveStatusConfig = {};
-    [ 'AM', 'OD', 'TRAINER', 'AMQL', 'ODQL', 'SPECIAL', 'NEW' ].forEach((dept => {
-      if (deptSettings[dept]) {
-        window.leaveStatusConfig[dept] = deptSettings[dept].isOpen ? 'true' : 'false';
-      }
-    }));
-    updateLeaveToggleUI();
-  } catch (e) {
-    console.error('Load Leave Status Error:', e);
-  }
-};
-
-window.updateLeaveToggleUI = function() {
-  const toggleBtn = document.getElementById('setForceOpen');
-  if (!toggleBtn) return;
-  const s = deptSettings[currentViewDept];
-  if (s && s.isOpen !== undefined) {
-    toggleBtn.checked = s.isOpen;
-  }
-};
-
-setTimeout((async () => {
-  let waited = 0;
-  while (typeof appDB === 'undefined' && waited < 5e3) {
-    await new Promise((r => setTimeout(r, 200)));
-    waited += 200;
-  }
-  if (typeof loadLeaveStatusConfig === 'function') loadLeaveStatusConfig();
-}), 500);
-
-setTimeout((() => {
-  const targetNode = document.getElementById('settingTargetLabel');
-  if (targetNode) {
-    const observer = new MutationObserver((() => {
-      updateLeaveToggleUI();
-    }));
-    observer.observe(targetNode, {
-      childList: true,
-      characterData: true,
-      subtree: true
-    });
-  }
-}), 1e3);
 
 window.removeFromNewDept = async function(id, username) {
   Swal.fire({
@@ -742,11 +686,16 @@ window.openManageSpecialModal = async function() {
       title: 'กำลังบันทึกกลุ่ม...',
       didOpen: () => Swal.showLoading()
     });
+    const prevSpecial = window.specialGroupUserIds;
     window.specialGroupUserIds = selectedIds;
-    await appDB.from('settings').upsert([ {
+    const {error: spErr} = await appDB.from('settings').upsert([ {
       key: 'leave_special_users',
-      value: JSON.stringify(window.specialGroupUserIds)
+      value: JSON.stringify(selectedIds)
     } ]);
+    if (spErr) {
+      window.specialGroupUserIds = prevSpecial;
+      return Swal.fire('บันทึกไม่สำเร็จ', spErr.message, 'error');
+    }
     window.renderLeaveTable();
     Swal.fire({
       icon: 'success',
@@ -789,11 +738,13 @@ window.removeFromSpecialDept = async function(id, username) {
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading()
       });
-      window.specialGroupUserIds = window.specialGroupUserIds.filter((uid => String(uid) !== String(id)));
-      await appDB.from('settings').upsert([ {
+      const nextIds = (window.specialGroupUserIds || []).filter((uid => String(uid) !== String(id)));
+      const {error: rmErr} = await appDB.from('settings').upsert([ {
         key: 'leave_special_users',
-        value: JSON.stringify(window.specialGroupUserIds)
+        value: JSON.stringify(nextIds)
       } ]);
+      if (rmErr) return Swal.fire('นำออกไม่สำเร็จ', rmErr.message, 'error');
+      window.specialGroupUserIds = nextIds;
       window.renderLeaveTable();
       Swal.fire({
         icon: 'success',
@@ -833,6 +784,3 @@ window.subscribeScheduledTasksChanges = function() {
   if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(window.scheduledTasksSubscription);
 };
 
-if (typeof subscribeScheduledTasksChanges === 'undefined') {
-  var subscribeScheduledTasksChanges = window.subscribeScheduledTasksChanges;
-}

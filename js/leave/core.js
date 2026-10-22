@@ -111,12 +111,6 @@ let leaveSubscription = null;
 
 let settingsSubscription = null;
 
-let scheduledTasksSubscription = null;
-
-let isEditingLeave = false;
-
-let editLeaveTimer;
-
 window.setLeaveType = function(type) {
   window.activeLeaveType = type;
   document.querySelectorAll('.leave-type-btn').forEach((btn => {
@@ -217,12 +211,6 @@ function updateAdminInputs() {
     timeGroup.classList.remove('opacity-30', 'pointer-events-none');
   }
 }
-
-const forceOpenCb = document.getElementById('setForceOpen');
-
-if (forceOpenCb) forceOpenCb.addEventListener('change', (e => {
-  toggleTimeInputs(e.target.checked);
-}));
 
 window.initLeaveTable = async function() {
   if (typeof updateMonthPicker === 'function') updateMonthPicker();
@@ -418,7 +406,7 @@ async function fetchLeaveData(skipRender = false) {
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
   const endDate = `${year}-${String(month).padStart(2, '0')}-${daysInMonth}`;
   const fetchStart = new Date(year, month - 2, 1).toISOString();
-  const fetchEnd = new Date(year, month + 1, 0).toISOString() + "T23:59:59";
+  const fetchEnd = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
   const [leaveRes, swapRes] = await Promise.all([ window.selectAllRows((() => appDB.from('leave_requests').select('*').gte('leave_date', startDate).lte('leave_date', endDate).order('id', {
     ascending: true
   }))), window.selectAllRows((() => appDB.from('scheduled_tasks').select('*').eq('task_type', 'individual_shift_update').gte('scheduled_for', fetchStart).lte('scheduled_for', fetchEnd).order('id', {
@@ -441,6 +429,7 @@ function subscribeLeaveChanges() {
     if (leaveAppEl && !leaveAppEl.classList.contains('hidden')) {
       let changedUserId = null;
       if (payload.eventType === 'INSERT') {
+        if (allLeaveData.some((l => String(l.id) === String(payload.new.id)))) return;
         allLeaveData.push(payload.new);
         changedUserId = payload.new.user_id;
       } else if (payload.eventType === 'DELETE') {
@@ -465,8 +454,11 @@ function subscribeLeaveChanges() {
         shouldRenderTable = true;
       }
       if (shouldRenderTable) {
-        window.renderLeaveTable();
-        flashRealtimeDot();
+        clearTimeout(window._leaveRtRender);
+        window._leaveRtRender = setTimeout((() => {
+          window.renderLeaveTable();
+          flashRealtimeDot();
+        }), 150);
       }
     }
   })).subscribe();
@@ -512,23 +504,6 @@ if (!document.getElementById('crosshair-dynamic-style')) {
   style.id = 'crosshair-dynamic-style';
   document.head.appendChild(style);
 }
-
-window.highlightCell = function(cell, colIndex, isEnter) {
-  const row = cell.parentElement;
-  const styleTag = document.getElementById('crosshair-dynamic-style');
-  if (isEnter) {
-    row.classList.add('hover-row-active');
-    cell.classList.add('hover-cell-active');
-    const cssIndex = colIndex + 3;
-    const isDark = document.documentElement.classList.contains('dark');
-    const bgColor = isDark ? '#374151' : '#fff7ed';
-    styleTag.innerHTML = `\n            #leaveTableMain tbody tr td:nth-child(${cssIndex}):not(.is-booked),\n            #leaveTableMain thead tr th:nth-child(${cssIndex}) {\n                background-color: ${bgColor} !important;\n            }\n        `;
-  } else {
-    row.classList.remove('hover-row-active');
-    cell.classList.remove('hover-cell-active');
-    styleTag.innerHTML = '';
-  }
-};
 
 window.setupLeaveHoverDelegation = function() {
   const tbody = document.getElementById('tableBody');

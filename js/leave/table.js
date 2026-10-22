@@ -1,3 +1,23 @@
+window.leaveDeptUsers = function(dept) {
+  const view = dept || currentViewDept;
+  return GLOBAL_USER_LIST.filter((u => {
+    const uDept = u.department || 'AM';
+    const uRole = u.role ? u.role.toLowerCase() : 'staff';
+    const isInSpecial = window.specialGroupUserIds && window.specialGroupUserIds.includes(String(u.id));
+    if (view === 'SPECIAL') {
+      return isInSpecial;
+    } else if (view === 'TRAINER') {
+      return (uDept.startsWith('TRAINER') || uRole === 'trainer') && !isInSpecial;
+    } else if (view === 'AMQL' || view === 'TRAINER_AM') {
+      return (uDept === 'AM' && uRole === 'trainer' || uDept === 'AMQL' || uDept === 'TRAINER_AM') && !isInSpecial;
+    } else if (view === 'ODQL' || view === 'TRAINER_OD') {
+      return (uDept === 'OD' && uRole === 'trainer' || uDept === 'ODQL' || uDept === 'TRAINER_OD') && !isInSpecial;
+    } else {
+      return uRole === 'staff' && uDept === view && !isInSpecial;
+    }
+  }));
+};
+
 window.renderLeaveTable = function() {
   const thead = document.getElementById('tableHeaderRow');
   const tbody = document.getElementById('tableBody');
@@ -56,22 +76,7 @@ window.renderLeaveTable = function() {
   const month = currentCalendarDate.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   if (typeof checkBookingWindow === 'function') checkBookingWindow();
-  const allDeptUsers = GLOBAL_USER_LIST.filter((u => {
-    const uDept = u.department || 'AM';
-    const uRole = u.role ? u.role.toLowerCase() : 'staff';
-    const isInSpecial = window.specialGroupUserIds && window.specialGroupUserIds.includes(String(u.id));
-    if (currentViewDept === 'SPECIAL') {
-      return isInSpecial;
-    } else if (currentViewDept === 'TRAINER') {
-      return (uDept.startsWith('TRAINER') || uRole === 'trainer') && !isInSpecial;
-    } else if (currentViewDept === 'AMQL' || currentViewDept === 'TRAINER_AM') {
-      return (uDept === 'AM' && uRole === 'trainer' || uDept === 'AMQL' || uDept === 'TRAINER_AM') && !isInSpecial;
-    } else if (currentViewDept === 'ODQL' || currentViewDept === 'TRAINER_OD') {
-      return (uDept === 'OD' && uRole === 'trainer' || uDept === 'ODQL' || uDept === 'TRAINER_OD') && !isInSpecial;
-    } else {
-      return uRole === 'staff' && uDept === currentViewDept && !isInSpecial;
-    }
-  }));
+  const allDeptUsers = window.leaveDeptUsers();
   const allDeptUserIds = new Set(allDeptUsers.map((u => String(u.id))));
   const userShiftMapAll = {};
   allDeptUsers.forEach((u => userShiftMapAll[String(u.id)] = u.allowed_shift || 'all'));
@@ -79,9 +84,13 @@ window.renderLeaveTable = function() {
   const bookedMap = new Map;
   const personalCounts = {};
   const shiftDailyCounts = {};
+  const seenLeave = new Set;
   allLeaveData.forEach((l => {
     const strUid = String(l.user_id);
     if (!allDeptUserIds.has(strUid)) return;
+    const dupKey = strUid + '_' + String(l.leave_date || '').split('T')[0].split(' ')[0];
+    if (seenLeave.has(dupKey)) return;
+    seenLeave.add(dupKey);
     const cleanDate = String(l.leave_date || '').split('T')[0].split(' ')[0];
     const rsn = l.reason === 'Table-Booking' || !l.reason ? 'X' : l.reason;
     bookedMap.set(`${strUid}_${cleanDate}`, rsn);
@@ -271,9 +280,7 @@ window.renderLeaveTable = function() {
         shiftBgColor = 'bg-amber-100 dark:bg-[#4a3615]';
       } else if (activeShiftForThisDay === 'กะดึก') {
         shiftBgColor = 'bg-indigo-100 dark:bg-[#3d2c6b]';
-        shiftBgColor = 'bg-indigo-100 dark:bg-[#3d2c6b]';
       } else if (activeShiftForThisDay === 'กะกลาง') {
-        shiftBgColor = 'bg-sky-100 dark:bg-[#1e4875]';
         shiftBgColor = 'bg-sky-100 dark:bg-[#1e4875]';
       }
       let cellClass = `cursor-pointer ${shiftBgColor}`;
@@ -317,6 +324,8 @@ window.renderLeaveTable = function() {
             } else if (isMe) {
               clickAttr = `onclick="Swal.fire({icon:'warning', title:'ครบโควตา', text:'คุณใช้สิทธิ์ครบ ${s.limit} วันแล้ว', timer:1500, showConfirmButton:false})"`;
             }
+          } else if (isMe) {
+            clickAttr = targetQuota ? `onclick="Swal.fire({icon:'warning', title:'วันนี้เต็มแล้ว', text:'กะของคุณมีคนหยุดครบ ${targetQuota} คนแล้ว', timer:1800, showConfirmButton:false})"` : `onclick="Swal.fire({icon:'info', title:'ยังไม่เปิดโควตา', text:'กะของคุณยังไม่ได้ตั้งจำนวนคนหยุดต่อวัน', timer:1800, showConfirmButton:false})"`;
           }
         }
       }
