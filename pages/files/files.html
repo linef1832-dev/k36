@@ -1,63 +1,131 @@
-<div id="filesApp" class="fade-in flex flex-col h-full bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden pb-10">
-
-    <div style="--acc:16,185,129;background:linear-gradient(120deg,rgba(var(--acc),0.22),color-mix(in srgb,var(--k-panel2) 55.0%,transparent) 45%,color-mix(in srgb,var(--k-panel2) 20.0%,transparent)),var(--k-panel2);border-bottom:1px solid rgba(var(--acc),0.4);box-shadow:0 6px 24px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.06)" class="k-pagehead text-white p-4 shrink-0 flex justify-between items-center">
-        <div class="flex items-center gap-3">
-            <div class="bg-white/20 p-2 rounded-full shadow-inner"><span class="material-icons text-3xl">folder_zip</span></div>
-            <div>
-                <h1 class="font-bold text-xl">คลังไฟล์ และ โปรแกรม</h1>
-            </div>
+<div id="filesApp" class="fade-in k-auto-light">
+<style>
+#filesApp{--a:16,185,129;--g:#E8C15A;background:var(--k-bg);color:var(--k-tx);min-height:100%;display:flex;flex-direction:column}
+#filesApp .material-icons{font-size:18px}
+#filesApp .fa-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 20px;background:var(--k-panel);border-bottom:1px solid var(--k-line);position:sticky;top:0;z-index:20}
+#filesApp .fa-logo{width:44px;height:44px;border-radius:13px;display:flex;align-items:center;justify-content:center;background:rgb(var(--a));color:#fff;flex:none;box-shadow:0 8px 20px rgba(var(--a),.28)}
+#filesApp .fa-logo .material-icons{font-size:24px}
+#filesApp .fa-title{margin:0;font-size:19px;font-weight:900;color:var(--k-tx-strong)}
+#filesApp .fa-sub{font-size:12.5px;font-weight:700;color:var(--k-mute);margin-top:1px}
+#filesApp #filesAdminControls:not(.hidden){display:flex;gap:8px}
+#filesApp .fa-right{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#filesApp .fa-search{display:flex;align-items:center;gap:8px;height:40px;padding:0 12px;border-radius:12px;background:var(--k-field);border:1px solid var(--k-line2);min-width:240px}
+#filesApp .fa-search:focus-within{border-color:rgb(var(--a));box-shadow:0 0 0 3px rgba(var(--a),.16)}
+#filesApp .fa-search input{flex:1;min-width:0;background:transparent;border:0;outline:none;color:var(--k-tx-strong);font-size:13.5px;font-weight:600}
+#filesApp .fa-search .material-icons{color:var(--k-mute2)}
+#filesApp .fa-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:40px;padding:0 14px;border-radius:12px;font-size:13px;font-weight:800;white-space:nowrap;border:1px solid var(--k-line3);background:var(--k-btn);color:var(--k-tx2);cursor:pointer;transition:background .15s,border-color .15s,color .15s,transform .08s}
+#filesApp .fa-btn:hover{background:var(--k-btn-h);color:var(--k-tx-strong)}
+#filesApp .fa-btn:active{transform:scale(.97)}
+#filesApp .fa-btn.primary{background:rgb(var(--a));border-color:rgb(var(--a));color:#fff;box-shadow:0 6px 16px rgba(var(--a),.25)}
+#filesApp .fa-btn.primary:hover{filter:brightness(1.06)}
+#filesApp .fa-btn .material-icons{font-size:17px}
+#filesApp .fa-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 20px 4px;max-width:1500px;width:100%;margin:0 auto;box-sizing:border-box}
+#filesApp #filesCategoryTabs{display:flex;gap:6px;flex-wrap:wrap;flex:1;min-width:0}
+#filesApp .fa-chip{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:999px;font-size:12.5px;font-weight:800;color:var(--k-tx3);background:var(--k-panel);border:1px solid var(--k-line2);transition:background .15s,border-color .15s,color .15s}
+#filesApp .fa-chip .material-icons{font-size:15px}
+#filesApp .fa-chip b{font-size:11px;font-weight:900;padding:1px 7px;border-radius:999px;background:var(--k-sunk);color:var(--k-mute)}
+#filesApp .fa-chip:hover{color:var(--k-tx-strong);border-color:var(--k-line4)}
+#filesApp .fa-chip.on{background:rgba(var(--a),.14);border-color:rgb(var(--a));color:var(--k-tx-strong)}
+#filesApp .fa-chip.on b{background:rgb(var(--a));color:#fff}
+#filesApp .fa-sort{display:flex;gap:3px;padding:3px;border-radius:11px;background:var(--k-sunk);border:1px solid var(--k-line)}
+#filesApp .fa-sort button{height:30px;padding:0 11px;border-radius:8px;font-size:12px;font-weight:800;color:var(--k-mute)}
+#filesApp .fa-sort button.on{background:var(--k-panel);color:var(--k-tx-strong);box-shadow:var(--k-shadow)}
+#filesApp .fa-body{flex:1;padding:12px 20px 40px;max-width:1500px;width:100%;margin:0 auto;box-sizing:border-box}
+#filesApp #filesGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px}
+#filesApp .fa-card{position:relative;display:flex;flex-direction:column;gap:12px;padding:16px;border-radius:18px;background:var(--k-panel);border:1px solid var(--k-line);box-shadow:var(--k-shadow);transition:transform .15s,box-shadow .15s,border-color .15s;min-width:0}
+#filesApp .fa-card:hover{transform:translateY(-2px);border-color:var(--k-line4);box-shadow:0 14px 30px rgba(0,0,0,.18)}
+#filesApp .fa-top{display:flex;gap:13px;align-items:flex-start;min-width:0}
+#filesApp .fa-ic{width:56px;height:56px;border-radius:16px;display:flex;align-items:center;justify-content:center;flex:none;background:color-mix(in srgb,var(--c) 15%,transparent);color:var(--c);overflow:hidden}
+#filesApp .fa-ic .material-icons{font-size:28px}
+#filesApp .fa-ic img{width:100%;height:100%;object-fit:cover}
+#filesApp .fa-tt{flex:1;min-width:0}
+#filesApp .fa-name{font-size:15px;font-weight:900;color:var(--k-tx-strong);line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+#filesApp .fa-tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
+#filesApp .fa-tag{font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:999px;background:var(--k-sunk);color:var(--k-tx3);border:1px solid var(--k-line)}
+#filesApp .fa-tag.new{background:rgba(var(--a),.14);color:var(--k-green-tx);border-color:rgba(var(--a),.35)}
+#filesApp .fa-tag.upd{background:rgba(245,158,11,.14);color:var(--k-amber-tx);border-color:rgba(245,158,11,.35)}
+#filesApp .fa-desc{display:flex;align-items:flex-start;gap:8px;padding:9px 11px;border-radius:12px;background:var(--k-sunk);border:1px solid var(--k-line);font-size:12.5px;font-weight:600;color:var(--k-tx2);line-height:1.5;min-height:22px}
+#filesApp .fa-desc span{flex:1;min-width:0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+#filesApp .fa-desc.empty{color:var(--k-mute2)}
+#filesApp .fa-copy{flex:none;width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--k-mute)}
+#filesApp .fa-copy:hover{background:var(--k-btn-h);color:var(--k-tx-strong)}
+#filesApp .fa-copy .material-icons{font-size:15px}
+#filesApp .fa-foot{display:flex;align-items:center;gap:10px;margin-top:auto}
+#filesApp .fa-meta{display:flex;flex-direction:column;font-size:11.5px;font-weight:700;color:var(--k-mute);line-height:1.4}
+#filesApp .fa-meta b{color:var(--k-tx2)}
+#filesApp .fa-dl{margin-left:auto;display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 16px;border-radius:12px;font-size:13.5px;font-weight:900;background:rgb(var(--a));color:#fff;box-shadow:0 6px 16px rgba(var(--a),.25);transition:filter .15s,transform .08s}
+#filesApp .fa-dl:hover{filter:brightness(1.07)}
+#filesApp .fa-dl:active{transform:scale(.97)}
+#filesApp .fa-dl .material-icons{font-size:18px}
+#filesApp .fa-adm{position:absolute;top:10px;right:10px;display:flex;gap:4px;opacity:0;transition:opacity .15s}
+#filesApp .fa-card:hover .fa-adm,#filesApp .fa-adm:focus-within{opacity:1}
+#filesApp .fa-adm button{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:var(--k-panel);border:1px solid var(--k-line3);color:var(--k-mute)}
+#filesApp .fa-adm button:hover{color:var(--k-tx-strong)}
+#filesApp .fa-adm button.del:hover{color:var(--k-red-tx);background:var(--k-red-bg)}
+#filesApp .fa-adm .material-icons{font-size:16px}
+#filesApp .fa-empty{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;gap:6px;padding:70px 16px;text-align:center;color:var(--k-mute2);font-size:13px;font-weight:700}
+#filesApp .fa-empty .material-icons{font-size:50px;opacity:.45}
+#filesApp .fa-empty b{font-size:15px;color:var(--k-tx3)}
+@media (max-width:640px){ #filesApp .fa-head{padding:12px} #filesApp .fa-search{min-width:0;flex:1} #filesApp .fa-right{width:100%} #filesApp .fa-bar,#filesApp .fa-body{padding-left:12px;padding-right:12px} #filesApp .fa-adm{opacity:1} #filesApp .fa-btn .fa-t{display:none} }
+#fileModal .fm-box{width:100%;max-width:520px;max-height:calc(100vh - 32px);display:flex;flex-direction:column;border-radius:20px;overflow:hidden;background:var(--k-panel);border:1px solid var(--k-line3);box-shadow:0 24px 60px rgba(0,0,0,.45);color:var(--k-tx)}
+#fileModal .fm-h{display:flex;align-items:center;gap:10px;padding:15px 18px;border-bottom:1px solid var(--k-line)}
+#fileModal .fm-h h3{margin:0 auto 0 0;display:flex;align-items:center;gap:8px;font-size:16px;font-weight:900;color:var(--k-tx-strong)}
+#fileModal .fm-x{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--k-mute)}
+#fileModal .fm-x:hover{background:var(--k-btn-h);color:var(--k-tx-strong)}
+#fileModal form{padding:16px 18px 18px;overflow-y:auto;display:flex;flex-direction:column;gap:14px}
+#fileModal label.fm-l{display:block;font-size:12.5px;font-weight:800;color:var(--k-tx3);margin-bottom:6px}
+#fileModal .fm-in{width:100%;box-sizing:border-box;height:42px;padding:0 12px;border-radius:12px;background:var(--k-field);border:1px solid var(--k-line3);color:var(--k-tx-strong);font-size:14px;font-weight:600;outline:none}
+#fileModal .fm-in:focus{border-color:rgb(16,185,129);box-shadow:0 0 0 3px rgba(16,185,129,.16)}
+#fileModal .fm-src{padding:12px;border-radius:14px;border:1.5px dashed var(--k-line3);background:var(--k-sunk);display:flex;flex-direction:column;gap:10px}
+#fileModal .fm-or{display:flex;align-items:center;gap:10px;font-size:11px;font-weight:800;color:var(--k-mute2)}
+#fileModal .fm-or::before,#fileModal .fm-or::after{content:"";flex:1;height:1px;background:var(--k-line2)}
+#fileModal input[type=file]{font-size:12.5px;color:var(--k-mute);width:100%}
+#fileModal .fm-note{font-size:11.5px;font-weight:700;color:var(--k-amber-tx);padding:7px 10px;border-radius:10px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3)}
+#fileModal .fm-cover{display:flex;align-items:center;gap:10px;margin-top:8px}
+#fileModal .fm-cover img{width:52px;height:52px;border-radius:12px;object-fit:cover;background:var(--k-sunk)}
+#fileModal .fm-cover span{font-size:12px;font-weight:700;color:var(--k-mute)}
+#fileModal #fileSubmitBtn{height:46px;border-radius:13px;font-size:15px;font-weight:900;background:rgb(16,185,129);color:#fff;box-shadow:0 8px 20px rgba(16,185,129,.25)}
+#fileModal #fileSubmitBtn.edit{background:#f59e0b;color:#1b1406;box-shadow:0 8px 20px rgba(245,158,11,.25)}
+</style>
+    <div class="fa-head">
+        <div class="fa-logo"><span class="material-icons">folder_zip</span></div>
+        <div>
+            <h1 class="fa-title">คลังไฟล์ และ โปรแกรม</h1>
+            <div class="fa-sub" id="filesStatLine">กำลังโหลด…</div>
         </div>
-        <button onclick="showPage('dashboard')" class="bg-black/20 hover:bg-black/40 text-white px-4 py-2 rounded-lg font-bold transition flex items-center gap-2 shadow-sm border border-emerald-500/50">
-            <span class="material-icons text-sm">arrow_back</span> กลับ
-        </button>
-    </div>
-
-    <div class="bg-white dark:bg-slate-800 p-4 border-b dark:border-slate-700 shadow-sm z-10 shrink-0">
-        <div class="flex flex-wrap gap-3 items-center justify-between mb-3">
-            <div class="relative w-full md:w-64">
-                <span class="material-icons absolute left-3 top-2.5 text-gray-400 text-[18px]">search</span>
-                <input type="text" id="searchFilesInput" onkeyup="renderFilesGrid()" placeholder="ค้นหาชื่อไฟล์..." class="w-full pl-9 pr-3 py-2 bg-slate-100 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl text-sm outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition shadow-inner">
+        <div class="fa-right">
+            <label class="fa-search"><span class="material-icons">search</span><input type="text" id="searchFilesInput" oninput="renderFilesGrid()" placeholder="ค้นหาชื่อไฟล์ หรือรายละเอียด" aria-label="ค้นหาไฟล์"></label>
+            <div id="filesAdminControls" class="hidden">
+                <button onclick="openFilesDownloadLog()" class="fa-btn"><span class="material-icons">leaderboard</span><span class="fa-t">ประวัติโหลด</span></button>
+                <button onclick="openAddFileModal()" class="fa-btn primary"><span class="material-icons">add</span><span class="fa-t">เพิ่มไฟล์</span></button>
             </div>
-            <div class="flex items-center gap-2">
-                <div id="filesAdminControls" class="hidden flex gap-2">
-                    <button onclick="openFilesDownloadLog()" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-xl text-sm font-bold flex items-center gap-1 transition border border-slate-600">
-                        <span class="material-icons text-sm">leaderboard</span> ประวัติโหลด
-                    </button>
-                    <button onclick="openAddFileModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-1 shadow-lg transition transform active:scale-95 border border-emerald-400">
-                        <span class="material-icons text-sm">add_box</span> เพิ่มไฟล์ใหม่
-                    </button>
-                </div>
-            </div>
+            <button onclick="showPage('dashboard')" class="fa-btn"><span class="material-icons">arrow_back</span><span class="fa-t">กลับ</span></button>
         </div>
-        
-        <div id="filesCategoryTabs" class="flex gap-2 flex-wrap"></div>
     </div>
-
-    <div class="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50 dark:bg-slate-900/50 custom-scrollbar">
-        <div id="filesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 max-w-[1600px] mx-auto pb-10"></div>
+    <div class="fa-bar">
+        <div id="filesCategoryTabs"></div>
+        <div class="fa-sort" id="filesSortBar" role="group" aria-label="เรียงตาม">
+            <button type="button" data-s="new" onclick="setFilesSort('new')" class="on">ล่าสุด</button>
+            <button type="button" data-s="pop" onclick="setFilesSort('pop')">ยอดนิยม</button>
+            <button type="button" data-s="name" onclick="setFilesSort('name')">ชื่อ</button>
+        </div>
+    </div>
+    <div class="fa-body">
+        <div id="filesGrid"></div>
     </div>
 </div>
 
-<div id="fileModal" class="fixed inset-0 bg-black/80 z-[100] hidden flex items-center justify-center p-4 fade-in backdrop-blur-sm">
-    <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-600">
-        <div class="bg-gradient-to-r from-emerald-600 to-teal-600 p-5 flex justify-between items-center text-white">
-            <h3 class="font-black text-lg flex items-center gap-2" id="fileModalTitle">
-                <span class="material-icons">add_box</span> เพิ่มไฟล์ใหม่
-            </h3>
-            <button type="button" onclick="document.getElementById('fileModal').classList.add('hidden')" class="hover:text-black/50 transition bg-white/20 p-1 rounded-full"><span class="material-icons text-sm">close</span></button>
+<div id="fileModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 fade-in" style="background:rgba(2,6,23,.62);backdrop-filter:blur(4px)">
+    <div class="fm-box">
+        <div class="fm-h">
+            <h3 id="fileModalTitle"><span class="material-icons">add_box</span> เพิ่มไฟล์ใหม่</h3>
+            <button type="button" class="fm-x" onclick="document.getElementById('fileModal').classList.add('hidden')" aria-label="ปิด"><span class="material-icons">close</span></button>
         </div>
-
-        <form onsubmit="saveFileData(event)" class="p-6 space-y-4 text-left">
+        <form onsubmit="saveFileData(event)">
             <input type="hidden" id="fileEditId" value="">
-
-            <div>
-                <label class="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider">ชื่อไฟล์ / โปรแกรม</label>
-                <input type="text" id="fileTitle" required placeholder="เช่น โปรแกรม AutoClick..." class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none font-bold transition shadow-inner">
-            </div>
-
-            <div>
-                <label class="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider">หมวดหมู่</label>
-                <select id="fileCategory" class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none transition shadow-inner">
+            <div><label class="fm-l" for="fileTitle">ชื่อไฟล์ / โปรแกรม</label><input type="text" id="fileTitle" required maxlength="120" placeholder="เช่น โปรแกรม AutoClick" class="fm-in"></div>
+            <div><label class="fm-l" for="fileCategory">หมวดหมู่</label>
+                <select id="fileCategory" class="fm-in">
                     <option value="">-- เลือกหมวดหมู่ --</option>
                     <option value="โปรแกรม">โปรแกรม</option>
                     <option value="VPN">VPN</option>
@@ -67,36 +135,18 @@
                     <option value="อื่นๆ">อื่นๆ</option>
                 </select>
             </div>
-
-            <div class="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-dashed border-gray-300 dark:border-slate-600">
-                <label class="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-emerald-500">📥 ลิงก์ดาวน์โหลด หรือ อัปโหลดไฟล์</label>
-                <input type="text" id="fileExternalUrl" placeholder="วางลิงก์ Google Drive..." class="w-full p-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-950 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none text-xs transition shadow-inner mb-2 font-mono placeholder:font-sans">
-                <div class="flex items-center gap-2 my-2">
-                    <div class="h-px bg-gray-300 dark:bg-slate-700 flex-1"></div>
-                    <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">หรืออัปโหลดโดยตรง</span>
-                    <div class="h-px bg-gray-300 dark:bg-slate-700 flex-1"></div>
-                </div>
-                <input type="file" id="fileInput" multiple class="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-950 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none text-sm transition shadow-inner file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-[11px] file:font-bold file:bg-emerald-500 file:text-white hover:file:bg-emerald-600 cursor-pointer">
-                <p id="currentFileUrl" class="text-[10px] text-amber-500 mt-2 hidden truncate font-bold bg-amber-50 dark:bg-amber-900/20 p-2 rounded-lg border border-amber-200 dark:border-amber-800/50"></p>
+            <div class="fm-src">
+                <label class="fm-l" for="fileExternalUrl" style="margin:0">ลิงก์ดาวน์โหลด (Google Drive / เว็บ)</label>
+                <input type="text" id="fileExternalUrl" placeholder="https://drive.google.com/…" class="fm-in" style="font-family:ui-monospace,monospace;font-size:12.5px">
+                <div class="fm-or">หรืออัปโหลดไฟล์ (เลือกได้หลายไฟล์)</div>
+                <input type="file" id="fileInput" multiple>
+                <p id="currentFileUrl" class="fm-note hidden" style="margin:0"></p>
             </div>
-
-            <div>
-                <label class="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider">รายละเอียด / รหัสผ่าน (ถ้ามี)</label>
-                <input type="text" id="fileDesc" placeholder="อธิบายเพิ่มเติม หรือ รหัสแตกไฟล์" class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none text-sm transition shadow-inner">
+            <div><label class="fm-l" for="fileDesc">รายละเอียด / รหัสผ่าน (ถ้ามี)</label><input type="text" id="fileDesc" maxlength="300" placeholder="อธิบายเพิ่มเติม หรือรหัสแตกไฟล์" class="fm-in"></div>
+            <div><label class="fm-l" for="fileCoverInput">รูปหน้าปก (ถ้ามี)</label><input type="file" id="fileCoverInput" accept="image/*">
+                <div id="currentCoverContainer" class="hidden fm-cover"><img id="currentFileCover" src="" alt=""><span>รูปปัจจุบัน</span></div>
             </div>
-
-            <div class="mt-3 border-t border-gray-200 dark:border-slate-700 pt-3">
-                <label class="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-indigo-500">🖼️ รูปภาพหน้าปก (ถ้ามี)</label>
-                <input type="file" id="fileCoverInput" accept="image/*" class="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none text-sm transition shadow-inner file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-500 file:text-white hover:file:bg-indigo-600 cursor-pointer">
-                <div id="currentCoverContainer" class="hidden mt-2">
-                    <span class="text-[10px] text-gray-500 block mb-1">รูปปัจจุบัน:</span>
-                    <img id="currentFileCover" src="" class="h-16 w-auto rounded-lg border border-gray-300 shadow-sm object-cover bg-black">
-                </div>
-            </div>
-
-            <button type="submit" id="fileSubmitBtn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3.5 rounded-xl shadow-lg transition transform active:scale-95 mt-4 text-base border border-emerald-400">
-                บันทึกไฟล์
-            </button>
+            <button type="submit" id="fileSubmitBtn">บันทึกไฟล์</button>
         </form>
     </div>
 </div>
