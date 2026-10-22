@@ -86,7 +86,8 @@ window.openSheet = function(sheet) {
   viewer.classList.add('flex');
   const gName = sheet.group_name || sheet.category || 'ทั่วไป';
   const sName = sheet.name || sheet.title || 'ไม่มีชื่อ';
-  document.getElementById('sheetTitle').innerHTML = `<span class="text-gray-500">${gName}</span> <span class="material-icons text-[10px] mx-1 text-gray-600">arrow_forward_ios</span> <span class="text-white font-bold text-sm">${sName}</span>`;
+  const esc = window.shEsc || (v => String(v));
+  document.getElementById('sheetTitle').innerHTML = `<span class="sh-crumb-dot" style="background:${window.sheetColorOf ? window.sheetColorOf(sheet) : '#3b82f6'}"></span><span class="sh-crumb-g">${esc(gName)}</span><span class="material-icons sh-crumb-sep">chevron_right</span><span class="sh-crumb-n">${esc(sName)}</span>`;
   document.getElementById('sheetLoading').classList.remove('hidden');
   addToRecentTabs(sheet);
   let url = sheet.sheet_id || sheet.url || '';
@@ -115,11 +116,13 @@ window.openSheet = function(sheet) {
   if (btnNT2) btnNT2.classList.remove('hidden');
   if (url.startsWith('http') || url.startsWith('www')) {
     url = url.startsWith('www') ? 'https://' + url : url;
-  } else if (url.length > 20 && !url.includes('/')) {
+  } else if (/^[A-Za-z0-9_-]{20,}$/.test(url)) {
     url = `https://docs.google.com/spreadsheets/d/${url}/edit?rm=minimal&single=true&widget=true&headers=false`;
-    if (sheet.gid) url += `&gid=${sheet.gid}`;
+    if (sheet.gid && /^[0-9]+$/.test(String(sheet.gid))) url += `&gid=${sheet.gid}`;
+  } else {
+    url = '';
   }
-  if (!url) url = 'about:blank';
+  if (!/^https?:\/\//i.test(url)) url = 'about:blank';
   const btnNewTab = document.getElementById('btnOpenNewTab');
   if (btnNewTab) btnNewTab.onclick = () => window.open(url, '_blank');
   const frame = document.getElementById('sheetFrame');
@@ -450,25 +453,46 @@ window.openNoteSheet = async function(sheet) {
   const search = document.getElementById('noteSearch');
   if (search) search.value = '';
   document.getElementById('sheetLoading')?.classList.add('hidden');
+  const fetchNote = async () => {
+    try {
+      const {data: data, error: error} = await appDB.from('settings').select('value').eq('key', `sheet_note_${sheet.id}`).maybeSingle();
+      if (error) throw error;
+      return {
+        raw: data && data.value || '',
+        note: window.noteToV3(data && data.value ? JSON.parse(data.value) : {
+          v: 3,
+          rows: [],
+          cols: []
+        })
+      };
+    } catch (e) {
+      return null;
+    }
+  };
   let note = window._noteCache[sheet.id];
   if (!note) {
     wrap.innerHTML = '<div class="text-center text-slate-500 py-10"><span class="material-icons animate-spin">sync</span></div>';
-    try {
-      const {data: data} = await appDB.from('settings').select('value').eq('key', `sheet_note_${sheet.id}`).maybeSingle();
-      note = data && data.value ? JSON.parse(data.value) : {
-        v: 3,
-        rows: [],
-        cols: []
-      };
-    } catch (e) {
-      note = {
-        v: 3,
-        rows: [],
-        cols: []
-      };
-    }
-    note = window.noteToV3(note);
+    const r = await fetchNote();
+    note = r ? r.note : {
+      v: 3,
+      rows: [],
+      cols: []
+    };
     window._noteCache[sheet.id] = note;
+    window._noteRaw = window._noteRaw || {};
+    if (r) window._noteRaw[sheet.id] = r.raw;
+  } else {
+    fetchNote().then((r => {
+      if (!r) return;
+      window._noteRaw = window._noteRaw || {};
+      if (window._noteRaw[sheet.id] === r.raw) return;
+      window._noteRaw[sheet.id] = r.raw;
+      window._noteCache[sheet.id] = r.note;
+      if (String(window._currentNoteSheetId) === String(sheet.id) && !window._noteEditing) {
+        window._currentNote = r.note;
+        window.renderNoteTable();
+      }
+    }));
   }
   window._currentNote = note;
   window._currentNoteSheetId = sheet.id;

@@ -42,8 +42,8 @@ window.renderAdminSheetList = function() {
     return window.renderTemplate('tpl-sheet-admin-item', {
       id: s.id,
       bg: bg,
-      groupName: s.group_name || s.category || 'ทั่วไป',
-      title: s.name || s.title
+      groupName: window.shEsc(s.group_name || s.category || 'ทั่วไป'),
+      title: window.shEsc(s.name || s.title)
     });
   })).join('');
 };
@@ -166,6 +166,7 @@ window.saveSheetData = async function() {
     didOpen: () => Swal.showLoading()
   });
   try {
+    let oldCoverPath = null;
     if (coverFileInput && coverFileInput.files && coverFileInput.files.length > 0) {
       Swal.update({
         text: `กำลังอัปโหลดรูปภาพหน้าปก...`
@@ -173,8 +174,7 @@ window.saveSheetData = async function() {
       if (id) {
         const sheetToEdit = window.GLOBAL_SHEETS.find((s => String(s.id) === String(id)));
         if (sheetToEdit && sheetToEdit.cover_url && sheetToEdit.cover_url.includes('supabase.co') && sheetToEdit.cover_url.includes('files/covers/')) {
-          const oldPath = 'files/covers/' + sheetToEdit.cover_url.split('files/covers/')[1].split('?')[0];
-          await appDB.storage.from('staff_images').remove([ oldPath ]);
+          oldCoverPath = 'files/covers/' + sheetToEdit.cover_url.split('files/covers/')[1].split('?')[0];
         }
       }
       const coverFile = coverFileInput.files[0];
@@ -229,6 +229,11 @@ window.saveSheetData = async function() {
       if (nErr) throw nErr;
       window._noteCache[savedId] = noteData;
     }
+    if (oldCoverPath) {
+      try {
+        await appDB.storage.from('staff_images').remove([ oldCoverPath ]);
+      } catch (e) {}
+    }
     Swal.fire({
       icon: 'success',
       title: id ? 'แก้ไขข้อมูลสำเร็จ' : 'เพิ่มรายการสำเร็จ',
@@ -259,15 +264,19 @@ window.deleteSheet = async function(id) {
     didOpen: () => Swal.showLoading()
   });
   try {
-    try {
-      await appDB.from('settings').delete().eq('key', `sheet_note_${id}`);
-      delete window._noteCache[id];
-    } catch (e) {}
     const {data: delRows, error: error} = await appDB.from('external_sheets').delete().eq('id', id).select();
     if (error) throw error;
     if (!delRows || delRows.length === 0) {
       throw new Error('ฐานข้อมูลไม่ยอมลบ (ลบได้ 0 แถว) — ตาราง external_sheets น่าจะยังไม่มี RLS policy สำหรับ DELETE ให้ไปเพิ่มใน Supabase');
     }
+    try {
+      await appDB.from('settings').delete().eq('key', `sheet_note_${id}`);
+      delete window._noteCache[id];
+    } catch (e) {}
+    try {
+      const cu = target && target.cover_url || '';
+      if (cu.includes('supabase.co') && cu.includes('files/covers/')) await appDB.storage.from('staff_images').remove([ 'files/covers/' + cu.split('files/covers/')[1].split('?')[0] ]);
+    } catch (e) {}
     Swal.fire({
       icon: 'success',
       title: 'ลบเรียบร้อย',

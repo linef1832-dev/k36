@@ -35,15 +35,6 @@
     #sheetGroupsContainer>div{margin-bottom:26px !important}
     #sheetGroupsContainer .grid{gap:12px !important}
 
-    #sheetApp .sh-card{position:relative;cursor:pointer;height:112px;border-radius:14px;overflow:hidden;background:var(--k-panel);border:1px solid var(--k-line);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;transition:border-color .15s,transform .15s,box-shadow .15s}
-    #sheetApp .sh-card:hover{border-color:var(--k-line4);transform:translateY(-2px);box-shadow:0 10px 24px rgba(0,0,0,.35)}
-    #sheetApp .sh-card:focus-visible{outline:2px solid #E8C15A;outline-offset:2px}
-    #sheetApp .sh-card .sh-cname{font-size:13px;font-weight:800;color:var(--k-tx);text-align:center;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;padding:0 6px}
-    #sheetApp .sh-card .w-12.h-12{width:40px !important;height:40px !important;border-radius:12px !important;margin-bottom:8px !important}
-    #sheetApp .sh-card .w-12.h-12 .material-icons{font-size:22px !important}
-    #sheetApp .sh-pin{position:absolute;top:6px;right:6px;z-index:20;width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--k-panel2) 60.0%,transparent);transition:background .15s,opacity .15s}
-    #sheetApp .sh-pin:hover{background:color-mix(in srgb,var(--k-panel2) 90.0%,transparent)}
-    #sheetApp .sh-pin .material-icons{font-size:17px}
 
     #sheetApp .sh-calc{background:var(--k-panel);border:1px solid var(--k-line);border-radius:16px;overflow:hidden}
     #sheetApp .sh-calc-h{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--k-line)}
@@ -89,18 +80,69 @@
     #sheetApp.sheet-split .sh-vbar .sh-t{display:none}
     @media (max-width:1024px){ #sheetApp .sh-main{flex-direction:column} }
     @media (max-width:640px){ #sheetApp .sh-search input,#sheetApp .sh-search input:focus{width:100%} #sheetApp .sh-search{flex:1 1 100%} #sheetApp .sh-right{margin-left:0;width:100%} }
-    @media (prefers-reduced-motion:reduce){ #sheetApp .sh-card,#sheetApp .sh-btn{transition:none} }
+    @media (prefers-reduced-motion:reduce){ #sheetApp .sh-btn{transition:none} }
+
+    #sheetApp .sh-titlebox{display:flex;flex-direction:column;min-width:0}
+    #sheetApp .sh-titlebox .sh-sub{font-size:12px;font-weight:700;color:var(--k-mute);margin-top:1px}
+    #sheetApp .sh-search{min-width:260px}
+    #sheetApp .sm2-bar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+    #sheetApp .sm2-chip{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:999px;font-size:12.5px;font-weight:800;color:var(--k-tx3);background:var(--k-panel);border:1px solid var(--k-line2);transition:background .15s,border-color .15s,color .15s}
+    #sheetApp .sm2-chip .material-icons{font-size:15px}
+    #sheetApp .sm2-chip b{font-size:11px;font-weight:900;padding:1px 7px;border-radius:999px;background:var(--k-sunk);color:var(--k-mute)}
+    #sheetApp .sm2-chip:hover{color:var(--k-tx-strong);border-color:var(--k-line4)}
+    #sheetApp .sm2-chip.on{background:rgba(232,193,90,.14);border-color:#E8C15A;color:var(--k-tx-strong)}
+    #sheetApp .sm2-chip.on b{background:#E8C15A;color:#1b1406}
+    #sheetApp .sm2-sec{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:900;letter-spacing:.04em;color:var(--k-mute);margin:4px 0 10px}
+    #sheetApp .sm2-sec .material-icons{font-size:16px}
+    #sheetApp .sm2-pins{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin-bottom:22px}
+    #sheetApp .sm2-tile{display:flex;align-items:center;gap:11px;padding:12px 14px;border-radius:16px;background:linear-gradient(135deg,color-mix(in srgb,var(--c) 16%,var(--k-panel)),var(--k-panel) 70%);border:1px solid color-mix(in srgb,var(--c) 40%,var(--k-line));text-align:left;cursor:pointer;transition:transform .12s,box-shadow .15s;min-width:0}
+    #sheetApp .sm2-tile:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(0,0,0,.18)}
+    #sheetApp .sm2-tile .sm2-ic{width:40px;height:40px}
+    #sheetApp .sm2-groups{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px;align-items:start}
+    #sheetApp .sm2-grp{background:var(--k-panel);border:1px solid var(--k-line);border-radius:16px;overflow:hidden;box-shadow:var(--k-shadow);position:relative}
+    #sheetApp .sm2-grp::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:var(--gc)}
+    #sheetApp .sm2-grp-h{display:flex;align-items:center;gap:8px;padding:13px 14px 9px}
+    #sheetApp .sm2-grp-h b{font-size:14px;font-weight:900;color:var(--k-tx-strong);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    #sheetApp .sm2-dot{width:9px;height:9px;border-radius:99px;background:var(--gc);flex:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--gc) 22%,transparent)}
+    #sheetApp .sm2-n{margin-left:auto;font-size:11px;font-weight:900;padding:2px 8px;border-radius:999px;background:var(--k-sunk);color:var(--k-mute)}
+    #sheetApp .sm2-lock{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:999px;background:rgba(16,185,129,.12);color:var(--k-green-tx);border:1px solid rgba(16,185,129,.3)}
+    #sheetApp .sm2-lock .material-icons{font-size:12px}
+    #sheetApp .sm2-row{display:flex;align-items:center;gap:11px;padding:8px 10px 8px 14px;cursor:pointer;border-top:1px solid var(--k-line);transition:background .12s;outline:none}
+    #sheetApp .sm2-row:hover,#sheetApp .sm2-row:focus-visible{background:var(--k-btn-h)}
+    #sheetApp .sm2-ic{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:none;background:color-mix(in srgb,var(--c) 15%,transparent);color:var(--c);overflow:hidden;position:relative}
+    #sheetApp .sm2-ic .material-icons{font-size:19px}
+    #sheetApp .sm2-ic.img .material-icons{display:none}
+    #sheetApp .sm2-ic img{width:100%;height:100%;object-fit:cover}
+    #sheetApp .sm2-nm{flex:1;min-width:0;display:flex;flex-direction:column;font-size:13.5px;font-weight:800;color:var(--k-tx-strong);line-height:1.25}
+    #sheetApp .sm2-nm,#sheetApp .sm2-nm small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    #sheetApp .sm2-nm small{font-size:11px;font-weight:700;color:var(--k-mute)}
+    #sheetApp .sm2-pin{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:var(--k-mute2);opacity:0;transition:opacity .12s,color .12s,background .12s;flex:none}
+    #sheetApp .sm2-row:hover .sm2-pin,#sheetApp .sm2-pin.on,#sheetApp .sm2-pin:focus-visible{opacity:1}
+    #sheetApp .sm2-pin:hover{background:rgba(245,158,11,.14);color:#f59e0b}
+    #sheetApp .sm2-pin.on{color:#f59e0b}
+    #sheetApp .sm2-pin .material-icons{font-size:18px}
+    #sheetApp .sm2-empty{display:flex;flex-direction:column;align-items:center;gap:6px;padding:60px 16px;text-align:center;color:var(--k-mute2);font-size:13px;font-weight:700}
+    #sheetApp .sm2-empty .material-icons{font-size:46px;opacity:.45}
+    #sheetApp .sm2-empty b{font-size:15px;color:var(--k-tx3)}
+    #sheetApp #calcResultDisplay[data-state="neg"]{color:var(--k-red-tx);-webkit-text-fill-color:var(--k-red-tx);border-color:rgba(239,68,68,.45)}
+    #sheetApp #calcResultDisplay[data-state="zero"],#sheetApp #calcResultDisplay[data-state="empty"]{color:var(--k-mute2);-webkit-text-fill-color:var(--k-mute2);border-color:var(--k-line2)}
+    #sheetApp .sh-crumb-dot{width:9px;height:9px;border-radius:99px;flex:none}
+    #sheetApp .sh-crumb-g{font-size:12.5px;font-weight:700;color:var(--k-mute);white-space:nowrap}
+    #sheetApp .sh-crumb-sep{font-size:16px;color:var(--k-mute2)}
+    #sheetApp .sh-crumb-n{font-size:14.5px;font-weight:900;color:var(--k-tx-strong);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    @media (max-width:640px){ #sheetApp .sh-search{min-width:0;flex:1} #sheetApp .sm2-groups{grid-template-columns:1fr} #sheetApp .sm2-pin{opacity:1} }
 </style>
 <div id="sheetApp" class="k-auto-light hidden fade-in flex flex-col h-full relative rounded-2xl overflow-hidden" style="height:calc(100vh - 2rem)">
     <div class="sh-head shrink-0">
         <div class="sh-ico"><span class="material-icons">grid_view</span></div>
-        <div>
+        <div class="sh-titlebox">
             <h1 class="sh-title">ตารางรวมงาน</h1>
+            <div class="sh-sub" id="sheetStatLine">กำลังโหลด…</div>
         </div>
         <div class="sh-right">
             <div class="sh-search">
                 <span class="material-icons">search</span>
-                <input type="text" id="sheetSearch" placeholder="ค้นหาชีตหรือหมวด" onkeyup="onSheetSearch()">
+                <input type="text" id="sheetSearch" placeholder="ค้นหาชีตหรือหมวด" oninput="onSheetSearch()" aria-label="ค้นหาชีตหรือหมวด">
             </div>
             <span class="sh-sep"></span>
             <button id="btnMySheets" onclick="showSheetAdmin(true)" class="sh-btn" title="เพิ่มชีตส่วนตัว (เห็นคนเดียว)">
@@ -194,6 +236,9 @@
         <div class="sh-vbar shrink-0 z-20">
             <span id="sheetTitle" class="flex items-center gap-2 min-w-0 truncate">...</span>
             <div class="flex items-center gap-2 shrink-0">
+                <button id="btnOpenNewTab" class="sh-btn hidden" title="เปิดในแท็บใหม่ของเบราว์เซอร์">
+                    <span class="material-icons">open_in_new</span><span class="sh-t">เปิดแท็บใหม่</span>
+                </button>
                 <button onclick="document.getElementById('sheetFrame').src = document.getElementById('sheetFrame').src" class="sh-btn" title="โหลดหน้านี้ใหม่">
                     <span class="material-icons">refresh</span><span class="sh-t">โหลดใหม่</span>
                 </button>
@@ -445,27 +490,6 @@
 </div>
 
 <div id="sheetTemplates" class="hidden">
-    <template id="tpl-sheet-card-img">
-        <div class="sh-card group" onclick='openSheetById("{{id}}")'>
-            <img src="{{cover_url}}" class="absolute inset-0 w-full h-full object-cover opacity-40 transition-opacity duration-300 group-hover:opacity-25" loading="lazy" onerror="this.style.display='none'">
-            <div class="absolute inset-0" style="background:linear-gradient(to top,var(--k-bg) 10%,color-mix(in srgb,var(--k-panel2) 55.0%,transparent) 60%,color-mix(in srgb,var(--k-panel2) 20.0%,transparent))"></div>
-            <div class="relative z-10 flex flex-col items-center">
-                <div class="w-12 h-12 flex items-center justify-center" style="background:color-mix(in srgb,var(--k-tx-strong) 10.0%,transparent);border:1px solid color-mix(in srgb,var(--k-tx-strong) 18.0%,transparent)"><span class="material-icons text-white">{{iconType}}</span></div>
-                <span class="sh-cname">{{title}}</span>
-            </div>
-            <button onclick="togglePin(event, '{{id}}')" class="sh-pin {{starClass}}" title="ปักหมุด"><span class="material-icons">{{starIcon}}</span></button>
-        </div>
-    </template>
-
-    <template id="tpl-sheet-card-color">
-        <div class="sh-card group" onclick='openSheetById("{{id}}")'>
-            {{topBar}}
-            {{iconWrapper}}
-            <span class="sh-cname">{{title}}</span>
-            <button onclick="togglePin(event, '{{id}}')" class="sh-pin {{starClass}}" title="ปักหมุด"><span class="material-icons">{{starIcon}}</span></button>
-        </div>
-    </template>
-
     <template id="tpl-sheet-recent-tab">
         <div onclick="openSheetById('{{id}}')" class="sht-tab {{activeClass}}" style="--tc: {{accent}}" title="{{title}}">
             <span class="sht-dot"></span>

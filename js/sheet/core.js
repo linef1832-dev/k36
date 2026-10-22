@@ -27,7 +27,6 @@ window.initSheetApp = async function() {
   if (adminControls) adminControls.classList.toggle('hidden', !window.sheetIsMgr());
   const myBtn = document.getElementById('btnMySheets');
   if (myBtn) myBtn.classList.remove('hidden');
-  loadCalcSettings();
   await fetchSheets();
 };
 
@@ -64,8 +63,13 @@ async function _fetchSheetsCore(force) {
     }
     const me = window.sheetMe();
     window.GLOBAL_SHEETS = (data || []).filter((s => !s.owner || s.owner === me));
+    const byId = new Map(window.GLOBAL_SHEETS.map(x => [ String(x.id), x ]));
+    const pruned = recentTabs.filter(t => byId.has(String(t.id))).map(t => byId.get(String(t.id)));
+    if (pruned.length !== recentTabs.length || pruned.some((t, i) => t !== recentTabs[i])) {
+      recentTabs = pruned;
+      window.safeSetItem('sheet_recent_tabs', JSON.stringify(recentTabs));
+    }
     renderSheetMenu();
-    populateCalcTeamDropdown();
     if (typeof renderAdminSheetList === 'function') renderAdminSheetList();
     renderRecentTabs();
     if (typeof window.initSheetRealtime === 'function') window.initSheetRealtime();
@@ -79,143 +83,133 @@ window.fetchSheets = async function(force) {
   if (typeof initCalculator === 'function') await initCalculator();
 };
 
-function populateCalcTeamDropdown() {
-  const datalist = document.getElementById('calcTeamOptions');
-  if (!datalist) return;
-  datalist.innerHTML = '';
-  const teamNames = window.GLOBAL_SHEETS.filter((s => !s.owner && s.group_name !== 'วันหยุด / เปลี่ยนกะ' && s.group_name !== 'แก้ไขข้อมูล')).map((s => s.name || s.title)).filter(Boolean);
-  const uniqueTeams = [ ...new Set(teamNames) ];
-  uniqueTeams.forEach((team => {
-    const option = document.createElement('option');
-    option.value = team;
-    datalist.appendChild(option);
-  }));
-}
+window.shEsc = v => String(v == null ? '' : v).replace(/[&<>"']/g, (c => ({
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;'
+}[c])));
 
-window.renderSheetMenu = function() {
-  const container = document.getElementById('sheetGroupsContainer');
-  const searchInput = document.getElementById('sheetSearch');
-  const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
-  if (!container) return;
-  container.innerHTML = '';
-  const pinnedIds = JSON.parse(localStorage.getItem('pinned_sheets') || '[]');
-  const groups = {};
-  const pinnedSheets = [];
-  window.GLOBAL_SHEETS.forEach((sheet => {
-    if (searchTerm && !sheet.name.toLowerCase().includes(searchTerm) && !(sheet.group_name && sheet.group_name.toLowerCase().includes(searchTerm))) return;
-    if (pinnedIds.includes(sheet.id)) pinnedSheets.push(sheet);
-    const gName = sheet.group_name || 'ทั่วไป';
-    if (!groups[gName]) groups[gName] = [];
-    groups[gName].push(sheet);
-  }));
-  if (Object.keys(groups).length === 0 && pinnedSheets.length === 0) {
-    container.innerHTML = `<div class="flex flex-col items-center justify-center py-20 text-slate-400 dark:text-slate-500"><span class="material-icons text-6xl mb-4 opacity-20">search_off</span><p class="font-bold text-lg">ไม่พบตารางงานที่คุณค้นหา</p></div>`;
-    return;
-  }
-  const createCard = (sheet, isPinned) => {
-    const finalUrl = sheet.sheet_id || sheet.url || '';
-    const isExternal = finalUrl.startsWith('http') || finalUrl.startsWith('www');
-    const iconType = isExternal ? 'public' : 'grid_view';
-    const starIcon = isPinned ? 'star' : 'star_outline';
-    const starClass = isPinned ? 'text-amber-400 opacity-100 scale-110 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]' : 'text-slate-300 dark:text-slate-600 opacity-0 group-hover:opacity-100 hover:text-amber-400 hover:scale-110';
-    const isHex = sheet.color && sheet.color.startsWith('#');
-    const themeColor = isHex ? sheet.color : '#3b82f6';
-    const tName = sheet.name || sheet.title || 'ไม่มีชื่อ';
-    if (sheet.cover_url && sheet.cover_url.trim() !== '') {
-      return window.renderTemplate('tpl-sheet-card-img', {
-        id: sheet.id,
-        cover_url: sheet.cover_url,
-        iconType: iconType,
-        title: tName,
-        starClass: starClass,
-        starIcon: starIcon
-      });
-    } else {
-      const colorStyles = {
-        blue: {
-          bar: 'from-blue-400 to-indigo-500',
-          iconBg: 'bg-blue-50 dark:bg-blue-900/20',
-          iconColor: 'text-blue-500 dark:text-blue-400'
-        },
-        green: {
-          bar: 'from-emerald-400 to-green-500',
-          iconBg: 'bg-emerald-50 dark:bg-emerald-900/20',
-          iconColor: 'text-emerald-500 dark:text-emerald-400'
-        },
-        red: {
-          bar: 'from-rose-400 to-red-500',
-          iconBg: 'bg-rose-50 dark:bg-rose-900/20',
-          iconColor: 'text-rose-500 dark:text-rose-400'
-        },
-        yellow: {
-          bar: 'from-amber-300 to-orange-400',
-          iconBg: 'bg-amber-50 dark:bg-amber-900/20',
-          iconColor: 'text-amber-500 dark:text-amber-400'
-        },
-        purple: {
-          bar: 'from-fuchsia-400 to-purple-500',
-          iconBg: 'bg-fuchsia-50 dark:bg-fuchsia-900/20',
-          iconColor: 'text-fuchsia-500 dark:text-fuchsia-400'
-        },
-        gray: {
-          bar: 'from-slate-400 to-gray-500',
-          iconBg: 'bg-slate-100 dark:bg-slate-800',
-          iconColor: 'text-slate-600 dark:text-slate-400'
-        }
-      };
-      let style = colorStyles[sheet.color] || colorStyles['blue'];
-      let topBar = `<div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r ${style.bar}"></div>`;
-      let iconWrapper = `<div class="w-12 h-12 rounded-2xl ${style.iconBg} ${style.iconColor} flex items-center justify-center mb-3 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3 shadow-inner"><span class="material-icons text-[26px]">${iconType}</span></div>`;
-      if (isHex) {
-        topBar = `<div class="absolute top-0 left-0 w-full h-1.5" style="background: linear-gradient(to right, ${themeColor}, ${themeColor}88);"></div>`;
-        iconWrapper = `<div class="w-12 h-12 rounded-2xl flex items-center justify-center mb-3 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3 shadow-inner" style="background-color: ${themeColor}15; color: ${themeColor};"><span class="material-icons text-[26px]">${iconType}</span></div>`;
-      }
-      return window.renderTemplate('tpl-sheet-card-color', {
-        id: sheet.id,
-        topBar: topBar,
-        iconWrapper: iconWrapper,
-        title: tName,
-        starClass: starClass,
-        starIcon: starIcon
-      });
-    }
-  };
-  if (pinnedSheets.length > 0 && !searchTerm) {
-    let pinHTML = `<div class="mb-10"><h2 class="text-sm font-black text-amber-500 uppercase tracking-widest mb-4 flex items-center gap-2"><span class="material-icons text-base">push_pin</span> ปักหมุดแล้ว</h2><div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 lg:gap-5">`;
-    pinnedSheets.forEach((sheet => {
-      pinHTML += createCard(sheet, true);
-    }));
-    pinHTML += `</div></div>`;
-    container.innerHTML += pinHTML;
-  }
-  const myGroupKeys = Object.keys(groups).filter((g => (groups[g] || []).some((s => s.owner))));
-  myGroupKeys.forEach((gName => {
-    const mySheets = groups[gName].filter((s => s.owner));
-    groups[gName] = groups[gName].filter((s => !s.owner));
-    if (groups[gName].length === 0) delete groups[gName];
-    let gridHTML = `<div class="mb-10"><h2 class="text-sm font-black text-emerald-400 uppercase tracking-widest mb-4 flex items-center gap-2"><span class="material-icons text-base">person</span> ${gName === window.MY_SHEET_GROUP ? 'ชีตของฉัน' : gName} <span class="text-[10px] font-bold normal-case tracking-normal bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 px-2 py-0.5 rounded-full flex items-center gap-1"><span class="material-icons text-[12px]">lock</span> เห็นเฉพาะคุณ</span></h2><div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 lg:gap-5">`;
-    mySheets.forEach((sheet => {
-      gridHTML += createCard(sheet, pinnedIds.includes(sheet.id));
-    }));
-    gridHTML += `</div></div>`;
-    container.innerHTML += gridHTML;
-  }));
-  const sortedGroupNames = Object.keys(groups).sort();
-  for (const groupName of sortedGroupNames) {
-    const sheets = groups[groupName];
-    let gridHTML = `<div class="mb-10"><h2 class="text-sm font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2"><span class="material-icons text-base">folder_open</span> ${groupName}</h2><div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 lg:gap-5">`;
-    sheets.forEach((sheet => {
-      gridHTML += createCard(sheet, pinnedIds.includes(sheet.id));
-    }));
-    gridHTML += `</div></div>`;
-    container.innerHTML += gridHTML;
+window.SHEET_COLOR_MAP = {
+  blue: '#3b82f6',
+  green: '#10b981',
+  red: '#ef4444',
+  yellow: '#f59e0b',
+  purple: '#8b5cf6',
+  gray: '#64748b'
+};
+
+window.sheetColorOf = function(sheet) {
+  const c = String(sheet && sheet.color || '');
+  if (/^#[0-9a-fA-F]{3,8}$/.test(c)) return c;
+  return window.SHEET_COLOR_MAP[c] || '#3b82f6';
+};
+
+window.sheetKindOf = function(sheet) {
+  const u = String(sheet && (sheet.sheet_id || sheet.url) || '');
+  if (u === 'NOTE') return 'note';
+  if (u.startsWith('http') || u.startsWith('www')) return 'web';
+  return 'gsheet';
+};
+
+window.getPinnedSheets = function() {
+  try {
+    return (JSON.parse(localStorage.getItem('pinned_sheets') || '[]') || []).map(String);
+  } catch (e) {
+    return [];
   }
 };
 
+window._sheetFilter = window._sheetFilter || 'all';
+
+window.setSheetFilter = function(f) {
+  window._sheetFilter = f;
+  renderSheetMenu();
+};
+
+window.renderSheetMenu = function() {
+  const container = document.getElementById('sheetGroupsContainer');
+  if (!container) return;
+  const esc = window.shEsc;
+  const term = ((document.getElementById('sheetSearch') || {}).value || '').toLowerCase().trim();
+  const pinned = window.getPinnedSheets();
+  const isPinned = s => pinned.includes(String(s.id));
+  const all = window.GLOBAL_SHEETS || [];
+  const KIND = {
+    note: {
+      icon: 'table_chart',
+      label: 'หน้าข้อความ'
+    },
+    web: {
+      icon: 'public',
+      label: 'เว็บ'
+    },
+    gsheet: {
+      icon: 'grid_on',
+      label: 'Google Sheet'
+    }
+  };
+  const f = window._sheetFilter;
+  const match = s => {
+    const name = String(s.name || s.title || '').toLowerCase();
+    const grp = String(s.group_name || '').toLowerCase();
+    if (term && !name.includes(term) && !grp.includes(term)) return false;
+    if (f === 'pin') return isPinned(s);
+    if (f === 'note') return window.sheetKindOf(s) === 'note';
+    if (f === 'link') return window.sheetKindOf(s) !== 'note';
+    return true;
+  };
+  const list = all.filter(match);
+  const cnt = {
+    all: all.length,
+    pin: all.filter(isPinned).length,
+    link: all.filter(s => window.sheetKindOf(s) !== 'note').length,
+    note: all.filter(s => window.sheetKindOf(s) === 'note').length
+  };
+  const chip = (k, label, icon) => `<button type="button" class="sm2-chip${f === k ? ' on' : ''}" onclick="setSheetFilter('${k}')"><span class="material-icons">${icon}</span>${label}<b>${cnt[k]}</b></button>`;
+  const stat = document.getElementById('sheetStatLine');
+  if (stat) stat.textContent = `${all.length} รายการ · ${new Set(all.map(s => s.group_name || 'ทั่วไป')).size} หมวด`;
+  const row = s => {
+    const k = KIND[window.sheetKindOf(s)];
+    const col = window.sheetColorOf(s);
+    const name = esc(s.name || s.title || 'ไม่มีชื่อ');
+    const id = esc(s.id);
+    const pin = isPinned(s);
+    const thumb = s.cover_url && String(s.cover_url).trim() ? `<span class="sm2-ic img" style="--c:${col}"><img src="${esc(s.cover_url)}" alt="" loading="lazy" onerror="this.parentNode.classList.remove('img');this.remove()"><span class="material-icons">${k.icon}</span></span>` : `<span class="sm2-ic" style="--c:${col}"><span class="material-icons">${k.icon}</span></span>`;
+    return `<div class="sm2-row" role="button" tabindex="0" data-id="${id}" onclick="openSheetById(this.dataset.id)" onkeydown="if(event.key==='Enter')openSheetById(this.dataset.id)">${thumb}<span class="sm2-nm">${name}<small>${k.label}</small></span><button type="button" class="sm2-pin${pin ? ' on' : ''}" data-id="${id}" onclick="togglePin(event, this.dataset.id)" title="${pin ? 'เลิกปักหมุด' : 'ปักหมุด'}" aria-label="${pin ? 'เลิกปักหมุด' : 'ปักหมุด'} ${name}"><span class="material-icons">${pin ? 'star' : 'star_outline'}</span></button></div>`;
+  };
+  let html = `<div class="sm2-bar">${chip('all', 'ทั้งหมด', 'apps')}${chip('pin', 'ปักหมุด', 'star')}${chip('link', 'ลิงก์', 'link')}${chip('note', 'หน้าข้อความ', 'table_chart')}</div>`;
+  if (!list.length) {
+    container.innerHTML = html + `<div class="sm2-empty"><span class="material-icons">search_off</span><b>${term ? 'ไม่พบ "' + esc(term) + '"' : f === 'pin' ? 'ยังไม่มีรายการที่ปักหมุด' : 'ยังไม่มีรายการ'}</b><span>${f === 'pin' ? 'กดดาว ☆ ท้ายรายการเพื่อปักหมุดไว้บนสุด' : 'ลองคำค้นอื่น หรือเลือก "ทั้งหมด"'}</span></div>`;
+    return;
+  }
+  const pins = list.filter(isPinned);
+  if (pins.length && f !== 'pin' && !term) {
+    html += `<div class="sm2-sec"><span class="material-icons" style="color:#f59e0b">star</span>ปักหมุด</div><div class="sm2-pins">${pins.map(s => {
+      const k = KIND[window.sheetKindOf(s)];
+      return `<button type="button" class="sm2-tile" style="--c:${window.sheetColorOf(s)}" data-id="${esc(s.id)}" onclick="openSheetById(this.dataset.id)"><span class="sm2-ic"><span class="material-icons">${k.icon}</span></span><span class="sm2-nm">${esc(s.name || s.title || 'ไม่มีชื่อ')}<small>${esc(s.group_name || 'ทั่วไป')}</small></span></button>`;
+    }).join('')}</div>`;
+  }
+  const groups = {};
+  list.forEach(s => {
+    const g = s.owner ? window.MY_SHEET_GROUP : s.group_name || 'ทั่วไป';
+    (groups[g] = groups[g] || []).push(s);
+  });
+  const names = Object.keys(groups).sort(((a, b) => (a === window.MY_SHEET_GROUP ? -1 : b === window.MY_SHEET_GROUP ? 1 : a.localeCompare(b, 'th'))));
+  html += `<div class="sm2-sec"><span class="material-icons">folder_open</span>หมวดทั้งหมด</div><div class="sm2-groups">${names.map(g => {
+    const items = groups[g];
+    const mine = g === window.MY_SHEET_GROUP;
+    return `<section class="sm2-grp${mine ? ' mine' : ''}" style="--gc:${mine ? '#10b981' : window.sheetColorOf(items[0])}"><div class="sm2-grp-h"><span class="sm2-dot"></span><b>${esc(g)}</b>${mine ? '<span class="sm2-lock"><span class="material-icons">lock</span>เห็นเฉพาะคุณ</span>' : ''}<span class="sm2-n">${items.length}</span></div>${items.map(row).join('')}</section>`;
+  }).join('')}</div>`;
+  container.innerHTML = html;
+};
+
 window.togglePin = function(e, id) {
-  e.stopPropagation();
-  let pinned = JSON.parse(localStorage.getItem('pinned_sheets') || '[]');
-  if (pinned.includes(id)) pinned = pinned.filter((pid => pid !== id)); else pinned.push(id);
+  if (e) e.stopPropagation();
+  const key = String(id);
+  let pinned = window.getPinnedSheets();
+  pinned = pinned.includes(key) ? pinned.filter(p => p !== key) : pinned.concat(key);
   window.safeSetItem('pinned_sheets', JSON.stringify(pinned));
   renderSheetMenu();
 };
@@ -237,9 +231,7 @@ window.initCalculator = async function() {
     const localTeams = JSON.parse(localStorage.getItem(CALC_STORAGE_KEY) || '[]');
     uniqueTeams = [ ...new Set([ ...uniqueTeams, ...localTeams ]) ];
     if (uniqueTeams.length > 0) {
-      uniqueTeams.forEach((t => {
-        teamSelect.innerHTML += `<option value="${t}">${t}</option>`;
-      }));
+      teamSelect.innerHTML = uniqueTeams.map(t => `<option value="${window.shEsc(t)}">${window.shEsc(t)}</option>`).join('');
     } else {
       teamSelect.innerHTML = `<option value="General">ทั่วไป</option>`;
     }
@@ -251,7 +243,7 @@ window.initCalculator = async function() {
   if (deductInput && saveBtn && lockIcon) {
     if (isAdmin) {
       deductInput.disabled = false;
-      deductInput.className = "w-full p-3 rounded-lg border border-slate-600 bg-[#0f172a] text-white text-base font-black text-center outline-none focus:border-purple-500 shadow-inner";
+      deductInput.className = "sh-in deduct";
       saveBtn.classList.remove('hidden');
       lockIcon.innerText = 'lock_open';
       lockIcon.classList.remove('text-red-400', 'opacity-50');
@@ -260,7 +252,7 @@ window.initCalculator = async function() {
       if (delBtn) delBtn.classList.remove('hidden');
     } else {
       deductInput.disabled = true;
-      deductInput.className = "w-full p-3 rounded-lg border border-red-900/50 bg-red-950/50 text-rose-200 text-base font-black text-center outline-none shadow-inner opacity-100";
+      deductInput.className = "sh-in deduct";
       saveBtn.classList.add('hidden');
       lockIcon.innerText = 'lock';
       lockIcon.classList.remove('text-green-500', 'opacity-100');
@@ -276,14 +268,17 @@ window.loadCalcSettings = async function() {
   const selectElem = document.getElementById('calcTeamSelect');
   if (!selectElem) return;
   const team = selectElem.value;
+  if (!team) return;
   window.safeSetItem('calc_saved_team', team);
+  const token = window._calcLoadToken = (window._calcLoadToken || 0) + 1;
   let savedVal = 0;
   try {
     if (typeof appDB !== 'undefined') {
       const {data: data} = await appDB.from('settings').select('value').eq('key', `calc_deduct_${team}`).maybeSingle();
-      if (data && data.value) savedVal = parseFloat(data.value);
+      if (data && data.value) savedVal = parseFloat(data.value) || 0;
     }
   } catch (e) {}
+  if (token !== window._calcLoadToken) return;
   const deductElem = document.getElementById('calcDeductAmount');
   if (deductElem) deductElem.value = savedVal;
   calculateMoney();
@@ -294,22 +289,26 @@ window.calculateMoney = function() {
   const deductElem = document.getElementById('calcDeductAmount');
   const displayElem = document.getElementById('calcResultDisplay');
   if (!inputElem || !deductElem || !displayElem) return;
+  if (String(inputElem.value).trim() === '') {
+    displayElem.innerText = '–';
+    displayElem.dataset.state = 'empty';
+    return;
+  }
   const amount = parseFloat(inputElem.value) || 0;
   const deduct = parseFloat(deductElem.value) || 0;
   const result = amount - deduct;
-  displayElem.innerText = result.toLocaleString('en-US');
-  if (result < 0) {
-    displayElem.className = "flex-1 bg-slate-950 text-rose-500 text-4xl font-black p-4 rounded-2xl text-right shadow-inner flex items-center justify-end overflow-hidden border border-rose-900/50";
-  } else if (result > 0) {
-    displayElem.className = "flex-1 bg-slate-950 text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 text-4xl font-black p-4 rounded-2xl text-right shadow-inner flex items-center justify-end overflow-hidden border border-emerald-900/50";
-  } else {
-    displayElem.className = "flex-1 bg-slate-950 text-slate-500 text-4xl font-black p-4 rounded-2xl text-right shadow-inner flex items-center justify-end overflow-hidden border border-slate-800";
-  }
+  displayElem.innerText = result.toLocaleString('en-US', {
+    maximumFractionDigits: 2
+  });
+  displayElem.dataset.state = result < 0 ? 'neg' : result > 0 ? 'pos' : 'zero';
 };
 
 window.saveCalcSettings = async function() {
+  if (!canPerm('sheet_manage')) return Swal.fire('ไม่มีสิทธิ์', 'แก้ยอดหักได้เฉพาะหัวหน้า', 'error');
   const team = document.getElementById('calcTeamSelect').value;
   const deductVal = document.getElementById('calcDeductAmount').value;
+  if (!team) return;
+  if (deductVal !== '' && !isFinite(parseFloat(deductVal))) return Swal.fire('ตัวเลขไม่ถูกต้อง', '', 'warning');
   if (typeof appDB !== 'undefined') {
     Swal.fire({
       title: 'กำลังบันทึก...',
@@ -358,6 +357,8 @@ window.addNewCalcTeam = async function() {
 window.deleteCalcTeam = async function() {
   const team = document.getElementById('calcTeamSelect').value;
   if (!team) return;
+  const local = JSON.parse(localStorage.getItem(CALC_STORAGE_KEY) || '[]');
+  if (!local.includes(team)) return Swal.fire('ลบไม่ได้', `"${team}" มาจากรายการชีตของทีม ลบได้เฉพาะชื่อที่เพิ่มเองด้วยปุ่ม +`, 'info');
   const result = await Swal.fire({
     title: `ลบ ${team}?`,
     text: "คุณต้องการลบรายชื่อนี้ออกจากเครื่องคิดเลขใช่หรือไม่?",
