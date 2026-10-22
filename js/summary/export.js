@@ -193,7 +193,11 @@ window.exportSummaryToExcel = async function() {
             // 🔍 เปิดไฟล์มาแล้วซูม 80% (จอโน้ตบุ๊คเห็นได้มากขึ้น) + ไม่โชว์เส้นตารางสีเทาของ Excel ในส่วนที่ไม่ใช่ตาราง (ตารางเรายังมีเส้นของตัวเอง)
             ws.views = [{ state: 'frozen', xSplit: B0, ySplit: 2, zoomScale: 80, zoomScaleNormal: 80, showGridLines: false }];
 
-            const sortedEmps = Object.values(empGroups).sort((a, b) => b.totalApproved - a.totalApproved);
+            // เรียงตามกะก่อน (เช้า → กลาง → ดึก → อิสระ → ไม่ระบุ) แล้วในกะเดียวกันเรียงยอดสำเร็จมาก → น้อย
+            // [เปลี่ยน] เดิมเรียงตามยอดอย่างเดียว กะเลยสลับไปมาอ่านยาก
+            const SHIFT_ORDER = ['เช้า', 'กลาง', 'ดึก', 'อิสระ', 'all', 'UNKNOWN'];
+            const shiftRank = (sh) => { const i = SHIFT_ORDER.indexOf(String(sh || 'UNKNOWN')); return i === -1 ? 99 : i; };
+            const sortedEmps = Object.values(empGroups).sort((a, b) => shiftRank(a.shift) - shiftRank(b.shift) || b.totalApproved - a.totalApproved);
             let rowIndex = 1;
             sortedEmps.forEach((emp) => {
                 // 🌟 ต่อชื่อพนักงานด้วย (หลัก XXX) (รอง YYY) จาก duty assignment
@@ -239,16 +243,18 @@ window.exportSummaryToExcel = async function() {
             });
 
             // ── ตารางอ้างอิง (ย้ายมาไว้ใต้ตารางหลัก): ลำดับ | ชื่อพนักงาน | กะ | ยอดรวมของแต่ละเว็บ
-            ws.addRow([]); ws.addRow([]);
-            const refTitle = ws.addRow(['ตารางอ้างอิง — ชื่อพนักงาน / กะ / ยอดรวมแต่ละเว็บ']);
+            // [เปลี่ยน] ย้ายไปอยู่ชีตของตัวเอง "ตารางอ้างอิง" — เดิมอยู่ใต้ตารางหลักในชีตเดียวกัน
+            //          เลื่อนลงไปถึงแล้วหัวตารางแรก (ที่ล็อคไว้) ยังค้างอยู่ด้านบน ทำให้งง · ชีตใหม่มีหัวตารางล็อคของตัวเอง
+            const ws2 = wb.addWorksheet('ตารางอ้างอิง');
+            const refTitle = ws2.addRow(['ตารางอ้างอิง — ชื่อพนักงาน / กะ / ยอดรวมแต่ละเว็บ   ·   ' + titleDateStr]);
             const REF_TOT = 4 + targetWebOrder.length;   // คอลัมน์ "รวม" ท้ายตารางอ้างอิง
-            ws.mergeCells(refTitle.number, 1, refTitle.number, REF_TOT);
+            ws2.mergeCells(refTitle.number, 1, refTitle.number, REF_TOT);
             refTitle.height = 24;
             refTitle.getCell(1).font = { size: 13, bold: true, color: { argb: 'FFFFFFFF' } };
             refTitle.getCell(1).fill = solid('FF1F2937');
             refTitle.getCell(1).alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
 
-            const refHead = ws.addRow(['ลำดับ', 'ชื่อพนักงาน (อ้างอิง)', 'กะ (อ้างอิง)'].concat(targetWebOrder.map(w => `${w} (สรุปยอด)`), ['รวม (สรุปยอด)']));
+            const refHead = ws2.addRow(['ลำดับ', 'ชื่อพนักงาน (อ้างอิง)', 'กะ (อ้างอิง)'].concat(targetWebOrder.map(w => `${w} (สรุปยอด)`), ['รวม (สรุปยอด)']));
             refHead.height = 25;
             refHead.eachCell((cell, colNumber) => {
                 cell.font = { bold: true }; cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
@@ -261,7 +267,7 @@ window.exportSummaryToExcel = async function() {
             sortedEmps.forEach((emp, i) => {
                 const webVals = targetWebOrder.map(w => emp.websData[w].total);
                 webVals.forEach((v, j) => { refColTot[j] += v; });
-                const r = ws.addRow([i + 1, emp.name, emp.shift].concat(webVals, [webVals.reduce((a, b) => a + b, 0)]));
+                const r = ws2.addRow([i + 1, emp.name, emp.shift].concat(webVals, [webVals.reduce((a, b) => a + b, 0)]));
                 r.eachCell((cell, colNumber) => {
                     cell.alignment = { vertical: 'middle', horizontal: colNumber === 2 ? 'left' : 'center' };
                     cell.border = { top: thin('FFCBD5E1'), bottom: thin('FFCBD5E1'), left: thin('FFCBD5E1'), right: thin('FFCBD5E1') };
@@ -278,7 +284,7 @@ window.exportSummaryToExcel = async function() {
             // แถวสรุปท้ายตารางอ้างอิง: ยอดรวมแต่ละเว็บ + รวมทั้งหมด
             {
                 const grand = refColTot.reduce((a, b) => a + b, 0);
-                const tr = ws.addRow(['', 'รวมทุกคน', ''].concat(refColTot, [grand]));
+                const tr = ws2.addRow(['', 'รวมทุกคน', ''].concat(refColTot, [grand]));
                 tr.height = 22;
                 tr.eachCell({ includeEmpty: true }, (cell, colNumber) => {
                     if (colNumber > REF_TOT) return;
@@ -290,7 +296,11 @@ window.exportSummaryToExcel = async function() {
                 });
             }
 
-            // ความกว้างคอลัมน์: ต้องพอทั้งตารางหลักและตารางอ้างอิงด้านล่าง
+            // ชีตตารางอ้างอิง: ล็อคหัว (แถว 1–2) + คอลัมน์ ลำดับ/ชื่อ/กะ · ซูม 80% · ไม่โชว์เส้นตาราง Excel
+            ws2.views = [{ state: 'frozen', xSplit: 3, ySplit: 2, zoomScale: 80, zoomScaleNormal: 80, showGridLines: false }];
+            for (let c = 1; c <= REF_TOT; c++) ws2.getColumn(c).width = c === 1 ? 8 : c === 2 ? 30 : c === 3 ? 11 : c === REF_TOT ? 14 : 12;
+
+            // ความกว้างคอลัมน์ของชีตหลัก
             for (let c = 1; c <= LASTCOL; c++) {
                 const col = ws.getColumn(c);
                 if (c === 1) col.width = 8;
