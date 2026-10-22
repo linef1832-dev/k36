@@ -203,7 +203,15 @@ window.exportSummaryToExcel = async function() {
             const sortedEmps = Object.values(empGroups).sort((a, b) => shiftRank(a.shift) - shiftRank(b.shift) || b.totalApproved - a.totalApproved);
             // ลำดับนับใหม่ทุกกะ: เช้า 1,2,3… → ดึก 1,2,3…
             const seqInShift = (() => { const c = {}; return (sh) => (c[sh] = (c[sh] || 0) + 1); })();
+            // แถบดำคั่นระหว่างกะ (เช้า | ดึก ...) แยกด้วยตาง่าย
+            const addShiftDivider = (sheet, lastCol) => {
+                const row = sheet.addRow([]); row.height = 7;
+                for (let c = 1; c <= lastCol; c++) row.getCell(c).fill = solid('FF000000');
+            };
+            let prevShiftMain = null;
             sortedEmps.forEach((emp) => {
+                if (prevShiftMain !== null && prevShiftMain !== emp.shift) addShiftDivider(ws, LASTCOL);
+                prevShiftMain = emp.shift;
                 // 🌟 ต่อชื่อพนักงานด้วย (หลัก XXX) (รอง YYY) จาก duty assignment
                 let displayName = emp.name;
                 const dutyInfo = dutyAssignmentMap[emp.name.toLowerCase()];
@@ -268,7 +276,10 @@ window.exportSummaryToExcel = async function() {
             });
             const refColTot = new Array(targetWebOrder.length).fill(0);
             const refSeq = (() => { const c = {}; return (sh) => (c[sh] = (c[sh] || 0) + 1); })();   // ลำดับนับใหม่ทุกกะ   // ยอดรวมแต่ละเว็บ (แถวสรุปท้ายตาราง)
+            let prevShiftRef = null;
             sortedEmps.forEach((emp, i) => {
+                if (prevShiftRef !== null && prevShiftRef !== emp.shift) addShiftDivider(ws2, REF_TOT);
+                prevShiftRef = emp.shift;
                 const webVals = targetWebOrder.map(w => emp.websData[w].total);
                 webVals.forEach((v, j) => { refColTot[j] += v; });
                 const r = ws2.addRow([refSeq(emp.shift), emp.name, emp.shift].concat(webVals, [webVals.reduce((a, b) => a + b, 0)]));
