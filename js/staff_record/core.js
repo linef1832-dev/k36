@@ -7,7 +7,6 @@ window.SR = window.SR || {
   kind: 'offense',
   selTopics: new Set,
   open: new Set,
-  recent: [],
   sub: null,
   empActive: -1
 };
@@ -125,21 +124,7 @@ const _srSplit = items => {
   };
 };
 
-const _srNorm = t => String(t || '').replace(/^\[บันทึก\]\s*/, '').replace(/\s*·?\s*(ค่าปรับ ฿[\d,]+|ไม่ได้ค่าแรง)\s*/g, ' ').replace(/[\s·.,()\-]+/g, '').toLowerCase();
-
-const _srSameStory = (a, b) => {
-  const x = _srNorm(a), y = _srNorm(b);
-  if (!x || !y) return false;
-  if (x === y || x.includes(y) || y.includes(x)) return true;
-  const sa = new Set(String(a).split(/[\s·]+/).filter((w => w.length > 1))), sb = String(b).split(/[\s·]+/).filter((w => w.length > 1));
-  if (!sa.size || !sb.length) return false;
-  const hit = sb.filter((w => sa.has(w))).length;
-  return hit / Math.max(sa.size, sb.length) >= .6;
-};
-
-function _srMerged(rows) {
-  return rows;
-}
+const _srPlain = h => String(h || '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
 
 const _srTopicColor = name => (SR.topics.find((t => t.name === name)) || {}).color || (String(name).startsWith('ใบปรับ') ? '#ef4444' : '#64748b');
 
@@ -175,8 +160,6 @@ window.initStaffRecord = async function() {
   await srLoadTopics();
   srFillFilters();
   srRenderTopics();
-  srRenderRecent();
-  srRenderRecentPeople();
   await srLoad();
   srSetView(SR.view || 'sum');
   srSubscribe();
@@ -259,26 +242,6 @@ window.srSetDate = function(n) {
   }));
   srRenderTopics();
 };
-
-const _srRecentPeopleKey = 'sr_recent_people';
-
-const _srGetRecentPeople = () => {
-  try {
-    return JSON.parse(localStorage.getItem(_srRecentPeopleKey) || '[]');
-  } catch (e) {
-    return [];
-  }
-};
-
-const _srPushRecentPeople = name => {
-  const a = _srGetRecentPeople().filter((x => x !== name));
-  a.unshift(name);
-  try {
-    localStorage.setItem(_srRecentPeopleKey, JSON.stringify(a.slice(0, 6)));
-  } catch (e) {}
-};
-
-window.srRenderRecentPeople = function() {};
 
 window.srSyncForm = function() {
   const dEl = document.getElementById('srDate');
@@ -627,7 +590,6 @@ window.srEmpPick = function(name) {
     if (t && !_srTopicIn(t, SR.topicGroup)) SR.selTopics.delete(n);
   }));
   srRenderTopics();
-  srRenderRecentPeople();
   inp.focus();
 };
 
@@ -646,7 +608,6 @@ window.srEmpClear = function() {
   inp.focus();
   srRenderPicked();
   srRenderTopics();
-  srRenderRecentPeople();
 };
 
 window.srRenderPicked = function() {
@@ -740,17 +701,11 @@ window.srRenderLog = function() {
     if (l.action === 'topics') body = `${who} ${_srEsc(l.detail || 'แก้หัวข้อ')}`; else {
       const tag = l.topic ? `<span class="sr-chip" style="--c:${_srTopicColor(l.topic)}" title="${_srEsc(l.topic)}">${_srEsc(_srLabel(l.topic))}</span>` : '';
       const verb = l.action === 'add' ? 'ลงประวัติให้' : l.action === 'edit' ? 'แก้ไขประวัติของ' : 'ลบประวัติของ';
-      body = `${who} ${verb} <b>${_srEsc(l.user_name || '-')}</b> ${tag}` + `<small>วันที่เกิดเรื่อง ${_srDateLabel(l.record_date)}${_srNoteShow(l) ? ' · หมายเหตุ: ' + _srEsc(_srNoteShow(l)) : ''}</small>` + (l.detail ? `<span class="chg">${l.detail}</span>` : '');
+      body = `${who} ${verb} <b>${_srEsc(l.user_name || '-')}</b> ${tag}` + `<small>วันที่เกิดเรื่อง ${_srDateLabel(l.record_date)}${_srNoteShow(l) ? ' · หมายเหตุ: ' + _srEsc(_srNoteShow(l)) : ''}</small>` + (l.detail ? `<span class="chg">${_srEsc(_srPlain(l.detail)).replace(/&lt;(\/?)s&gt;/g, '<$1s>')}</span>` : '');
     }
     html += `<div class="sr-log-i"><div class="sr-log-time">${_srTime(l.created_at)}</div><div><span class="sr-act ${_srEsc(l.action)}">${ACT[l.action] || _srEsc(l.action)}</span></div><div class="sr-log-b">${body}</div></div>`;
   }));
   box.innerHTML = html;
-};
-
-window.srRankType = function(t) {
-  SR.rankType = t;
-  document.querySelectorAll('#srApp .sr-rk-type button').forEach((b => b.classList.toggle('on', b.dataset.t === t)));
-  srRenderRank();
 };
 
 window.srRenderRank = function() {
@@ -769,11 +724,9 @@ window.srRenderRank = function() {
     tSel.innerHTML = '<option value="all">ทุกเรื่อง</option>' + ts.map((x => `<option value="${_srEsc(x)}">${_srEsc(x)}</option>`)).join('');
     tSel.value = ts.includes(cur) ? cur : 'all';
   }
-  const type = SR.rankType || 'all', fD = dSel ? dSel.value : 'all', fS = document.getElementById('srRankShift')?.value || 'all', fT = tSel ? tSel.value : 'all';
-  const rows = _srMerged(SR.rows).filter((r => {
+  const fD = dSel ? dSel.value : 'all', fS = document.getElementById('srRankShift')?.value || 'all', fT = tSel ? tSel.value : 'all';
+  const rows = SR.rows.filter((r => {
     if (_srIsNote(r)) return false;
-    if (type === 'hist' && _srIsFine(r)) return false;
-    if (type === 'fine' && !_srIsFine(r)) return false;
     if (fT !== 'all' && _srLabel(r.topic) !== fT) return false;
     if (fD !== 'all' || fS !== 'all') {
       const u = _srUserOf(r.user_name);
@@ -813,7 +766,6 @@ window.srRenderRank = function() {
     const u = _srUserOf(x.name);
     return u ? `${_srEsc(u.department || 'AM')}${u.allowed_shift ? ' · ' + _srEsc(String(u.allowed_shift).replace('กะ', '')) : ''}` : 'ไม่อยู่ในระบบ';
   };
-  const splitTags = x => '';
   const topTopics = x => {
     const c = {};
     x.items.forEach((r => {
@@ -822,10 +774,10 @@ window.srRenderRank = function() {
     }));
     return Object.entries(c).sort(((a, b) => b[1] - a[1])).slice(0, 3).map((([t, n]) => `<span style="--c:${_srTopicColor(t)}">${_srEsc(t.replace(/^ใบปรับ:\s*/, 'ใบปรับ · '))} ×${n}</span>`)).join('');
   };
-  const go = name => `srRankOpen('${_srEsc(name).replace(/'/g, "\\'")}')`;
+  const go = name => `srRankOpen(this.dataset.n)" data-n="${_srEsc(name)}`;
   const top = list.slice(0, 3);
   const order = top.length === 3 ? [ top[1], top[0], top[2] ] : top;
-  const pod = `<div class="sr-pod" style="${top.length < 3 ? 'grid-template-columns:repeat(' + top.length + ',1fr)' : ''}">` + order.map((x => `\n        <div class="sr-pod-i r${Math.min(x.rank, 3)}" onclick="${go(x.name)}" title="ดูรายละเอียด">\n            <div class="sr-medal">${x.rank}</div>\n            <div class="sr-pod-n">${_srEsc(x.name)}</div>\n            <div class="sr-pod-m">${meta(x)}</div>\n            <div class="sr-pod-c">${x.n}<small>ครั้ง</small></div>\n            <div class="sr-pod-s">${splitTags(x)}</div>\n        </div>`)).join('') + `</div>`;
+  const pod = `<div class="sr-pod" style="${top.length < 3 ? 'grid-template-columns:repeat(' + top.length + ',1fr)' : ''}">` + order.map((x => `\n        <div class="sr-pod-i r${Math.min(x.rank, 3)}" onclick="${go(x.name)}" title="ดูรายละเอียด">\n            <div class="sr-medal">${x.rank}</div>\n            <div class="sr-pod-n">${_srEsc(x.name)}</div>\n            <div class="sr-pod-m">${meta(x)}</div>\n            <div class="sr-pod-c">${x.n}<small>ครั้ง</small></div>\n        </div>`)).join('') + `</div>`;
   const rest = list.slice(3).map((x => `\n        <div class="sr-rk-row" onclick="${go(x.name)}" title="ดูรายละเอียด">\n            <div class="sr-rk-no">${x.rank}</div>\n            <div class="sr-rk-nm"><b>${_srEsc(x.name)}</b><small>${meta(x)}</small></div>\n            <div class="sr-rk-bar">\n                <div class="sr-rk-track"><i class="h" style="width:${x.n / max * 100}%"></i></div>\n                <div class="sr-rk-tp">${topTopics(x)}</div>\n            </div>\n            <div class="sr-rk-c"><b>${x.n}</b><small>ครั้ง</small></div>\n        </div>`)).join('');
   box.innerHTML = pod + (rest ? `<div class="sr-rk-legend"><span>ทั้งหมด ${list.length} คน</span></div>` + rest : '');
 };
@@ -899,9 +851,6 @@ window.srSave = async function() {
     topic: r.topic,
     note: r.note || null
   }))));
-  SR.pickedList.forEach((u => _srPushRecentPeople(u.username)));
-  SR.recent = [ ...data || payload, ...SR.recent ].slice(0, 6);
-  srRenderRecent();
   const savedName = SR.pickedList.length === 1 ? SR.pickedList[0].username : SR.pickedList.length + ' คน';
   SR.selTopics.clear();
   document.getElementById('srNote').value = '';
@@ -922,10 +871,7 @@ window.srSave = async function() {
   });
   if (date.slice(0, 7) === SR.month) await srLoad();
   srRenderTopics();
-  srRenderRecentPeople();
 };
-
-window.srRenderRecent = function() {};
 
 window.srLoad = async function() {
   const [a, b] = _srMonthRange(SR.month);
@@ -937,7 +883,7 @@ window.srLoad = async function() {
   }).order('created_at', {
     ascending: false
   }).limit(5e3);
-  if (!_srPerm('staff_record_view_all') && typeof currentUser !== 'undefined' && currentUser) q = q.ilike('user_name', currentUser.username);
+  if (!_srPerm('staff_record_view_all') && typeof currentUser !== 'undefined' && currentUser) q = q.ilike('user_name', String(currentUser.username).replace(/[\\%_]/g, (c => '\\' + c)));
   const {data: data, error: error} = await q;
   if (error) {
     const list = document.getElementById('srList');
@@ -980,7 +926,7 @@ window.srRender = function() {
       hint.innerHTML = `<span class="material-icons" style="font-size:17px;color:var(--k-gold-tx)">event</span>กำลังดูเฉพาะวันที่ <b>${_srDateLabel(fDay)}</b><button type="button" onclick="document.getElementById('srFilterDay').value='all';SR.page=1;srRender()">ดูทั้งเดือน</button>`;
     }
   }
-  const rows = _srMerged(SR.rows).filter((r => {
+  const rows = SR.rows.filter((r => {
     if (qName && !String(r.user_name).toLowerCase().includes(qName)) return false;
     if (fTopic !== 'all' && _srLabel(r.topic) !== fTopic) return false;
     if (fDay !== 'all' && r.record_date !== fDay) return false;
@@ -1012,7 +958,11 @@ window.srRender = function() {
   }));
   const canDel = _srPerm('staff_record_delete');
   const canEdit = _srPerm('staff_record_edit') || _srPerm('staff_record_add');
-  const sorted = Object.values(groups).sort(((a, b) => _srOff(b.items).length - _srOff(a.items).length || b.items.length - a.items.length || a.name.localeCompare(b.name)));
+  const lastAt = g => g.items.reduce(((m, r) => {
+    const t = String(r.created_at || r.record_date || '');
+    return t > m ? t : m;
+  }), '');
+  const sorted = Object.values(groups).sort(((a, b) => lastAt(b).localeCompare(lastAt(a)) || _srOff(b.items).length - _srOff(a.items).length || a.name.localeCompare(b.name)));
   const PER = 10;
   const pages = Math.max(1, Math.ceil(sorted.length / PER));
   SR.page = Math.min(Math.max(1, SR.page || 1), pages);
@@ -1184,8 +1134,9 @@ window.srDelete = async function(id) {
     cancelButtonText: 'ยกเลิก'
   });
   if (!ok.isConfirmed) return;
-  const {error: error} = await appDB.from('staff_records').delete().eq('id', id);
+  const {data: delRows, error: error} = await appDB.from('staff_records').delete().eq('id', id).select('id');
   if (error) return Swal.fire('ลบไม่สำเร็จ', error.message, 'error');
+  if (Array.isArray(delRows) && delRows.length === 0) return Swal.fire('ลบไม่สำเร็จ', 'ฐานข้อมูลไม่ยอมลบรายการนี้ (อาจไม่มีสิทธิ์)', 'error');
   if (r) _srLog({
     action: 'delete',
     record_id: id,
@@ -1196,8 +1147,6 @@ window.srDelete = async function(id) {
     detail: `ลงไว้โดย ${_srEsc(r.created_by || '-')} เมื่อ ${_srDateTimeShort(r.created_at)}`
   });
   SR.rows = SR.rows.filter((x => Number(x.id) !== Number(id)));
-  SR.recent = SR.recent.filter((x => Number(x.id) !== Number(id)));
-  srRenderRecent();
   srRender();
 };
 
