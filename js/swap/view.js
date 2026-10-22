@@ -236,6 +236,12 @@ window.fetchPublicSwapSchedule = async function() {
       set('statSwapSame', countSame);
       set('statSwapAll', countMorning + countNight + countSame);
     }
+    const statLine = document.getElementById('swapStatLine');
+    if (statLine) {
+      const total = countMorning + countNight + countSame;
+      const deptLbl = { AM: 'AM', OD: 'OD', AMQL: 'ผู้สอน AM', ODQL: 'ผู้สอน OD' }[activeSwapDeptFilter] || activeSwapDeptFilter;
+      statLine.innerHTML = total ? `${_swEsc(deptLbl)} · ${statusMode === 'pending' ? 'รอสลับ' : 'สำเร็จแล้ว'} <b>${total}</b> คน · ไปดึก <b>${countNight}</b> · ไปเช้า <b>${countMorning}</b> · อยู่กะเดิม <b>${countSame}</b>` : `${_swEsc(deptLbl)} · ${statusMode === 'pending' ? 'ยังไม่มีคิวสลับกะ' : 'ยังไม่มีประวัติ'}`;
+    }
     window.filterSwapSchedule();
   } catch (err) {
     box.innerHTML = `<div class="sw-empty err"><span class="material-icons">error_outline</span>เกิดข้อผิดพลาดในการโหลดข้อมูล</div>`;
@@ -419,20 +425,22 @@ window.restoreDeletedSwapSchedules = async function() {
         const {error: error} = await appDB.from('scheduled_tasks').insert(insertPayload);
         if (error) throw error;
         const xxRows = tasksToRestore.filter((t => t.status === 'pending')).map(_swapTaskXXDate).filter(Boolean);
+        let xxWarn = null;
         if (xxRows.length) {
           await swapDeleteLeavesBatch(xxRows, true);
-          await appDB.from('leave_requests').insert(xxRows.map((x => ({
+          const {error: xxErr} = await appDB.from('leave_requests').insert(xxRows.map((x => ({
             ...x,
             reason: 'XX',
             status: 'approved'
           }))));
+          if (xxErr) xxWarn = xxErr.message || 'ไม่ทราบสาเหตุ';
         }
         localStorage.removeItem(`backup_swap_${activeSwapDeptFilter}`);
         if (typeof logAction === 'function') {
           let deptName = activeSwapDeptFilter === 'TRAINER' ? 'ผู้สอน' : activeSwapDeptFilter;
           await logAction('Auto Swap Restore', `กู้คืนตารางสลับกะแผนก ${deptName}`);
         }
-        Swal.fire('กู้คืนสำเร็จ', 'ข้อมูลสลับกะกลับมาเรียบร้อยแล้ว', 'success');
+        if (xxWarn) Swal.fire('กู้คืนคิวแล้ว แต่ลง XX ไม่ครบ', 'ตารางวันหยุดอาจไม่ตรง: ' + xxWarn, 'warning'); else Swal.fire('กู้คืนสำเร็จ', 'ข้อมูลสลับกะกลับมาเรียบร้อยแล้ว', 'success');
         fetchPublicSwapSchedule();
         checkSwapBackup();
         if (typeof fetchLeaveData === 'function') fetchLeaveData();

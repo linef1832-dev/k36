@@ -1,3 +1,9 @@
+window._swXXw = async function(q) {
+  const r = await q;
+  if (r && r.error) window._swXXErr = r.error;
+  return r;
+};
+
 window.openSwapUserMenu = function(userId, dayIndex, direction) {
   const isGlobalAdmin = canPerm('swap_manage');
   const canManageSwap = isGlobalAdmin || typeof window.hasUserPerm === 'function' && window.hasUserPerm('swap_manage');
@@ -120,6 +126,7 @@ window.openAddMissingSwap = async function() {
     if (task.status === 'completed') continue;
     let p = {};
     try {
+    window._swXXErr = null;
       p = typeof task.payload === 'string' ? JSON.parse(task.payload) : task.payload || {};
     } catch (e) {}
     if (p.user_id) existingUserIds.add(String(p.user_id));
@@ -240,14 +247,14 @@ window.openAddMissingSwap = async function() {
     });
     if (error) throw error;
     if (leaveRequest) {
-      await appDB.from('leave_requests').delete().eq('user_id', user.id).eq('leave_date', leaveRequest.leave_date);
-      await appDB.from('leave_requests').insert(leaveRequest);
+      await window._swXXw(appDB.from('leave_requests').delete().eq('user_id', user.id).eq('leave_date', leaveRequest.leave_date));
+      await window._swXXw(appDB.from('leave_requests').insert(leaveRequest));
     }
     if (typeof logAction === 'function') {
       const actionDesc = action === 'swap' ? 'สลับกะ' : 'ไม่สลับ (อยู่กะเดิม)';
       await logAction('Add Missing Swap', `เพิ่ม ${user.username} เข้าตาราง: ${actionDesc} วันที่ ${date}`);
     }
-    Swal.fire({
+    (window._swXXErr ? (o => Swal.fire({ icon: 'warning', title: 'บันทึกคิวแล้ว แต่ลง XX ไม่ครบ', text: 'ตารางวันหยุดอาจไม่ตรง กรุณาตรวจ XX ของคนนี้ (' + (window._swXXErr.message || '') + ')' })) : Swal.fire.bind(Swal))({
       icon: 'success',
       title: 'เพิ่มสำเร็จ',
       text: `เพิ่ม ${user.username} เข้าตารางแล้ว`,
@@ -332,6 +339,7 @@ window.changeSavedSwapDate = async function(taskId) {
   if (!task) return;
   let p = {};
   try {
+    window._swXXErr = null;
     p = typeof task.payload === 'string' ? JSON.parse(task.payload) : task.payload || {};
   } catch (e) {}
   const currentDate = swapTaskDateTH(task.scheduled_for);
@@ -387,18 +395,18 @@ window.changeSavedSwapDate = async function(taskId) {
     const oldLeaveDate = getSafeDateStr(currentDate, offset);
     const newLeaveDate = getSafeDateStr(newDate, offset);
     if (p.user_id) {
-      await appDB.from('leave_requests').delete().eq('user_id', p.user_id).eq('leave_date', oldLeaveDate).eq('reason', 'XX');
-      await appDB.from('leave_requests').delete().eq('user_id', p.user_id).eq('leave_date', newLeaveDate);
-      await appDB.from('leave_requests').insert({
+      await window._swXXw(appDB.from('leave_requests').delete().eq('user_id', p.user_id).eq('leave_date', oldLeaveDate).eq('reason', 'XX'));
+      await window._swXXw(appDB.from('leave_requests').delete().eq('user_id', p.user_id).eq('leave_date', newLeaveDate));
+      await window._swXXw(appDB.from('leave_requests').insert({
         user_id: p.user_id,
         user_name: p.user_name,
         leave_date: newLeaveDate,
         reason: 'XX',
         status: 'approved'
-      });
+      }));
     }
     if (typeof logAction === 'function') await logAction('Swap Date Change', `ย้ายวันสลับกะของ ${p.user_name}: ${currentDate} → ${newDate}`);
-    Swal.fire({
+    (window._swXXErr ? (o => Swal.fire({ icon: 'warning', title: 'บันทึกคิวแล้ว แต่ลง XX ไม่ครบ', text: 'ตารางวันหยุดอาจไม่ตรง กรุณาตรวจ XX ของคนนี้ (' + (window._swXXErr.message || '') + ')' })) : Swal.fire.bind(Swal))({
       icon: 'success',
       title: 'บันทึกแล้ว',
       timer: 1500,
@@ -416,6 +424,7 @@ window.changeSavedSwapToStay = async function(taskId) {
   if (!task) return;
   let p = {};
   try {
+    window._swXXErr = null;
     p = typeof task.payload === 'string' ? JSON.parse(task.payload) : task.payload || {};
   } catch (e) {}
   const targetShift = p.target_shift;
@@ -451,10 +460,10 @@ window.changeSavedSwapToStay = async function(taskId) {
     const swapDate = task.scheduled_for ? swapTaskDateTH(task.scheduled_for) : null;
     if (p.user_id && swapDate) {
       const xxDate = getSafeDateStr(swapDate, offset);
-      await appDB.from('leave_requests').delete().eq('user_id', p.user_id).eq('leave_date', xxDate).eq('reason', 'XX');
+      await window._swXXw(appDB.from('leave_requests').delete().eq('user_id', p.user_id).eq('leave_date', xxDate).eq('reason', 'XX'));
     }
     if (typeof logAction === 'function') await logAction('Swap Cancel', `ยกเลิกสลับกะ ${p.user_name} (อยู่${originalShift}ตามเดิม)`);
-    Swal.fire({
+    (window._swXXErr ? (o => Swal.fire({ icon: 'warning', title: 'บันทึกคิวแล้ว แต่ลง XX ไม่ครบ', text: 'ตารางวันหยุดอาจไม่ตรง กรุณาตรวจ XX ของคนนี้ (' + (window._swXXErr.message || '') + ')' })) : Swal.fire.bind(Swal))({
       icon: 'success',
       title: 'ยกเลิกแล้ว',
       text: `${p.user_name} จะอยู่${originalShift}ตามเดิม`,
@@ -473,6 +482,7 @@ window.reactivateSavedSwap = async function(taskId) {
   if (!task) return;
   let p = {};
   try {
+    window._swXXErr = null;
     p = typeof task.payload === 'string' ? JSON.parse(task.payload) : task.payload || {};
   } catch (e) {}
   let originalShift = p.original_shift;
@@ -537,17 +547,17 @@ window.reactivateSavedSwap = async function(taskId) {
     const offset = newTargetShift === 'กะเช้า' ? -1 : 0;
     const xxDate = getSafeDateStr(swapDate, offset);
     if (p.user_id) {
-      await appDB.from('leave_requests').delete().eq('user_id', p.user_id).eq('leave_date', xxDate);
-      await appDB.from('leave_requests').insert({
+      await window._swXXw(appDB.from('leave_requests').delete().eq('user_id', p.user_id).eq('leave_date', xxDate));
+      await window._swXXw(appDB.from('leave_requests').insert({
         user_id: p.user_id,
         user_name: p.user_name,
         leave_date: xxDate,
         reason: 'XX',
         status: 'approved'
-      });
+      }));
     }
     if (typeof logAction === 'function') await logAction('Swap Reactivate', `เปิดให้ ${p.user_name} สลับกะวันที่ ${swapDate}`);
-    Swal.fire({
+    (window._swXXErr ? (o => Swal.fire({ icon: 'warning', title: 'บันทึกคิวแล้ว แต่ลง XX ไม่ครบ', text: 'ตารางวันหยุดอาจไม่ตรง กรุณาตรวจ XX ของคนนี้ (' + (window._swXXErr.message || '') + ')' })) : Swal.fire.bind(Swal))({
       icon: 'success',
       title: 'เปิดแล้ว',
       text: `${p.user_name} จะ${directionLabel} วันที่ ${swapDate}`,

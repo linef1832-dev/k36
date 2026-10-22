@@ -1,23 +1,25 @@
 
 <div id="swapPage" class="fade-in flex flex-col h-full sw-root rounded-2xl overflow-hidden">
 
-    <div class="k-pagehead text-white p-4 shrink-0 flex justify-between items-center z-10" style="--acc:249,115,22;background:linear-gradient(120deg,rgba(var(--acc),0.22),color-mix(in srgb,var(--k-panel2) 55.0%,transparent) 45%,color-mix(in srgb,var(--k-panel2) 20.0%,transparent)),var(--k-panel2);border-bottom:1px solid rgba(var(--acc),0.4);box-shadow:0 6px 24px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.06)">
-        <div class="flex items-center gap-3">
-            <div class="bg-white/20 p-2 rounded-xl shadow-inner"><span class="material-icons text-3xl">published_with_changes</span></div>
-            <h1 class="font-black text-xl tracking-wide">ตารางสลับกะประจำเดือน</h1>
+    <div class="sw-head">
+        <div class="sw-logo"><span class="material-icons">published_with_changes</span></div>
+        <div class="sw-titlebox">
+            <h1 class="sw-title">ตารางสลับกะประจำเดือน</h1>
+            <div class="sw-sub" id="swapStatLine">กำลังโหลด…</div>
         </div>
-        <button onclick="showPage('dashboard')" class="bg-black/30 hover:bg-black/50 text-white px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 shadow-sm border border-white/20 backdrop-blur-sm">
-            <span class="material-icons text-sm">arrow_back</span> กลับ
-        </button>
+        <div class="sw-head-r">
+            <div class="sw-maintabs sw-maintabs-h" id="swMainTabs">
+                <button data-tab="list" class="on" onclick="swapSetMainTab('list')"><span class="material-icons">event_note</span>ตารางสลับกะ</button>
+                <button data-tab="create" id="swTabCreate" style="display:none" onclick="swapSetMainTab('create')"><span class="material-icons">auto_fix_high</span>สร้างตารางใหม่</button>
+            </div>
+            <button onclick="showPage('dashboard')" class="sw-back"><span class="material-icons">arrow_back</span><span class="sw-back-t">กลับ</span></button>
+        </div>
     </div>
 
     <div class="flex-1 overflow-y-auto custom-scrollbar" id="autoSwapModalBody">
         <div class="sw-wrap">
             
-            <div class="sw-maintabs" id="swMainTabs">
-                <button data-tab="list" class="on" onclick="swapSetMainTab('list')"><span class="material-icons">event_note</span>ตารางสลับกะ</button>
-                <button data-tab="create" id="swTabCreate" style="display:none" onclick="swapSetMainTab('create')"><span class="material-icons">auto_fix_high</span>สร้างตารางใหม่</button>
-            </div>
+            
             
             <section id="staffSwapView">
                 <div class="sw-card sw-toolbar">
@@ -388,4 +390,29 @@ html.dark #swapPage { --sw-mt:#fb923c; --sw-nt:#a78bfa; --sw-okt:#34d399; --sw-y
     #swapPage .sw-seg { width:100%; } #swapPage .sw-seg-btn { flex:1; justify-content:center; padding:7px 8px; }
 }
 @media (prefers-reduced-motion:reduce){ #swapPage .sw-spin { animation:none; } }
+
+    #swapPage .sw-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 18px;background:var(--k-panel);border-bottom:1px solid var(--k-line);flex-shrink:0;z-index:10}
+    #swapPage .sw-logo{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:#E8C15A;color:#1b1406;flex:none;box-shadow:0 8px 20px rgba(232,193,90,.25)}
+    #swapPage .sw-logo .material-icons{font-size:23px}
+    #swapPage .sw-titlebox{min-width:0}
+    #swapPage .sw-title{margin:0;font-size:18px;font-weight:900;color:var(--k-tx-strong);line-height:1.25}
+    #swapPage .sw-sub{font-size:12.5px;font-weight:700;color:var(--k-mute);margin-top:1px}
+    #swapPage .sw-sub b{color:var(--k-tx2)}
+    #swapPage .sw-head-r{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    #swapPage .sw-maintabs-h{margin:0}
+    #swapPage .sw-back{display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 13px;border-radius:11px;font-size:13px;font-weight:800;border:1px solid var(--k-line3);background:var(--k-btn);color:var(--k-tx2)}
+    #swapPage .sw-back:hover{background:var(--k-btn-h);color:var(--k-tx-strong)}
+    #swapPage .sw-back .material-icons{font-size:17px}
+    #swapPage .sw-item-steps{display:flex;flex-direction:column;align-items:stretch;gap:0;margin-top:8px;padding-left:2px}
+    #swapPage .sw-item-steps .sw-arrow{display:none}
+    #swapPage .sw-item-steps .sw-st{position:relative;display:flex;align-items:center;gap:8px;background:none!important;border:0!important;box-shadow:none!important;padding:3px 0 3px 18px;border-radius:0;font-size:12.5px;font-weight:700;color:var(--k-tx2);white-space:normal;width:auto}
+    #swapPage .sw-item-steps .sw-st::before{content:"";position:absolute;left:3px;top:50%;width:9px;height:9px;margin-top:-4.5px;border-radius:99px;background:var(--dot,#94a3b8);box-shadow:0 0 0 3px color-mix(in srgb,var(--dot,#94a3b8) 20%,transparent)}
+    #swapPage .sw-item-steps .sw-st:not(:last-child)::after{content:"";position:absolute;left:7px;top:calc(50% + 6px);height:calc(100% - 4px);width:1.5px;background:var(--k-line3)}
+    #swapPage .sw-item-steps .sw-st.last{color:var(--k-tx-strong);font-weight:900}
+    #swapPage .sw-item-steps .sw-c-o{--dot:#f59e0b}
+    #swapPage .sw-item-steps .sw-c-p{--dot:#8b5cf6}
+    #swapPage .sw-item-steps .sw-c-y{--dot:#eab308}
+    #swapPage .sw-item-steps .sw-c-g{--dot:#10b981}
+    #swapPage .sw-item-steps .sw-st-plain{font-size:12.5px;font-weight:700;color:var(--k-mute)}
+    @media (max-width:720px){ #swapPage .sw-head-r{width:100%;margin-left:0} #swapPage .sw-back-t{display:none} }
 </style>
