@@ -131,6 +131,42 @@
     #sheetApp .sh-crumb-sep{font-size:16px;color:var(--k-mute2)}
     #sheetApp .sh-crumb-n{font-size:14.5px;font-weight:900;color:var(--k-tx-strong);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     @media (max-width:640px){ #sheetApp .sh-search{min-width:0;flex:1} #sheetApp .sm2-groups{grid-template-columns:1fr} #sheetApp .sm2-pin{opacity:1} }
+
+    #noteToolbar.nt-tb{align-items:center;gap:6px;flex-wrap:wrap;padding:8px 12px;background:var(--k-panel);border-bottom:1px solid var(--k-line);flex-shrink:0;color:var(--k-tx);position:relative;z-index:30}
+    #noteToolbar.nt-tb.flex{display:flex}
+    #noteToolbar .nt-g{display:flex;align-items:center;gap:2px;padding:3px;border-radius:11px;background:var(--k-sunk);border:1px solid var(--k-line)}
+    #noteToolbar .nt-btn{display:inline-flex;align-items:center;justify-content:center;gap:4px;min-width:32px;height:32px;padding:0 7px;border-radius:8px;color:var(--k-tx2);font-size:13px;font-weight:800;white-space:nowrap;transition:background .12s,color .12s}
+    #noteToolbar .nt-btn:hover{background:var(--k-btn-h);color:var(--k-tx-strong)}
+    #noteToolbar .nt-btn .material-icons{font-size:19px}
+    #noteToolbar .nt-lbl{font-size:12.5px;font-weight:800}
+    #noteToolbar .nt-car{font-size:16px!important;margin-left:-2px;opacity:.7}
+    #noteToolbar .nt-sel{height:32px;padding:0 6px;border-radius:8px;background:var(--k-field);border:1px solid var(--k-line2);color:var(--k-tx-strong);font-size:12.5px;font-weight:800;outline:none;margin-right:2px}
+    #noteToolbar .nt-col{flex-direction:column;gap:1px;padding-top:2px}
+    #noteToolbar .nt-col .material-icons{font-size:17px}
+    #noteToolbar .nt-sw{display:block;width:18px;height:4px;border-radius:2px;border:1px solid rgba(148,163,184,.4)}
+    #noteToolbar .nt-dd{position:relative}
+    #noteToolbar .nt-menu{position:absolute;left:0;top:calc(100% + 6px);z-index:60;min-width:200px;max-height:min(64vh,560px);overflow-y:auto;padding:6px;border-radius:14px;background:var(--k-panel);border:1px solid var(--k-line3);box-shadow:0 18px 40px rgba(0,0,0,.35)}
+    #noteToolbar .nt-menu.hidden{display:none}
+    #noteToolbar .nt-mh{font-size:10.5px;font-weight:900;letter-spacing:.05em;color:var(--k-mute);padding:8px 8px 4px}
+    #noteToolbar .nt-mrow{display:flex;gap:3px;padding:2px 4px 4px;flex-wrap:wrap}
+    #noteToolbar .nt-mi{display:flex;align-items:center;gap:9px;width:100%;padding:7px 9px;border-radius:9px;font-size:13px;font-weight:700;color:var(--k-tx2);text-align:left;transition:background .12s}
+    #noteToolbar .nt-mi:hover{background:var(--k-btn-h);color:var(--k-tx-strong)}
+    #noteToolbar .nt-mi .material-icons{font-size:18px;color:var(--k-mute)}
+    #noteToolbar .nt-mi small{margin-left:auto;font-size:10.5px;font-weight:700;color:var(--k-mute2);white-space:nowrap}
+    #noteToolbar .nt-mi kbd{margin-left:auto;font-size:10px;font-weight:800;padding:1px 6px;border-radius:5px;background:var(--k-sunk);border:1px solid var(--k-line);color:var(--k-mute);font-family:inherit}
+    #noteToolbar .nt-mi.danger,#noteToolbar .nt-mi.danger .material-icons{color:var(--k-red-tx)}
+    #noteToolbar .nt-mi.danger:hover{background:var(--k-red-bg)}
+    #noteToolbar .nt-swb{width:24px;height:24px;border-radius:7px;border:1px solid var(--k-line3);cursor:pointer;display:inline-block}
+    #noteToolbar .nt-swb:hover{outline:2px solid #E8C15A;outline-offset:1px}
+    #noteToolbar .nt-info{font-size:11.5px;font-weight:700;color:var(--k-mute);margin-left:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px}
+    #noteToolbar .nt-end{display:flex;gap:6px}
+    #noteToolbar .nt-cancel{height:34px;padding:0 14px;border-radius:10px;font-size:13px;font-weight:800;background:var(--k-btn);border:1px solid var(--k-line3);color:var(--k-tx2)}
+    #noteToolbar .nt-cancel:hover{background:var(--k-btn-h);color:var(--k-tx-strong)}
+    #noteToolbar .nt-save{display:inline-flex;align-items:center;gap:5px;height:34px;padding:0 16px;border-radius:10px;font-size:13px;font-weight:900;background:#10b981;color:#fff;box-shadow:0 6px 16px rgba(16,185,129,.25)}
+    #noteToolbar .nt-save:hover{filter:brightness(1.07)}
+    #noteToolbar .nt-save .material-icons{font-size:17px}
+    #noteToolbar .nt-palette{top:calc(100% + 6px)}
+    @media (max-width:900px){ #noteToolbar .nt-lbl{display:none} #noteToolbar .nt-info{display:none} #noteToolbar .nt-end{margin-left:auto} }
 </style>
 <div id="sheetApp" class="k-auto-light hidden fade-in flex flex-col h-full relative rounded-2xl overflow-hidden" style="height:calc(100vh - 2rem)">
     <div class="sh-head shrink-0">
@@ -266,84 +302,112 @@
                     <button id="btnNoteEdit" onclick="noteEditStart()" class="hidden ml-auto bg-purple-600 hover:bg-purple-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 shadow"><span class="material-icons text-sm">edit</span> แก้ไขหน้านี้</button>
                 </div>
                 
-                <div id="noteToolbar" class="hidden items-center gap-1 flex-wrap px-3 py-2 bg-slate-800 border-b border-slate-700 shrink-0 text-white">
-                    <button onclick="noteCmd('undo')" title="เลิกทำ (Ctrl+Z)" class="nt-btn"><span class="material-icons text-[18px]">undo</span></button>
-                    <button onclick="noteCmd('redo')" title="ทำซ้ำ (Ctrl+Y)" class="nt-btn"><span class="material-icons text-[18px]">redo</span></button>
-                    <span class="w-px h-6 bg-slate-600 mx-1"></span>
-                    <select id="noteFontSize" onchange="noteCmd('fontSize', this.value)" title="ขนาดตัวอักษร" class="bg-slate-900 border border-slate-600 rounded-md text-white text-xs px-1.5 h-[30px] outline-none">
-                        <option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14" selected>14</option><option value="16">16</option><option value="18">18</option><option value="20">20</option><option value="22">22</option><option value="24">24</option><option value="28">28</option><option value="32">32</option>
-                    </select>
-                    <button onclick="noteCmd('bold')" title="ตัวหนา (Ctrl+B)" class="nt-btn font-black">B</button>
-                    <button onclick="noteCmd('italic')" title="ตัวเอียง (Ctrl+I)" class="nt-btn italic font-serif font-bold">I</button>
-                    <button onclick="noteCmd('underline')" title="ขีดเส้นใต้ (Ctrl+U)" class="nt-btn underline font-bold">U</button>
-                    <button onclick="noteCmd('strike')" title="ขีดฆ่า" class="nt-btn line-through font-bold">S</button>
-                    <div class="relative nt-palette-wrap">
-                        <button onclick="notePaletteToggle('fg')" title="สีตัวอักษร" class="nt-btn gap-0.5"><span class="material-icons text-[18px]">format_color_text</span><span id="notePalSwFg" class="block w-4 h-1.5 rounded-sm" style="background:var(--k-panel2)"></span></button>
-                        <div id="notePal_fg" class="nt-palette hidden"></div>
+                <div id="noteToolbar" class="hidden nt-tb">
+                    <div class="nt-g">
+                        <button onclick="noteCmd('undo')" title="เลิกทำ (Ctrl+Z)" class="nt-btn" aria-label="เลิกทำ"><span class="material-icons">undo</span></button>
+                        <button onclick="noteCmd('redo')" title="ทำซ้ำ (Ctrl+Y)" class="nt-btn" aria-label="ทำซ้ำ"><span class="material-icons">redo</span></button>
                     </div>
-                    <div class="relative nt-palette-wrap">
-                        <button onclick="notePaletteToggle('bg')" title="สีพื้นช่อง" class="nt-btn gap-0.5"><span class="material-icons text-[18px]">format_color_fill</span><span id="notePalSwBg" class="block w-4 h-1.5 rounded-sm" style="background:#fce5cd"></span></button>
-                        <div id="notePal_bg" class="nt-palette hidden"></div>
+                    <div class="nt-g">
+                        <select id="noteFontSize" onchange="noteCmd('fontSize', this.value)" title="ขนาดตัวอักษร" class="nt-sel" aria-label="ขนาดตัวอักษร">
+                            <option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14" selected>14</option><option value="16">16</option><option value="18">18</option><option value="20">20</option><option value="22">22</option><option value="24">24</option><option value="28">28</option><option value="32">32</option>
+                        </select>
+                        <button onclick="noteCmd('bold')" title="ตัวหนา (Ctrl+B)" class="nt-btn" style="font-weight:900">B</button>
+                        <button onclick="noteCmd('italic')" title="ตัวเอียง (Ctrl+I)" class="nt-btn" style="font-style:italic;font-family:serif;font-weight:700">I</button>
+                        <button onclick="noteCmd('underline')" title="ขีดเส้นใต้ (Ctrl+U)" class="nt-btn" style="text-decoration:underline;font-weight:700">U</button>
+                        <button onclick="noteCmd('strike')" title="ขีดฆ่า" class="nt-btn" style="text-decoration:line-through;font-weight:700">S</button>
+                        <div class="relative nt-palette-wrap">
+                            <button onclick="notePaletteToggle('fg')" title="สีตัวอักษร" class="nt-btn nt-col"><span class="material-icons">format_color_text</span><span id="notePalSwFg" class="nt-sw" style="background:#000"></span></button>
+                            <div id="notePal_fg" class="nt-palette hidden"></div>
+                        </div>
+                        <div class="relative nt-palette-wrap">
+                            <button onclick="notePaletteToggle('bg')" title="สีพื้นช่อง" class="nt-btn nt-col"><span class="material-icons">format_color_fill</span><span id="notePalSwBg" class="nt-sw" style="background:#fce5cd"></span></button>
+                            <div id="notePal_bg" class="nt-palette hidden"></div>
+                        </div>
                     </div>
-                    <span class="w-px h-6 bg-slate-600 mx-1"></span>
-                    <button onclick="noteCmd('align','l')" title="ชิดซ้าย" class="nt-btn"><span class="material-icons text-[18px]">format_align_left</span></button>
-                    <button onclick="noteCmd('align','c')" title="กึ่งกลาง" class="nt-btn"><span class="material-icons text-[18px]">format_align_center</span></button>
-                    <button onclick="noteCmd('align','r')" title="ชิดขวา" class="nt-btn"><span class="material-icons text-[18px]">format_align_right</span></button>
-                    <span class="w-px h-6 bg-slate-600 mx-1"></span>
-                    <button onclick="noteCmd('wrap','wrap')" title="ตัดคำขึ้นบรรทัดใหม่ (แถวขยายตามข้อความ)" class="nt-btn"><span class="material-icons text-[18px]">wrap_text</span></button>
-                    <button onclick="noteCmd('wrap','clip')" title="ตัดข้อความ — ช่องไม่ขยายแถว ข้อความที่เกินซ่อนไว้ (เอาเมาส์ชี้/คลิกดูเต็ม)" class="nt-btn"><span class="material-icons text-[18px]">short_text</span></button>
-                    <span class="w-px h-6 bg-slate-600 mx-1"></span>
-                    <button onclick="noteCmd('merge')" title="รวมช่องที่เลือก (ลากคลุมได้ทั้งแนวนอนและแนวตั้ง)" class="nt-btn text-[11px] font-bold gap-1"><span class="material-icons text-[16px]">call_merge</span>รวมช่อง</button>
-                    <button onclick="noteCmd('unmerge')" title="แยกช่องที่รวมไว้" class="nt-btn text-[11px] font-bold gap-1"><span class="material-icons text-[16px]">call_split</span>แยก</button>
-                    <span class="w-px h-6 bg-slate-600 mx-1"></span>
-                    <div class="relative" id="noteBorderMenuWrap">
-                        <button onclick="document.getElementById('noteBorderMenu').classList.toggle('hidden')" title="เส้นตาราง" class="nt-btn gap-1"><span class="material-icons text-[18px]">border_all</span><span class="material-icons text-[14px]">arrow_drop_down</span></button>
-                        <div id="noteBorderMenu" class="hidden absolute left-0 top-8 z-30 bg-slate-800 border border-slate-600 rounded-lg shadow-xl p-2 grid grid-cols-4 gap-1">
-                            <button onclick="noteCmd('border','all')" title="ทุกเส้น" class="nt-btn"><span class="material-icons text-[18px]">border_all</span></button>
-                            <button onclick="noteCmd('border','outer')" title="เส้นรอบนอก" class="nt-btn"><span class="material-icons text-[18px]">border_outer</span></button>
-                            <button onclick="noteCmd('border','inner')" title="เส้นด้านใน" class="nt-btn"><span class="material-icons text-[18px]">border_inner</span></button>
-                            <button onclick="noteCmd('border','none')" title="ไม่มีเส้น" class="nt-btn"><span class="material-icons text-[18px]">border_clear</span></button>
-                            <button onclick="noteCmd('border','t')" title="เส้นบน" class="nt-btn"><span class="material-icons text-[18px]">border_top</span></button>
-                            <button onclick="noteCmd('border','b')" title="เส้นล่าง" class="nt-btn"><span class="material-icons text-[18px]">border_bottom</span></button>
-                            <button onclick="noteCmd('border','l')" title="เส้นซ้าย" class="nt-btn"><span class="material-icons text-[18px]">border_left</span></button>
-                            <button onclick="noteCmd('border','r')" title="เส้นขวา" class="nt-btn"><span class="material-icons text-[18px]">border_right</span></button>
-                            <div class="col-span-4 flex items-center gap-1 mt-1 pt-1 border-t border-slate-700">
-                                <span class="text-[10px] text-slate-400">สีเส้น</span>
-                                <button onclick="noteCmd('borderColor','#000000')" class="w-5 h-5 rounded border border-slate-500" style="background:var(--k-panel2)" title="ดำ (ค่าเริ่มต้น)"></button>
-                                <button onclick="noteCmd('borderColor','#64748b')" class="w-5 h-5 rounded border border-slate-500" style="background:#64748b" title="เทา"></button>
-                                <button onclick="noteCmd('borderColor','#cbd5e1')" class="w-5 h-5 rounded border border-slate-500" style="background:#cbd5e1" title="เทาอ่อน"></button>
-                                <button onclick="noteCmd('borderColor','#ef4444')" class="w-5 h-5 rounded border border-slate-500" style="background:#ef4444" title="แดง"></button>
-                                <label class="w-5 h-5 rounded border border-slate-500 relative cursor-pointer" style="background:linear-gradient(45deg,#f00,#0f0,#00f)" title="เลือกสีเอง"><input type="color" onchange="noteCmd('borderColor', this.value)" class="absolute inset-0 opacity-0 cursor-pointer"></label>
+                    <div class="nt-g">
+                        <div class="nt-dd">
+                            <button class="nt-btn nt-ddb" onclick="noteDdToggle(this)" title="การจัดวาง"><span class="material-icons">format_align_left</span><span class="nt-lbl">จัดวาง</span><span class="material-icons nt-car">expand_more</span></button>
+                            <div class="nt-menu hidden">
+                                <div class="nt-mh">แนวนอน</div>
+                                <div class="nt-mrow">
+                                    <button onclick="noteCmd('align','l')" title="ชิดซ้าย" class="nt-btn"><span class="material-icons">format_align_left</span></button>
+                                    <button onclick="noteCmd('align','c')" title="กึ่งกลาง" class="nt-btn"><span class="material-icons">format_align_center</span></button>
+                                    <button onclick="noteCmd('align','r')" title="ชิดขวา" class="nt-btn"><span class="material-icons">format_align_right</span></button>
+                                </div>
+                                <div class="nt-mh">ข้อความยาว</div>
+                                <button class="nt-mi" onclick="noteCmd('wrap','wrap')"><span class="material-icons">wrap_text</span>ตัดขึ้นบรรทัดใหม่<small>แถวขยายตามข้อความ</small></button>
+                                <button class="nt-mi" onclick="noteCmd('wrap','clip')"><span class="material-icons">short_text</span>ซ่อนส่วนที่เกิน<small>แถวไม่ขยาย</small></button>
+                            </div>
+                        </div>
+                        <button onclick="noteCmd('merge')" title="รวมช่องที่เลือก" class="nt-btn"><span class="material-icons">call_merge</span><span class="nt-lbl">รวมช่อง</span></button>
+                        <button onclick="noteCmd('unmerge')" title="แยกช่องที่รวมไว้" class="nt-btn"><span class="material-icons">call_split</span></button>
+                        <div class="nt-dd" id="noteBorderMenuWrap">
+                            <button class="nt-btn nt-ddb" onclick="document.getElementById('noteBorderMenu').classList.toggle('hidden')" title="เส้นตาราง"><span class="material-icons">border_all</span><span class="material-icons nt-car">expand_more</span></button>
+                            <div id="noteBorderMenu" class="nt-menu hidden">
+                                <div class="nt-mh">เส้นตาราง</div>
+                                <div class="nt-mrow">
+                                    <button onclick="noteCmd('border','all')" title="ทุกเส้น" class="nt-btn"><span class="material-icons">border_all</span></button>
+                                    <button onclick="noteCmd('border','outer')" title="เส้นรอบนอก" class="nt-btn"><span class="material-icons">border_outer</span></button>
+                                    <button onclick="noteCmd('border','inner')" title="เส้นด้านใน" class="nt-btn"><span class="material-icons">border_inner</span></button>
+                                    <button onclick="noteCmd('border','none')" title="ไม่มีเส้น" class="nt-btn"><span class="material-icons">border_clear</span></button>
+                                </div>
+                                <div class="nt-mrow">
+                                    <button onclick="noteCmd('border','t')" title="เส้นบน" class="nt-btn"><span class="material-icons">border_top</span></button>
+                                    <button onclick="noteCmd('border','b')" title="เส้นล่าง" class="nt-btn"><span class="material-icons">border_bottom</span></button>
+                                    <button onclick="noteCmd('border','l')" title="เส้นซ้าย" class="nt-btn"><span class="material-icons">border_left</span></button>
+                                    <button onclick="noteCmd('border','r')" title="เส้นขวา" class="nt-btn"><span class="material-icons">border_right</span></button>
+                                </div>
+                                <div class="nt-mh">สีเส้น</div>
+                                <div class="nt-mrow">
+                                    <button onclick="noteCmd('borderColor','#000000')" title="ดำ (ค่าเริ่มต้น)" class="nt-swb" style="background:#000000"></button>
+                                    <button onclick="noteCmd('borderColor','#64748b')" title="เทา" class="nt-swb" style="background:#64748b"></button>
+                                    <button onclick="noteCmd('borderColor','#cbd5e1')" title="เทาอ่อน" class="nt-swb" style="background:#cbd5e1"></button>
+                                    <button onclick="noteCmd('borderColor','#ef4444')" title="แดง" class="nt-swb" style="background:#ef4444"></button>
+                                    <label title="เลือกสีเอง" class="nt-swb" style="background:conic-gradient(#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00);position:relative"><input type="color" onchange="noteCmd('borderColor', this.value)" style="position:absolute;inset:0;opacity:0;cursor:pointer"></label>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <button onclick="noteCmd('trimEmpty')" title="ลบคอลัมน์/แถวที่ว่างทั้งหมดออก" class="nt-btn text-[11px] font-bold gap-1"><span class="material-icons text-[16px]">cleaning_services</span>ลบช่องว่าง</button>
-                    <span class="w-px h-6 bg-slate-600 mx-1"></span>
-                    <button onclick="noteCmd('rowAbove')" title="แทรกแถวด้านบน" class="nt-btn text-[11px] font-bold">↑แถว</button>
-                    <button onclick="noteCmd('rowBelow')" title="แทรกแถวด้านล่าง" class="nt-btn text-[11px] font-bold">↓แถว</button>
-                    <button onclick="noteCmd('rowDel')" title="ลบแถว" class="nt-btn text-[11px] font-bold text-red-300">✕แถว</button>
-                    <button onclick="noteCmd('colLeft')" title="แทรกคอลัมน์ซ้าย" class="nt-btn text-[11px] font-bold">←คอลัมน์</button>
-                    <button onclick="noteCmd('colRight')" title="แทรกคอลัมน์ขวา" class="nt-btn text-[11px] font-bold">→คอลัมน์</button>
-                    <button onclick="noteCmd('colDel')" title="ลบคอลัมน์" class="nt-btn text-[11px] font-bold text-red-300">✕คอลัมน์</button>
-                    <button onclick="noteCmd('colWidth')" title="ปรับความกว้างคอลัมน์" class="nt-btn text-[11px] font-bold">↔กว้าง</button>
-                    <span class="w-px h-6 bg-slate-600 mx-1"></span>
-                    <button onclick="noteCmd('cellShiftRight')" title="แทรกเซลล์ที่ตำแหน่งนี้ แล้วเลื่อนช่องทางขวาในแถวนี้ออกไป (ช่องท้ายแถวจะหลุดขอบ)" class="nt-btn text-[11px] font-bold gap-1"><span class="material-icons text-[16px]">keyboard_tab</span>แทรกเซลล์→</button>
-                    <button onclick="noteCmd('cellShiftDown')" title="แทรกเซลล์ที่ตำแหน่งนี้ แล้วเลื่อนช่องด้านล่างในคอลัมน์นี้ลงไป (ช่องท้ายคอลัมน์จะหลุดขอบ)" class="nt-btn text-[11px] font-bold gap-1"><span class="material-icons text-[16px]">vertical_align_bottom</span>แทรกเซลล์↓</button>
-                    <span class="w-px h-6 bg-slate-600 mx-1"></span>
-                    <button onclick="noteCmd('rowUp')" title="ย้ายแถวที่เลือกขึ้น" class="nt-btn"><span class="material-icons text-[18px]">arrow_upward</span></button>
-                    <button onclick="noteCmd('rowDown')" title="ย้ายแถวที่เลือกลง" class="nt-btn"><span class="material-icons text-[18px]">arrow_downward</span></button>
-                    <button onclick="noteCmd('rowDup')" title="คัดลอกแถวที่เลือก (ทั้งข้อความ+สี) แทรกต่อท้าย" class="nt-btn text-[11px] font-bold gap-1"><span class="material-icons text-[16px]">content_copy</span>ก๊อปแถว</button>
-                    <span class="w-px h-6 bg-slate-600 mx-1"></span>
-                    <button onclick="noteCmd('sortAsc')" title="เรียงแถวตามคอลัมน์ที่เลือก ก→ฮ / A→Z / น้อย→มาก" class="nt-btn text-[11px] font-bold gap-0.5"><span class="material-icons text-[16px]">sort</span>A→Z</button>
-                    <button onclick="noteCmd('sortDesc')" title="เรียงแถวตามคอลัมน์ที่เลือก ฮ→ก / Z→A / มาก→น้อย" class="nt-btn text-[11px] font-bold gap-0.5"><span class="material-icons text-[16px] rotate-180">sort</span>Z→A</button>
-                    <span class="w-px h-6 bg-slate-600 mx-1"></span>
-                    <button onclick="noteFindReplace()" title="ค้นหา & แทนที่ (Ctrl+H)" class="nt-btn text-[11px] font-bold gap-1"><span class="material-icons text-[16px]">find_replace</span>แทนที่</button>
-                    <button onclick="noteCmd('copyTSV')" title="คัดลอกช่วงที่เลือกเป็นตาราง — เอาไปวางใน Excel / Google Sheets ได้เลย" class="nt-btn text-[11px] font-bold gap-1"><span class="material-icons text-[16px]">table_view</span>ก๊อป Excel</button>
-                    <button onclick="noteCmd('clearFmt')" title="ล้างรูปแบบทั้งหมดของช่องที่เลือก (สี/ตัวหนา/ขนาด) เหลือแต่ข้อความ" class="nt-btn text-[11px] font-bold gap-1 text-amber-300"><span class="material-icons text-[16px]">format_clear</span>ล้างรูปแบบ</button>
-                    <span class="flex-1"></span>
-                    <span id="noteSelInfo" class="text-[11px] text-slate-400 mr-2"></span>
-                    <button onclick="noteEditCancel()" class="bg-slate-600 hover:bg-slate-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold">ยกเลิก</button>
-                    <button onclick="noteEditSave()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold flex items-center gap-1"><span class="material-icons text-sm">save</span> บันทึก</button>
+                    <div class="nt-g">
+                        <div class="nt-dd">
+                            <button class="nt-btn nt-ddb" onclick="noteDdToggle(this)" title="แถวและคอลัมน์"><span class="material-icons">table_rows</span><span class="nt-lbl">แถว / คอลัมน์</span><span class="material-icons nt-car">expand_more</span></button>
+                            <div class="nt-menu hidden" style="width:250px">
+                                <div class="nt-mh">แถว</div>
+                                <button class="nt-mi" onclick="noteCmd('rowAbove')"><span class="material-icons">vertical_align_top</span>แทรกแถวด้านบน</button>
+                                <button class="nt-mi" onclick="noteCmd('rowBelow')"><span class="material-icons">vertical_align_bottom</span>แทรกแถวด้านล่าง</button>
+                                <button class="nt-mi" onclick="noteCmd('rowDup')"><span class="material-icons">content_copy</span>ก๊อปแถวที่เลือก<small>ทั้งข้อความและสี</small></button>
+                                <button class="nt-mi" onclick="noteCmd('rowUp')"><span class="material-icons">arrow_upward</span>ย้ายแถวขึ้น</button>
+                                <button class="nt-mi" onclick="noteCmd('rowDown')"><span class="material-icons">arrow_downward</span>ย้ายแถวลง</button>
+                                <button class="nt-mi danger" onclick="noteCmd('rowDel')"><span class="material-icons">delete_outline</span>ลบแถว</button>
+                                <div class="nt-mh">คอลัมน์</div>
+                                <button class="nt-mi" onclick="noteCmd('colLeft')"><span class="material-icons">west</span>แทรกคอลัมน์ซ้าย</button>
+                                <button class="nt-mi" onclick="noteCmd('colRight')"><span class="material-icons">east</span>แทรกคอลัมน์ขวา</button>
+                                <button class="nt-mi" onclick="noteCmd('colWidth')"><span class="material-icons">width</span>ปรับความกว้าง</button>
+                                <button class="nt-mi danger" onclick="noteCmd('colDel')"><span class="material-icons">delete_outline</span>ลบคอลัมน์</button>
+                                <div class="nt-mh">เซลล์</div>
+                                <button class="nt-mi" onclick="noteCmd('cellShiftRight')"><span class="material-icons">keyboard_tab</span>แทรกเซลล์ เลื่อนไปขวา</button>
+                                <button class="nt-mi" onclick="noteCmd('cellShiftDown')"><span class="material-icons">south</span>แทรกเซลล์ เลื่อนลงล่าง</button>
+                                <button class="nt-mi" onclick="noteCmd('trimEmpty')"><span class="material-icons">cleaning_services</span>ลบแถว/คอลัมน์ที่ว่าง</button>
+                            </div>
+                        </div>
+                        <div class="nt-dd">
+                            <button class="nt-btn nt-ddb" onclick="noteDdToggle(this)" title="เครื่องมือข้อมูล"><span class="material-icons">construction</span><span class="nt-lbl">เครื่องมือ</span><span class="material-icons nt-car">expand_more</span></button>
+                            <div class="nt-menu hidden" style="width:250px">
+                                <div class="nt-mh">เรียงข้อมูล (ตามคอลัมน์ที่เลือก)</div>
+                                <button class="nt-mi" onclick="noteCmd('sortAsc')"><span class="material-icons">south</span>เรียง ก→ฮ / A→Z / น้อย→มาก</button>
+                                <button class="nt-mi" onclick="noteCmd('sortDesc')"><span class="material-icons">north</span>เรียง ฮ→ก / Z→A / มาก→น้อย</button>
+                                <div class="nt-mh">อื่น ๆ</div>
+                                <button class="nt-mi" onclick="noteFindReplace()"><span class="material-icons">find_replace</span>ค้นหา &amp; แทนที่<kbd>Ctrl+H</kbd></button>
+                                <button class="nt-mi" onclick="noteCmd('copyTSV')"><span class="material-icons">table_view</span>ก๊อปไปวางใน Excel<small>ช่วงที่เลือก</small></button>
+                                <button class="nt-mi" onclick="noteCmd('clearFmt')"><span class="material-icons">format_clear</span>ล้างรูปแบบ<small>เหลือแต่ข้อความ</small></button>
+                            </div>
+                        </div>
+                    </div>
+                    <span id="noteSelInfo" class="nt-info"></span>
+                    <div class="nt-end">
+                        <button onclick="noteEditCancel()" class="nt-cancel">ยกเลิก</button>
+                        <button onclick="noteEditSave()" class="nt-save"><span class="material-icons">save</span>บันทึก</button>
+                    </div>
                 </div>
                 <style>#noteTableWrap td{overflow-wrap:anywhere;word-break:break-word}.nt-body,.nt-ebody,.nt-clip{overflow-wrap:anywhere;word-break:break-word;min-width:0;max-width:100%}.nt-ebody{padding:8px 12px;min-height:1.6em;outline:none}.nt-etall{overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#94a3b8 transparent;box-shadow:inset 0 -12px 10px -10px rgba(0,0,0,.28)}.nt-etall::-webkit-scrollbar{width:6px}.nt-etall::-webkit-scrollbar-thumb{background:#94a3b8;border-radius:3px}.nt-tall{max-height:230px;overflow-y:auto;overscroll-behavior:contain;padding-right:6px;scrollbar-width:thin;scrollbar-color:#94a3b8 transparent;box-shadow:inset 0 -12px 10px -10px rgba(0,0,0,.28)}.nt-tall::-webkit-scrollbar{width:6px}.nt-tall::-webkit-scrollbar-thumb{background:#94a3b8;border-radius:3px}.nt-tall.nt-open{max-height:none;overflow:visible;box-shadow:none}.nt-expand{position:absolute;top:2px;right:2px;z-index:3;width:20px;height:20px;display:flex;align-items:center;justify-content:center;border-radius:5px;background:color-mix(in srgb,var(--k-panel2) 55.0%,transparent);color:var(--k-tx);opacity:0;transition:opacity .15s}.nt-expand:hover{background:#7c3aed}td:hover>.nt-expand{opacity:1}.nt-clip{max-height:2.9em;overflow:hidden;position:relative}.nt-clip::after{content:"…";position:absolute;right:2px;bottom:0;background:inherit;padding-left:6px;color:var(--k-mute);font-size:11px}td:hover>.nt-clip{max-height:none}td:hover>.nt-clip::after{display:none}.nt-palette{position:absolute;left:0;top:34px;z-index:40;background:#fff;border:1px solid #cbd5e1;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.35);padding:8px;width:236px}.nt-palette .row{display:flex;gap:2px;margin-bottom:2px}.nt-palette .sw{width:20px;height:20px;border-radius:3px;border:1px solid color-mix(in srgb,var(--k-line) 15.0%,transparent);cursor:pointer}.nt-palette .sw:hover{outline:2px solid #7c3aed;outline-offset:-1px}.nt-palette .lbl{font-size:10px;color:var(--k-mute3);margin:6px 0 3px;font-weight:700}.nt-hdr{background:#e8eaed;color:#000;font-weight:700;font-size:12px;text-align:center;border:1px solid #9aa0a6;user-select:none;height:26px;min-width:42px}.nt-hdr-sel{background:#a8c7fa !important;color:#000 !important}.nt-stick-top{position:sticky;top:0;z-index:6}.nt-stick-left{position:sticky;left:0;z-index:5;vertical-align:middle}.nt-stick-tl{position:sticky;top:0;left:0;z-index:7}.nt-hdr{box-shadow:inset 0 0 0 1px #9aa0a6;border:none !important}.nt-col-rs{position:absolute;top:0;right:-5px;width:10px;height:100%;cursor:col-resize;z-index:5}.nt-col-rs:hover{background:#1a73e8}.nt-row-rs{position:absolute;left:0;bottom:-5px;height:10px;width:100%;cursor:row-resize;z-index:5}.nt-row-rs:hover{background:#1a73e8}.nt-btn{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;padding:0 6px;border-radius:6px;color:var(--k-tx)}.nt-btn:hover{background:var(--k-btn-h)}.note-sel{outline:2px solid #7c3aed !important;outline-offset:-2px;background-image:linear-gradient(rgba(124,58,237,.12),rgba(124,58,237,.12))}</style>
                 <div id="noteTableWrap" class="flex-1 overflow-auto custom-scrollbar"></div>

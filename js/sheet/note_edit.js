@@ -1181,9 +1181,23 @@ window.noteFindReplace = async function() {
   _nToast(`แทนที่แล้ว ${hitCount} จุด ใน ${cellCount} ช่อง`);
 };
 
+window.noteDdToggle = function(btn) {
+  const menu = btn.parentElement.querySelector('.nt-menu');
+  if (!menu) return;
+  const willOpen = menu.classList.contains('hidden');
+  document.querySelectorAll('#noteToolbar .nt-menu').forEach((m => m.classList.add('hidden')));
+  document.querySelectorAll('.nt-palette').forEach((p => p.classList.add('hidden')));
+  if (willOpen) menu.classList.remove('hidden');
+};
+
 document.addEventListener('mousedown', (e => {
-  const m = document.getElementById('noteBorderMenu');
-  if (m && !m.classList.contains('hidden') && !e.target.closest('#noteBorderMenuWrap')) m.classList.add('hidden');
+  if (e.target.closest('#noteToolbar .nt-dd')) return;
+  document.querySelectorAll('#noteToolbar .nt-menu').forEach((m => m.classList.add('hidden')));
+}));
+
+document.addEventListener('click', (e => {
+  const item = e.target.closest('#noteToolbar .nt-menu .nt-mi, #noteToolbar .nt-menu .nt-mrow .nt-btn, #noteToolbar .nt-menu .nt-swb:not(label)');
+  if (item) item.closest('.nt-menu').classList.add('hidden');
 }));
 
 document.addEventListener('keydown', (e => {
