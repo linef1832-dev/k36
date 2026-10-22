@@ -38,7 +38,6 @@ window.renderImportantTasksPanel = function() {
   const shiftFilter = document.getElementById('dutyShiftSelect').value;
   const savedRooms = Array.isArray(window.savedMergeRooms) ? window.savedMergeRooms : [];
   const isSaved = savedRooms.length > 0;
-  const isEditing = window.currentMergeRooms && window.currentMergeRooms.length > 0 && !isSaved;
   let mergeBodyHtml = '';
   if (isSaved) {
     mergeBodyHtml = savedRooms.map((room => {
@@ -352,26 +351,6 @@ window.toggleLockImportantPerson = async function(taskName, role, name) {
     showConfirmButton: false,
     timer: 1500
   });
-  window.renderImportantTasksPanel();
-};
-
-window.toggleLockImportantTask = async function(taskName) {
-  if (window._impDenied()) return;
-  const k = window.impKeys();
-  const locks = window.lockedImportantTasks = window.impNormMap(window.lockedImportantTasks);
-  if (locks[taskName]) delete locks[taskName]; else {
-    const team = window.impNormTeam(window.currentImportantAssigns[taskName]);
-    if (!team) return Swal.fire('เตือน', 'กรุณาเลือกคนก่อน ถึงจะตั้งเป็นหน้าที่ประจำได้ครับ', 'warning');
-    locks[taskName] = {
-      main: [ ...team.main ],
-      support: [ ...team.support ]
-    };
-  }
-  window.clearSettingCache();
-  await appDB.from('settings').upsert([ {
-    key: k.lock,
-    value: JSON.stringify(locks)
-  } ]);
   window.renderImportantTasksPanel();
 };
 
@@ -730,26 +709,6 @@ window.impRemovePerson = async function(taskName, role, name) {
   } catch (e) {}
 };
 
-window.unassignImportantTask = async function(taskName) {
-  if (window._impDenied()) return;
-  const prev = window.impTeamOf(taskName);
-  if (window.lockedImportantTasks) delete window.lockedImportantTasks[taskName];
-  const k = window.impKeys();
-  delete window.currentImportantAssigns[taskName];
-  window.clearSettingCache();
-  await appDB.from('settings').upsert([ {
-    key: k.assign,
-    value: JSON.stringify(window.currentImportantAssigns)
-  }, {
-    key: k.lock,
-    value: JSON.stringify(window.lockedImportantTasks || {})
-  } ]);
-  const names = [ ...prev.main, ...prev.support ];
-  if (names.length) window._impLog(`ปลด ${names.join(', ')} ออกจากงาน "${taskName}"`);
-  window.renderImportantTasksPanel();
-  window.debouncedBroadcast('duty-updates', 'force_reload');
-};
-
 window.clearSecondaryDuties = async function() {
   if (!window.isDutyAdmin()) return Swal.fire('ไม่มีสิทธิ์', 'เฉพาะผู้จัดเวรเท่านั้นที่ล้างงานรองได้ครับ', 'error');
   if (window.blockIfPreview()) return;
@@ -810,10 +769,10 @@ window.clearSecondaryDuties = async function() {
       }));
     }
     window.clearSettingCache();
-    await appDB.from('settings').upsert([ {
+    window.dutyDbOk(await appDB.from('settings').upsert([ {
       key: saveKey,
       value: JSON.stringify(roster)
-    } ]);
+    } ]));
     try {
       await appDB.from('system_logs').insert([ {
         action_type: 'ล้างงานรอง',
@@ -1034,10 +993,11 @@ window.quickAssignBackups = async function() {
     }));
   }
   window.clearSettingCache();
-  await appDB.from('settings').upsert([ {
+  const {error: qaErr} = await appDB.from('settings').upsert([ {
     key: saveKey,
     value: JSON.stringify(roster)
   } ]);
+  if (qaErr) return Swal.fire('บันทึกไม่สำเร็จ', qaErr.message, 'error');
   window.renderRosterGrid(roster);
   try {
     if (appDB.channel) window.debouncedBroadcast('duty-updates', 'force_reload');

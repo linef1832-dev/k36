@@ -33,10 +33,10 @@ window.restoreDutyRoster = async function() {
       });
       try {
         window.clearSettingCache();
-        await appDB.from('settings').upsert([ {
+        window.dutyDbOk(await appDB.from('settings').upsert([ {
           key: saveKey,
           value: backupData
-        } ]);
+        } ]));
         await appDB.from('system_logs').insert([ {
           action_type: 'กู้คืนตารางงาน',
           performed_by: currentUser.username,
@@ -87,7 +87,6 @@ window.shuffleMergeRooms = async function() {
   shuffle(teamsWithoutAMQL);
   const totalTeams = sortedTeams.length;
   const numRooms = Math.floor(totalTeams / 2);
-  const extraSlots = totalTeams % 2;
   const rooms = Array.from({
     length: numRooms
   }, ((_, i) => ({
@@ -313,7 +312,6 @@ window.renderHelpCalcPanel = function() {
     resultHtml = Object.keys(grouped).map((team => {
       const colorClass = TEAM_COLORS[team] || TEAM_COLORS['DEFAULT'];
       const membersHtml = grouped[team].map(((item, i) => {
-        const netMin = item.slotMin - item.breakMin;
         const breakNote = item.breakMin > 0 ? `<span class="text-[9px] text-amber-400 ml-1">(พักใน ${item.breakMin}น.)</span>` : `<span class="text-[9px] text-emerald-400 ml-1">(ไม่มีพัก)</span>`;
         return `\n                <div class="flex items-center gap-2 py-1 border-b border-slate-700/30 last:border-0">\n                    <span class="w-4 h-4 rounded-full bg-sky-700 text-white text-[9px] font-black flex items-center justify-center shrink-0">${i + 1}</span>\n                    <div class="flex-1 min-w-0">\n                        <span class="text-[11px] font-black text-white">${window.escapeHtml(item.name)}</span>\n                        <span class="text-[10px] text-sky-400 font-bold ml-1.5">${minToTime(item.helpStart)}–${minToTime(item.helpEnd)}</span>\n                        ${breakNote}\n                    </div>\n                </div>`;
       })).join('');

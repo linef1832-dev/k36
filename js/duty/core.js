@@ -12,6 +12,11 @@ window.getDutyShiftForToday = function(u) {
   return override || u.allowed_shift;
 };
 
+window.dutyDbOk = function(res) {
+  if (res && res.error) throw res.error;
+  return res;
+};
+
 window.isDutyShiftMatch = function(u, shiftFilter) {
   const shift = window.getDutyShiftForToday(u);
   return shift === shiftFilter || shift === 'all';
@@ -22,8 +27,6 @@ let dutySubscription = null;
 let sortedTeams = [];
 
 let currentRosterData = {};
-
-let window_currentAssignedStaff = [];
 
 window.isDutyAdmin = function() {
   let deptCheck = currentDutyDept;
@@ -69,49 +72,6 @@ window.getDutyActiveStaff = function(shiftFilter, opts) {
     if (currentDutyLeaves && currentDutyLeaves.has(String(u.id))) return false;
     return true;
   }));
-};
-
-const LEAVE_STYLES = {
-  X: {
-    text: '✕ หยุดปกติ',
-    color: 'text-red-700 bg-red-100 border-red-300 dark:bg-red-900/40 dark:text-red-400',
-    border: 'border-red-200 dark:border-red-900/50'
-  },
-  'Table-Booking': {
-    text: '✕ หยุดปกติ',
-    color: 'text-red-700 bg-red-100 border-red-300 dark:bg-red-900/40 dark:text-red-400',
-    border: 'border-red-200 dark:border-red-900/50'
-  },
-  XX: {
-    text: 'XX เปลี่ยนกะ',
-    color: 'text-yellow-800 bg-yellow-100 border-yellow-400 dark:bg-yellow-900/40 dark:text-yellow-400',
-    border: 'border-yellow-300 dark:border-yellow-700/50'
-  },
-  X4: {
-    text: 'X4 ลาครึ่งวัน',
-    color: 'text-pink-700 bg-pink-100 border-pink-300 dark:bg-pink-900/40 dark:text-pink-400',
-    border: 'border-pink-200 dark:border-pink-900/50'
-  },
-  KL: {
-    text: 'KL ลากิจ',
-    color: 'text-green-800 bg-green-100 border-green-400 dark:bg-green-900/40 dark:text-green-400',
-    border: 'border-green-300 dark:border-green-800/50'
-  },
-  TL: {
-    text: 'TL สลับวันหยุด',
-    color: 'text-blue-800 bg-blue-100 border-blue-400 dark:bg-blue-900/40 dark:text-blue-400',
-    border: 'border-blue-300 dark:border-blue-800/50'
-  },
-  TX: {
-    text: 'TX สลับวันหยุด',
-    color: 'text-blue-800 bg-blue-100 border-blue-400 dark:bg-blue-900/40 dark:text-blue-400',
-    border: 'border-blue-300 dark:border-blue-800/50'
-  },
-  PN: {
-    text: 'PN พักร้อน',
-    color: 'text-white bg-amber-800 border-amber-900 dark:bg-amber-900 dark:text-amber-200',
-    border: 'border-amber-700 dark:border-amber-800/50'
-  }
 };
 
 const TEAM_COLORS = {
@@ -892,7 +852,7 @@ window.restoreFromLeave = async function(userId, username) {
     try {
       const targetDate = document.getElementById('dutyDate').value;
       const shiftFilter = document.getElementById('dutyShiftSelect').value;
-      await appDB.from('leave_requests').delete().eq('user_id', userId).eq('leave_date', targetDate);
+      window.dutyDbOk(await appDB.from('leave_requests').delete().eq('user_id', userId).eq('leave_date', targetDate));
       const fullUserObj = GLOBAL_USER_LIST.find((u => String(u.id) === String(userId)));
       if (fullUserObj) {
         if (!currentRosterData[selectedTeam]) currentRosterData[selectedTeam] = [];
@@ -906,10 +866,10 @@ window.restoreFromLeave = async function(userId, username) {
         const saveKey = getDutySaveKey(targetDate, shiftFilter);
         if (typeof window.dutyDedupeRoster === "function") window.dutyDedupeRoster(currentRosterData);
         window.clearSettingCache();
-        await appDB.from('settings').upsert([ {
+        window.dutyDbOk(await appDB.from('settings').upsert([ {
           key: saveKey,
           value: JSON.stringify(currentRosterData)
-        } ]);
+        } ]));
       }
       await appDB.from('system_logs').insert([ {
         action_type: 'ย้ายหน้าที่',
@@ -1121,10 +1081,10 @@ window.addStaffToRoster = async function() {
     const saveKey = getDutySaveKey(targetDate, shiftFilter);
     if (typeof window.dutyDedupeRoster === "function") window.dutyDedupeRoster(currentRosterData);
     window.clearSettingCache();
-    const {error: _upsertErr} = await appDB.from('settings').upsert([ {
+    const {error: _upsertErr} = window.dutyDbOk(await appDB.from('settings').upsert([ {
       key: saveKey,
       value: JSON.stringify(currentRosterData)
-    } ]);
+    } ]));
     if (_upsertErr) throw _upsertErr;
     await appDB.from('system_logs').insert([ {
       action_type: 'ย้ายหน้าที่',
@@ -1227,12 +1187,12 @@ window.clearDutyRoster = async function() {
         if (currentData && currentData.length > 0) currentDataVal = currentData[0].value;
         if (currentDataVal) {
           window.safeSetItem(`backup_${saveKey}`, currentDataVal);
-          await appDB.from('settings').upsert([ {
+          window.dutyDbOk(await appDB.from('settings').upsert([ {
             key: `backup_${saveKey}`,
             value: currentDataVal
-          } ]);
+          } ]));
         }
-        await appDB.from('settings').delete().eq('key', saveKey);
+        window.dutyDbOk(await appDB.from('settings').delete().eq('key', saveKey));
         const keysKept = Object.keys(window.lockedImportantTasks);
         keysKept.forEach((k => {
           if (!window.globalImportantTasks.includes(k)) delete window.currentImportantAssigns[k];
@@ -1242,10 +1202,10 @@ window.clearDutyRoster = async function() {
           if (window.globalImportantTasks.includes(k)) newAssigns[k] = v;
         }
         window.clearSettingCache();
-        await appDB.from('settings').upsert([ {
+        window.dutyDbOk(await appDB.from('settings').upsert([ {
           key: impAssignKey,
           value: JSON.stringify(newAssigns)
-        } ]);
+        } ]));
         if (window.isTrainerDept()) await appDB.from('settings').delete().eq('key', reportKey);
         await appDB.from('system_logs').insert([ {
           action_type: 'ล้างตารางงาน',
@@ -1451,10 +1411,10 @@ window.generateDutyRoster = async function() {
     const saveKey = getDutySaveKey(targetDate, shiftFilter);
     if (typeof window.dutyDedupeRoster === "function") window.dutyDedupeRoster(rosterResult);
     window.clearSettingCache();
-    const {error: _upsertErr2} = await appDB.from('settings').upsert([ {
+    const {error: _upsertErr2} = window.dutyDbOk(await appDB.from('settings').upsert([ {
       key: saveKey,
       value: JSON.stringify(rosterResult)
-    } ]);
+    } ]));
     if (_upsertErr2) throw _upsertErr2;
     if (currentDutyDept === 'OD') {
       try {
@@ -1572,7 +1532,6 @@ window.renderRosterGrid = async function(rosterData) {
   let trainerReports = {};
   const targetDate = document.getElementById('dutyDate') ? document.getElementById('dutyDate').value : '';
   const shiftFilter = document.getElementById('dutyShiftSelect') ? document.getElementById('dutyShiftSelect').value : '';
-  const subFilter = document.getElementById('trainerDeptFilter') ? document.getElementById('trainerDeptFilter').value : 'ALL';
   if (window.isTrainerDept() && targetDate) {
     const reportKey = `report_${currentDutyDept}_${targetDate}_${shiftFilter}`;
     try {
@@ -1872,7 +1831,6 @@ window.renderRosterGrid = async function(rosterData) {
   }));
   const _cut = finalGridHtml.indexOf('<div class="duty-site-card');
   const _previewNote = window.isRosterPreview ? _cut < 0 ? finalGridHtml : finalGridHtml.slice(0, _cut) : '';
-  const _cards = window.isRosterPreview ? _cut < 0 ? '' : finalGridHtml.slice(_cut) : finalGridHtml;
   const _canSec = typeof window.isDutyAdmin === 'function' && window.isDutyAdmin() || typeof window.hasUserPerm === 'function' && window.hasUserPerm('duty_secondary');
   const _ovRows = _dmItems.map((it => {
     const st = it.missing ? [ 'bad', 'ขาดคน' ] : it.warn ? [ 'warn', 'พักชนกัน' ] : [ 'ok', 'พร้อม' ];
@@ -1973,10 +1931,14 @@ window.changeSecondaryTeam = async function(primaryTeam, userId, username) {
       });
       if (typeof window.dutyDedupeRoster === "function") window.dutyDedupeRoster(currentRosterData);
       window.clearSettingCache();
-      await appDB.from('settings').upsert([ {
+      const {error: secErr} = await appDB.from('settings').upsert([ {
         key: saveKey,
         value: JSON.stringify(currentRosterData)
       } ]);
+      if (secErr) {
+        currentRosterData[primaryTeam][userIndex].secondary_team = prevSec;
+        return Swal.fire('บันทึกไม่สำเร็จ', secErr.message, 'error');
+      }
       let logDetail;
       if (!prevSec && newSec) logDetail = `แจกงานรองให้ ${username} (เว็บหลัก: ${primaryTeam}) → สแตนด์บายช่วย [${newSec}]`; else if (prevSec && !newSec) logDetail = `ปลดงานรอง ${username} (ออกจากการสแตนด์บายช่วย [${prevSec}])`; else if (prevSec !== newSec) logDetail = `เปลี่ยนงานรอง ${username}: [${prevSec}] → [${newSec}]`;
       if (logDetail) {

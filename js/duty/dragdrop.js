@@ -127,10 +127,10 @@ window.handleDrop = async function(event, toTeam) {
         const saveKey = getDutySaveKey(targetDate, shiftFilter);
         if (typeof window.dutyDedupeRoster === "function") window.dutyDedupeRoster(currentRosterData);
         window.clearSettingCache();
-        await appDB.from('settings').upsert([ {
+        window.dutyDbOk(await appDB.from('settings').upsert([ {
           key: saveKey,
           value: JSON.stringify(currentRosterData)
-        } ]);
+        } ]));
       }
       const {error: leaveErr} = await appDB.from('leave_requests').insert([ {
         user_id: id,
@@ -156,6 +156,7 @@ window.handleDrop = async function(event, toTeam) {
       });
     } catch (err) {
       Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
+      if (typeof window.refreshDutyData === 'function') window.refreshDutyData();
     }
     draggedUser = null;
     return;
@@ -194,10 +195,10 @@ window.handleDrop = async function(event, toTeam) {
   try {
     if (typeof window.dutyDedupeRoster === "function") window.dutyDedupeRoster(currentRosterData);
     window.clearSettingCache();
-    const {error: _upsertErr} = await appDB.from('settings').upsert([ {
+    const {error: _upsertErr} = window.dutyDbOk(await appDB.from('settings').upsert([ {
       key: saveKey,
       value: JSON.stringify(currentRosterData)
-    } ]);
+    } ]));
     if (_upsertErr) throw _upsertErr;
     let pinMovedNote = '';
     const movedPin = window.getLiveStayPin(id, targetDate);
