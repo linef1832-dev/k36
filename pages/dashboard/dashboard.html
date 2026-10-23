@@ -601,7 +601,7 @@
                 <div class="ap-ch">
                     <div class="ap-ct">
                         <span class="material-icons" style="color:var(--k-gold-tx);background:rgba(232,193,90,.12)">badge</span>
-                        <div><div class="ap-h">รายชื่อพนักงาน</div><div class="ap-hint">แก้แผนก ทีม กะ ได้จากในตาราง · ติกหน้าชื่อเพื่อจัดการหลายคนพร้อมกัน</div></div>
+                        <div><div class="ap-h">รายชื่อพนักงาน <span id="userTotalBadge" style="display:inline-flex;align-items:center;margin-left:6px;padding:1px 9px;border-radius:999px;font-size:11.5px;font-weight:900;background:rgba(232,193,90,.15);color:var(--k-gold-tx);border:1px solid rgba(232,193,90,.35);vertical-align:middle"></span></div><div class="ap-hint">แก้แผนก ทีม กะ ได้จากในตาราง · ติกหน้าชื่อเพื่อจัดการหลายคนพร้อมกัน</div></div>
                     </div>
                 </div>
                 <div class="ap-tool">
@@ -629,6 +629,7 @@
                             <thead>
                                 <tr>
                                     <th class="w-10 text-center"><input type="checkbox" onchange="toggleSelectAll(this)" class="w-4 h-4 rounded cursor-pointer" title="เลือกทั้งหมดในหน้านี้"></th>
+                                    <th class="text-center" style="width:44px">#</th>
                                     <th>พนักงาน</th><th class="text-center">แผนก</th><th class="text-center">ทีม</th><th class="text-center">กะ</th><th class="text-center">รหัส PIN</th><th class="text-center">ระบบเช็ค</th>
                                 </tr>
                             </thead>
