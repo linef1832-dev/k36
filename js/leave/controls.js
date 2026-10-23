@@ -137,6 +137,14 @@ window.executeSaveSettings = async function() {
     const sDay = document.getElementById('setStartDay')?.value || '';
     const eDay = document.getElementById('setEndDay')?.value || '';
     const dept = typeof currentViewDept !== 'undefined' ? currentViewDept : 'AM';
+    const badPair = [ [ sM, eM, 'เช้า' ], [ sA, eA, 'กลาง' ], [ sN, eN, 'ดึก' ] ].find((([a, b]) => a && b && b <= a));
+    if (badPair) {
+      return Swal.fire({
+        icon: 'warning',
+        title: 'เวลาปิดก่อนเวลาเปิด',
+        text: `กะ${badPair[2]}: เวลาปิดจองต้องอยู่หลังเวลาเปิดจอง กรุณาตรวจวันที่อีกครั้ง`
+      });
+    }
     if (typeof deptSettings !== 'undefined') {
       deptSettings[dept] = {
         quota: parseInt(q),
@@ -212,6 +220,15 @@ window.executeSaveSettings = async function() {
     });
     const {error: error} = await appDB.from('settings').upsert(updates);
     if (error) throw error;
+    const {data: back, error: backErr} = await appDB.from('settings').select('key, value').in('key', updates.map((u => u.key)));
+    if (!backErr && Array.isArray(back) && back.length) {
+      const mism = updates.filter((u => {
+        const r = back.find((b => b.key === u.key));
+        return !r || String(r.value) !== String(u.value);
+      }));
+      if (mism.length) throw new Error('ฐานข้อมูลไม่ยอมบันทึกบางค่า (อาจไม่มีสิทธิ์แก้ตั้งค่า): ' + mism.map((m => m.key)).join(', '));
+    }
+    window._leaveSettingsDirty = false;
     (typeof settingsSubscription !== 'undefined' && settingsSubscription ? settingsSubscription : appDB.channel('settings-updates')).send({
       type: 'broadcast',
       event: 'force_leave_reload'

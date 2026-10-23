@@ -177,7 +177,7 @@ window.switchDept = function(dept) {
   if (controls) {
     if (canManageThisDept) controls.classList.remove('hidden'); else controls.classList.add('hidden');
   }
-  updateAdminInputs();
+  updateAdminInputs(true);
   if (typeof updateMonthPicker === 'function') updateMonthPicker();
   const tbody = document.getElementById('tableBody');
   if (tbody) {
@@ -189,9 +189,28 @@ window.switchDept = function(dept) {
   }), 50);
 };
 
-function updateAdminInputs() {
+window.LEAVE_SETTING_INPUT_IDS = [ 'setPersonLimit', 'setStartM', 'setEndM', 'setStartA', 'setEndA', 'setStartN', 'setEndN', 'setForceOpen', 'setQuotaM', 'setQuotaA', 'setQuotaN', 'setAllowedMonth', 'setStartDay', 'setEndDay' ];
+
+window._leaveSettingsDirty = false;
+
+window.bindLeaveSettingInputs = function() {
+  window.LEAVE_SETTING_INPUT_IDS.forEach((id => {
+    const el = document.getElementById(id);
+    if (!el || el.dataset.dirtyBound) return;
+    el.dataset.dirtyBound = '1';
+    const mark = () => {
+      if (el.id !== 'setForceOpen') window._leaveSettingsDirty = true;
+    };
+    el.addEventListener('input', mark);
+    el.addEventListener('change', mark);
+  }));
+};
+
+function updateAdminInputs(force) {
   const s = deptSettings[currentViewDept];
   if (!s) return;
+  if (window._leaveSettingsDirty && !force) return;
+  window._leaveSettingsDirty = false;
   if (document.getElementById('setPersonLimit')) document.getElementById('setPersonLimit').value = s.limit || 4;
   if (document.getElementById('setStartM')) document.getElementById('setStartM').value = s.startM || '';
   if (document.getElementById('setEndM')) document.getElementById('setEndM').value = s.endM || '';
@@ -269,7 +288,8 @@ window.initLeaveTable = async function() {
       btnSPECIAL.classList.add('hidden');
     }
   }
-  if (typeof updateAdminInputs === 'function') updateAdminInputs();
+  if (typeof window.bindLeaveSettingInputs === 'function') window.bindLeaveSettingInputs();
+  if (typeof updateAdminInputs === 'function') updateAdminInputs(true);
   renderLeaveTable();
   if (typeof checkBookingWindow === 'function') checkBookingWindow();
   if (typeof setupLeaveHoverDelegation === 'function') setupLeaveHoverDelegation();
@@ -293,7 +313,10 @@ window.initLeaveTable = async function() {
 };
 
 async function loadLeaveSettings(skipRender = false) {
-  const {data: data, error: error} = await appDB.from('settings').select('key, value').not('key', 'like', 'duty_roster_%').not('key', 'like', 'report_TRAINER_%').neq('key', 'app_files_data').neq('key', 'menu_access_rules').neq('key', 'duty_access_matrix').neq('key', 'duty_custom_roles').neq('key', 'discord_channels').neq('key', 'discord_custom_names');
+  const suffixes = [ 'limit', 'startM', 'endM', 'startA', 'endA', 'startN', 'endN', 'is_open', 'quota_m', 'quota_a', 'quota_n', 'view_month', 'lock_start', 'lock_end' ];
+  const wantKeys = [ 'leave_special_users' ];
+  [ 'AM', 'OD', 'TRAINER', 'SPECIAL', 'AMQL', 'ODQL' ].forEach((d => suffixes.forEach((x => wantKeys.push(`${d}_${x}`)))));
+  const {data: data, error: error} = await appDB.from('settings').select('key, value').in('key', wantKeys);
   if (data) {
     [ 'AM', 'OD', 'TRAINER', 'SPECIAL', 'AMQL', 'ODQL' ].forEach((dept => {
       const getDbValue = (keySuffix, defaultVal) => {
