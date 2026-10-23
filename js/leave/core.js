@@ -193,13 +193,19 @@ window.LEAVE_SETTING_INPUT_IDS = [ 'setPersonLimit', 'setStartM', 'setEndM', 'se
 
 window._leaveSettingsDirty = false;
 
+window.leaveMarkDirty = function(on) {
+  window._leaveSettingsDirty = !!on;
+  const box = document.getElementById('leaveManagerControls');
+  if (box) box.classList.toggle('lv2-dirty', !!on);
+};
+
 window.bindLeaveSettingInputs = function() {
   window.LEAVE_SETTING_INPUT_IDS.forEach((id => {
     const el = document.getElementById(id);
     if (!el || el.dataset.dirtyBound) return;
     el.dataset.dirtyBound = '1';
     const mark = () => {
-      if (el.id !== 'setForceOpen') window._leaveSettingsDirty = true;
+      if (el.id !== 'setForceOpen') window.leaveMarkDirty(true);
     };
     el.addEventListener('input', mark);
     el.addEventListener('change', mark);
@@ -210,7 +216,7 @@ function updateAdminInputs(force) {
   const s = deptSettings[currentViewDept];
   if (!s) return;
   if (window._leaveSettingsDirty && !force) return;
-  window._leaveSettingsDirty = false;
+  window.leaveMarkDirty(false);
   if (document.getElementById('setPersonLimit')) document.getElementById('setPersonLimit').value = s.limit || 4;
   if (document.getElementById('setStartM')) document.getElementById('setStartM').value = s.startM || '';
   if (document.getElementById('setEndM')) document.getElementById('setEndM').value = s.endM || '';

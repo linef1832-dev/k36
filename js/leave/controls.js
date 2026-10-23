@@ -55,6 +55,7 @@ window.changeAdminMonth = function(step) {
   const newY = d.getFullYear();
   const newM = String(d.getMonth() + 1).padStart(2, '0');
   inputEl.value = `${newY}-${newM}`;
+  if (typeof window.leaveMarkDirty === 'function') window.leaveMarkDirty(true);
   if (typeof window.updateThaiMonthDisplay === 'function') {
     window.updateThaiMonthDisplay();
   }
@@ -228,7 +229,7 @@ window.executeSaveSettings = async function() {
       }));
       if (mism.length) throw new Error('ฐานข้อมูลไม่ยอมบันทึกบางค่า (อาจไม่มีสิทธิ์แก้ตั้งค่า): ' + mism.map((m => m.key)).join(', '));
     }
-    window._leaveSettingsDirty = false;
+    if (typeof window.leaveMarkDirty === 'function') window.leaveMarkDirty(false); else window._leaveSettingsDirty = false;
     (typeof settingsSubscription !== 'undefined' && settingsSubscription ? settingsSubscription : appDB.channel('settings-updates')).send({
       type: 'broadcast',
       event: 'force_leave_reload'
