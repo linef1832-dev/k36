@@ -124,7 +124,7 @@ window.oa_setRange = function(r, noLoad) {
   if (o._bg && bs && f.value >= bs[0] && t.value <= bs[1]) {
     const vf = f.value, vt = t.value;
     o._bg.then((() => {
-      if (o._viewFrom === vf && o._viewTo === vt && !covered(vf, vt)) window.oa_load();
+      if (o._viewFrom === vf && o._viewTo === vt && !covered(vf, vt)) window.oa_load(); if (window._oa.tab === 'act') oa_loadAct();
     }));
     return;
   }
@@ -827,9 +827,11 @@ window.oa_setTab = function(tb) {
   const o = window._oa;
   o.tab = tb;
   document.querySelectorAll('.oa-tabs button').forEach((b => b.classList.toggle('on', b.dataset.t === tb)));
-  const vl = document.getElementById('oaViewList'), vr = document.getElementById('oaViewRank');
+  const vl = document.getElementById('oaViewList'), vr = document.getElementById('oaViewRank'), va = document.getElementById('oaViewAct');
   if (vl) vl.style.display = tb === 'list' ? '' : 'none';
   if (vr) vr.style.display = tb === 'rank' ? '' : 'none';
+  if (va) va.style.display = tb === 'act' ? '' : 'none';
+  if (tb === 'act') oa_loadAct();
   if (tb === 'rank' && o._list) oa_renderRank(o._list, o._max || 1);
 };
 
@@ -1359,3 +1361,36 @@ function oa_copyToast(name) {
     tp.style.transform = 'translateX(-50%) translateY(16px)';
   }), 1600);
 }
+
+
+// ════════ ✅ ส่วนดำเนินการ (oa_actions) ════════
+window._oaAct = window._oaAct || { rows: [] };
+window.oa_loadAct = async function () {
+    const o = window._oa, f = document.getElementById('oaFrom').value, t = document.getElementById('oaTo').value;
+    const L = document.getElementById('oaActList'); if (L) L.innerHTML = '<div class="text-center text-slate-400 py-10 text-sm">กำลังโหลด...</div>';
+    try {
+        let all = [], off = 0;
+        for (;;) {
+            const { data, error } = await window.appDB.from('oa_actions').select('work_date, username, action, oa_name, chat_id, chat_name, acted_at').gte('work_date', f).lte('work_date', t).order('acted_at', { ascending: false }).range(off, off + 999);
+            if (error) throw error;
+            all = all.concat(data || []); if (!data || data.length < 1000) break; off += 1000;
+        }
+        window._oaAct.rows = all; oa_renderAct();
+    } catch (e) {
+        if (L) L.innerHTML = '<div class="text-center text-red-400 py-10 text-sm">โหลดไม่ได้ — ตรวจว่าสร้างตาราง oa_actions แล้ว</div>';
+    }
+};
+window.oa_renderAct = function () {
+    const q = (document.getElementById('oaActSearch') || {}).value.toLowerCase();
+    let rows = window._oaAct.rows;
+    if (q) rows = rows.filter(r => String(r.username||'').toLowerCase().includes(q) || String(r.chat_name||'').toLowerCase().includes(q));
+    const add = rows.filter(r => r.action === 'add' || r.action === 'todo').length, rem = rows.filter(r => r.action === 'remove').length;
+    const S = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+    S('oaActAdd', add); S('oaActRem', rem);
+    const L = document.getElementById('oaActList'); if (!L) return;
+    if (!rows.length) { L.innerHTML = '<div class="text-center text-slate-400 py-10 text-sm">ยังไม่มีการกดดำเนินการ</div>'; return; }
+    const esc = oa_esc, tm = (ts) => { try { const d = new Date(ts); return d.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit' }) + '<br>' + d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' }); } catch (e) { return ''; } };
+    L.innerHTML = rows.map(x => { const isRem = x.action === 'remove'; const nm = x.chat_name || ('ลูกค้า ' + String(x.chat_id).slice(-6));
+        return `<div class="act-row ${isRem ? 't' : 'd'}"><span class="act-ic">${isRem ? '↩️' : '📌'}</span><div class="min-w-0"><div><span class="act-name ${isRem ? 'rem' : 'add'}">${esc(x.username)}</span> <span class="text-sm text-slate-600 dark:text-slate-300">${isRem ? 'เอาดำเนินการออก' : 'ใส่ดำเนินการ'}</span></div><div class="act-cust truncate">${esc(nm)}${x.oa_name ? ' · ' + esc(x.oa_name) : ''}</div></div><div class="act-time">${tm(x.acted_at)}</div></div>`;
+    }).join('');
+};

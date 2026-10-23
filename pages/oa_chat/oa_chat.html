@@ -35,6 +35,10 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
                 <span>จัดอันดับ</span>
             </button>
+            <button data-t="act" onclick="oa_setTab('act')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                <span>ดำเนินการ</span>
+            </button>
         </div>
         
         <div class="oa-panel">
@@ -77,6 +81,23 @@
             <div class="oa-panel p-0 overflow-hidden">
                 <div class="px-4 py-3 border-b border-gray-100 dark:border-slate-700 font-bold text-slate-700 dark:text-slate-200">🏆 อันดับทั้งหมด</div>
                 <div id="oaRankList" class="divide-y divide-gray-50 dark:divide-slate-700/50"></div>
+            </div>
+        </div>
+
+        <div id="oaViewAct" style="display:none" class="space-y-4">
+            <div class="oa-panel">
+                <div class="relative mb-3">
+                    <span class="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base">search</span>
+                    <input id="oaActSearch" oninput="oa_renderAct()" placeholder="ค้นหาชื่อพนักงาน / ลูกค้า" class="oa-input w-full" style="padding-left:34px">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="oa-kpi"><div class="oa-kpi-n" id="oaActAdd" style="color:#059669">–</div><div class="oa-kpi-l">ใส่ดำเนินการ</div></div>
+                    <div class="oa-kpi"><div class="oa-kpi-n" id="oaActRem" style="color:#d97706">–</div><div class="oa-kpi-l">เอาออก</div></div>
+                </div>
+            </div>
+            <div class="oa-panel p-0 overflow-hidden">
+                <div class="px-4 py-3 border-b border-gray-100 dark:border-slate-700 font-bold text-slate-700 dark:text-slate-200">ประวัติการกดดำเนินการ</div>
+                <div id="oaActList" class="divide-y divide-gray-50 dark:divide-slate-700/50"></div>
             </div>
         </div>
     </div>
@@ -217,4 +238,12 @@
     #oaApp .oa-chip-line.on { background:#06C755; border-color:#06C755; color:#fff; box-shadow:0 2px 8px rgba(6,199,85,.3); }
     #oaApp .oa-chatline { font-size:10.5px; font-weight:800; padding:2px 8px; border-radius:999px; background:#d1fae5; color:#059669; border:1px solid #a7f3d0; flex:none; }
     .dark #oaApp .oa-chatline { background:rgba(6,199,85,.15); color:#6ee7b7; border-color:rgba(6,199,85,.3); }
+    #oaApp .act-row { display:grid; grid-template-columns:30px 1fr auto; align-items:center; gap:12px; padding:12px 16px; }
+    #oaApp .act-ic { font-size:17px; text-align:center; }
+    #oaApp .act-name { font-weight:900; padding:1px 9px; border-radius:7px; }
+    #oaApp .act-name.add { background:#d1fae5; color:#059669; } .dark #oaApp .act-name.add { background:rgba(6,199,85,.18); color:#6ee7b7; }
+    #oaApp .act-name.rem { background:#fef3c7; color:#d97706; } .dark #oaApp .act-name.rem { background:rgba(245,158,11,.18); color:#fcd34d; }
+    #oaApp .act-cust { font-size:12px; color:#94a3b8; margin-top:2px; }
+    #oaApp .act-time { font:700 11px ui-monospace,Consolas; color:#94a3b8; text-align:right; line-height:1.4; white-space:nowrap; }
+    #oaApp .act-row.d { border-left:3px solid #10b981; } #oaApp .act-row.t { border-left:3px solid #f59e0b; }
 </style>
