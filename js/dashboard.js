@@ -686,6 +686,9 @@ window.subscribeDashboardChanges = function() {
       if (typeof window.refreshTimeSlots === 'function') window.refreshTimeSlots();
     } else if (key.startsWith('duty_roster_') || key.startsWith('duty_od_rooms_')) {
       if (typeof _rosterCache !== 'undefined') delete _rosterCache[key];
+      const myDep = window.currentUser && window.currentUser.department || 'AM';
+      const relevant = key.startsWith(`duty_roster_${myDep}_`) || myDep === 'OD' && key.startsWith('duty_od_rooms_');
+      if (!relevant) return;
       window._myTodayRefresh();
       if (typeof window.refreshTimeSlots === 'function') window.refreshTimeSlots();
     } else if (key === 'break_min_remain') {
@@ -711,10 +714,15 @@ window.subscribeDashboardChanges = function() {
     schema: 'public',
     table: 'schedules'
   }, (payload => {
-    clearTimeout(window._qrbRtTimer);
-    window._qrbRtTimer = setTimeout((() => {
-      if (typeof initQuickRebook === 'function') initQuickRebook();
-    }), 600);
+    const _mine = window._rtIsMine(payload.new && payload.new.staff_name != null ? payload.new : payload.old);
+    if (_mine) {
+      if (document.hidden) window._qrbStale = true; else {
+        clearTimeout(window._qrbRtTimer);
+        window._qrbRtTimer = setTimeout((() => {
+          if (typeof initQuickRebook === 'function') initQuickRebook();
+        }), 600);
+      }
+    }
     const mainContent = document.getElementById('mainContentArea');
     if (mainContent && !mainContent.classList.contains('hidden')) {
       const dateEl = document.getElementById('wDate');
@@ -758,13 +766,27 @@ window.subscribeDashboardChanges = function() {
         if (typeof refreshTimeSlots === 'function') refreshTimeSlots();
       }), 200);
     }
-    window._myTodayRefresh();
+    if (_mine) window._myTodayRefresh();
   })).on('postgres_changes', {
     event: '*',
     schema: 'public',
     table: 'scheduled_tasks'
-  }, (() => {
-    window._myTodayRefresh();
+  }, (payload => {
+    const row = payload.new && payload.new.payload !== undefined ? payload.new : null;
+    if (row) {
+      let pl = row.payload;
+      if (typeof pl === 'string') {
+        try {
+          pl = JSON.parse(pl);
+        } catch (e) {
+          pl = null;
+        }
+      }
+      const me = window.currentUser;
+      if (pl && me && pl.user_id != null && String(pl.user_id) !== String(me.id)) return;
+    }
+    clearTimeout(window._myTaskRtTimer);
+    window._myTaskRtTimer = setTimeout((() => window._myTodayRefresh()), 1500);
   })).on('postgres_changes', {
     event: '*',
     schema: 'public',
@@ -1077,8 +1099,18 @@ const _mtShiftBadge = shift => ({
 
 window._myTodayTimer = null;
 
-window._myTodayRefresh = function() {
+window._myTodayRefresh = function(mode) {
   if (!document.getElementById('myTodayPanel')) return;
+  if (mode === 'clock') {
+    window._myTodayUseCache = true;
+  } else {
+    window._myTodayData = null;
+    window._myTodayUseCache = false;
+  }
+  if (document.hidden) {
+    window._myTodayStale = true;
+    return;
+  }
   clearTimeout(window._myTodayTimer);
   window._myTodayTimer = setTimeout((() => {
     if (typeof window.renderMyToday === 'function') window.renderMyToday();
@@ -1086,8 +1118,31 @@ window._myTodayRefresh = function() {
 };
 
 if (!window._myTodayClock) window._myTodayClock = setInterval((() => {
-  if (document.getElementById('myTodayPanel')) window._myTodayRefresh();
+  if (document.getElementById('myTodayPanel')) window._myTodayRefresh('clock');
 }), 6e4);
+
+if (!window._myTodayVisBound) {
+  window._myTodayVisBound = true;
+  document.addEventListener('visibilitychange', (() => {
+    if (document.hidden) return;
+    if (window._myTodayStale) {
+      window._myTodayStale = false;
+      window._myTodayRefresh(window._myTodayUseCache ? 'clock' : undefined);
+    }
+    if (window._qrbStale) {
+      window._qrbStale = false;
+      if (typeof initQuickRebook === 'function') initQuickRebook();
+    }
+  }));
+}
+
+window._rtIsMine = function(row) {
+  const me = window.currentUser;
+  if (!me || !row) return false;
+  if (row.staff_name != null) return String(row.staff_name).toLowerCase() === String(me.username || '').toLowerCase();
+  if (row.id != null && window._myBookingIds) return window._myBookingIds.has(String(row.id));
+  return true;
+};
 
 window.myTodaySetDate = function(v) {
   window._myTodayDate = v || '';
@@ -1143,7 +1198,11 @@ window._renderMyTodayNow = async function() {
   try {
     const _swEnd = new Date(dateVal + 'T00:00:00');
     _swEnd.setDate(_swEnd.getDate() + 60);
-    const [r1, r2, r3, r4] = await Promise.all([ appDB.from('settings').select('key, value').in('key', [ ...rosterKeys, ...roomKeys ]), appDB.from('schedules').select('id, shift_name, time_slot, team').eq('work_date', dateVal).eq('staff_name', me.username), appDB.from('leave_requests').select('leave_date, reason').eq('user_id', me.id).gte('leave_date', dateVal.slice(0, 8) + '01').lt('leave_date', (() => {
+    const _ck = [ dateVal, myDep, myShift, me.id ].join('|');
+    const _c = window._myTodayData;
+    const _useCache = window._myTodayUseCache && _c && _c.k === _ck && Date.now() - _c.t < 5 * 60 * 1e3;
+    window._myTodayUseCache = false;
+    const [r1, r2, r3, r4] = _useCache ? _c.res : await Promise.all([ appDB.from('settings').select('key, value').in('key', [ ...rosterKeys, ...roomKeys ]), appDB.from('schedules').select('id, shift_name, time_slot, team').eq('work_date', dateVal).eq('staff_name', me.username), appDB.from('leave_requests').select('leave_date, reason').eq('user_id', me.id).gte('leave_date', dateVal.slice(0, 8) + '01').lt('leave_date', (() => {
       const d = new Date(+dateVal.slice(0, 4), +dateVal.slice(5, 7) + 1, 1);
       return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-01';
     })()).order('leave_date', {
@@ -1151,8 +1210,14 @@ window._renderMyTodayNow = async function() {
     }).limit(80), appDB.from('scheduled_tasks').select('payload, scheduled_for, status').eq('task_type', 'individual_shift_update').gte('scheduled_for', dateVal + 'T00:00:00+07:00').lte('scheduled_for', _swEnd.toISOString().slice(0, 10) + 'T23:59:59+07:00').order('scheduled_for', {
       ascending: true
     }) ]);
+    if (!_useCache && !r1.error && !r2.error && !r3.error && !r4.error) window._myTodayData = {
+      k: _ck,
+      t: Date.now(),
+      res: [ r1, r2, r3, r4 ]
+    };
     rosterRows = r1.data || [];
     myBreaks = r2.data || [];
+    if (isToday || !window._myBookingIds) window._myBookingIds = new Set(myBreaks.map((b => String(b.id))));
     myLeaves = r3.data || [];
     mySwaps = (r4.data || []).map((t => {
       let pl = t.payload;

@@ -692,7 +692,9 @@ window.switchDiscordTab = function(tabName) {
         activeBtn.className = "ds-tab ds-tab-active";
         ds_fetchSpy();
         ds_fetchChannelsSilently();
-        spyInterval = setInterval(ds_fetchSpy, 3e3);
+        spyInterval = setInterval((() => {
+          if (!document.hidden) ds_fetchSpy();
+        }), 3e3);
         if (typeof window.registerPageInterval === 'function') window.registerPageInterval(spyInterval);
       } else if (tabName === 'move') {
         activeBtn.className = "ds-tab ds-tab-active";
@@ -714,7 +716,7 @@ window.switchDiscordTab = function(tabName) {
         }
         ds_fetchVoiceLogs();
         logInterval = setInterval((() => {
-          ds_fetchVoiceLogs(false, window.dsCurrentPage);
+          if (!document.hidden) ds_fetchVoiceLogs(false, window.dsCurrentPage);
         }), 15e3);
         if (typeof window.registerPageInterval === 'function') window.registerPageInterval(logInterval);
       } else if (tabName === 'breaktrack') {

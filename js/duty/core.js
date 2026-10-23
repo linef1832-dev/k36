@@ -369,7 +369,7 @@ window.subscribeDutyChanges = function() {
       window._dutyPollingTimer = null;
       return;
     }
-    if (dutyApp && !dutyApp.classList.contains('hidden')) {
+    if (dutyApp && !dutyApp.classList.contains('hidden') && !document.hidden) {
       if (document.hidden) return;
       if (typeof window.refreshDutyData === 'function') {
         window._dutyPollTick = true;

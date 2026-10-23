@@ -159,11 +159,15 @@ window.bell_load = async function() {
   if (!window.appDB) return;
   try {
     await Promise.all([ window.bell_loadUsers(), window.bell_loadPresence(), window.bell_loadShifts() ]);
-    if (!window._bellShTimer) window._bellShTimer = setInterval((() => window.bell_loadShifts().then((() => {
-      try {
-        bell_render();
-      } catch (e) {}
-    }))), 5 * 60 * 1e3);
+    if (!window._bellShTimer) window._bellShTimer = setInterval((() => {
+      const pg = document.getElementById('bellApp');
+      if (document.hidden || !pg || !pg.isConnected || pg.offsetParent === null) return;
+      window.bell_loadShifts().then((() => {
+        try {
+          bell_render();
+        } catch (e) {}
+      }));
+    }), 5 * 60 * 1e3);
     bell_render();
   } catch (e) {
     bell_setStatus('โหลดข้อมูลไม่สำเร็จ: ' + (e.message || e), 'err');
