@@ -580,8 +580,14 @@ window.sop_moveToGroup = async function(idx) {
     confirmButtonColor: '#6366f1'
   });
   if (selectedGroup !== undefined) {
+    const prevGroup = r.group;
     r.group = selectedGroup || '';
-    await sop_saveStandaloneRules();
+    try {
+      await sop_saveStandaloneRules();
+    } catch (e) {
+      r.group = prevGroup;
+      return Swal.fire('บันทึกไม่สำเร็จ', e.message || String(e), 'error');
+    }
     sop_renderAllRulesPage();
     Swal.fire({
       icon: 'success',

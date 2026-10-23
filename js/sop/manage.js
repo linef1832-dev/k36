@@ -465,11 +465,12 @@ window.sop_markStandaloneRead = async function(idx) {
   const myUsername = currentUser && currentUser.username || '';
   if (!myUsername) return;
   if (!Array.isArray(r.read_by)) r.read_by = [];
-  if (r.read_by.includes(myUsername)) {
-    r.read_by = r.read_by.filter((u => u !== myUsername));
-  } else {
-    r.read_by.push(myUsername);
+  const nowRead = !r.read_by.includes(myUsername);
+  if (nowRead) r.read_by.push(myUsername); else r.read_by = r.read_by.filter((u => u !== myUsername));
+  try {
+    await window.sop_patchStandaloneRead(r, myUsername, nowRead);
+  } catch (e) {
+    Swal.fire('บันทึกไม่สำเร็จ', e.message || String(e), 'error');
   }
-  await sop_saveStandaloneRules();
   sop_renderAllRulesPage();
 };

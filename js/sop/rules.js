@@ -11,7 +11,7 @@ window.sop_toggleRuleAccordion = function(ruleId, idx) {
     if (r && myUsername && !(r.read_by || []).includes(myUsername)) {
       if (!Array.isArray(r.read_by)) r.read_by = [];
       r.read_by.push(myUsername);
-      sop_saveStandaloneRules();
+      window.sop_patchStandaloneRead(r, myUsername, true).catch((e => console.warn('save read error', e)));
       sop_updateTabCounters();
       sop_updateUnreadBadge();
     }
@@ -203,19 +203,28 @@ window.sop_renderAllRulesPage = function() {
   container.innerHTML = headerHtml + bodyHtml;
 };
 
-window.sop_jumpToSopFromRules = function(ruleId) {
-  sop_switchTab('sop');
-  setTimeout((() => sop_readRule(ruleId, false)), 100);
-};
-
 window.sop_readRule = async function(id, skipIncrement) {
   currentSopId = id;
   const item = globalSOPData.find((x => String(x.id) === String(id)));
   const reader = document.getElementById('sopReaderContent');
   if (!item || !reader) return;
   if (!skipIncrement) {
-    item.view_count = (item.view_count || 0) + 1;
-    sop_saveAllData().catch((e => console.warn('save view error', e)));
+    const seenKey = 'sop_seen_' + id;
+    let seen = false;
+    try {
+      seen = sessionStorage.getItem(seenKey) === '1';
+    } catch (e) {}
+    if (!seen) {
+      try {
+        sessionStorage.setItem(seenKey, '1');
+      } catch (e) {}
+      item.view_count = (item.view_count || 0) + 1;
+      window.sop_patchSetting('sop_data', (arr => {
+        const it = arr.find((x => String(x.id) === String(id)));
+        if (!it) return false;
+        it.view_count = (it.view_count || 0) + 1;
+      })).catch((e => console.warn('save view error', e)));
+    }
   }
   sop_renderList();
   const updateDateStr = item.updated_at ? new Date(item.updated_at).toLocaleString('th-TH') : new Date(item.created_at).toLocaleString('th-TH');
@@ -795,7 +804,13 @@ window.sop_markRead = async function(id) {
   if (!item.read_by) item.read_by = [];
   if (!item.read_by.includes(myUsername)) item.read_by.push(myUsername);
   try {
-    await sop_saveAllData();
+    await window.sop_patchSetting('sop_data', (arr => {
+      const it = arr.find((x => String(x.id) === String(id)));
+      if (!it) return false;
+      if (!Array.isArray(it.read_by)) it.read_by = [];
+      if (it.read_by.includes(myUsername)) return false;
+      it.read_by.push(myUsername);
+    }));
     sop_renderList();
     sop_readRule(id, true);
     const Toast = Swal.mixin({
@@ -820,7 +835,11 @@ window.sop_unmarkRead = async function(id) {
   if (!myUsername || !item.read_by) return;
   item.read_by = item.read_by.filter((u => u !== myUsername));
   try {
-    await sop_saveAllData();
+    await window.sop_patchSetting('sop_data', (arr => {
+      const it = arr.find((x => String(x.id) === String(id)));
+      if (!it || !Array.isArray(it.read_by)) return false;
+      it.read_by = it.read_by.filter((u => u !== myUsername));
+    }));
     sop_renderList();
     sop_readRule(id, true);
   } catch (e) {

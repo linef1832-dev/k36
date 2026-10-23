@@ -1,27 +1,50 @@
-<div id="sopApp" class="fade-in flex flex-col h-full bg-slate-100 dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden pb-10">
-    <div class="bg-gradient-to-r from-rose-600 via-pink-600 to-orange-600 text-white p-5 shadow-lg shrink-0 flex justify-between items-center z-10">
-        <div class="flex items-center gap-3">
-            <div class="bg-white/20 p-2.5 rounded-2xl shadow-inner backdrop-blur-sm border border-white/20"><span class="material-icons text-3xl">rule_folder</span></div>
-            <div>
-                <h1 class="font-black text-xl md:text-2xl tracking-wide drop-shadow-sm">คู่มือการทำงาน (OD)</h1>
-            </div>
+<style>
+#sopApp{background:var(--k-bg);color:var(--k-tx);border:1px solid var(--k-line);border-radius:18px}
+#sopApp .sp-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 18px;background:var(--k-panel);border-bottom:1px solid var(--k-line);flex-shrink:0;z-index:10}
+#sopApp .sp-logo{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:#f97316;color:#fff;flex:none;box-shadow:0 8px 20px rgba(249,115,22,.28)}
+#sopApp .sp-logo .material-icons{font-size:23px}
+#sopApp .sp-title{margin:0;font-size:18px;font-weight:900;color:var(--k-tx-strong);line-height:1.25}
+#sopApp .sp-sub{font-size:12px;font-weight:700;color:var(--k-mute)}
+#sopApp .sp-tabs{margin-left:auto;display:flex;gap:3px;padding:3px;border-radius:13px;background:var(--k-sunk);border:1px solid var(--k-line)}
+#sopApp .sp-tabs .sop-tab-btn{display:inline-flex!important;align-items:center;gap:7px;height:38px;padding:0 15px!important;border-radius:10px!important;border:0!important;margin:0!important;background:transparent!important;background-image:none!important;color:var(--k-mute)!important;box-shadow:none!important;font-size:13.5px!important;font-weight:800!important}
+#sopApp .sp-tabs .sop-tab-btn .material-icons{font-size:18px}
+#sopApp .sp-tabs .sop-tab-btn:hover{color:var(--k-tx-strong)!important}
+#sopApp .sp-tabs .sop-tab-btn.sp-on{background:var(--k-panel)!important;color:var(--k-tx-strong)!important;box-shadow:var(--k-shadow)!important}
+#sopApp .sp-tabs .sop-tab-btn.sp-on .material-icons{color:#f97316}
+#sopApp .sp-cnt{font-size:11px;font-weight:900;padding:1px 8px;border-radius:999px;background:var(--k-sunk);color:var(--k-mute);border:1px solid var(--k-line)}
+#sopApp .sp-cnt:empty{display:none}
+#sopApp .sp-back{display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 13px;border-radius:11px;font-size:13px;font-weight:800;border:1px solid var(--k-line3);background:var(--k-btn);color:var(--k-tx2)}
+#sopApp .sp-back:hover{background:var(--k-btn-h);color:var(--k-tx-strong)}
+#sopApp .sp-back .material-icons{font-size:17px}
+#sopApp #sopTab_rules > div:first-child,#sopApp #sopTab_sop > div:first-child{background:var(--k-panel)!important;border-color:var(--k-line)!important;box-shadow:none!important;padding:12px 18px!important}
+#sopApp #sopTab_rules > div:nth-child(2),#sopApp #sopTab_sop > div:nth-child(2){background:var(--k-bg)!important}
+#sopApp #sopTab_rules input[type=text],#sopApp #sopTab_sop input[type=text],#sopApp #sopTab_rules select,#sopApp #sopTab_sop select{background:var(--k-field)!important;border:1px solid var(--k-line3)!important;color:var(--k-tx-strong)!important;border-radius:11px!important;height:40px;font-size:13px!important;box-shadow:none!important}
+#sopApp #sopTab_rules input[type=text]:focus,#sopApp #sopTab_sop input[type=text]:focus{border-color:#f97316!important;box-shadow:0 0 0 3px rgba(249,115,22,.15)!important}
+#sopApp #sopRulesAdminControls button,#sopApp #sopAdminControls button{height:38px;padding:0 13px!important;border-radius:11px!important;font-size:12.5px!important;font-weight:800!important;background:var(--k-btn)!important;background-image:none!important;border:1px solid var(--k-line3)!important;color:var(--k-tx2)!important;box-shadow:none!important;transform:none!important}
+#sopApp #sopRulesAdminControls button:hover,#sopApp #sopAdminControls button:hover{background:var(--k-btn-h)!important;color:var(--k-tx-strong)!important}
+#sopApp #sopRulesAdminControls button:last-child,#sopApp #sopAdminControls button:last-child{background:#f97316!important;border-color:#f97316!important;color:#fff!important;box-shadow:0 6px 16px rgba(249,115,22,.25)!important}
+#sopApp #sopRulesAdminControls button:last-child:hover,#sopApp #sopAdminControls button:last-child:hover{filter:brightness(1.07)}
+#sopApp #sopPinFilterBtn{height:40px;border-radius:11px!important}
+#sopApp #sopTab_rules .rounded-3xl,#sopApp #sopTab_sop .rounded-3xl{background:var(--k-panel)!important;border:1px solid var(--k-line)!important;border-radius:18px!important;box-shadow:var(--k-shadow)!important}
+#sopApp #sopTab_rules h3,#sopApp #sopTab_sop h3{color:var(--k-tx-strong)}
+@media (max-width:760px){ #sopApp .sp-tabs{margin-left:0;width:100%} #sopApp .sp-tabs .sop-tab-btn{flex:1;justify-content:center} #sopApp .sp-back-t{display:none} #sopApp .sp-sub{display:none} }
+</style>
+<div id="sopApp" class="fade-in flex flex-col h-full overflow-hidden">
+    <div class="sp-head">
+        <div class="sp-logo"><span class="material-icons">menu_book</span></div>
+        <div class="sp-tbox">
+            <h1 class="sp-title">คู่มือการทำงาน (OD)</h1>
+            <div class="sp-sub">กติกา · ขั้นตอน · ข้อบังคับ ที่ทุกคนต้องรู้</div>
         </div>
-        <button onclick="showPage('dashboard')" class="bg-black/30 hover:bg-black/50 text-white px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 shadow-sm border border-white/20 backdrop-blur-sm">
-            <span class="material-icons text-sm">arrow_back</span> กลับ
-        </button>
-    </div>
-    
-    <div class="bg-white dark:bg-slate-800 border-b dark:border-slate-700 shadow-sm z-10 shrink-0 px-4 pt-3 flex gap-2">
-        <button id="sopTabBtn_rules" onclick="sop_switchTab('rules')" class="sop-tab-btn flex items-center gap-2 px-4 md:px-6 py-2.5 rounded-t-2xl font-bold text-sm transition border border-b-0 shadow-sm bg-gradient-to-b from-orange-500 to-amber-500 text-white border-orange-400 -mb-px">
-            <span class="material-icons text-[18px]">gavel</span>
-            <span>กติกาขั้นตอน</span>
-            <span id="sopTabRulesCount" class="bg-white/30 text-white text-[10px] font-black px-2 py-0.5 rounded-full ml-1"></span>
-        </button>
-        <button id="sopTabBtn_sop" onclick="sop_switchTab('sop')" class="sop-tab-btn flex items-center gap-2 px-4 md:px-6 py-2.5 rounded-t-2xl font-bold text-sm transition border border-b-0 shadow-sm bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-gray-400 border-gray-300 dark:border-slate-600 hover:bg-slate-200 dark:hover:bg-slate-700">
-            <span class="material-icons text-[18px]">menu_book</span>
-            <span>ขั้นตอนต่างๆ</span>
-            <span id="sopTabSopCount" class="bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-gray-300 text-[10px] font-black px-2 py-0.5 rounded-full ml-1"></span>
-        </button>
+        <div class="sp-tabs" role="tablist">
+            <button id="sopTabBtn_rules" onclick="sop_switchTab('rules')" class="sop-tab-btn sp-on" role="tab">
+                <span class="material-icons">gavel</span><span>กติกา</span><span id="sopTabRulesCount" class="sp-cnt"></span>
+            </button>
+            <button id="sopTabBtn_sop" onclick="sop_switchTab('sop')" class="sop-tab-btn" role="tab">
+                <span class="material-icons">checklist</span><span>ขั้นตอนการทำงาน</span><span id="sopTabSopCount" class="sp-cnt"></span>
+            </button>
+        </div>
+        <button onclick="showPage('dashboard')" class="sp-back"><span class="material-icons">arrow_back</span><span class="sp-back-t">กลับ</span></button>
     </div>
     
     <div id="sopTab_rules" class="flex-1 overflow-hidden flex flex-col">

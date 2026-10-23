@@ -92,6 +92,7 @@ window.initSopApp = async function() {
 
 window.sop_switchTab = function(tabName) {
   sopActiveTab = tabName;
+  document.querySelectorAll('#sopApp .sop-tab-btn').forEach((b => b.classList.toggle('sp-on', b.id === 'sopTabBtn_' + tabName)));
   const tabRules = document.getElementById('sopTab_rules');
   const tabSop = document.getElementById('sopTab_sop');
   const btnRules = document.getElementById('sopTabBtn_rules');
@@ -348,16 +349,18 @@ window.sop_deleteCategory = async function(idx) {
   }
 };
 
-window.sop_fetchData = async function() {
+window.sop_fetchData = async function(silent) {
   const container = document.getElementById('sopListContainer');
-  if (container) container.innerHTML = '<div class="text-center text-gray-500 py-10"><span class="material-icons animate-spin mb-2">sync</span><br>กำลังโหลด...</div>';
+  if (container && !silent) container.innerHTML = '<div class="text-center text-gray-500 py-10"><span class="material-icons animate-spin mb-2">sync</span><br>กำลังโหลด...</div>';
   try {
-    const {data: data} = await appDB.from('settings').select('value').eq('key', 'sop_data').single();
+    const {data: data, error: fetchErr} = await appDB.from('settings').select('value').eq('key', 'sop_data').maybeSingle();
+    if (fetchErr) throw fetchErr;
     if (data && data.value) {
       globalSOPData = JSON.parse(data.value);
     } else {
       globalSOPData = [];
     }
+    window._sopDataLoadOk = true;
     globalSOPData.forEach((r => {
       if (!r.priority) r.priority = 'medium';
       if (typeof r.pinned !== 'boolean') r.pinned = false;
@@ -381,14 +384,18 @@ window.sop_fetchData = async function() {
     await sop_fetchStandaloneRules();
   } catch (e) {
     console.error('sop_fetchData error:', e);
-    globalSOPData = [];
+    window._sopDataLoadOk = false;
+    if (!Array.isArray(globalSOPData)) globalSOPData = [];
     sop_renderList();
+    if (container && !globalSOPData.length) container.innerHTML = '<div class="text-center text-red-400 py-10 font-bold">โหลดข้อมูลไม่สำเร็จ · กดรีเฟรชหน้าอีกครั้ง</div>';
   }
 };
 
 window.sop_fetchStandaloneRules = async function() {
   try {
-    const {data: data} = await appDB.from('settings').select('value').eq('key', 'sop_rules_standalone').single();
+    const {data: data, error: fetchErr} = await appDB.from('settings').select('value').eq('key', 'sop_rules_standalone').maybeSingle();
+    if (fetchErr) throw fetchErr;
+    window._sopStandaloneLoadOk = true;
     if (data && data.value) {
       globalStandaloneRules = JSON.parse(data.value);
     } else {
@@ -406,18 +413,21 @@ window.sop_fetchStandaloneRules = async function() {
       if (!r.voice_url) r.voice_url = '';
     }));
     sop_updateUnreadBadge();
+    if (typeof sop_updateTabCounters === 'function') sop_updateTabCounters();
   } catch (e) {
-    console.warn('sop_fetchStandaloneRules error (treating as empty):', e);
-    globalStandaloneRules = [];
+    window._sopStandaloneLoadOk = false;
+    if (!Array.isArray(globalStandaloneRules)) globalStandaloneRules = [];
     sop_updateUnreadBadge();
   }
 };
 
 window.sop_saveStandaloneRules = async function() {
-  await appDB.from('settings').upsert([ {
+  if (window._sopStandaloneLoadOk === false) throw new Error('ยังโหลดกติกาไม่สำเร็จ จึงยังบันทึกไม่ได้ (กันข้อมูลหาย) · รีเฟรชหน้าแล้วลองใหม่');
+  const {error: error} = await appDB.from('settings').upsert([ {
     key: 'sop_rules_standalone',
     value: JSON.stringify(globalStandaloneRules)
   } ]);
+  if (error) throw error;
   sop_updateUnreadBadge();
 };
 
@@ -446,11 +456,71 @@ window.sop_updateUnreadBadge = function() {
   }
 };
 
+window.sop_softRefresh = async function() {
+  if (document.hidden) {
+    window._sopRtStale = true;
+    return;
+  }
+  const keys = window._sopRtKeys || new Set;
+  window._sopRtKeys = new Set;
+  try {
+    if (keys.has('sop_categories')) await sop_loadCategories();
+    if (keys.has('sop_groups') && typeof sop_loadGroups === 'function') await sop_loadGroups();
+    if (keys.has('sop_telegram_config') && typeof sop_loadTelegramConfig === 'function') await sop_loadTelegramConfig();
+    if (keys.has('sop_data')) await sop_fetchData(true); else if (keys.has('sop_rules_standalone')) await sop_fetchStandaloneRules();
+    if (typeof sop_updateTabCounters === 'function') sop_updateTabCounters();
+    if (typeof sop_renderAllRulesPage === 'function') sop_renderAllRulesPage();
+    if (typeof sop_renderList === 'function') sop_renderList();
+  } catch (e) {
+    console.warn('sop refresh', e);
+  }
+};
+
+if (!window._sopVisBound) {
+  window._sopVisBound = true;
+  document.addEventListener('visibilitychange', (() => {
+    if (!document.hidden && window._sopRtStale) {
+      window._sopRtStale = false;
+      window._sopRtKeys = new Set([ 'sop_data', 'sop_rules_standalone', 'sop_categories', 'sop_groups' ]);
+      window.sop_softRefresh();
+    }
+  }));
+}
+
+window.sop_patchSetting = async function(key, mutate) {
+  const {data: data, error: error} = await appDB.from('settings').select('value').eq('key', key).maybeSingle();
+  if (error) throw error;
+  if (!data || !data.value) throw new Error('ไม่พบข้อมูล');
+  const arr = JSON.parse(data.value);
+  if (!Array.isArray(arr)) throw new Error('ข้อมูลไม่ถูกต้อง');
+  if (mutate(arr) === false) return arr;
+  const {error: e2} = await appDB.from('settings').upsert([ {
+    key: key,
+    value: JSON.stringify(arr)
+  } ]);
+  if (e2) throw e2;
+  return arr;
+};
+
+window.sop_patchStandaloneRead = function(rule, username, add) {
+  const same = x => x && (rule.id != null ? String(x.id) === String(rule.id) : x.title === rule.title && x.text === rule.text && x.created_at === rule.created_at);
+  return window.sop_patchSetting('sop_rules_standalone', (arr => {
+    const it = arr.find(same);
+    if (!it) return false;
+    if (!Array.isArray(it.read_by)) it.read_by = [];
+    const has = it.read_by.includes(username);
+    if (add && has || !add && !has) return false;
+    it.read_by = add ? it.read_by.concat(username) : it.read_by.filter((u => u !== username));
+  }));
+};
+
 window.sop_saveAllData = async function() {
-  await appDB.from('settings').upsert([ {
+  if (window._sopDataLoadOk === false) throw new Error('ยังโหลดคู่มือไม่สำเร็จ จึงยังบันทึกไม่ได้ (กันข้อมูลหาย) · รีเฟรชหน้าแล้วลองใหม่');
+  const {error: error} = await appDB.from('settings').upsert([ {
     key: 'sop_data',
     value: JSON.stringify(globalSOPData)
   } ]);
+  if (error) throw error;
   sop_updateUnreadBadge();
 };
 
@@ -757,7 +827,10 @@ window.subscribeSopChanges = function() {
     if (window._currentPageName !== 'sop') return;
     var key = payload.new && payload.new.key || payload.old && payload.old.key;
     if (KEYS.indexOf(key) === -1) return;
-    if (typeof initSopApp === 'function') initSopApp();
+    window._sopRtKeys = window._sopRtKeys || new Set;
+    window._sopRtKeys.add(key);
+    clearTimeout(window._sopRtTimer);
+    window._sopRtTimer = setTimeout((() => window.sop_softRefresh()), 700);
   })).subscribe();
   if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(window._sopRtSub);
 };
