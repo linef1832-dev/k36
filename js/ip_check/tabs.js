@@ -259,6 +259,8 @@ function updateIpSummary() {
   set('ipStatFps', uniqueFps.toLocaleString('en-US'));
   set('ipStatChanges', ipChanges.toLocaleString('en-US'));
   set('ipStatFpChanges', fpChanges.toLocaleString('en-US'));
+  set('ipNavBadge_changes', ipChanges ? ipChanges.toLocaleString('en-US') : '');
+  set('ipNavBadge_fp_changes', fpChanges ? fpChanges.toLocaleString('en-US') : '');
 }
 
 function parseUserAgent(ua) {
@@ -281,7 +283,9 @@ window.deleteIpLog = async function(id) {
     confirmButtonText: 'ลบ'
   }).then((async r => {
     if (r.isConfirmed) {
-      await appDB.from('user_ip_logs').delete().eq('id', id);
+      const {data: delRows, error: delErr} = await appDB.from('user_ip_logs').delete().eq('id', id).select('id');
+      if (delErr) return Swal.fire('ลบไม่สำเร็จ', delErr.message, 'error');
+      if (Array.isArray(delRows) && delRows.length === 0) return Swal.fire('ลบไม่สำเร็จ', 'ฐานข้อมูลไม่ยอมลบรายการนี้ (อาจไม่มีสิทธิ์)', 'error');
       await fetchIpLogs();
       Swal.fire({
         icon: 'success',
@@ -328,8 +332,13 @@ window.exportIpLogsCSV = function() {
     fp_change: 'สลับเครื่อง',
     login: 'Login'
   };
-  const rows = globalIpLogs.map((l => [ l.login_time ? new Date(l.login_time).toLocaleString('th-TH') : '', eventTypeMap[l.event_type] || 'Login', l.username || '', l.ip_address || '', l.fingerprint || '', l.country || '', l.city || '', l.isp || '', (l.user_agent || '').replace(/"/g, '""') ]));
-  const csv = [ headers, ...rows ].map((r => r.map((c => `"${c}"`)).join(','))).join('\n');
+  const rows = globalIpLogs.map((l => [ l.login_time ? new Date(l.login_time).toLocaleString('th-TH') : '', eventTypeMap[l.event_type] || 'Login', l.username || '', l.ip_address || '', l.fingerprint || '', l.country || '', l.city || '', l.isp || '', l.user_agent || '' ]));
+  const cell = c => {
+    let v = String(c == null ? '' : c);
+    if (/^[=+\-@]/.test(v)) v = "'" + v;
+    return '"' + v.replace(/"/g, '""') + '"';
+  };
+  const csv = [ headers, ...rows ].map((r => r.map(cell).join(','))).join('\n');
   const blob = new Blob([ '\ufeff' + csv ], {
     type: 'text/csv;charset=utf-8;'
   });
@@ -337,8 +346,9 @@ window.exportIpLogsCSV = function() {
   const a = document.createElement('a');
   a.href = url;
   a.download = `IP_FP_Logs_${(new Date).toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(url);
+  a.remove();
+  setTimeout((() => URL.revokeObjectURL(url)), 2e3);
 };
 
-console.log('[ip_check.js] โหลดสำเร็จ — ฟังก์ชัน fetchIpLogs/switchIpTab พร้อมใช้งาน');

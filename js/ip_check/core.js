@@ -38,21 +38,52 @@ window.initIpCheckApp = async function() {
   populateIpUserFilter();
 };
 
+window.ipSanitizeLog = function(l) {
+  if (!l || typeof l !== 'object') return l;
+  const o = {
+    ...l
+  };
+  const tight = v => v == null ? v : String(v).replace(/[^0-9A-Za-z:._\/+\-]/g, '').slice(0, 128);
+  const soft = v => v == null ? v : String(v).replace(/[<>"'`]/g, '').slice(0, 400);
+  [ 'ip_address', 'fingerprint', 'timezone' ].forEach((k => {
+    if (k in o) o[k] = tight(o[k]);
+  }));
+  [ 'country', 'city', 'region', 'isp', 'user_agent', 'username', 'org' ].forEach((k => {
+    if (k in o) o[k] = soft(o[k]);
+  }));
+  return o;
+};
+
 async function fetchIpLogs() {
   const container = document.getElementById('ipLogsContainer');
   if (!container) return;
   container.innerHTML = `\n        <div class="col-span-full text-center py-10">\n            <span class="material-icons animate-spin text-sky-500 text-4xl">sync</span>\n            <p class="text-gray-400 mt-2 font-bold">กำลังโหลดข้อมูล IP & FP...</p>\n        </div>`;
   try {
-    const {data: data, error: error} = await appDB.from('user_ip_logs').select('*').order('login_time', {
-      ascending: false
-    }).limit(1e3);
-    if (error) throw error;
-    globalIpLogs = data || [];
+    const PAGE = 1e3, MAX = window.IP_LOG_MAX || 3e3;
+    let rows = [];
+    for (let from = 0; from < MAX; from += PAGE) {
+      const {data: data, error: error} = await appDB.from('user_ip_logs').select('*').order('login_time', {
+        ascending: false
+      }).range(from, Math.min(from + PAGE, MAX) - 1);
+      if (error) throw error;
+      rows = rows.concat(data || []);
+      if (!data || data.length < PAGE) break;
+    }
+    globalIpLogs = rows.map(window.ipSanitizeLog);
+    const sub = document.getElementById('ipDataRange');
+    if (sub) {
+      const last = globalIpLogs[globalIpLogs.length - 1];
+      sub.textContent = globalIpLogs.length ? `ข้อมูล ${globalIpLogs.length.toLocaleString('en-US')} รายการล่าสุด · ตั้งแต่ ${last && last.login_time ? new Date(last.login_time).toLocaleDateString('th-TH', {
+        day: 'numeric',
+        month: 'short',
+        year: '2-digit'
+      }) : '-'}` : 'ยังไม่มีข้อมูล';
+    }
     renderIpView();
     updateIpSummary();
     renderLiveAlerts();
   } catch (err) {
-    container.innerHTML = `<div class="col-span-full text-center text-red-500 py-10 font-bold">โหลดข้อมูลไม่สำเร็จ: ${err.message}</div>`;
+    container.innerHTML = `<div class="col-span-full text-center text-red-500 py-10 font-bold">โหลดข้อมูลไม่สำเร็จ: ${window.escapeHtml(err.message)}</div>`;
   }
 }
 
@@ -60,7 +91,7 @@ function populateIpUserFilter() {
   const select = document.getElementById('ipUserFilter');
   if (!select || !window.GLOBAL_USER_LIST) return;
   const oldVal = select.value;
-  select.innerHTML = `<option value="all">-- ดูทั้งหมด --</option>`;
+  select.innerHTML = `<option value="all">พนักงานทุกคน</option>`;
   window.GLOBAL_USER_LIST.filter((u => u && u.username)).sort(((a, b) => String(a.username).localeCompare(String(b.username)))).forEach((u => {
     select.innerHTML += `<option value="${u.id}">${window.escapeHtml(u.username)}</option>`;
   }));
@@ -94,6 +125,7 @@ window.switchIpTab = function(tab) {
     };
     activeBtn.classList.add(colorMap[tab] || 'bg-sky-600', 'text-white');
   }
+  document.querySelectorAll('.ip-tab-btn').forEach((b => b.classList.toggle('ipn-on', b.id === 'ipTab_' + tab)));
   renderIpView();
 };
 

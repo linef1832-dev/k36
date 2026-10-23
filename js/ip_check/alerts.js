@@ -72,39 +72,14 @@ window.renderLiveAlerts = function() {
       tab: 'tzmismatch'
     });
   }
+  const esc = window.escapeHtml;
+  banner.style.display = 'block';
   if (alerts.length === 0) {
-    banner.style.display = 'block';
-    banner.innerHTML = `\n            <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:16px;padding:14px 18px;display:flex;align-items:center;gap:10px">\n                <span class="material-icons" style="color:light-dark(#159945,#16a34a);font-size:22px">verified_user</span>\n                <div>\n                    <div style="font-weight:700;color:#15803d;font-size:14px">✅ วันนี้ไม่พบเหตุการณ์ผิดปกติ</div>\n                    <div style="font-size:11px;color:#166534;margin-top:2px">ตรวจสอบแล้ว ${todayLogs.length} รายการ</div>\n                </div>\n            </div>`;
+    banner.innerHTML = `<div class="ipn-alert ok"><span class="material-icons">verified_user</span><div><b>วันนี้ไม่พบเหตุการณ์ผิดปกติ</b><small>ตรวจแล้ว ${todayLogs.length} รายการ</small></div></div>`;
     return;
   }
-  const levelStyle = {
-    critical: {
-      bg: '#fef2f2',
-      border: '#fca5a5',
-      dot: '#ef4444',
-      text: '#991b1b',
-      sub: '#dc2626'
-    },
-    high: {
-      bg: '#fff7ed',
-      border: '#fed7aa',
-      dot: '#f97316',
-      text: '#9a3412',
-      sub: '#ea580c'
-    },
-    medium: {
-      bg: '#fefce8',
-      border: '#fde68a',
-      dot: '#eab308',
-      text: '#713f12',
-      sub: '#ca8a04'
-    }
-  };
-  banner.style.display = 'block';
-  banner.innerHTML = `\n        <div style="background:#fff;border-radius:16px;border:1px solid #e2e8f0;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.06)">\n            <div style="background:linear-gradient(90deg,var(--k-card),var(--k-btn-h));padding:12px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">\n                <div style="display:flex;align-items:center;gap:8px">\n                    <span class="material-icons" style="color:var(--k-red-tx);font-size:20px;animation:pulse 1.5s infinite">warning</span>\n                    <span style="color:var(--k-tx);font-weight:700;font-size:14px">🚨 แจ้งเตือนวันนี้ — พบ ${alerts.length} เหตุการณ์ผิดปกติ</span>\n                </div>\n                <span style="color:var(--k-tx3);font-size:11px">ตรวจสอบ ${todayLogs.length} รายการ จาก ${(new Date).toLocaleDateString('th-TH')}</span>\n            </div>\n            <div style="padding:12px;display:flex;flex-direction:column;gap:8px">\n                ${alerts.map((a => {
-    const s = levelStyle[a.level];
-    return `\n                    <div style="background:${s.bg};border:1px solid ${s.border};border-radius:10px;padding:10px 14px;display:flex;align-items:flex-start;gap:10px;cursor:pointer" onclick="switchIpTab('${a.tab}')">\n                        <span class="material-icons" style="color:${s.dot};font-size:20px;flex-shrink:0;margin-top:1px">${a.icon}</span>\n                        <div style="flex:1;min-width:0">\n                            <div style="font-weight:700;color:${s.text};font-size:13px">${a.title}</div>\n                            <div style="font-size:11px;color:${s.sub};margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.detail}</div>\n                        </div>\n                        <span class="material-icons" style="color:${s.dot};font-size:16px;flex-shrink:0;margin-top:2px">chevron_right</span>\n                    </div>`;
-  })).join('')}\n            </div>\n        </div>\n        <style>@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}</style>`;
+  const lv = { critical: 'crit', high: 'high', medium: 'med' };
+  banner.innerHTML = `<div class="ipn-alerts"><div class="ipn-alerts-h"><span class="material-icons">notifications_active</span>แจ้งเตือนวันนี้ <b>${alerts.length}</b> เรื่อง<small>จาก ${todayLogs.length} รายการ · ${esc((new Date).toLocaleDateString('th-TH'))}</small></div><div class="ipn-alerts-list">${alerts.map((a => `<button type="button" class="ipn-alert ${lv[a.level] || 'med'}" data-tab="${esc(a.tab)}" onclick="switchIpTab(this.dataset.tab)"><span class="material-icons">${esc(a.icon)}</span><div><b>${esc(a.title)}</b><small>${esc(a.detail)}</small></div><span class="material-icons ipn-go">chevron_right</span></button>`)).join('')}</div></div>`;
 };
 
 function detectSessionOverlapUsers(logs) {

@@ -1,261 +1,93 @@
-
-<div class="ipx-page p-4 md:p-6 max-w-[1600px] mx-auto">
+<div id="ipCheckPage" class="ipn-page">
 <style>
-
-.ipx-header{
-    border-radius:20px; padding:18px 22px; margin-bottom:16px;
-    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;
-    background:#ffffff; border:1px solid #e2e8f0;
-    box-shadow:0 8px 24px -10px rgba(0,0,0,0.15);
-}
-html.dark .ipx-header{
-    background:linear-gradient(120deg,var(--k-panel) 0%,var(--k-sunk) 55%,var(--k-panel2) 100%);
-    border:1px solid rgba(232,193,90,0.20);
-    box-shadow:0 0 0 1px rgba(255,255,255,0.02), 0 14px 44px -14px rgba(0,0,0,0.8);
-}
-.ipx-header-left{ display:flex; align-items:center; gap:14px; }
-.ipx-header-icon{
-    width:48px; height:48px; border-radius:15px; flex-shrink:0;
-    display:flex; align-items:center; justify-content:center;
-    background:linear-gradient(145deg,#f7e7b6,#E8C15A 55%,#c99a33);
-    color:#3a2c07;
-    box-shadow:0 8px 20px -8px rgba(232,193,90,0.75), inset 0 1px 0 rgba(255,255,255,0.6);
-}
-.ipx-header-icon .material-icons{ font-size:26px; }
-.ipx-title{ font-size:1.25rem; font-weight:900; letter-spacing:0.01em; color:#1e293b; line-height:1.2; }
-html.dark .ipx-title{ color:var(--k-tx); }
-.ipx-sub{ font-size:11.5px; color:var(--k-tx3); margin-top:3px; }
-html.dark .ipx-sub{ color:var(--k-mute); }
-
-.ipx-hbtn{
-    height:36px; padding:0 14px; border-radius:11px;
-    font-size:12px; font-weight:800; display:inline-flex; align-items:center; gap:6px;
-    transition:transform .15s, filter .15s, box-shadow .15s;
-    box-shadow:0 5px 14px -6px rgba(0,0,0,0.4);
-}
-.ipx-hbtn:hover{ transform:translateY(-1px); filter:brightness(1.08); }
-.ipx-hbtn:active{ transform:scale(0.97); }
-.ipx-hbtn .material-icons{ font-size:16px; }
-.ipx-hbtn-csv{ background:linear-gradient(135deg,#10b981,#059669); color:#fff; border:1px solid color-mix(in srgb,var(--k-tx-strong) 20.0%,transparent); }
-.ipx-hbtn-clean{ background:transparent; color:var(--k-tx3); border:1px solid #cbd5e1; box-shadow:none; }
-html.dark .ipx-hbtn-clean{ color:var(--k-tx2); border:1px solid color-mix(in srgb,var(--k-tx-strong) 16.0%,transparent); }
-html.dark .ipx-hbtn-clean:hover{ color:light-dark(#aa0418,#fda4af); border-color:rgba(244,63,94,0.5); background:rgba(244,63,94,0.07); }
-
-.ipx-stats{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:16px; }
-@media(min-width:768px){ .ipx-stats{ grid-template-columns:repeat(3,1fr); } }
-@media(min-width:1100px){ .ipx-stats{ grid-template-columns:repeat(6,1fr); } }
-.ipx-stat{
-    border-radius:16px; padding:13px 15px; position:relative; overflow:hidden;
-    background:#ffffff; border:1px solid #e2e8f0;
-    box-shadow:0 4px 14px -8px rgba(0,0,0,0.15);
-    transition:transform .15s, box-shadow .15s;
-}
-.ipx-stat:hover{ transform:translateY(-2px); box-shadow:0 10px 22px -10px rgba(0,0,0,0.3); }
-html.dark .ipx-stat{
-    background:linear-gradient(160deg,var(--k-panel),var(--k-panel2));
-    border:1px solid color-mix(in srgb,var(--k-tx-strong) 7.0%,transparent);
-    box-shadow:0 6px 16px -8px rgba(0,0,0,0.6);
-}
-.ipx-stat::before{
-    content:''; position:absolute; left:0; top:0; bottom:0; width:3px;
-    background:var(--acc,#E8C15A);
-    box-shadow:0 0 14px 0 var(--acc,#E8C15A);
-}
-.ipx-stat-label{
-    font-size:10px; font-weight:800; letter-spacing:0.05em;
-    color:var(--k-tx3); display:flex; align-items:center; gap:5px; line-height:1.2;
-}
-html.dark .ipx-stat-label{ color:var(--k-mute); }
-.ipx-stat-label .material-icons{ font-size:14px; color:var(--acc,var(--k-gold-tx)); }
-.ipx-stat-num{
-    font-size:1.7rem; font-weight:900; margin-top:4px; line-height:1;
-    color:#1e293b; font-variant-numeric:tabular-nums;
-}
-html.dark .ipx-stat-num{ color:var(--k-tx); text-shadow:0 0 22px color-mix(in srgb, var(--acc,#E8C15A) 35%, transparent); }
-
-.ipx-panel{
-    border-radius:18px; padding:14px 16px; margin-bottom:14px;
-    background:#ffffff; border:1px solid #e2e8f0;
-    box-shadow:0 6px 18px -10px rgba(0,0,0,0.15);
-}
-html.dark .ipx-panel{
-    background:linear-gradient(170deg,var(--k-panel2),var(--k-panel2));
-    border:1px solid color-mix(in srgb,var(--k-tx-strong) 6.0%,transparent);
-    box-shadow:0 10px 26px -14px rgba(0,0,0,0.7);
-}
-.ipx-group{ display:flex; align-items:center; flex-wrap:wrap; gap:7px; padding:7px 0; }
-.ipx-group + .ipx-group{ border-top:1px dashed rgba(148,163,184,0.25); }
-html.dark .ipx-group + .ipx-group{ border-top:1px dashed rgba(232,193,90,0.16); }
-.ipx-group-label{
-    flex-shrink:0; width:92px;
-    font-size:10px; font-weight:900; letter-spacing:0.07em; text-transform:uppercase;
-    color:#b45309; display:flex; align-items:center; gap:5px;
-}
-html.dark .ipx-group-label{ color:var(--k-gold-tx); }
-.ipx-group-label .material-icons{ font-size:14px; }
-
-.ip-tab-btn{
-    border-radius:10px !important;
-    padding:7px 13px !important;
-    font-size:12px !important;
-    box-shadow:0 3px 10px -5px rgba(0,0,0,0.35);
-    transition:transform .13s, filter .13s, background-color .15s, color .15s !important;
-}
-.ip-tab-btn:hover{ transform:translateY(-1px); filter:brightness(1.06); }
-.ip-tab-btn:active{ transform:scale(0.97); }
-html.dark .ip-tab-btn{ border-color:color-mix(in srgb,var(--k-tx-strong) 10.0%,transparent) !important; }
-
-.ipx-filter-row{
-    display:flex; align-items:center; flex-wrap:wrap; gap:8px;
-    margin-top:10px; padding-top:11px;
-    border-top:1px solid rgba(148,163,184,0.25);
-}
-html.dark .ipx-filter-row{ border-top:1px solid rgba(232,193,90,0.18); }
-.ipx-input, .ipx-select{
-    height:36px; border-radius:11px; font-size:12.5px; font-weight:700;
-    background:#f8fafc; border:1px solid #e2e8f0; color:#1e293b;
-    outline:none; transition:border-color .15s, box-shadow .15s;
-}
-html.dark .ipx-input, html.dark .ipx-select{
-    background:color-mix(in srgb,var(--k-panel2) 55.0%,transparent); border:1px solid color-mix(in srgb,var(--k-tx-strong) 10.0%,transparent); color:var(--k-tx);
-}
-.ipx-input:focus, .ipx-select:focus{
-    border-color:rgba(232,193,90,0.65);
-    box-shadow:0 0 0 3px rgba(232,193,90,0.15);
-}
-.ipx-select{ padding:0 12px; cursor:pointer; }
-.ipx-search{ position:relative; flex:1 1 220px; max-width:340px; }
-.ipx-search .material-icons{ position:absolute; left:10px; top:50%; transform:translateY(-50%); font-size:17px; color:var(--k-tx3); pointer-events:none; }
-.ipx-search input{ width:100%; padding:0 12px 0 33px; }
-.ipx-refresh{
-    height:36px; width:38px; border-radius:11px; flex-shrink:0;
-    display:inline-flex; align-items:center; justify-content:center;
-    background:linear-gradient(145deg,#f7e7b6,#E8C15A 60%,#d4a93c);
-    color:#3a2c07; border:1px solid rgba(232,193,90,0.8);
-    box-shadow:0 5px 14px -6px rgba(232,193,90,0.7);
-    transition:transform .15s, filter .15s;
-}
-.ipx-refresh:hover{ transform:translateY(-1px) rotate(90deg); filter:brightness(1.05); }
-.ipx-refresh .material-icons{ font-size:18px; }
+.ipn-page{color:var(--k-tx);max-width:1600px;margin:0 auto;padding:18px 18px 40px;display:flex;flex-direction:column;gap:14px}
+.ipn-page .material-icons{font-size:18px}
+.ipn-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 18px;border-radius:18px;background:var(--k-panel);border:1px solid var(--k-line);box-shadow:var(--k-shadow)}
+.ipn-logo{width:44px;height:44px;border-radius:13px;display:flex;align-items:center;justify-content:center;background:#0ea5e9;color:#fff;flex:none;box-shadow:0 8px 20px rgba(14,165,233,.28)}
+.ipn-logo .material-icons{font-size:24px}
+.ipn-title{margin:0;font-size:19px;font-weight:900;color:var(--k-tx-strong)}
+.ipn-sub{font-size:12.5px;font-weight:700;color:var(--k-mute);margin-top:1px}
+.ipn-acts{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.ipn-btn{display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 14px;border-radius:11px;font-size:13px;font-weight:800;border:1px solid var(--k-line3);background:var(--k-btn);color:var(--k-tx2);white-space:nowrap;transition:background .15s,color .15s}
+.ipn-btn:hover{background:var(--k-btn-h);color:var(--k-tx-strong)}
+.ipn-btn.pri{background:#0ea5e9;border-color:#0ea5e9;color:#fff}
+.ipn-btn.pri:hover{filter:brightness(1.07)}
+.ipn-btn.dng:hover{background:var(--k-red-bg);color:var(--k-red-tx)}
+.ipn-stats{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+.ipn-stat{display:flex;align-items:center;gap:11px;padding:12px 14px;border-radius:15px;background:var(--k-panel);border:1px solid var(--k-line)}
+.ipn-stat > .material-icons{width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--c) 15%,transparent);color:var(--c);font-size:19px;flex:none}
+.ipn-stat b{display:block;font-size:21px;font-weight:900;color:var(--k-tx-strong);font-variant-numeric:tabular-nums;line-height:1.1}
+.ipn-stat small{font-size:11.5px;font-weight:700;color:var(--k-mute)}
+#ipAlertBanner:empty{display:none}
+.ipn-alerts{border-radius:16px;background:var(--k-panel);border:1px solid var(--k-line);overflow:hidden}
+.ipn-alerts-h{display:flex;align-items:center;gap:8px;padding:11px 16px;font-size:13.5px;font-weight:800;color:var(--k-tx-strong);border-bottom:1px solid var(--k-line)}
+.ipn-alerts-h .material-icons{color:#ef4444}
+.ipn-alerts-h small{margin-left:auto;font-size:11px;font-weight:700;color:var(--k-mute)}
+.ipn-alerts-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px;padding:10px}
+.ipn-alert{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;text-align:left;border:1px solid var(--bc);background:color-mix(in srgb,var(--ac) 9%,var(--k-panel));min-width:0;width:100%;cursor:pointer;transition:transform .12s}
+.ipn-alert:hover{transform:translateY(-1px)}
+.ipn-alert > .material-icons{color:var(--ac);font-size:20px;flex:none}
+.ipn-alert div{flex:1;min-width:0;display:flex;flex-direction:column}
+.ipn-alert b{font-size:13px;font-weight:800;color:var(--k-tx-strong)}
+.ipn-alert small{font-size:11.5px;font-weight:700;color:var(--k-mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ipn-alert .ipn-go{font-size:16px;color:var(--k-mute2)}
+.ipn-alert.crit{--ac:#ef4444;--bc:rgba(239,68,68,.4)}
+.ipn-alert.high{--ac:#f97316;--bc:rgba(249,115,22,.4)}
+.ipn-alert.med{--ac:#eab308;--bc:rgba(234,179,8,.4)}
+.ipn-alert.ok{--ac:#10b981;--bc:rgba(16,185,129,.4);cursor:default}
+.ipn-alert.ok:hover{transform:none}
+.ipn-body{display:grid;grid-template-columns:232px minmax(0,1fr);gap:14px;align-items:start}
+.ipn-nav{position:sticky;top:12px;display:flex;flex-direction:column;gap:2px;padding:10px;border-radius:16px;background:var(--k-panel);border:1px solid var(--k-line)}
+.ipn-grp{font-size:10.5px;font-weight:900;letter-spacing:.06em;color:var(--k-mute2);padding:10px 8px 4px}
+.ipn-grp:first-child{padding-top:2px}
+.ipn-nav .ip-tab-btn{display:flex!important;align-items:center;gap:9px;width:100%;padding:8px 10px!important;border-radius:10px!important;font-size:13px!important;font-weight:700!important;color:var(--k-tx3)!important;background:transparent!important;border:0!important;box-shadow:none!important;text-align:left;transition:background .12s,color .12s}
+.ipn-nav .ip-tab-btn:hover{background:var(--k-btn-h)!important;color:var(--k-tx-strong)!important}
+.ipn-nav .ip-tab-btn.ipn-on{background:rgba(14,165,233,.14)!important;color:var(--k-tx-strong)!important;font-weight:900!important}
+.ipn-nav .ip-tab-btn.ipn-on .material-icons{color:#0ea5e9}
+.ipn-nav .ip-tab-btn .material-icons{font-size:18px;color:var(--k-mute)}
+.ipn-l{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ipn-badge{font-size:10.5px;font-weight:900;padding:1px 7px;border-radius:999px;background:rgba(239,68,68,.15);color:var(--k-red-tx)}
+.ipn-badge:empty{display:none}
+.ipn-main{display:flex;flex-direction:column;gap:12px;min-width:0}
+.ipn-bar{display:flex;gap:8px;flex-wrap:wrap;padding:10px;border-radius:14px;background:var(--k-panel);border:1px solid var(--k-line)}
+.ipn-bar select,.ipn-search{height:38px;border-radius:10px;background:var(--k-field);border:1px solid var(--k-line3);color:var(--k-tx-strong);font-size:13px;font-weight:700}
+.ipn-bar select{padding:0 10px;min-width:170px;outline:none}
+.ipn-search{flex:1;min-width:200px;display:flex;align-items:center;gap:7px;padding:0 11px}
+.ipn-search input{flex:1;min-width:0;background:transparent;border:0;outline:none;color:var(--k-tx-strong);font-size:13px;font-weight:600}
+.ipn-search .material-icons{color:var(--k-mute2)}
+#ipLogsContainer{min-width:0}
+#ipLogsContainer td .rounded-full{white-space:nowrap}
+#ipLogsContainer table{background:var(--k-panel)!important;border-radius:14px}
+#ipLogsContainer table thead{background:var(--k-sunk)!important;color:var(--k-mute)!important}
+#ipLogsContainer table thead th{font-size:11.5px;font-weight:900;letter-spacing:.02em}
+#ipLogsContainer table tbody tr{border-color:var(--k-line)!important}
+#ipLogsContainer .overflow-x-auto{border:1px solid var(--k-line);border-radius:14px;box-shadow:none!important}
+@media (max-width:1200px){ .ipn-stats{grid-template-columns:repeat(3,minmax(0,1fr))} }
+@media (max-width:900px){ .ipn-body{grid-template-columns:1fr} .ipn-nav{position:static;flex-direction:row;flex-wrap:wrap;gap:4px} .ipn-grp{width:100%;padding:6px 6px 2px} .ipn-nav .ip-tab-btn{width:auto} }
+@media (max-width:560px){ .ipn-page{padding:12px 10px 30px} .ipn-stats{grid-template-columns:repeat(2,minmax(0,1fr))} .ipn-acts{width:100%} .ipn-acts .ipn-btn{flex:1;justify-content:center} }
 </style>
-    
-    <div class="ipx-header">
-        <div class="ipx-header-left">
-            <div class="ipx-header-icon"><span class="material-icons">travel_explore</span></div>
-            <div>
-                <h1 class="ipx-title">ตรวจสอบ IP &amp; FP พนักงาน</h1>
+    <div class="ipn-head">
+        <div class="ipn-logo"><span class="material-icons">travel_explore</span></div>
+        <div>
+            <h1 class="ipn-title">ตรวจสอบ IP &amp; FP พนักงาน</h1>
+            <div class="ipn-sub" id="ipDataRange">กำลังโหลด…</div>
+        </div>
+        <div class="ipn-acts">
+            <button onclick="fetchIpLogs()" class="ipn-btn" title="โหลดข้อมูลใหม่"><span class="material-icons">refresh</span>รีเฟรช</button>
+            <button onclick="exportIpLogsCSV()" class="ipn-btn pri"><span class="material-icons">download</span>Export CSV</button>
+            <button onclick="cleanOldIpLogs()" class="ipn-btn dng"><span class="material-icons">cleaning_services</span>ลบ Log เก่า</button>
+        </div>
+    </div>
+    <div class="ipn-stats"><div class="ipn-stat" style="--c:#0ea5e9"><span class="material-icons">list_alt</span><div><b id="ipStatTotal">0</b><small>รายการ</small></div></div><div class="ipn-stat" style="--c:#10b981"><span class="material-icons">badge</span><div><b id="ipStatUsers">0</b><small>พนักงาน</small></div></div><div class="ipn-stat" style="--c:#8b5cf6"><span class="material-icons">lan</span><div><b id="ipStatIps">0</b><small>IP ไม่ซ้ำ</small></div></div><div class="ipn-stat" style="--c:#6366f1"><span class="material-icons">devices</span><div><b id="ipStatFps">0</b><small>เครื่องไม่ซ้ำ</small></div></div><div class="ipn-stat" style="--c:#ef4444"><span class="material-icons">swap_horiz</span><div><b id="ipStatChanges">0</b><small>IP เปลี่ยน</small></div></div><div class="ipn-stat" style="--c:#d946ef"><span class="material-icons">phonelink_erase</span><div><b id="ipStatFpChanges">0</b><small>เปลี่ยนเครื่อง</small></div></div></div>
+    <div id="ipAlertBanner"></div>
+    <div class="ipn-body">
+        <nav class="ipn-nav" aria-label="มุมมอง"><div class="ipn-grp">ข้อมูล</div><button type="button" id="ipTab_all" onclick="switchIpTab('all')" class="ip-tab-btn ipn-on"><span class="material-icons">list</span><span class="ipn-l">ประวัติทั้งหมด</span></button><button type="button" id="ipTab_by_user" onclick="switchIpTab('by_user')" class="ip-tab-btn"><span class="material-icons">groups</span><span class="ipn-l">สรุปต่อพนักงาน</span></button><button type="button" id="ipTab_timeline" onclick="switchIpTab('timeline')" class="ip-tab-btn"><span class="material-icons">timeline</span><span class="ipn-l">Timeline รายคน</span></button><div class="ipn-grp">เหตุการณ์ผิดปกติ</div><button type="button" id="ipTab_changes" onclick="switchIpTab('changes')" class="ip-tab-btn"><span class="material-icons">swap_horiz</span><span class="ipn-l">IP เปลี่ยนกลางคัน</span><b class="ipn-badge" id="ipNavBadge_changes"></b></button><button type="button" id="ipTab_fp_changes" onclick="switchIpTab('fp_changes')" class="ip-tab-btn"><span class="material-icons">devices</span><span class="ipn-l">เปลี่ยนเครื่องกลางคัน</span><b class="ipn-badge" id="ipNavBadge_fp_changes"></b></button><button type="button" id="ipTab_duplicates" onclick="switchIpTab('duplicates')" class="ip-tab-btn"><span class="material-icons">warning</span><span class="ipn-l">IP ซ้ำหลายคน</span></button><button type="button" id="ipTab_fp_duplicates" onclick="switchIpTab('fp_duplicates')" class="ip-tab-btn"><span class="material-icons">device_hub</span><span class="ipn-l">เครื่องเดียวหลายคน</span></button><button type="button" id="ipTab_overlap" onclick="switchIpTab('overlap')" class="ip-tab-btn"><span class="material-icons">supervisor_account</span><span class="ipn-l">ล็อกอินซ้อนเวลา</span></button><div class="ipn-grp">วิเคราะห์ความเสี่ยง</div><button type="button" id="ipTab_risk" onclick="switchIpTab('risk')" class="ip-tab-btn"><span class="material-icons">leaderboard</span><span class="ipn-l">คะแนนความเสี่ยง</span></button><button type="button" id="ipTab_vpn" onclick="switchIpTab('vpn')" class="ip-tab-btn"><span class="material-icons">vpn_lock</span><span class="ipn-l">ตรวจ VPN / Proxy</span></button><button type="button" id="ipTab_travel" onclick="switchIpTab('travel')" class="ip-tab-btn"><span class="material-icons">flight</span><span class="ipn-l">ย้ายที่เร็วผิดปกติ</span></button><button type="button" id="ipTab_tzmismatch" onclick="switchIpTab('tzmismatch')" class="ip-tab-btn"><span class="material-icons">schedule</span><span class="ipn-l">เขตเวลาไม่ตรง IP</span></button><button type="button" id="ipTab_heatmap" onclick="switchIpTab('heatmap')" class="ip-tab-btn"><span class="material-icons">grid_on</span><span class="ipn-l">ช่วงเวลาล็อกอิน</span></button></nav>
+        <div class="ipn-main">
+            <div class="ipn-bar">
+                <select id="ipUserFilter" onchange="filterIpLogs()" aria-label="เลือกพนักงาน"><option value="all">พนักงานทุกคน</option></select>
+                <label class="ipn-search"><span class="material-icons">search</span><input id="ipSearchInput" oninput="filterIpLogs(); if(currentIpTab==='all') renderIpView();" type="text" placeholder="ค้นหา ชื่อ / IP / เครื่อง / ประเทศ" aria-label="ค้นหา"></label>
             </div>
-        </div>
-        <div class="flex gap-2 flex-wrap">
-            <button onclick="exportIpLogsCSV()" class="ipx-hbtn ipx-hbtn-csv">
-                <span class="material-icons">download</span> Export CSV
-            </button>
-            <button onclick="cleanOldIpLogs()" class="ipx-hbtn ipx-hbtn-clean">
-                <span class="material-icons">cleaning_services</span> ลบ Log เก่า
-            </button>
-        </div>
-    </div>
-    
-    <div id="ipAlertBanner" style="display:none" class="mb-5"></div>
-    
-    <div class="ipx-stats">
-        <div class="ipx-stat" style="--acc:#38bdf8">
-            <div class="ipx-stat-label"><span class="material-icons">list_alt</span> รายการทั้งหมด</div>
-            <div id="ipStatTotal" class="ipx-stat-num">0</div>
-        </div>
-        <div class="ipx-stat" style="--acc:#34d399">
-            <div class="ipx-stat-label"><span class="material-icons">badge</span> พนักงานที่เข้าระบบ</div>
-            <div id="ipStatUsers" class="ipx-stat-num">0</div>
-        </div>
-        <div class="ipx-stat" style="--acc:#a78bfa">
-            <div class="ipx-stat-label"><span class="material-icons">lan</span> จำนวน IP ทั้งหมด</div>
-            <div id="ipStatIps" class="ipx-stat-num">0</div>
-        </div>
-        <div class="ipx-stat" style="--acc:#818cf8">
-            <div class="ipx-stat-label"><span class="material-icons">devices</span> จำนวน FP (อุปกรณ์)</div>
-            <div id="ipStatFps" class="ipx-stat-num">0</div>
-        </div>
-        <div class="ipx-stat" style="--acc:#fb7185">
-            <div class="ipx-stat-label"><span class="material-icons">swap_horiz</span> IP เปลี่ยนกลางคัน</div>
-            <div id="ipStatChanges" class="ipx-stat-num">0</div>
-        </div>
-        <div class="ipx-stat" style="--acc:#e879f9">
-            <div class="ipx-stat-label"><span class="material-icons">phonelink_erase</span> FP เปลี่ยนกลางคัน</div>
-            <div id="ipStatFpChanges" class="ipx-stat-num">0</div>
-        </div>
-    </div>
-    
-    <div class="ipx-panel">
-        
-        <div class="ipx-group">
-            <span class="ipx-group-label"><span class="material-icons">folder_open</span> ข้อมูล</span>
-            <button id="ipTab_all" onclick="switchIpTab('all')" class="ip-tab-btn bg-sky-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition">
-                <span class="material-icons text-base">list</span> ประวัติทั้งหมด
-            </button>
-            <button id="ipTab_by_user" onclick="switchIpTab('by_user')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-emerald-50">
-                <span class="material-icons text-base">groups</span> สรุปต่อพนักงาน
-            </button>
-            <button id="ipTab_timeline" onclick="switchIpTab('timeline')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-indigo-50">
-                <span class="material-icons text-base">timeline</span> Timeline รายคน
-            </button>
-        </div>
-        
-        <div class="ipx-group">
-            <span class="ipx-group-label"><span class="material-icons">notification_important</span> แจ้งเตือน</span>
-            <button id="ipTab_changes" onclick="switchIpTab('changes')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-rose-50">
-                <span class="material-icons text-base">swap_horiz</span> IP เปลี่ยน
-            </button>
-            <button id="ipTab_fp_changes" onclick="switchIpTab('fp_changes')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-fuchsia-50">
-                <span class="material-icons text-base">devices</span> FP เปลี่ยน
-            </button>
-            <button id="ipTab_duplicates" onclick="switchIpTab('duplicates')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-amber-50">
-                <span class="material-icons text-base">warning</span> IP ซ้ำ
-            </button>
-            <button id="ipTab_fp_duplicates" onclick="switchIpTab('fp_duplicates')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-orange-50">
-                <span class="material-icons text-base">device_hub</span> FP ซ้ำ
-            </button>
-            <button id="ipTab_overlap" onclick="switchIpTab('overlap')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-rose-50">
-                <span class="material-icons text-base">supervisor_account</span> Session Overlap
-            </button>
-        </div>
-        
-        <div class="ipx-group">
-            <span class="ipx-group-label"><span class="material-icons">insights</span> วิเคราะห์</span>
-            <button id="ipTab_risk" onclick="switchIpTab('risk')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-slate-100">
-                <span class="material-icons text-base">leaderboard</span> Risk Score
-            </button>
-            <button id="ipTab_vpn" onclick="switchIpTab('vpn')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-purple-50">
-                <span class="material-icons text-base">vpn_lock</span> VPN Detect
-            </button>
-            <button id="ipTab_travel" onclick="switchIpTab('travel')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-red-50">
-                <span class="material-icons text-base">flight</span> Travel Alert
-            </button>
-            <button id="ipTab_tzmismatch" onclick="switchIpTab('tzmismatch')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-cyan-50">
-                <span class="material-icons text-base">travel_explore</span> TZ Mismatch
-            </button>
-            <button id="ipTab_heatmap" onclick="switchIpTab('heatmap')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-blue-50">
-                <span class="material-icons text-base">grid_on</span> Heatmap
-            </button>
-        </div>
-        
-        <div class="ipx-filter-row">
-            <select id="ipUserFilter" onchange="filterIpLogs()" class="ipx-select">
-                <option value="all">-- ดูทั้งหมด --</option>
-            </select>
-            <div class="ipx-search">
-                <span class="material-icons">search</span>
-                <input id="ipSearchInput" oninput="filterIpLogs(); if(currentIpTab==='all') renderIpView();" type="text" placeholder="ค้นหา ชื่อ / IP / FP / ประเทศ..." class="ipx-input">
-            </div>
-            <button onclick="fetchIpLogs()" class="ipx-refresh" title="รีเฟรชข้อมูล">
-                <span class="material-icons">refresh</span>
-            </button>
-        </div>
-    </div>
-    
-    <div id="ipLogsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        <div class="col-span-full text-center py-10">
-            <span class="material-icons animate-spin text-sky-500 text-4xl">sync</span>
-            <p class="text-gray-400 mt-2 font-bold">กำลังโหลดข้อมูล IP &amp; FP...</p>
+            <div id="ipLogsContainer"><div class="col-span-full text-center py-10"><span class="material-icons animate-spin" style="font-size:36px;color:#0ea5e9">sync</span><p class="text-gray-400 mt-2 font-bold">กำลังโหลดข้อมูล…</p></div></div>
         </div>
     </div>
 </div>
