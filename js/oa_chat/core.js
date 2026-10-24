@@ -1421,7 +1421,7 @@ window.oa_renderAct = function () {
     const L = document.getElementById('oaActList'); if (!L) return;
     if (!groups.length) { L.innerHTML = '<div class="text-center text-slate-400 py-10 text-sm">ยังไม่มีการกดดำเนินการ</div>'; return; }
     const esc = oa_esc;
-    const tm = (ts) => { try { const d=new Date(ts); return d.toLocaleDateString('th-TH',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'}); } catch(e){return '';} };
+    const tm = (ts) => { try { const d=new Date(ts); return d.toLocaleDateString('th-TH',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); } catch(e){return '';} };
     const card = (g) => {
         const nm = g.name || ('ลูกค้า '+String(g.chat_id).slice(-6));
         const addLine = g.lastAdd ? `<div class="pc-ev"><span class="pc-badge add">📌 ใส่</span><b>${esc(g.lastAdd.username)}</b><span class="pc-t">${tm(g.lastAdd.acted_at)}</span></div>` : '';
