@@ -1390,7 +1390,7 @@ window.oa_loadAct = async function (force) {
 window.oa_renderAct = function () {
     const o = window._oa, q = (document.getElementById('oaActSearch') || {}).value.toLowerCase();
     let rows = window._oaAct.rows.slice();
-    // ตัวกรองร่วม: แผนก/กะ/เว็บ/ไลน์ (จับคู่ username กับข้อมูลที่โหลดไว้) + ค้นหา
+    // ตัวกรองร่วม
     const actShift = (r) => o.shiftMap[(r.username||'').toLowerCase().trim()+'|'+r.work_date] || '';
     const actSites = (r) => { const s = o.siteMap[(r.username||'').toUpperCase().trim()+'|'+r.work_date]; return s?[...s]:[]; };
     const uByName = {}; Object.values(o.users||{}).forEach(u=>{ uByName[(u.username||'').toUpperCase()]=u; });
@@ -1401,35 +1401,26 @@ window.oa_renderAct = function () {
         (o.site==='ALL' || actSites(r).includes(o.site)) &&
         (o.oaline==='ALL' || (r.oa_name||'')===o.oaline) &&
         (!q || String(r.username||'').toLowerCase().includes(q) || String(r.chat_name||'').toLowerCase().includes(q)));
-    // จับกลุ่มตามลูกค้า (chat_id) → ดูว่าใครใส่ ใครเอาออก ล่าสุด
-    const by = {};
-    rows.forEach(r => { const k = r.chat_id; const g = by[k] || (by[k] = { chat_id: k, name: r.chat_name, oa: r.oa_name, events: [] }); g.events.push(r); if (r.chat_name) g.name = r.chat_name; if (r.oa_name) g.oa = r.oa_name; });
-    const groups = Object.values(by).map(g => {
-        g.events.sort((a,b)=>String(a.acted_at).localeCompare(String(b.acted_at)));
-        const adds = g.events.filter(e => e.action === 'add' || e.action === 'todo');
-        const rems = g.events.filter(e => e.action === 'remove');
-        const lastAdd = adds[adds.length-1], lastRem = rems[rems.length-1];
-        // ยังค้าง = มีใส่ และ (ไม่มีเอาออก หรือ ใส่ล่าสุดเกิดหลังเอาออกล่าสุด)
-        const pending = lastAdd && (!lastRem || String(lastAdd.acted_at) > String(lastRem.acted_at));
-        return { ...g, lastAdd, lastRem, pending, latest: g.events[g.events.length-1].acted_at };
-    }).sort((a,b)=>String(b.latest).localeCompare(String(a.latest)));
-
-    const nPending = groups.filter(g=>g.pending).length, nDone = groups.length - nPending;
+    // แยกเป็นเคส (ใส่→เอาออก = 1 เคส · ลูกค้าเดิมหลายเคสได้)
+    const CASES = [], byChat = {};
+    rows.slice().sort((a,b)=>String(a.acted_at).localeCompare(String(b.acted_at))).forEach(x => {
+        const k = x.chat_id, open = byChat[k];
+        if (x.action==='add' || x.action==='todo') { CASES.push({ chat_id:k, name:x.chat_name, oa:x.oa_name, addBy:x.username, addAt:x.acted_at, remBy:null, remAt:null }); byChat[k]=CASES[CASES.length-1]; }
+        else if (x.action==='remove') { if (open && !open.remAt) { open.remBy=x.username; open.remAt=x.acted_at; open.name=open.name||x.chat_name; open.oa=open.oa||x.oa_name; byChat[k]=null; } else { CASES.push({ chat_id:k, name:x.chat_name, oa:x.oa_name, addBy:null, addAt:null, remBy:x.username, remAt:x.acted_at }); } }
+    });
+    let groups = CASES.map(c=>({ ...c, sortAt:c.remAt||c.addAt })).sort((a,b)=>String(b.sortAt).localeCompare(String(a.sortAt)));
+    const nPend = groups.filter(c=>!c.remAt).length, nDone = groups.filter(c=>c.remAt).length;
     const S=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
-    S('oaActAdd', nPending); S('oaActRem', nDone);
-
+    S('oaActAdd', nPend); S('oaActRem', nDone);
     const L = document.getElementById('oaActList'); if (!L) return;
     if (!groups.length) { L.innerHTML = '<div class="text-center text-slate-400 py-10 text-sm">ยังไม่มีการกดดำเนินการ</div>'; return; }
     const esc = oa_esc;
     const tm = (ts) => { try { const d=new Date(ts); return d.toLocaleDateString('th-TH',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); } catch(e){return '';} };
-    const card = (g) => {
-        const nm = g.name || ('ลูกค้า '+String(g.chat_id).slice(-6));
-        const addLine = g.lastAdd ? `<div class="pc-ev"><span class="pc-badge add">📌 ใส่</span><b>${esc(g.lastAdd.username)}</b><span class="pc-t">${tm(g.lastAdd.acted_at)}</span></div>` : '';
-        const remLine = g.lastRem ? `<div class="pc-ev"><span class="pc-badge rem">↩️ เอาออก</span><b>${esc(g.lastRem.username)}</b><span class="pc-t">${tm(g.lastRem.acted_at)}</span></div>` : (g.pending ? `<div class="pc-ev pc-wait"><span class="pc-badge wait">⏳</span>ยังไม่มีใครเอาออก</div>` : '');
-        return `<div class="pc ${g.pending?'pc-pending':'pc-done'}">
-            <div class="pc-head"><div class="pc-name">${esc(nm)}${g.oa?`<span class="pc-oa">${esc(g.oa)}</span>`:''}</div></div>
-            <div class="pc-body">${addLine}${remLine}</div>
-        </div>`;
+    const card = (c) => {
+        const nm = c.name || ('ลูกค้า '+String(c.chat_id).slice(-6)); const pending=!c.remAt;
+        const addL = c.addAt ? `<div class="pc-ev"><span class="pc-badge add">📌 ใส่</span><b>${esc(c.addBy)}</b><span class="pc-t">${tm(c.addAt)}</span></div>` : '';
+        const remL = c.remAt ? `<div class="pc-ev"><span class="pc-badge rem">↩️ เอาออก</span><b>${esc(c.remBy)}</b><span class="pc-t">${tm(c.remAt)}</span></div>` : `<div class="pc-ev pc-wait"><span class="pc-badge wait">⏳</span>ยังไม่มีใครเอาออก</div>`;
+        return `<div class="pc ${pending?'pc-pending':'pc-done'}"><div class="pc-head"><div class="pc-name"><button class="pc-copy" onclick="oa_copyName(event,'${esc(nm).replace(/'/g,"\\'")}')" title="คัดลอกชื่อ"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>${esc(nm)}${c.oa?`<span class="pc-oa">${esc(c.oa)}</span>`:''}</div></div><div class="pc-body">${addL}${remL}</div></div>`;
     };
     L.innerHTML = groups.map(card).join('');
 };
