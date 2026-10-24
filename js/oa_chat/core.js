@@ -640,22 +640,22 @@ function oa_nameOf(r) {
 
 window.oa_setDept = function(d) {
   window._oa.dept = window._oa.dept === d ? 'ALL' : d;
-  window.oa_render();
+  window.oa_render(); if (window._oa.tab==='act') oa_loadAct();
 };
 
 window.oa_setShift = function(s) {
   window._oa.shift = window._oa.shift === s ? 'ALL' : s;
-  window.oa_render();
+  window.oa_render(); if (window._oa.tab==='act') oa_loadAct();
 };
 
 window.oa_setSite = function(s) {
   window._oa.site = window._oa.site === s ? 'ALL' : s;
-  window.oa_render();
+  window.oa_render(); if (window._oa.tab==='act') oa_loadAct();
 };
 
 window.oa_setOaLine = function(s) {
   window._oa.oaline = window._oa.oaline === s ? 'ALL' : s;
-  window.oa_render();
+  window.oa_render(); if (window._oa.tab==='act') oa_loadAct();
 };
 
 window.oa_clearFilters = function() {
@@ -666,7 +666,7 @@ window.oa_clearFilters = function() {
   o.oaline = 'ALL';
   const si = document.getElementById('oaSearch');
   if (si) si.value = '';
-  window.oa_render();
+  window.oa_render(); if (window._oa.tab==='act') oa_loadAct();
 };
 
 window.oa_onSearch = function() {
@@ -1381,9 +1381,19 @@ window.oa_loadAct = async function () {
     }
 };
 window.oa_renderAct = function () {
-    const q = (document.getElementById('oaActSearch') || {}).value.toLowerCase();
+    const o = window._oa, q = (document.getElementById('oaActSearch') || {}).value.toLowerCase();
     let rows = window._oaAct.rows.slice();
-    if (q) rows = rows.filter(r => String(r.username||'').toLowerCase().includes(q) || String(r.chat_name||'').toLowerCase().includes(q));
+    // ตัวกรองร่วม: แผนก/กะ/เว็บ/ไลน์ (จับคู่ username กับข้อมูลที่โหลดไว้) + ค้นหา
+    const actShift = (r) => o.shiftMap[(r.username||'').toLowerCase().trim()+'|'+r.work_date] || '';
+    const actSites = (r) => { const s = o.siteMap[(r.username||'').toUpperCase().trim()+'|'+r.work_date]; return s?[...s]:[]; };
+    const uByName = {}; Object.values(o.users||{}).forEach(u=>{ uByName[(u.username||'').toUpperCase()]=u; });
+    const actDept = (r) => { const u = uByName[(r.username||'').toUpperCase()]; return (u&&u.department)||''; };
+    rows = rows.filter(r =>
+        (o.dept==='ALL' || actDept(r)===o.dept) &&
+        (o.shift==='ALL' || actShift(r)===o.shift) &&
+        (o.site==='ALL' || actSites(r).includes(o.site)) &&
+        (o.oaline==='ALL' || (r.oa_name||'')===o.oaline) &&
+        (!q || String(r.username||'').toLowerCase().includes(q) || String(r.chat_name||'').toLowerCase().includes(q)));
     // จับกลุ่มตามลูกค้า (chat_id) → ดูว่าใครใส่ ใครเอาออก ล่าสุด
     const by = {};
     rows.forEach(r => { const k = r.chat_id; const g = by[k] || (by[k] = { chat_id: k, name: r.chat_name, oa: r.oa_name, events: [] }); g.events.push(r); if (r.chat_name) g.name = r.chat_name; if (r.oa_name) g.oa = r.oa_name; });
