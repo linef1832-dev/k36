@@ -41,30 +41,35 @@
             </button>
         </div>
         
-        <div class="oa-panel">
-            <div class="flex flex-wrap items-center gap-2">
+        <div class="oa-panel oa-fp">
+            <div class="oa-fp-top">
                 <div class="oa-seg" id="oaRangeSeg">
                     <button data-r="today" onclick="oa_setRange('today')">วันนี้</button>
                     <button data-r="yesterday" onclick="oa_setRange('yesterday')">เมื่อวาน</button>
-                    <button data-r="7d" onclick="oa_setRange('7d')">อาทิตย์</button>
+                    <button data-r="7d" onclick="oa_setRange('7d')">7 วัน</button>
                     <button data-r="month" onclick="oa_setRange('month')">เดือนนี้</button>
                 </div>
-                <div class="flex items-center gap-1.5 ml-auto">
-                    <input type="date" id="oaFrom" class="oa-input" onchange="oa_setRange('custom')">
-                    <span class="text-slate-400">—</span>
-                    <input type="date" id="oaTo" class="oa-input" onchange="oa_setRange('custom')">
+                <div class="oa-fp-dates">
+                    <span class="material-icons">event</span>
+                    <input type="date" id="oaFrom" class="oa-input" onchange="oa_setRange('custom')" aria-label="ตั้งแต่วันที่">
+                    <span class="oa-fp-to">ถึง</span>
+                    <input type="date" id="oaTo" class="oa-input" onchange="oa_setRange('custom')" aria-label="ถึงวันที่">
+                </div>
+                <div class="oa-search-wrap oa-fp-search">
+                    <span class="material-icons oa-search-ic">search</span>
+                    <input id="oaSearch" oninput="(window.oa_onSearch || window.oa_render)()" placeholder="ค้นหาชื่อพนักงาน หรือ ชื่อลูกค้า" class="oa-search-in">
                 </div>
             </div>
-            <div class="oa-search-wrap mt-3">
-                <span class="material-icons oa-search-ic">search</span>
-                <input id="oaSearch" oninput="(window.oa_onSearch || window.oa_render)()" placeholder="ค้นหาชื่อพนักงาน หรือ ชื่อลูกค้า" class="oa-search-in">
-                <button id="oaClearF" onclick="oa_clearFilters()" class="oa-clearf" title="ล้างตัวกรอง" style="display:none">ล้างตัวกรอง</button>
+            <div class="oa-filters oa-fp-grid">
+                <div class="oa-fgroup oa-fbox"><div class="oa-flabel"><span class="material-icons">schedule</span>กะ</div><div id="oaShiftChips" class="oa-chipwrap"></div></div>
+                <div class="oa-fgroup oa-fbox"><div class="oa-flabel"><span class="material-icons">groups</span>แผนก</div><div id="oaDeptChips" class="oa-chipwrap"></div></div>
+                <div class="oa-fgroup oa-fbox oa-fwide"><div class="oa-flabel"><span class="material-icons">language</span>เว็บ</div><div id="oaSiteChips" class="oa-chipwrap"></div></div>
+                <div class="oa-fgroup oa-fbox oa-fwide"><div class="oa-flabel"><span class="material-icons">forum</span>ไลน์ OA</div><div id="oaLineChips" class="oa-chipwrap"></div></div>
             </div>
-            <div class="oa-filters">
-                <div class="oa-fgroup"><div class="oa-flabel"><span class="material-icons">groups</span>แผนก</div><div id="oaDeptChips" class="oa-chipwrap"></div></div>
-                <div class="oa-fgroup"><div class="oa-flabel"><span class="material-icons">schedule</span>กะ</div><div id="oaShiftChips" class="oa-chipwrap"></div></div>
-                <div class="oa-fgroup"><div class="oa-flabel"><span class="material-icons">language</span>เว็บ</div><div id="oaSiteChips" class="oa-chipwrap"></div></div>
-                <div class="oa-fgroup"><div class="oa-flabel"><span class="material-icons">forum</span>ไลน์</div><div id="oaLineChips" class="oa-chipwrap"></div></div>
+            <div class="oa-activebar" id="oaActiveBar">
+                <span class="oa-ab-l"><span class="material-icons">filter_alt</span>กำลังกรอง</span>
+                <div id="oaActiveChips" class="oa-ab-chips"></div>
+                <button id="oaClearF" onclick="oa_clearFilters()" class="oa-clearf" title="ล้างตัวกรองทั้งหมด" style="display:none"><span class="material-icons">close</span>ล้างทั้งหมด</button>
             </div>
         </div>
         
@@ -256,4 +261,47 @@
     #oaApp .pc-t { margin-left:auto; font:700 11.5px ui-monospace,Consolas; color:#94a3b8; }
     #oaApp .pc-copy { flex:none; width:24px; height:24px; display:inline-flex; align-items:center; justify-content:center; border:1px solid #e2e8f0; border-radius:7px; background:#fff; color:#94a3b8; cursor:pointer; margin-right:4px; } .dark #oaApp .pc-copy { background:#0f172a; border-color:#334155; }
     #oaApp .pc-copy:hover { color:#10b981; border-color:#10b981; }
+
+#oaApp .oa-fp{padding:14px 16px!important;display:flex;flex-direction:column;gap:12px;background:var(--k-panel)!important;border:1px solid var(--k-line)!important;box-shadow:var(--k-shadow)!important}
+#oaApp .oa-fp-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#oaApp .oa-fp .oa-seg{background:var(--k-sunk)!important;border:1px solid var(--k-line)}
+#oaApp .oa-fp .oa-seg button{color:var(--k-mute)}
+#oaApp .oa-fp .oa-seg button:hover:not(.on){color:var(--k-tx-strong)}
+#oaApp .oa-fp .oa-seg button.on{color:#fff}
+#oaApp .oa-fp-dates{display:flex;align-items:center;gap:6px;height:42px;padding:0 10px;border-radius:12px;background:var(--k-field);border:1px solid var(--k-line3)}
+#oaApp .oa-fp-dates > .material-icons{font-size:18px;color:var(--k-mute)}
+#oaApp .oa-fp-dates .oa-input{border:0!important;background:transparent!important;padding:4px 2px!important;box-shadow:none!important;color:var(--k-tx-strong)!important;font-size:13px}
+#oaApp .oa-fp-to{font-size:12px;font-weight:800;color:var(--k-mute)}
+#oaApp .oa-fp-search{flex:1;min-width:220px}
+#oaApp .oa-fp .oa-search-in{height:42px;background:var(--k-field)!important;border-color:var(--k-line3)!important;color:var(--k-tx-strong)!important}
+#oaApp .oa-fp .oa-search-in:focus{background:var(--k-field)!important}
+#oaApp .oa-fp-grid{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px!important;margin-top:0!important}
+#oaApp .oa-fbox{flex-direction:column;align-items:stretch!important;gap:8px!important;padding:10px 12px;border-radius:14px;background:var(--k-sunk);border:1px solid var(--k-line);min-width:0}
+#oaApp .oa-fbox.oa-fwide{grid-column:1/-1}
+#oaApp .oa-fbox .oa-flabel{width:auto!important;padding:0!important;font-size:11.5px!important;font-weight:900!important;letter-spacing:.03em;color:var(--k-mute)!important}
+#oaApp .oa-fbox .oa-flabel .material-icons{font-size:15px!important}
+#oaApp .oa-fbox .oa-chipwrap{gap:6px}
+#oaApp .oa-fp .oa-chip{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:10px;background:var(--k-panel)!important;border:1px solid var(--k-line2)!important;color:var(--k-tx2)!important;font-size:12.5px;font-weight:800}
+#oaApp .oa-fp .oa-chip:hover{border-color:var(--k-line4)!important;color:var(--k-tx-strong)!important}
+#oaApp .oa-fp .oa-chip i{font-style:normal;font-size:10.5px;font-weight:900;padding:1px 6px;border-radius:999px;background:var(--k-sunk);color:var(--k-mute)}
+#oaApp .oa-fp .oa-chip.on{background:#10b981!important;border-color:#10b981!important;color:#fff!important;box-shadow:0 3px 10px rgba(16,185,129,.3)!important}
+#oaApp .oa-fp .oa-chip-site.on{background:#8b5cf6!important;border-color:#8b5cf6!important;box-shadow:0 3px 10px rgba(139,92,246,.3)!important}
+#oaApp .oa-fp .oa-chip-line.on{background:#06C755!important;border-color:#06C755!important;box-shadow:0 3px 10px rgba(6,199,85,.3)!important}
+#oaApp .oa-fp .oa-chip.on i{background:rgba(255,255,255,.25);color:#fff}
+#oaApp .oa-fp .oa-chip.oa-all{color:var(--k-mute)!important}
+#oaApp .oa-fp .oa-chip.oa-all.on{background:var(--k-tx-strong)!important;border-color:var(--k-tx-strong)!important;color:var(--k-panel)!important;box-shadow:none!important}
+#oaApp .oa-fp .oa-chip.oa-all.on i{background:rgba(127,127,127,.25);color:inherit}
+#oaApp .oa-activebar{display:none;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 10px;border-radius:12px;background:rgba(16,185,129,.08);border:1px dashed rgba(16,185,129,.4)}
+#oaApp .oa-activebar.show{display:flex}
+#oaApp .oa-ab-l{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:900;color:var(--k-green-tx)}
+#oaApp .oa-ab-l .material-icons{font-size:16px}
+#oaApp .oa-ab-chips{display:flex;gap:6px;flex-wrap:wrap;flex:1;min-width:0}
+#oaApp .oa-ab-chip{display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 6px 0 10px;border-radius:8px;background:var(--k-panel);border:1px solid var(--k-line2);font-size:12px;font-weight:800;color:var(--k-tx-strong)}
+#oaApp .oa-ab-chip small{font-size:10.5px;font-weight:800;color:var(--k-mute)}
+#oaApp .oa-ab-chip button{width:20px;height:20px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;color:var(--k-mute)}
+#oaApp .oa-ab-chip button:hover{background:var(--k-red-bg);color:var(--k-red-tx)}
+#oaApp .oa-ab-chip .material-icons{font-size:14px}
+#oaApp .oa-activebar .oa-clearf{display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 10px!important}
+#oaApp .oa-activebar .oa-clearf .material-icons{font-size:14px}
+@media (max-width:760px){ #oaApp .oa-fp-grid{grid-template-columns:1fr} #oaApp .oa-fp-dates{flex:1} #oaApp .oa-fp-search{min-width:100%} }
 </style>

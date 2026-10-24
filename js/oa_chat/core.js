@@ -687,39 +687,70 @@ function oa_filtered(inView) {
 
 function oa_renderChips(inView) {
   const o = window._oa, q = (document.getElementById('oaSearch') || {}).value || '';
-  const chip = (cls, on, fn, val, label) => `<button class="oa-chip ${cls} ${on ? 'on' : ''}" onclick="${fn}('${oa_jsq(val)}')">${oa_esc(label)}</button>`;
+  const count = (fn => {
+    const m = {};
+    inView.forEach((r => [].concat(fn(r)).forEach((k => {
+      if (k) m[k] = (m[k] || 0) + 1;
+    }))));
+    return m;
+  });
+  const chip = (cls, on, fn, val, label, n) => `<button class="oa-chip ${cls} ${on ? 'on' : ''}" onclick="${fn}('${oa_jsq(val)}')">${oa_esc(label)}${n != null ? `<i>${n}</i>` : ''}</button>`;
+  const allChip = (key, cur, total) => `<button class="oa-chip oa-all ${cur === 'ALL' ? 'on' : ''}" onclick="oa_setFilterAll('${key}')">ทั้งหมด<i>${total}</i></button>`;
+  const total = inView.length;
   const dp = document.getElementById('oaDeptChips');
   if (dp) {
-    const ds = new Set;
-    inView.forEach((r => ds.add(oa_deptOf(r))));
-    if (o.dept !== 'ALL' && !ds.has(o.dept)) o.dept = 'ALL';
-    dp.innerHTML = [ ...ds ].filter((k => k && k !== '-')).sort(((a, b) => a.localeCompare(b, 'th'))).map((k => chip('', o.dept === k, 'oa_setDept', k, k))).join('');
+    const cnt = count(oa_deptOf);
+    const ds = Object.keys(cnt).filter((k => k && k !== '-')).sort(((a, b) => a.localeCompare(b, 'th')));
+    if (o.dept !== 'ALL' && !ds.includes(o.dept)) o.dept = 'ALL';
+    dp.innerHTML = ds.length ? allChip('dept', o.dept, total) + ds.map((k => chip('', o.dept === k, 'oa_setDept', k, k, cnt[k]))).join('') : '';
+    const g = dp.closest('.oa-fgroup');
+    if (g) g.style.display = ds.length > 1 || o.dept !== 'ALL' ? '' : 'none';
   }
   const sh = document.getElementById('oaShiftChips');
-  if (sh) sh.innerHTML = [ 'เช้า', 'กลาง', 'ดึก' ].map((k => chip('', o.shift === k, 'oa_setShift', k, 'กะ' + k))).join('');
+  if (sh) {
+    const cnt = count(oa_shiftOf);
+    sh.innerHTML = allChip('shift', o.shift, total) + [ 'เช้า', 'กลาง', 'ดึก' ].map((k => chip('', o.shift === k, 'oa_setShift', k, 'กะ' + k, cnt[k] || 0))).join('');
+  }
   const st = document.getElementById('oaSiteChips');
   if (st) {
     const arr = oa_sitesOfRows(inView).sort();
+    const cnt = count(oa_sitesOf);
     if (o.site !== 'ALL' && !arr.includes(o.site)) o.site = 'ALL';
-    st.innerHTML = arr.map((k => chip('oa-chip-site', o.site === k, 'oa_setSite', k, k))).join('');
+    st.innerHTML = arr.length ? allChip('site', o.site, total) + arr.map((k => chip('oa-chip-site', o.site === k, 'oa_setSite', k, k, cnt[k] || 0))).join('') : '';
     const g = st.closest('.oa-fgroup');
     if (g) g.style.display = arr.length ? '' : 'none';
   }
   const ol = document.getElementById('oaLineChips');
   if (ol) {
-    const lines = new Set;
-    inView.forEach((r => {
-      if (r.oa_name) lines.add(r.oa_name);
-    }));
-    const arr = [ ...lines ].sort();
-    if (o.oaline !== 'ALL' && !lines.has(o.oaline)) o.oaline = 'ALL';
-    ol.innerHTML = arr.map((k => chip('oa-chip-line', o.oaline === k, 'oa_setOaLine', k, k))).join('');
+    const cnt = count((r => r.oa_name || ''));
+    const arr = Object.keys(cnt).sort();
+    if (o.oaline !== 'ALL' && !arr.includes(o.oaline)) o.oaline = 'ALL';
+    ol.innerHTML = arr.length ? allChip('oaline', o.oaline, total) + arr.map((k => chip('oa-chip-line', o.oaline === k, 'oa_setOaLine', k, k, cnt[k]))).join('') : '';
     const g = ol.closest('.oa-fgroup');
     if (g) g.style.display = arr.length ? '' : 'none';
   }
+  const act = [];
+  if (o.shift !== 'ALL') act.push([ 'กะ', 'กะ' + o.shift, 'shift' ]);
+  if (o.dept !== 'ALL') act.push([ 'แผนก', o.dept, 'dept' ]);
+  if (o.site !== 'ALL') act.push([ 'เว็บ', o.site, 'site' ]);
+  if (o.oaline !== 'ALL') act.push([ 'ไลน์', o.oaline, 'oaline' ]);
+  if (q.trim()) act.push([ 'ค้นหา', q.trim(), 'q' ]);
+  const bar = document.getElementById('oaActiveBar'), ac = document.getElementById('oaActiveChips');
+  if (ac) ac.innerHTML = act.map((([lbl, v, key]) => `<span class="oa-ab-chip"><small>${oa_esc(lbl)}</small>${oa_esc(v)}<button type="button" onclick="oa_setFilterAll('${key}')" aria-label="เอาตัวกรอง ${oa_esc(lbl)} ออก"><span class="material-icons">close</span></button></span>`)).join('');
+  if (bar) bar.classList.toggle('show', act.length > 0);
   const cf = document.getElementById('oaClearF');
-  if (cf) cf.style.display = o.dept !== 'ALL' || o.shift !== 'ALL' || o.site !== 'ALL' || o.oaline !== 'ALL' || q ? '' : 'none';
+  if (cf) cf.style.display = act.length > 1 ? '' : 'none';
 }
+
+window.oa_setFilterAll = function(key) {
+  const o = window._oa;
+  if (key === 'q') {
+    const s = document.getElementById('oaSearch');
+    if (s) s.value = '';
+  } else if (key in o) o[key] = 'ALL';
+  window.oa_render();
+  if (o.tab === 'act' && typeof oa_renderAct === 'function') oa_renderAct();
+};
 
 const oa_ts = v => {
   const t = v ? Date.parse(v) : NaN;
@@ -1364,11 +1395,9 @@ function oa_copyToast(name) {
 }
 
 
-// ════════ ✅ ส่วนดำเนินการ (oa_actions) ════════
 window._oaAct = window._oaAct || { rows: [] };
 window.oa_loadAct = async function (force) {
     const o = window._oa, f = document.getElementById('oaFrom').value, t = document.getElementById('oaTo').value;
-    // ถ้าช่วงวันเดิม + โหลดแล้ว → ไม่ต้องดึงใหม่ (กรองในเครื่องพอ) เว้นแต่ force
     if (!force && window._oaAct._from === f && window._oaAct._to === t && window._oaAct.loaded) { oa_renderAct(); return; }
     const L = document.getElementById('oaActList'); if (L) L.innerHTML = '<div class="text-center text-slate-400 py-10 text-sm">กำลังโหลด...</div>';
     const S = document.getElementById('oaActList'); window._oaAct._reqId = (window._oaAct._reqId || 0) + 1; const myReq = window._oaAct._reqId;
@@ -1390,7 +1419,6 @@ window.oa_loadAct = async function (force) {
 window.oa_renderAct = function () {
     const o = window._oa, q = (document.getElementById('oaActSearch') || {}).value.toLowerCase();
     let rows = window._oaAct.rows.slice();
-    // ตัวกรองร่วม
     const actShift = (r) => o.shiftMap[(r.username||'').toLowerCase().trim()+'|'+r.work_date] || '';
     const actSites = (r) => { const s = o.siteMap[(r.username||'').toUpperCase().trim()+'|'+r.work_date]; return s?[...s]:[]; };
     const uByName = {}; Object.values(o.users||{}).forEach(u=>{ uByName[(u.username||'').toUpperCase()]=u; });
@@ -1401,7 +1429,6 @@ window.oa_renderAct = function () {
         (o.site==='ALL' || actSites(r).includes(o.site)) &&
         (o.oaline==='ALL' || (r.oa_name||'')===o.oaline) &&
         (!q || String(r.username||'').toLowerCase().includes(q) || String(r.chat_name||'').toLowerCase().includes(q)));
-    // แยกเป็นเคส (ใส่→เอาออก = 1 เคส · ลูกค้าเดิมหลายเคสได้)
     const CASES = [], byChat = {};
     rows.slice().sort((a,b)=>String(a.acted_at).localeCompare(String(b.acted_at))).forEach(x => {
         const k = x.chat_id, open = byChat[k];
