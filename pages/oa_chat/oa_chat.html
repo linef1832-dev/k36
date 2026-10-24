@@ -90,10 +90,22 @@
         </div>
 
         <div id="oaViewAct" style="display:none" class="space-y-4">
-            <div class="oa-panel">
-                <div class="relative mb-3">
-                    <span class="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base">search</span>
-                    <input id="oaActSearch" oninput="oa_renderAct()" placeholder="ค้นหาชื่อพนักงาน / ลูกค้า" class="oa-input w-full" style="padding-left:34px">
+            <div class="oa-panel oa-actf">
+                <div class="oa-actf-top">
+                    <div class="oa-seg" id="oaActRangeSeg">
+                        <button data-r="today" onclick="oa_setRange('today')">วันนี้</button>
+                        <button data-r="yesterday" onclick="oa_setRange('yesterday')">เมื่อวาน</button>
+                        <button data-r="7d" onclick="oa_setRange('7d')">7 วัน</button>
+                        <button data-r="month" onclick="oa_setRange('month')">เดือนนี้</button>
+                    </div>
+                    <div class="oa-search-wrap oa-actf-search">
+                        <span class="material-icons oa-search-ic">search</span>
+                        <input id="oaActSearch" oninput="oa_renderAct()" placeholder="ค้นหาชื่อพนักงาน / ลูกค้า" class="oa-search-in">
+                    </div>
+                </div>
+                <div class="oa-fbox oa-actf-box">
+                    <div class="oa-flabel"><span class="material-icons">language</span>เว็บ</div>
+                    <div id="oaActSites" class="oa-chipwrap"></div>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div class="oa-kpi"><div class="oa-kpi-n" id="oaActAdd" style="color:#059669">–</div><div class="oa-kpi-l">🟢 ยังค้าง</div></div>
@@ -304,4 +316,21 @@
 #oaApp .oa-activebar .oa-clearf{display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 10px!important}
 #oaApp .oa-activebar .oa-clearf .material-icons{font-size:14px}
 @media (max-width:760px){ #oaApp .oa-fp-grid{grid-template-columns:1fr} #oaApp .oa-fp-dates{flex:1} #oaApp .oa-fp-search{min-width:100%} }
+
+#oaApp .oa-actf{display:flex;flex-direction:column;gap:12px;padding:14px 16px!important;background:var(--k-panel)!important;border:1px solid var(--k-line)!important;box-shadow:var(--k-shadow)!important}
+#oaApp .oa-actf-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#oaApp .oa-actf .oa-seg{background:var(--k-sunk)!important;border:1px solid var(--k-line)}
+#oaApp .oa-actf .oa-seg button{color:var(--k-mute)}
+#oaApp .oa-actf .oa-seg button.on{color:#fff}
+#oaApp .oa-actf-search{flex:1;min-width:220px}
+#oaApp .oa-actf .oa-search-in{height:42px;background:var(--k-field)!important;border-color:var(--k-line3)!important;color:var(--k-tx-strong)!important}
+#oaApp .oa-actf-box{display:flex}
+#oaApp .oa-actf .oa-chip{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:10px;background:var(--k-panel)!important;border:1px solid var(--k-line2)!important;color:var(--k-tx2)!important;font-size:12.5px;font-weight:800}
+#oaApp .oa-actf .oa-chip i{font-style:normal;font-size:10.5px;font-weight:900;padding:1px 6px;border-radius:999px;background:var(--k-sunk);color:var(--k-mute)}
+#oaApp .oa-actf .oa-chip.on{background:#8b5cf6!important;border-color:#8b5cf6!important;color:#fff!important;box-shadow:0 3px 10px rgba(139,92,246,.3)!important}
+#oaApp .oa-actf .oa-chip.oa-all.on{background:var(--k-tx-strong)!important;border-color:var(--k-tx-strong)!important;color:var(--k-panel)!important;box-shadow:none!important}
+#oaApp .oa-actf .oa-chip.on i{background:rgba(255,255,255,.25);color:inherit}
+#oaApp .oa-actf .oa-kpi{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:14px;background:var(--k-sunk);border:1px solid var(--k-line)}
+#oaApp .oa-actf .oa-kpi-n{font-size:26px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1}
+#oaApp .oa-actf .oa-kpi-l{font-size:13px;font-weight:800;color:var(--k-tx2)}
 </style>

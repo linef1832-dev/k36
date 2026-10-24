@@ -98,7 +98,7 @@ window.oa_setRange = function(r, noLoad) {
   o.range = r;
   o._rangeDay = oa_workDate(0);
   if (window._oa.tab === 'act') { window._oaAct.loaded = false; setTimeout(() => oa_loadAct(true), 0); }
-  document.querySelectorAll('#oaRangeSeg button').forEach((b => b.classList.toggle('on', b.dataset.r === r)));
+  document.querySelectorAll('#oaRangeSeg button, #oaActRangeSeg button').forEach((b => b.classList.toggle('on', b.dataset.r === r)));
   const live = document.getElementById('oaRangeLive');
   if (live) {
     const nm = {
@@ -641,22 +641,22 @@ function oa_nameOf(r) {
 
 window.oa_setDept = function(d) {
   window._oa.dept = window._oa.dept === d ? 'ALL' : d;
-  window.oa_render(); if (window._oa.tab==='act') oa_renderAct();
+  window.oa_render();
 };
 
 window.oa_setShift = function(s) {
   window._oa.shift = window._oa.shift === s ? 'ALL' : s;
-  window.oa_render(); if (window._oa.tab==='act') oa_renderAct();
+  window.oa_render();
 };
 
 window.oa_setSite = function(s) {
   window._oa.site = window._oa.site === s ? 'ALL' : s;
-  window.oa_render(); if (window._oa.tab==='act') oa_renderAct();
+  window.oa_render();
 };
 
 window.oa_setOaLine = function(s) {
   window._oa.oaline = window._oa.oaline === s ? 'ALL' : s;
-  window.oa_render(); if (window._oa.tab==='act') oa_renderAct();
+  window.oa_render();
 };
 
 window.oa_clearFilters = function() {
@@ -667,7 +667,7 @@ window.oa_clearFilters = function() {
   o.oaline = 'ALL';
   const si = document.getElementById('oaSearch');
   if (si) si.value = '';
-  window.oa_render(); if (window._oa.tab==='act') oa_renderAct();
+  window.oa_render();
 };
 
 window.oa_onSearch = function() {
@@ -863,6 +863,8 @@ window.oa_setTab = function(tb) {
   if (vl) vl.style.display = tb === 'list' ? '' : 'none';
   if (vr) vr.style.display = tb === 'rank' ? '' : 'none';
   if (va) va.style.display = tb === 'act' ? '' : 'none';
+  const fp = document.querySelector('#oaApp .oa-fp');
+  if (fp) fp.style.display = tb === 'act' ? 'none' : '';
   if (tb === 'act') oa_loadAct(true);
   if (tb === 'rank' && o._list) oa_renderRank(o._list, o._max || 1);
 };
@@ -1408,7 +1410,7 @@ window.oa_loadAct = async function (force) {
             if (error) throw error;
             all = all.concat(data || []); if (!data || data.length < 1000) break; off += 1000;
         }
-        if (myReq !== window._oaAct._reqId) return;   // มีคำขอใหม่กว่าแล้ว → ทิ้งผลเก่า (กันติดข้อมูลเก่า)
+        if (myReq !== window._oaAct._reqId) return;
         window._oaAct.rows = all; window._oaAct._from = f; window._oaAct._to = t; window._oaAct.loaded = true;
         oa_renderAct();
     } catch (e) {
@@ -1416,18 +1418,27 @@ window.oa_loadAct = async function (force) {
         if (L) L.innerHTML = '<div class="text-center text-red-400 py-10 text-sm">โหลดไม่ได้ — ตรวจว่าสร้างตาราง oa_actions แล้ว</div>';
     }
 };
+window.oa_setActSite = function (s) {
+    const o = window._oa;
+    o.actSite = s === 'ALL' || o.actSite === s ? 'ALL' : s;
+    oa_renderAct();
+};
 window.oa_renderAct = function () {
     const o = window._oa, q = (document.getElementById('oaActSearch') || {}).value.toLowerCase();
     let rows = window._oaAct.rows.slice();
-    const actShift = (r) => o.shiftMap[(r.username||'').toLowerCase().trim()+'|'+r.work_date] || '';
     const actSites = (r) => { const s = o.siteMap[(r.username||'').toUpperCase().trim()+'|'+r.work_date]; return s?[...s]:[]; };
-    const uByName = {}; Object.values(o.users||{}).forEach(u=>{ uByName[(u.username||'').toUpperCase()]=u; });
-    const actDept = (r) => { const u = uByName[(r.username||'').toUpperCase()]; return (u&&u.department)||''; };
+    const siteCnt = {};
+    rows.forEach(r => actSites(r).forEach(s => { siteCnt[s] = (siteCnt[s] || 0) + 1; }));
+    const siteList = Object.keys(siteCnt).sort();
+    if (!o.actSite || (o.actSite !== 'ALL' && !siteCnt[o.actSite])) o.actSite = 'ALL';
+    const sb = document.getElementById('oaActSites');
+    if (sb) {
+        sb.innerHTML = `<button class="oa-chip oa-all ${o.actSite === 'ALL' ? 'on' : ''}" onclick="oa_setActSite('ALL')">ทั้งหมด<i>${rows.length}</i></button>` + siteList.map(s => `<button class="oa-chip ${o.actSite === s ? 'on' : ''}" onclick="oa_setActSite('${oa_jsq(s)}')">${oa_esc(s)}<i>${siteCnt[s]}</i></button>`).join('');
+        const box = sb.closest('.oa-actf-box'); if (box) box.style.display = siteList.length ? '' : 'none';
+    }
+    document.querySelectorAll('#oaActRangeSeg button').forEach(b => b.classList.toggle('on', b.dataset.r === o.range));
     rows = rows.filter(r =>
-        (o.dept==='ALL' || actDept(r)===o.dept) &&
-        (o.shift==='ALL' || actShift(r)===o.shift) &&
-        (o.site==='ALL' || actSites(r).includes(o.site)) &&
-        (o.oaline==='ALL' || (r.oa_name||'')===o.oaline) &&
+        (o.actSite==='ALL' || actSites(r).includes(o.actSite)) &&
         (!q || String(r.username||'').toLowerCase().includes(q) || String(r.chat_name||'').toLowerCase().includes(q)));
     const CASES = [], byChat = {};
     rows.slice().sort((a,b)=>String(a.acted_at).localeCompare(String(b.acted_at))).forEach(x => {
