@@ -82,10 +82,11 @@ window.saveTelegramConfig = async function(e) {
   });
   try {
     window.clearSettingCache();
-    await appDB.from('settings').upsert([ {
+    const {error: _wErr} = await appDB.from('settings').upsert([ {
       key: 'telegram_bot_config',
       value: JSON.stringify(config)
     } ]);
+    if (_wErr) throw _wErr;
     globalTelegramConfig = config;
     renderTelegramBotConfig();
     Swal.fire({
@@ -291,10 +292,11 @@ window.clearVpsRam = async function() {
       requested_at: (new Date).toISOString()
     };
     window.clearSettingCache();
-    await appDB.from('settings').upsert([ {
+    const {error: _wErr} = await appDB.from('settings').upsert([ {
       key: 'vps_command',
       value: JSON.stringify(cmdPayload)
     } ]);
+    if (_wErr) throw _wErr;
     const startTime = Date.now();
     let cmdResult = null;
     while (Date.now() - startTime < 15e3) {
@@ -419,10 +421,11 @@ window.saveChromeRefreshConfig = async function(e) {
   });
   try {
     window.clearSettingCache();
-    await appDB.from('settings').upsert([ {
+    const {error: _wErr} = await appDB.from('settings').upsert([ {
       key: 'chrome_refresh_config',
       value: JSON.stringify(config)
     } ]);
+    if (_wErr) throw _wErr;
     globalChromeRefreshConfig = config;
     renderChromeRefreshConfig();
     Swal.fire({

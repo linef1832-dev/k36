@@ -1,26 +1,60 @@
-<div class="fade-in flex flex-col h-full bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden pb-10">
-    <div class="bg-gradient-to-r from-emerald-800 to-teal-900 text-white p-4 shadow-lg shrink-0 flex justify-between items-center z-10">
-        <div class="flex items-center gap-3">
-            <div class="bg-white/20 p-2 rounded-xl shadow-inner"><span class="material-icons text-3xl text-emerald-200">smart_toy</span></div>
-            <div>
-                <h1 class="font-black text-xl tracking-wide">จัดการระบบบอท (K BIZ Bots)</h1>
-            </div>
+<style>
+#kbizApp{background:var(--k-bg);color:var(--k-tx);border:1px solid var(--k-line);border-radius:18px}
+#kbizApp .material-icons{font-size:18px}
+#kbizApp .kb-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 18px;background:var(--k-panel);border-bottom:1px solid var(--k-line);flex-shrink:0;z-index:10}
+#kbizApp .kb-logo{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:#10b981;color:#fff;flex:none;box-shadow:0 8px 20px rgba(16,185,129,.28)}
+#kbizApp .kb-logo .material-icons{font-size:23px}
+#kbizApp .kb-title{margin:0;font-size:18px;font-weight:900;color:var(--k-tx-strong);line-height:1.25}
+#kbizApp .kb-sub{font-size:12.5px;font-weight:700;color:var(--k-mute)}
+#kbizApp .kb-sub b{color:var(--k-tx2)}
+#kbizApp .kb-tabs{margin-left:auto;display:flex;gap:3px;padding:3px;border-radius:13px;background:var(--k-sunk);border:1px solid var(--k-line);overflow-x:auto;max-width:100%}
+#kbizApp .kb-tabs button{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 13px;border-radius:10px;font-size:13px;font-weight:800;color:var(--k-mute);white-space:nowrap;transition:background .15s,color .15s}
+#kbizApp .kb-tabs button:hover{color:var(--k-tx-strong)}
+#kbizApp .kb-tabs button.on{background:var(--k-panel);color:var(--k-tx-strong);box-shadow:var(--k-shadow)}
+#kbizApp .kb-tabs button.on .material-icons{color:#10b981}
+#kbizApp .kb-tabs b{font-size:11px;font-weight:900;padding:1px 7px;border-radius:999px;background:var(--k-sunk);color:var(--k-mute);border:1px solid var(--k-line)}
+#kbizApp .kb-tabs b:empty{display:none}
+#kbizApp > .flex-1{background:var(--k-bg)!important}
+#kbizApp .kb-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+#kbizApp .kb-search{flex:1;min-width:220px;max-width:460px;display:flex;align-items:center;gap:8px;height:42px;padding:0 12px;border-radius:12px;background:var(--k-field);border:1px solid var(--k-line3)}
+#kbizApp .kb-search:focus-within{border-color:#10b981;box-shadow:0 0 0 3px rgba(16,185,129,.15)}
+#kbizApp .kb-search input{flex:1;min-width:0;background:transparent;border:0;outline:none;color:var(--k-tx-strong);font-size:13.5px;font-weight:600}
+#kbizApp .kb-search .material-icons{color:var(--k-mute2)}
+#kbizApp [data-kb-sec] .kb-search input[type=text]{border:0!important;background:transparent!important;box-shadow:none!important;padding:0!important;height:auto}
+#kbizApp .kb-add{margin-left:auto;display:inline-flex;align-items:center;gap:6px;height:42px;padding:0 16px;border-radius:12px;font-size:13.5px;font-weight:900;background:#10b981;color:#fff;box-shadow:0 6px 16px rgba(16,185,129,.25)}
+#kbizApp .kb-add:hover{filter:brightness(1.07)}
+#kbizApp [data-kb-sec] .bg-gradient-to-br,#kbizApp [data-kb-sec] .bg-gradient-to-r{background:var(--k-panel)!important;background-image:none!important;color:var(--k-tx-strong)!important;border:1px solid var(--k-line)!important;box-shadow:none!important}
+#kbizApp [data-kb-sec] .bg-gradient-to-br .text-white,#kbizApp [data-kb-sec] .bg-gradient-to-br h2,#kbizApp [data-kb-sec] .bg-gradient-to-br h3{color:var(--k-tx-strong)!important}
+#kbizApp [data-kb-sec] .bg-gradient-to-br p,#kbizApp [data-kb-sec] .bg-gradient-to-br .text-sky-100,#kbizApp [data-kb-sec] .bg-gradient-to-br .text-purple-100,#kbizApp [data-kb-sec] .bg-gradient-to-br .text-blue-100{color:var(--k-mute)!important}
+#kbizApp [data-kb-sec] .bg-gradient-to-br .bg-white\/20{background:rgba(16,185,129,.14)!important;color:#10b981!important}
+#kbizApp [data-kb-sec] .bg-gradient-to-br .bg-white\/20 .material-icons{color:#10b981!important}
+#kbizApp [data-kb-sec] .bg-white.dark\:bg-slate-800,#kbizApp [data-kb-sec] .bg-white{background:var(--k-panel)!important;border-color:var(--k-line)!important}
+#kbizApp [data-kb-sec] input[type=text],#kbizApp [data-kb-sec] input[type=password],#kbizApp [data-kb-sec] input[type=number],#kbizApp [data-kb-sec] input[type=date],#kbizApp [data-kb-sec] select{background:var(--k-field)!important;border:1px solid var(--k-line3)!important;color:var(--k-tx-strong)!important;border-radius:11px!important}
+#kbizApp [data-kb-sec] input:focus,#kbizApp [data-kb-sec] select:focus{border-color:#10b981!important;box-shadow:0 0 0 3px rgba(16,185,129,.15)!important;outline:none}
+#kbizApp #kbizGrid > div{background:var(--k-panel)!important;border:1px solid var(--k-line)!important;border-radius:16px!important;box-shadow:var(--k-shadow)!important}
+#kbizApp #kbizGrid > div:hover{border-color:var(--k-line4)!important}
+#kbizApp #kbizGrid .bg-slate-50{background:var(--k-sunk)!important;border-color:var(--k-line)!important}
+@media (max-width:760px){ #kbizApp .kb-tabs{margin-left:0;width:100%} #kbizApp .kb-tabs button span:not(.material-icons){display:none} #kbizApp .kb-add{margin-left:0;flex:1;justify-content:center} }
+</style>
+<div id="kbizApp" class="fade-in flex flex-col h-full overflow-hidden">
+    <div class="kb-head">
+        <div class="kb-logo"><span class="material-icons">smart_toy</span></div>
+        <div class="kb-tbox">
+            <h1 class="kb-title">จัดการระบบบอท (K BIZ Bots)</h1>
+            <div class="kb-sub" id="kbizStatLine">กำลังโหลด…</div>
         </div>
-    </div>
-
-    <div class="bg-white dark:bg-slate-800 p-4 border-b dark:border-slate-700 flex flex-wrap gap-4 items-center justify-between shadow-sm z-10 shrink-0">
-        <div class="relative flex-1 md:w-64 max-w-sm">
-            <span class="material-icons absolute left-3 top-2.5 text-gray-400 text-[18px]">search</span>
-            <input type="text" id="kbizSearchInput" onkeyup="renderKbizGrid()" placeholder="ค้นหาชื่อบอท, เครื่อง..." class="w-full pl-9 pr-3 py-2 bg-slate-100 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl text-sm outline-none focus:border-emerald-500 focus:ring-1 transition">
-        </div>
-        <button onclick="openKbizModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-1 shadow-lg transition transform active:scale-95 border border-emerald-400">
-            <span class="material-icons text-sm">add_box</span> เพิ่มบอทตัวใหม่
-        </button>
+        <nav class="kb-tabs" role="tablist" aria-label="หมวด">
+            <button type="button" data-kb="bots" onclick="kbizTab('bots')" class="on"><span class="material-icons">smart_toy</span><span>บอท</span><b id="kbizTabCount"></b></button>
+            <button type="button" data-kb="vps" onclick="kbizTab('vps')"><span class="material-icons">monitor_heart</span><span>เซิร์ฟเวอร์</span></button>
+            <button type="button" data-kb="tg" onclick="kbizTab('tg')"><span class="material-icons">send</span><span>Telegram</span></button>
+            <button type="button" data-kb="chrome" onclick="kbizTab('chrome')"><span class="material-icons">autorenew</span><span>รีเฟรช Chrome</span></button>
+            <button type="button" data-kb="ocr" onclick="kbizTab('ocr')"><span class="material-icons">document_scanner</span><span>OCR</span></button>
+        </nav>
     </div>
 
     <div class="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50 dark:bg-slate-900/50 custom-scrollbar">
         
-        <div id="vpsStatsCard" class="max-w-[1600px] mx-auto mb-6">
+        <div id="vpsStatsCard" data-kb-sec="vps" class="max-w-[1600px] mx-auto mb-6">
             <div class="bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 dark:from-slate-900 dark:via-black dark:to-slate-900 text-white rounded-2xl shadow-xl border border-slate-700 overflow-hidden">
                 
                 <div class="bg-gradient-to-r from-indigo-700 to-purple-700 p-3 flex justify-between items-center border-b border-slate-700">
@@ -97,9 +131,15 @@
             </div>
         </div>
 
-        <div id="kbizGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 max-w-[1600px] mx-auto pb-10"></div>
+        <div data-kb-sec="bots" class="max-w-[1600px] mx-auto">
+            <div class="kb-bar">
+                <label class="kb-search"><span class="material-icons">search</span><input type="text" id="kbizSearchInput" oninput="renderKbizGrid()" placeholder="ค้นหาชื่อบอท / เครื่อง / ยูสเซอร์" aria-label="ค้นหาบอท"></label>
+                <button onclick="openKbizModal()" class="kb-add"><span class="material-icons">add</span>เพิ่มบอทตัวใหม่</button>
+            </div>
+            <div id="kbizGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-6"></div>
+        </div>
         
-        <div class="max-w-[1600px] mx-auto mt-8">
+        <div data-kb-sec="tg" class="max-w-[1600px] mx-auto">
             <div class="bg-gradient-to-br from-sky-600 to-blue-700 dark:from-sky-700 dark:to-blue-900 text-white p-4 rounded-t-2xl flex justify-between items-center shadow-lg">
                 <div class="flex items-center gap-3">
                     <div class="bg-white/20 p-2 rounded-xl shadow-inner"><span class="material-icons text-3xl text-sky-100">smart_toy</span></div>
@@ -179,7 +219,7 @@
             </div>
         </div>
         
-        <div class="max-w-[1600px] mx-auto mt-8">
+        <div data-kb-sec="chrome" class="max-w-[1600px] mx-auto">
             <div class="bg-gradient-to-br from-purple-600 to-fuchsia-700 dark:from-purple-700 dark:to-fuchsia-900 text-white p-4 rounded-t-2xl flex justify-between items-center shadow-lg">
                 <div class="flex items-center gap-3">
                     <div class="bg-white/20 p-2 rounded-xl shadow-inner"><span class="material-icons text-3xl text-fuchsia-100">refresh</span></div>
@@ -252,7 +292,7 @@
             </div>
         </div>
         
-        <div class="max-w-[1600px] mx-auto mt-8">
+        <div data-kb-sec="ocr" class="max-w-[1600px] mx-auto">
             <div class="bg-gradient-to-br from-blue-600 to-indigo-700 dark:from-blue-700 dark:to-indigo-900 text-white p-4 rounded-t-2xl flex justify-between items-center shadow-lg">
                 <div class="flex items-center gap-3">
                     <div class="bg-white/20 p-2 rounded-xl shadow-inner"><span class="material-icons text-3xl text-blue-100">visibility</span></div>
@@ -381,8 +421,6 @@
         </div>
             </div>
         </div>
-    </div>
-</div>
 
 <div id="kbizModal" class="fixed inset-0 bg-black/70 z-[60] hidden flex items-center justify-center p-4 fade-in backdrop-blur-sm">
     <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 dark:border-slate-700">
@@ -424,42 +462,6 @@
     </div>
 </div>
 
-<div id="ocrKeyModal" class="fixed inset-0 bg-black/70 z-[60] hidden flex items-center justify-center p-4 fade-in backdrop-blur-sm">
-    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 dark:border-slate-700">
-        <div class="bg-gradient-to-r from-amber-600 to-orange-600 p-4 flex justify-between items-center text-white">
-            <h3 id="ocrKeyModalTitle" class="font-bold text-lg flex items-center gap-2"><span class="material-icons">vpn_key</span> เพิ่ม API Key</h3>
-            <button type="button" onclick="document.getElementById('ocrKeyModal').classList.add('hidden')" class="text-white/80 hover:text-white p-1 rounded-full bg-white/10 hover:bg-white/20 transition"><span class="material-icons text-sm block">close</span></button>
-        </div>
-        <form onsubmit="saveOcrKey(event)" class="p-6 space-y-4">
-            <input type="hidden" id="ocrKeyEditId">
-            <div>
-                <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">ชื่อ Key (สำหรับจำ)</label>
-                <input type="text" id="ocrKeyName" required placeholder="เช่น Key1, Backup, สำรอง..." class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 outline-none font-bold text-sm shadow-inner transition">
-            </div>
-            <div>
-                <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">API Key (จาก OCR.space)</label>
-                <input type="text" id="ocrKeyValue" required placeholder="เช่น K12345xxxxxx..." class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 outline-none font-mono text-amber-600 font-bold text-sm shadow-inner transition">
-            </div>
-            <div class="flex items-center justify-between bg-slate-50 dark:bg-slate-900 p-3 rounded-xl border border-gray-300 dark:border-slate-600 mt-2 shadow-inner">
-                <div class="flex items-center gap-2">
-                    <span class="material-icons text-amber-500 text-[18px]">toggle_on</span>
-                    <span class="text-sm font-bold text-slate-700 dark:text-gray-300">สถานะ Key นี้</span>
-                    <span id="ocrKeyStatusLabel" class="text-xs font-bold px-2 py-0.5 rounded-md bg-emerald-500 text-white">เปิดใช้</span>
-                </div>
-                <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" id="ocrKeyIsActive" class="sr-only peer" checked onchange="updateOcrKeyStatusLabel()">
-                    <div class="w-16 h-7 bg-red-400 dark:bg-red-600 rounded-full peer peer-checked:bg-emerald-500 transition-all shadow-inner relative after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-6 after:w-6 after:shadow-md after:transition-all peer-checked:after:translate-x-9"></div>
-                    <span class="absolute left-2 text-[10px] font-black text-white peer-checked:opacity-0 transition pointer-events-none">OFF</span>
-                    <span class="absolute right-2 text-[10px] font-black text-white opacity-0 peer-checked:opacity-100 transition pointer-events-none">ON</span>
-                </label>
-            </div>
-            <button type="submit" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-black py-3.5 rounded-xl shadow-lg mt-4 transition transform active:scale-95 border border-amber-400 flex items-center justify-center gap-2">
-                <span class="material-icons">save</span> บันทึก Key
-            </button>
-        </form>
-    </div>
-</div>
-
 <div id="kbizTemplates" style="display: none;">
     <template id="tpl-kbiz-card">
         <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-gray-200 dark:border-slate-700 shadow-sm hover:shadow-lg transition-all group relative flex flex-col h-full transform hover:-translate-y-1">
@@ -484,44 +486,5 @@
         </div>
     </template>
     
-    <template id="tpl-ocr-key-card">
-        <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-gray-200 dark:border-slate-700 shadow-sm hover:shadow-lg transition-all group relative flex flex-col">
-            <div class="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition z-10">
-                <button onclick="resetOcrKeyUsage('{{id}}')" title="รีเซ็ตโควต้า" class="text-gray-400 hover:text-blue-500 p-1.5 bg-slate-100 dark:bg-slate-900 rounded-lg shadow-sm transition"><span class="material-icons text-[16px]">restart_alt</span></button>
-                <button onclick="editOcrKey('{{id}}')" class="text-gray-400 hover:text-amber-500 p-1.5 bg-slate-100 dark:bg-slate-900 rounded-lg shadow-sm transition"><span class="material-icons text-[16px]">edit</span></button>
-                <button onclick="deleteOcrKey('{{id}}')" class="text-gray-400 hover:text-red-500 p-1.5 bg-slate-100 dark:bg-slate-900 rounded-lg shadow-sm transition"><span class="material-icons text-[16px]">delete</span></button>
-            </div>
-            <div class="flex items-center gap-3 mb-3">
-                <div class="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 flex items-center justify-center shrink-0 shadow-inner">
-                    <span class="material-icons text-2xl text-amber-600 dark:text-amber-400">vpn_key</span>
-                </div>
-                <div class="flex-1 min-w-0">
-                    <h4 class="font-black text-slate-800 dark:text-white text-base truncate">{{key_name}}</h4>
-                    <div class="flex items-center gap-1.5 mt-1">
-                        <span class="w-2 h-2 rounded-full {{statusColor}} shadow-[0_0_5px_currentColor]"></span>
-                        <span class="text-[10px] font-bold text-gray-500">{{statusText}}</span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100 dark:border-slate-700 mb-2">
-                <div class="flex justify-between items-center mb-1.5">
-                    <span class="text-[10px] font-bold text-gray-500">📊 โควต้าวันนี้</span>
-                    <span class="text-[11px] font-black {{quotaColor}}">{{usedCount}} / 500</span>
-                </div>
-                <div class="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                    <div class="h-full {{progressBarColor}} transition-all" style="width: {{percentUsed}}%"></div>
-                </div>
-                <div class="flex justify-between items-center mt-1.5">
-                    <span class="text-[10px] text-gray-400">เหลือ <b class="text-emerald-600 dark:text-emerald-400">{{remaining}}</b> ครั้ง</span>
-                    <span class="text-[10px] text-gray-400">รีเซ็ต 07:00 น.</span>
-                </div>
-            </div>
-
-            <div class="bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-700 mt-auto">
-                <div class="text-[10px] text-gray-400 font-bold mb-1">API KEY</div>
-                <div class="font-mono text-xs text-amber-600 dark:text-amber-400 font-bold break-all blur-sm hover:blur-none transition cursor-pointer select-all" title="คลิกเพื่อดูรหัสเต็ม">{{api_key}}</div>
-            </div>
-        </div>
-    </template>
+    
 </div>
