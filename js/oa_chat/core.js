@@ -97,6 +97,7 @@ window.oa_setRange = function(r, noLoad) {
   }
   o.range = r;
   o._rangeDay = oa_workDate(0);
+  if (window._oa.tab === 'act') { window._oaAct.loaded = false; setTimeout(() => oa_loadAct(true), 0); }
   document.querySelectorAll('#oaRangeSeg button').forEach((b => b.classList.toggle('on', b.dataset.r === r)));
   const live = document.getElementById('oaRangeLive');
   if (live) {
@@ -124,7 +125,7 @@ window.oa_setRange = function(r, noLoad) {
   if (o._bg && bs && f.value >= bs[0] && t.value <= bs[1]) {
     const vf = f.value, vt = t.value;
     o._bg.then((() => {
-      if (o._viewFrom === vf && o._viewTo === vt && !covered(vf, vt)) window.oa_load(); if (window._oa.tab === 'act') oa_loadAct();
+      if (o._viewFrom === vf && o._viewTo === vt && !covered(vf, vt)) window.oa_load();
     }));
     return;
   }
