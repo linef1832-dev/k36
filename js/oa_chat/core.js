@@ -640,22 +640,22 @@ function oa_nameOf(r) {
 
 window.oa_setDept = function(d) {
   window._oa.dept = window._oa.dept === d ? 'ALL' : d;
-  window.oa_render(); if (window._oa.tab==='act') oa_loadAct();
+  window.oa_render(); if (window._oa.tab==='act') oa_renderAct();
 };
 
 window.oa_setShift = function(s) {
   window._oa.shift = window._oa.shift === s ? 'ALL' : s;
-  window.oa_render(); if (window._oa.tab==='act') oa_loadAct();
+  window.oa_render(); if (window._oa.tab==='act') oa_renderAct();
 };
 
 window.oa_setSite = function(s) {
   window._oa.site = window._oa.site === s ? 'ALL' : s;
-  window.oa_render(); if (window._oa.tab==='act') oa_loadAct();
+  window.oa_render(); if (window._oa.tab==='act') oa_renderAct();
 };
 
 window.oa_setOaLine = function(s) {
   window._oa.oaline = window._oa.oaline === s ? 'ALL' : s;
-  window.oa_render(); if (window._oa.tab==='act') oa_loadAct();
+  window.oa_render(); if (window._oa.tab==='act') oa_renderAct();
 };
 
 window.oa_clearFilters = function() {
@@ -666,7 +666,7 @@ window.oa_clearFilters = function() {
   o.oaline = 'ALL';
   const si = document.getElementById('oaSearch');
   if (si) si.value = '';
-  window.oa_render(); if (window._oa.tab==='act') oa_loadAct();
+  window.oa_render(); if (window._oa.tab==='act') oa_renderAct();
 };
 
 window.oa_onSearch = function() {
@@ -831,7 +831,7 @@ window.oa_setTab = function(tb) {
   if (vl) vl.style.display = tb === 'list' ? '' : 'none';
   if (vr) vr.style.display = tb === 'rank' ? '' : 'none';
   if (va) va.style.display = tb === 'act' ? '' : 'none';
-  if (tb === 'act') oa_loadAct();
+  if (tb === 'act') oa_loadAct(true);
   if (tb === 'rank' && o._list) oa_renderRank(o._list, o._max || 1);
 };
 
@@ -1365,9 +1365,12 @@ function oa_copyToast(name) {
 
 // ════════ ✅ ส่วนดำเนินการ (oa_actions) ════════
 window._oaAct = window._oaAct || { rows: [] };
-window.oa_loadAct = async function () {
+window.oa_loadAct = async function (force) {
     const o = window._oa, f = document.getElementById('oaFrom').value, t = document.getElementById('oaTo').value;
+    // ถ้าช่วงวันเดิม + โหลดแล้ว → ไม่ต้องดึงใหม่ (กรองในเครื่องพอ) เว้นแต่ force
+    if (!force && window._oaAct._from === f && window._oaAct._to === t && window._oaAct.loaded) { oa_renderAct(); return; }
     const L = document.getElementById('oaActList'); if (L) L.innerHTML = '<div class="text-center text-slate-400 py-10 text-sm">กำลังโหลด...</div>';
+    const S = document.getElementById('oaActList'); window._oaAct._reqId = (window._oaAct._reqId || 0) + 1; const myReq = window._oaAct._reqId;
     try {
         let all = [], off = 0;
         for (;;) {
@@ -1375,8 +1378,11 @@ window.oa_loadAct = async function () {
             if (error) throw error;
             all = all.concat(data || []); if (!data || data.length < 1000) break; off += 1000;
         }
-        window._oaAct.rows = all; oa_renderAct();
+        if (myReq !== window._oaAct._reqId) return;   // มีคำขอใหม่กว่าแล้ว → ทิ้งผลเก่า (กันติดข้อมูลเก่า)
+        window._oaAct.rows = all; window._oaAct._from = f; window._oaAct._to = t; window._oaAct.loaded = true;
+        oa_renderAct();
     } catch (e) {
+        if (myReq !== window._oaAct._reqId) return;
         if (L) L.innerHTML = '<div class="text-center text-red-400 py-10 text-sm">โหลดไม่ได้ — ตรวจว่าสร้างตาราง oa_actions แล้ว</div>';
     }
 };
