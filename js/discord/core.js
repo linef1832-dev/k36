@@ -16,10 +16,6 @@ let extOnlineUsers = [];
 
 let extStaffGroups = {};
 
-let selectedAssign = new Set;
-
-let selectedRemove = new Set;
-
 let scheduledTransfers = [];
 
 let transferHistory = [];
@@ -89,19 +85,6 @@ function parseDiscordGroupName(groupName) {
     dept: dept,
     shift: shift
   };
-}
-
-function passGroupFilter(staff, groupName) {
-  if (!groupName || groupName === 'ALL') return true;
-  const {dept: groupDept, shift: groupShift} = parseDiscordGroupName(groupName);
-  if (groupShift) {
-    const dbUser = getDbUserFromDiscordName(staff.name);
-    if (!dbUser) return false;
-    if (dbUser.allowed_shift !== groupShift) return false;
-    if (groupDept && (dbUser.department || 'AM') !== groupDept) return false;
-    return true;
-  }
-  return extStaffGroups[groupName] && extStaffGroups[groupName].includes(staff.id);
 }
 
 function getDiscordGroupMismatch(staff) {
@@ -280,8 +263,6 @@ window.autoFixAllMismatches = async function() {
   if (typeof renderGroupList === 'function') renderGroupList();
 };
 
-window._dsMgrCache = null;
-
 function buildMgrCache() {
   const dbUserMap = {};
   extStaffList.forEach((s => {
@@ -402,16 +383,6 @@ function findDiscordDuplicates() {
     totalUsers: totalUsers,
     noMatch: noMatch
   };
-}
-
-function isDiscordDuplicate(staff) {
-  const dbUser = getDbUserFromDiscordName(staff.name);
-  if (!dbUser) return false;
-  const sameUserCount = extStaffList.filter((s => {
-    const u = getDbUserFromDiscordName(s.name);
-    return u && u.id === dbUser.id;
-  })).length;
-  return sameUserCount >= 2;
 }
 
 window.openDuplicateModal = function() {
@@ -537,10 +508,11 @@ window.editCustomName = async function(staffId, currentName) {
 async function saveCustomNamesToDb() {
   if (typeof appDB === 'undefined' || !appDB) return;
   const namesObj = window.customDiscordNames || {};
-  await appDB.from('settings').upsert([ {
+  const {error: _upErr0} = await appDB.from('settings').upsert([ {
     key: 'discord_custom_names',
     value: JSON.stringify(namesObj)
   } ]);
+  if (_upErr0) throw _upErr0;
 }
 
 window.confirmDeleteDuplicate = async function(staffId, staffName) {
@@ -1036,12 +1008,6 @@ window.ds_returnMove = async function() {
   } catch (e) {
     Swal.fire('Error', 'เชื่อมต่อบอทไม่ได้', 'error');
   }
-};
-
-window.renderTransferSection = function() {
-  const gSelect = document.getElementById('transferToGroup');
-  if (gSelect) gSelect.innerHTML = '<option value="">-- เลือกกลุ่มปลายทาง --</option>' + Object.keys(extStaffGroups).map((g => `<option value="${g}">${g}</option>`)).join('');
-  _doRenderTransferUserList();
 };
 
 window.toggleTransfer = function(id) {

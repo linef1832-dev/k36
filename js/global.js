@@ -698,7 +698,7 @@ const PAGE_SCRIPTS = {
   leave: [ 'leave/core', 'leave/table', 'leave/controls', 'swap/core', 'swap/view', 'swap/admin', 'swap/extras' ],
   swap: [ 'leave/core', 'leave/table', 'leave/controls', 'swap/core', 'swap/view', 'swap/admin', 'swap/extras' ],
   duty: [ 'duty/core', 'duty/dragdrop', 'duty/roles', 'duty/tools', 'duty/support', 'duty/rotation' ],
-  discord: [ 'discord/core', 'discord/history', 'discord/message', 'discord/breaktrack', 'discord/tts', 'discord/chatcount' ],
+  discord: [ 'discord/core', 'discord/history', 'discord/breaktrack', 'discord/tts', 'discord/chatcount' ],
   summary: [ 'summary/core', 'summary/export' ],
   telegram: [ 'telegram/Telegram' ],
   password: [ 'password/Password' ],

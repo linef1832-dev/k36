@@ -20,6 +20,18 @@
         .tts-sub:hover{ color:var(--k-tx-strong); border-color:color-mix(in srgb, var(--acc) 40%, transparent); background:color-mix(in srgb, var(--acc) 7%, transparent); }
         .tts-sub-active{ color:var(--k-tx-strong); background:linear-gradient(135deg, color-mix(in srgb, var(--acc) 30%, var(--k-bg)), color-mix(in srgb, var(--acc) 10%, var(--k-bg))); border-color:color-mix(in srgb, var(--acc) 60%, transparent); box-shadow:0 0 16px color-mix(in srgb, var(--acc) 30%, transparent); }
         .tts-sub-active .material-icons{ color:var(--k-tx-strong); }
+
+        .ds-topbar2{flex-direction:column;align-items:stretch!important;gap:10px!important;padding:12px 16px 8px!important;background:var(--k-panel)!important;border-bottom:1px solid var(--k-line)!important;box-shadow:none!important}
+        .ds-headrow{display:flex;align-items:center;gap:12px}
+        .ds-titlebox{flex:1;min-width:0}
+        .ds-title{margin:0;font-size:18px;font-weight:900;color:var(--k-tx-strong);line-height:1.25}
+        .ds-desc{font-size:12.5px;font-weight:700;color:var(--k-mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .ds-topbar2 .ds-close{color:var(--k-tx2);background:var(--k-btn);border-color:var(--k-line3)}
+        .ds-topbar2 .ds-close:hover{color:var(--k-tx-strong);background:var(--k-btn-h);box-shadow:none}
+        .ds-topbar2 .ds-tabs-rail{padding:3px;border-radius:14px;background:var(--k-sunk);border:1px solid var(--k-line);gap:3px}
+        .ds-topbar2 .ds-tab{padding:6px 13px 6px 7px;border-radius:11px}
+        .ds-topbar2 .ds-tab:hover{transform:none}
+        #dsApp .ds-body{background:var(--k-bg)}
 </style>
     
     <style id="ds-skin">
@@ -75,8 +87,15 @@
 
         #dsApp #breaktrackModal > div{background:var(--k-panel) !important;border-color:var(--k-line) !important;border-radius:16px !important}
 </style>
-    <div class="ds-topbar">
-        <div class="ds-brand"><span class="material-icons">discord</span></div>
+    <div class="ds-topbar ds-topbar2">
+        <div class="ds-headrow">
+            <div class="ds-brand"><span class="material-icons">discord</span></div>
+            <div class="ds-titlebox">
+                <h1 class="ds-title">บอท Discord</h1>
+                <div class="ds-desc" id="dsTabDesc">ดูว่าใครอยู่ห้องไหน ไมค์ / หูฟัง แบบเรียลไทม์</div>
+            </div>
+            <button onclick="showPage('dashboard')" class="ds-close"><span class="material-icons" style="font-size:15px">arrow_back</span> กลับ</button>
+        </div>
         <div class="ds-tabs-rail">
             <button onclick="switchDiscordTab('spy')" id="tabDsSpy" class="ds-tab ds-tab-active" style="--acc:#ef4444"><span class="tab-chip"><span class="material-icons">visibility</span></span> Spy Monitor</button>
             <button onclick="switchDiscordTab('move')" id="tabDsMove" class="ds-tab" style="--acc:#6366f1"><span class="tab-chip"><span class="material-icons">move_up</span></span> ย้ายห้อง</button>
@@ -86,7 +105,6 @@
             <button onclick="switchDiscordTab('ttsvoice')" id="tabDsTtsvoice" class="ds-tab" style="--acc:#0ea5e9"><span class="tab-chip"><span class="material-icons">campaign</span></span> ศูนย์เสียง</button>
             <button onclick="switchDiscordTab('chatcount')" id="tabDsChatcount" class="ds-tab" style="--acc:#0ea5e9;display:none"><span class="tab-chip"><span class="material-icons">forum</span></span> นับแชท</button>
         </div>
-        <button onclick="showPage('dashboard')" class="ds-close"><span class="material-icons" style="font-size:15px">close</span> ปิด</button>
     </div>
 
     <div class="ds-body flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar">

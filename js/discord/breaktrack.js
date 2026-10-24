@@ -239,17 +239,6 @@ window.toggleBreakGroupsPanel = function() {
   }
 };
 
-window.toggleCheckinGroupsPanel = function() {
-  const panel = document.getElementById('checkinGroupsPanel');
-  if (!panel) return;
-  if (panel.classList.contains('hidden')) {
-    panel.classList.remove('hidden');
-    window.loadCheckinGroups();
-  } else {
-    panel.classList.add('hidden');
-  }
-};
-
 window.normChatId = function(v) {
   let s = String(v == null ? '' : v).trim();
   if (!s) return '';

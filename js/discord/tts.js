@@ -223,7 +223,7 @@
   }
   async function _pollStatus() {
     const box = document.getElementById('ttsLiveStatus');
-    if (!box || typeof appDB === 'undefined') return;
+    if (!box || typeof appDB === 'undefined' || document.hidden || box.offsetParent === null) return;
     try {
       const {data: data} = await appDB.from('settings').select('value').eq('key', 'tts_status').maybeSingle();
       if (!data || !data.value) {
@@ -463,7 +463,7 @@
       return;
     }
     try {
-      await appDB.from('settings').upsert([ {
+      const {error: _upErr0} = await appDB.from('settings').upsert([ {
         key: 'tts_command',
         value: JSON.stringify({
           id: 'c' + Date.now(),
@@ -473,6 +473,7 @@
           repeat: 1
         })
       } ]);
+      if (_upErr0) throw _upErr0;
       if (window.Swal) Swal.fire({
         icon: 'success',
         title: 'สั่งลองฟังแล้ว',
@@ -775,7 +776,7 @@
     });
     if (!rid) return;
     try {
-      await appDB.from('settings').upsert([ {
+      const {error: _upErr1} = await appDB.from('settings').upsert([ {
         key: 'tts_command',
         value: JSON.stringify({
           id: 'c' + Date.now(),
@@ -786,6 +787,7 @@
           repeat: 1
         })
       } ]);
+      if (_upErr1) throw _upErr1;
       if (window.Swal) Swal.fire({
         icon: 'success',
         title: 'สั่งแล้ว',
@@ -815,10 +817,11 @@
         repeat: 1
       };
       if (_cfg.dispatch_mode === 'manual' && r.bot_id) cmd.bot_id = String(r.bot_id);
-      await appDB.from('settings').upsert([ {
+      const {error: _upErr2} = await appDB.from('settings').upsert([ {
         key: 'tts_command',
         value: JSON.stringify(cmd)
       } ]);
+      if (_upErr2) throw _upErr2;
       const bb = cmd.bot_id ? botById(cmd.bot_id) : null;
       if (window.Swal) Swal.fire({
         icon: 'success',
@@ -837,10 +840,11 @@
     }))));
     _cfg.updated_at = (new Date).toISOString();
     try {
-      await appDB.from('settings').upsert([ {
+      const {error: _upErr3} = await appDB.from('settings').upsert([ {
         key: 'tts_voice_config',
         value: JSON.stringify(_cfg)
       } ]);
+      if (_upErr3) throw _upErr3;
       if (window.Swal) Swal.fire({
         icon: 'success',
         title: 'บันทึกแล้ว',

@@ -199,7 +199,7 @@
         stopTimer();
         return;
       }
-      if (!document.querySelector('.swal2-container')) window.ccLoadLive(true);
+      if (!document.hidden && !document.querySelector('.swal2-container')) window.ccLoadLive(true);
     }), 1e4);
     if (typeof window.registerPageInterval === 'function') window.registerPageInterval(_timer);
   }
@@ -957,4 +957,25 @@
       timer: 1500
     });
   };
+})();
+
+(function() {
+  const DESC = {
+    spy: 'ดูว่าใครอยู่ห้องไหน ไมค์ / หูฟัง แบบเรียลไทม์',
+    move: 'ย้ายพนักงานระหว่างห้องเสียง',
+    manage: 'จับคู่บัญชี Discord กับพนักงาน · กลุ่ม · โอนย้าย',
+    voicelog: 'ประวัติเข้า-ออกห้องเสียงรายวัน',
+    breaktrack: 'เช็คอินพัก / กลับจากพัก',
+    ttsvoice: 'บอทพูดแจ้งเตือนในห้องเสียง',
+    chatcount: 'นับจำนวนแชทในห้อง'
+  };
+  const prev = window.switchDiscordTab;
+  if (typeof prev !== 'function' || prev._dsDesc) return;
+  window.switchDiscordTab = function(tabName) {
+    const r = prev.apply(this, arguments);
+    const el = document.getElementById('dsTabDesc');
+    if (el && DESC[tabName]) el.textContent = DESC[tabName];
+    return r;
+  };
+  window.switchDiscordTab._dsDesc = true;
 })();
