@@ -1382,15 +1382,41 @@ window.oa_loadAct = async function () {
 };
 window.oa_renderAct = function () {
     const q = (document.getElementById('oaActSearch') || {}).value.toLowerCase();
-    let rows = window._oaAct.rows;
+    let rows = window._oaAct.rows.slice();
     if (q) rows = rows.filter(r => String(r.username||'').toLowerCase().includes(q) || String(r.chat_name||'').toLowerCase().includes(q));
-    const add = rows.filter(r => r.action === 'add' || r.action === 'todo').length, rem = rows.filter(r => r.action === 'remove').length;
-    const S = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
-    S('oaActAdd', add); S('oaActRem', rem);
+    // จับกลุ่มตามลูกค้า (chat_id) → ดูว่าใครใส่ ใครเอาออก ล่าสุด
+    const by = {};
+    rows.forEach(r => { const k = r.chat_id; const g = by[k] || (by[k] = { chat_id: k, name: r.chat_name, oa: r.oa_name, events: [] }); g.events.push(r); if (r.chat_name) g.name = r.chat_name; if (r.oa_name) g.oa = r.oa_name; });
+    const groups = Object.values(by).map(g => {
+        g.events.sort((a,b)=>String(a.acted_at).localeCompare(String(b.acted_at)));
+        const adds = g.events.filter(e => e.action === 'add' || e.action === 'todo');
+        const rems = g.events.filter(e => e.action === 'remove');
+        const lastAdd = adds[adds.length-1], lastRem = rems[rems.length-1];
+        // ยังค้าง = มีใส่ และ (ไม่มีเอาออก หรือ ใส่ล่าสุดเกิดหลังเอาออกล่าสุด)
+        const pending = lastAdd && (!lastRem || String(lastAdd.acted_at) > String(lastRem.acted_at));
+        return { ...g, lastAdd, lastRem, pending, latest: g.events[g.events.length-1].acted_at };
+    }).sort((a,b)=>String(b.latest).localeCompare(String(a.latest)));
+
+    const nPending = groups.filter(g=>g.pending).length, nDone = groups.length - nPending;
+    const S=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+    S('oaActAdd', nPending); S('oaActRem', nDone);
+
     const L = document.getElementById('oaActList'); if (!L) return;
-    if (!rows.length) { L.innerHTML = '<div class="text-center text-slate-400 py-10 text-sm">ยังไม่มีการกดดำเนินการ</div>'; return; }
-    const esc = oa_esc, tm = (ts) => { try { const d = new Date(ts); return d.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit' }) + '<br>' + d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' }); } catch (e) { return ''; } };
-    L.innerHTML = rows.map(x => { const isRem = x.action === 'remove'; const nm = x.chat_name || ('ลูกค้า ' + String(x.chat_id).slice(-6));
-        return `<div class="act-row ${isRem ? 't' : 'd'}"><span class="act-ic">${isRem ? '↩️' : '📌'}</span><div class="min-w-0"><div><span class="act-name ${isRem ? 'rem' : 'add'}">${esc(x.username)}</span> <span class="text-sm text-slate-600 dark:text-slate-300">${isRem ? 'เอาดำเนินการออก' : 'ใส่ดำเนินการ'}</span></div><div class="act-cust truncate">${esc(nm)}${x.oa_name ? ' · ' + esc(x.oa_name) : ''}</div></div><div class="act-time">${tm(x.acted_at)}</div></div>`;
-    }).join('');
+    if (!groups.length) { L.innerHTML = '<div class="text-center text-slate-400 py-10 text-sm">ยังไม่มีการกดดำเนินการ</div>'; return; }
+    const esc = oa_esc;
+    const tm = (ts) => { try { const d=new Date(ts); return d.toLocaleDateString('th-TH',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'}); } catch(e){return '';} };
+    const card = (g) => {
+        const nm = g.name || ('ลูกค้า '+String(g.chat_id).slice(-6));
+        const addLine = g.lastAdd ? `<div class="pc-ev"><span class="pc-badge add">📌 ใส่</span><b>${esc(g.lastAdd.username)}</b><span class="pc-t">${tm(g.lastAdd.acted_at)}</span></div>` : '';
+        const remLine = g.lastRem ? `<div class="pc-ev"><span class="pc-badge rem">↩️ เอาออก</span><b>${esc(g.lastRem.username)}</b><span class="pc-t">${tm(g.lastRem.acted_at)}</span></div>` : (g.pending ? `<div class="pc-ev pc-wait"><span class="pc-badge wait">⏳</span>ยังไม่มีใครเอาออก</div>` : '');
+        return `<div class="pc ${g.pending?'pc-pending':'pc-done'}">
+            <div class="pc-head"><div class="pc-name">${esc(nm)}${g.oa?`<span class="pc-oa">${esc(g.oa)}</span>`:''}</div><span class="pc-status">${g.pending?'🟢 ยังค้าง':'⚪ จบแล้ว'}</span></div>
+            <div class="pc-body">${addLine}${remLine}</div>
+        </div>`;
+    };
+    const pend = groups.filter(g=>g.pending), done = groups.filter(g=>!g.pending);
+    let html='';
+    if (pend.length) html += `<div class="pc-sec">🟢 ยังค้าง (${pend.length})</div>` + pend.map(card).join('');
+    if (done.length) html += `<div class="pc-sec">⚪ จบแล้ว (${done.length})</div>` + done.map(card).join('');
+    L.innerHTML = html;
 };

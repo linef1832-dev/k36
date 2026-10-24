@@ -91,8 +91,8 @@
                     <input id="oaActSearch" oninput="oa_renderAct()" placeholder="ค้นหาชื่อพนักงาน / ลูกค้า" class="oa-input w-full" style="padding-left:34px">
                 </div>
                 <div class="grid grid-cols-2 gap-3">
-                    <div class="oa-kpi"><div class="oa-kpi-n" id="oaActAdd" style="color:#059669">–</div><div class="oa-kpi-l">ใส่ดำเนินการ</div></div>
-                    <div class="oa-kpi"><div class="oa-kpi-n" id="oaActRem" style="color:#d97706">–</div><div class="oa-kpi-l">เอาออก</div></div>
+                    <div class="oa-kpi"><div class="oa-kpi-n" id="oaActAdd" style="color:#059669">–</div><div class="oa-kpi-l">🟢 ยังค้าง</div></div>
+                    <div class="oa-kpi"><div class="oa-kpi-n" id="oaActRem" style="color:#64748b">–</div><div class="oa-kpi-l">⚪ จบแล้ว</div></div>
                 </div>
             </div>
             <div class="oa-panel p-0 overflow-hidden">
@@ -238,12 +238,20 @@
     #oaApp .oa-chip-line.on { background:#06C755; border-color:#06C755; color:#fff; box-shadow:0 2px 8px rgba(6,199,85,.3); }
     #oaApp .oa-chatline { font-size:10.5px; font-weight:800; padding:2px 8px; border-radius:999px; background:#d1fae5; color:#059669; border:1px solid #a7f3d0; flex:none; }
     .dark #oaApp .oa-chatline { background:rgba(6,199,85,.15); color:#6ee7b7; border-color:rgba(6,199,85,.3); }
-    #oaApp .act-row { display:grid; grid-template-columns:30px 1fr auto; align-items:center; gap:12px; padding:12px 16px; }
-    #oaApp .act-ic { font-size:17px; text-align:center; }
-    #oaApp .act-name { font-weight:900; padding:1px 9px; border-radius:7px; }
-    #oaApp .act-name.add { background:#d1fae5; color:#059669; } .dark #oaApp .act-name.add { background:rgba(6,199,85,.18); color:#6ee7b7; }
-    #oaApp .act-name.rem { background:#fef3c7; color:#d97706; } .dark #oaApp .act-name.rem { background:rgba(245,158,11,.18); color:#fcd34d; }
-    #oaApp .act-cust { font-size:12px; color:#94a3b8; margin-top:2px; }
-    #oaApp .act-time { font:700 11px ui-monospace,Consolas; color:#94a3b8; text-align:right; line-height:1.4; white-space:nowrap; }
-    #oaApp .act-row.d { border-left:3px solid #10b981; } #oaApp .act-row.t { border-left:3px solid #f59e0b; }
+    #oaApp .pc-sec { font-size:13px; font-weight:800; color:#64748b; padding:14px 16px 6px; } .dark #oaApp .pc-sec { color:#94a3b8; }
+    #oaApp .pc { margin:0 12px 10px; border-radius:14px; border:1px solid #eef0f4; background:#fff; overflow:hidden; } .dark #oaApp .pc { background:#1e293b; border-color:#334155; }
+    #oaApp .pc-pending { border-left:4px solid #10b981; } #oaApp .pc-done { border-left:4px solid #cbd5e1; } .dark #oaApp .pc-done { border-left-color:#475569; }
+    #oaApp .pc-head { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 14px; border-bottom:1px solid #f1f5f9; } .dark #oaApp .pc-head { border-color:#334155; }
+    #oaApp .pc-name { font-weight:800; color:#1e293b; display:flex; align-items:center; gap:8px; flex-wrap:wrap; } .dark #oaApp .pc-name { color:#f1f5f9; }
+    #oaApp .pc-oa { font-size:10.5px; font-weight:800; padding:2px 8px; border-radius:999px; background:#d1fae5; color:#059669; } .dark #oaApp .pc-oa { background:rgba(6,199,85,.18); color:#6ee7b7; }
+    #oaApp .pc-status { font-size:12px; font-weight:800; white-space:nowrap; }
+    #oaApp .pc-body { padding:8px 14px 12px; display:flex; flex-direction:column; gap:6px; }
+    #oaApp .pc-ev { display:flex; align-items:center; gap:9px; font-size:13px; color:#334155; } .dark #oaApp .pc-ev { color:#cbd5e1; }
+    #oaApp .pc-ev b { font-weight:800; }
+    #oaApp .pc-badge { font-size:11px; font-weight:800; padding:2px 9px; border-radius:7px; white-space:nowrap; }
+    #oaApp .pc-badge.add { background:#d1fae5; color:#059669; } .dark #oaApp .pc-badge.add { background:rgba(6,199,85,.18); color:#6ee7b7; }
+    #oaApp .pc-badge.rem { background:#fef3c7; color:#d97706; } .dark #oaApp .pc-badge.rem { background:rgba(245,158,11,.18); color:#fcd34d; }
+    #oaApp .pc-badge.wait { background:#f1f5f9; } .dark #oaApp .pc-badge.wait { background:#0f172a; }
+    #oaApp .pc-wait { color:#94a3b8; font-size:12.5px; font-weight:700; }
+    #oaApp .pc-t { margin-left:auto; font:700 11.5px ui-monospace,Consolas; color:#94a3b8; }
 </style>
