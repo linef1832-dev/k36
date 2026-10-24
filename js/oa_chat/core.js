@@ -1410,13 +1410,9 @@ window.oa_renderAct = function () {
         const addLine = g.lastAdd ? `<div class="pc-ev"><span class="pc-badge add">📌 ใส่</span><b>${esc(g.lastAdd.username)}</b><span class="pc-t">${tm(g.lastAdd.acted_at)}</span></div>` : '';
         const remLine = g.lastRem ? `<div class="pc-ev"><span class="pc-badge rem">↩️ เอาออก</span><b>${esc(g.lastRem.username)}</b><span class="pc-t">${tm(g.lastRem.acted_at)}</span></div>` : (g.pending ? `<div class="pc-ev pc-wait"><span class="pc-badge wait">⏳</span>ยังไม่มีใครเอาออก</div>` : '');
         return `<div class="pc ${g.pending?'pc-pending':'pc-done'}">
-            <div class="pc-head"><div class="pc-name">${esc(nm)}${g.oa?`<span class="pc-oa">${esc(g.oa)}</span>`:''}</div><span class="pc-status">${g.pending?'🟢 ยังค้าง':'⚪ จบแล้ว'}</span></div>
+            <div class="pc-head"><div class="pc-name">${esc(nm)}${g.oa?`<span class="pc-oa">${esc(g.oa)}</span>`:''}</div></div>
             <div class="pc-body">${addLine}${remLine}</div>
         </div>`;
     };
-    const pend = groups.filter(g=>g.pending), done = groups.filter(g=>!g.pending);
-    let html='';
-    if (pend.length) html += `<div class="pc-sec">🟢 ยังค้าง (${pend.length})</div>` + pend.map(card).join('');
-    if (done.length) html += `<div class="pc-sec">⚪ จบแล้ว (${done.length})</div>` + done.map(card).join('');
-    L.innerHTML = html;
+    L.innerHTML = groups.map(card).join('');
 };
