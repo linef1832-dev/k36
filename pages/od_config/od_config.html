@@ -1,4 +1,3 @@
-
 <div id="odConfigApp" class="fade-in k-auto-light">
 <style>
 #odConfigApp{--a:42,171,238;--at:#2AABEE;background:var(--k-bg);color:var(--k-tx);min-height:100%;display:flex;flex-direction:column}
@@ -222,7 +221,8 @@
                         <div><label class="oc-label" for="odCfgBigChatId">Chat ID ห้องยอดถอนใหญ่</label><input type="text" id="odCfgBigChatId" placeholder="เว้นว่าง = ห้องหลัก" class="oc-input"></div>
                     </div>
                     <div class="oc-form" style="--c:#06b6d4">
-                        <div class="oc-form-h"><span class="oc-dot"></span><b>ล็อคบัญชีธนาคาร</b></div>
+                        <div class="oc-form-h"><span class="oc-dot"></span><b>ล็อคบัญชีธนาคาร</b><button type="button" onclick="odCfg_addLockNote()" class="oc-btn sm"><span class="material-icons">add</span>เพิ่มหมายเหตุ</button></div>
+                        <div><span class="oc-label">หมายเหตุให้พนักงานติก (ติกได้หลายข้อ · ไม่ติกก็ได้)</span><div id="odCfgLockNoteList"></div></div>
                         <div><label class="oc-label" for="odCfgLockChatId">Chat ID ห้องล็อคบัญชี</label><input type="text" id="odCfgLockChatId" placeholder="เว้นว่าง = ห้องหลัก" class="oc-input"></div>
                     </div>
                     <div class="oc-form wide" style="--c:#64748b">
