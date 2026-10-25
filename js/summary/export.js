@@ -72,7 +72,7 @@ window.exportSummaryToExcel = async function() {
       smWebList().concat(filteredData.map((x => x.website))).forEach((w => {
         if (w && !targetWebOrder.some((t => t.toLowerCase() === String(w).toLowerCase()))) targetWebOrder.push(w);
       }));
-      const B0 = 3;
+      const B0 = 5;
       const E = B0 + targetWebOrder.length * 3;
       const dutyAssignmentMap = await window.loadDutyAssignmentMap(filteredData, shiftFilter);
       let empGroups = {};
@@ -112,7 +112,7 @@ window.exportSummaryToExcel = async function() {
         activeTab: 0,
         firstSheet: 0
       } ];
-      let headers = [ 'ลำดับ', 'ชื่อพนักงาน', 'กะ' ];
+      let headers = [ 'ลำดับ', 'ชื่อพนักงาน', 'งานหลัก', 'งานรอง', 'กะ' ];
       targetWebOrder.forEach((w => {
         headers.push(`${w} (สำเร็จ)`);
         headers.push(`${w} (ปฏิเสธ)`);
@@ -356,15 +356,8 @@ window.exportSummaryToExcel = async function() {
       sortedEmps.forEach((emp => {
         if (prevShiftMain !== groupKey(emp)) addShiftDivider(ws, LASTCOL, emp);
         prevShiftMain = groupKey(emp);
-        let displayName = emp.name;
-        const dutyInfo = dutyAssignmentMap[emp.name.toLowerCase()];
-        if (dutyInfo) {
-          const parts = [];
-          if (dutyInfo.main) parts.push(`หลัก ${dutyInfo.main}`);
-          if (dutyInfo.secondary) parts.push(`รอง ${dutyInfo.secondary}`);
-          if (parts.length > 0) displayName = `${emp.name} (${parts.join(') (')})`;
-        }
-        let rowData = [ seqInShift(groupKey(emp)), displayName, emp.shift ];
+        const dutyInfo = dutyAssignmentMap[emp.name.toLowerCase()] || {};
+        let rowData = [ seqInShift(groupKey(emp)), emp.name, dutyInfo.main || '-', dutyInfo.secondary || '-', emp.shift ];
         targetWebOrder.forEach((w => {
           rowData.push(emp.websData[w].approved);
           rowData.push(emp.websData[w].reject);
@@ -395,7 +388,23 @@ window.exportSummaryToExcel = async function() {
                 horizontal: 'left'
               };
             }
-            if (colNumber === 3) shiftCellStyle(cell);
+            if (colNumber === 3 || colNumber === 4) {
+              const has = cell.value && cell.value !== '-';
+              if (has) {
+                cell.fill = solid(colNumber === 3 ? 'FFEDE9FE' : 'FFF1F5F9');
+                cell.font = {
+                  bold: true,
+                  color: {
+                    argb: colNumber === 3 ? 'FF6D28D9' : 'FF475569'
+                  }
+                };
+              } else cell.font = {
+                color: {
+                  argb: 'FFCBD5E1'
+                }
+              };
+            }
+            if (colNumber === 5) shiftCellStyle(cell);
           } else if (colNumber <= E) {
             const webIndex = Math.floor((colNumber - B0 - 1) / 3);
             const colIdxInGroup = (colNumber - B0 - 1) % 3;
@@ -623,7 +632,7 @@ window.exportSummaryToExcel = async function() {
       for (let c = 1; c <= REF_TOT; c++) ws2.getColumn(c).width = c === 1 ? 8 : c === 2 ? 30 : c === 3 ? 11 : c === REF_TOT ? 14 : 12;
       for (let c = 1; c <= LASTCOL; c++) {
         const col = ws.getColumn(c);
-        if (c === 1) col.width = 8; else if (c === 2) col.width = 30; else if (c === 3) col.width = 11; else if (c > E) col.width = 14; else col.width = 11;
+        if (c === 1) col.width = 8; else if (c === 2) col.width = 22; else if (c === 3 || c === 4) col.width = 12; else if (c === 5) col.width = 11; else if (c > E) col.width = 14; else col.width = 11;
       }
       const buffer = await wb.xlsx.writeBuffer();
       const blob = new Blob([ buffer ], {
