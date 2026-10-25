@@ -355,7 +355,12 @@
                             </label>
                         </div>
                         ${same
-                            ? `<textarea rows="3" oninput="ttsAllText(${gi},${si},this.value)" placeholder="เช่น พนักงานออนไลน์ชั่วคราวถึงเวลาถ่ายรูปกะเข้าแล้วนะจ๊ะ" class="w-full bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500 resize-none">${sharedText}</textarea>`
+                            ? `<textarea rows="3" oninput="ttsAllText(${gi},${si},this.value)" placeholder="เช่น ถอนเงินได้ {1} ถึง {2} บาท" class="w-full bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500 resize-none">${sharedText}</textarea>
+                               <div class="text-[11px] text-gray-500 mt-1 leading-relaxed">
+                                   พิมพ์ <span class="text-sky-300 font-bold">{1}</span> <span class="text-sky-300 font-bold">{2}</span> แทนตัวเลขตัวที่ 1 และ 2 ในคำที่จับได้ —
+                                   เช่น คำ “ขั้นต่ำ 500 - 10,000” + ข้อความ “ถอนเงินได้ {1} ถึง {2} บาท”
+                                   บอทจะพูดว่า “ถอนเงินได้ 500 ถึง 10,000 บาท” โดยไม่ต้องพิมพ์ทีละคำ
+                               </div>`
                             : `<div class="text-xs text-gray-500 bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2">ตั้งข้อความแยกในแต่ละห้องทางขวา</div>`}
                     </div>
                 </div>
