@@ -30,8 +30,6 @@ const BELL_SOUND_KEY = 'bell_sound';
 
 const BELL_BUCKET = 'bell-app';
 
-const BELL_EXE_NAME = 'BellEmployee.exe';
-
 const BELL_DEFAULT_SOUND = {
   name: '🚨 ไซเรน BIZ Checker (ค่าเริ่มต้น)',
   url: ''
@@ -120,7 +118,8 @@ function bell_setStatus(msg, kind) {
 }
 
 async function bell_getSetting(key) {
-  const {data: data} = await window.appDB.from('settings').select('value').eq('key', key).maybeSingle();
+  const {data: data, error: error} = await window.appDB.from('settings').select('value').eq('key', key).maybeSingle();
+  if (error) throw error;
   if (!data || !data.value) return null;
   try {
     return JSON.parse(data.value);
@@ -138,7 +137,7 @@ async function bell_setSetting(key, obj) {
 }
 
 window.bell_loadUsers = async function() {
-  const {data: data, error: error} = await window.appDB.from('users').select('*').order('username', {
+  const {data: data, error: error} = await window.appDB.from('users').select('id, username, team, department, role').order('username', {
     ascending: true
   });
   if (error) throw error;
@@ -158,7 +157,7 @@ window.bell_loadPresence = async function() {
 window.bell_load = async function() {
   if (!window.appDB) return;
   try {
-    await Promise.all([ window.bell_loadUsers(), window.bell_loadPresence(), window.bell_loadShifts() ]);
+    await Promise.all([ window.bell_loadUsers(), window.bell_loadPresence(), window.bell_loadShifts(), window.bell_loadRelease() ]);
     if (!window._bellShTimer) window._bellShTimer = setInterval((() => {
       const pg = document.getElementById('bellApp');
       if (document.hidden || !pg || !pg.isConnected || pg.offsetParent === null) return;
@@ -245,11 +244,40 @@ const BELL_BADGE = {
   }
 };
 
-if (!window._bellTick) window._bellTick = setInterval((() => {
-  try {
-    if (document.getElementById('bellList') && Object.values(window._bellPresence || {}).some((p => p.status === 'ringing'))) window.bell_render();
-  } catch (e) {}
+if (window._bellTick) clearInterval(window._bellTick);
+
+window._bellTick = setInterval((() => {
+  if (document.hidden || !document.getElementById('bellList')) return;
+  const now = Date.now();
+  const fmt = sec => sec < 60 ? sec + ' วิ' : Math.floor(sec / 60) + ' นาที';
+  document.querySelectorAll('#bellApp [data-wait-since]').forEach((el => {
+    const t = new Date(el.dataset.waitSince).getTime();
+    if (!isNaN(t)) el.textContent = (el.dataset.prefix || '') + fmt(Math.max(0, Math.round((now - t) / 1e3)));
+  }));
 }), 1e3);
+
+const BELL_AV_COLORS = [ '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#ef4444', '#14b8a6', '#6366f1', '#f97316', '#0ea5e9' ];
+
+function bell_avColor(name) {
+  let h = 0;
+  String(name || '').split('').forEach((c => {
+    h = h * 31 + c.charCodeAt(0) >>> 0;
+  }));
+  return BELL_AV_COLORS[h % BELL_AV_COLORS.length];
+}
+
+function bell_renderSide(all) {
+  const ringing = all.filter((r => r.st === 'ringing')).sort(((a, b) => new Date(a.p && a.p.ring_at || 0) - new Date(b.p && b.p.ring_at || 0)));
+  const box = document.getElementById('bellWaitList');
+  if (box) box.innerHTML = ringing.length ? ringing.map((r => `<div class="bl-wait"><span class="material-icons" style="font-size:16px;color:#f97316">notifications_active</span><b>${bell_esc(r.username)}</b><span data-wait-since="${bell_esc(r.p && r.p.ring_at || '')}" data-prefix="รอ "></span></div>`)).join('') : '<div class="bl-wait-empty">ยังไม่มีคนที่รอยืนยัน</div>';
+  const line = document.getElementById('bellStatLine');
+  if (line) {
+    const on = all.filter((r => r.online)).length;
+    line.innerHTML = `เปิดแอป <b class="on">${on}</b> / ${all.length} คน${ringing.length ? ` · รอยืนยัน <b class="rg">${ringing.length}</b>` : ''}`;
+  }
+  const bar = document.getElementById('bellSelBar');
+  if (bar) bar.style.display = window._bellCanRing ? '' : 'none';
+}
 
 window.bell_render = function() {
   const all = bell_rows();
@@ -272,11 +300,12 @@ window.bell_render = function() {
   const sr = document.querySelector('.bell-selring');
   if (sr) sr.disabled = window._bellSelected.size === 0;
   bell_renderGroups(all);
+  bell_renderSide(all);
   const list = document.getElementById('bellList');
   if (!list) return;
   const vis = bell_visibleRows();
   if (vis.length === 0) {
-    list.innerHTML = `<div class="text-center text-slate-400 py-8 text-sm">${window._bellUsers.length ? 'ไม่พบรายชื่อที่ตรงกับการค้นหา' : 'ยังไม่มีพนักงานในระบบ'}</div>`;
+    list.innerHTML = `<div class="bl-wait-empty" style="grid-column:1/-1;padding:30px">${window._bellUsers.length ? 'ไม่พบรายชื่อที่ตรงกับการค้นหา' : 'ยังไม่มีพนักงานในระบบ'}</div>`;
     return;
   }
   const relVer = window._bellRelease && window._bellRelease.version;
@@ -294,11 +323,11 @@ window.bell_render = function() {
         when = `${rt}<span class="bw-ok">✅ ตอบ ${bell_timeTxt(r.p.confirmed_at)}</span><span class="bw-sec">${sec < 60 ? sec.toFixed(1) + ' วิ' : Math.floor(sec / 60) + ' นาที ' + Math.round(sec % 60) + ' วิ'}</span>`;
       } else {
         const sec = Math.max(0, Math.round((Date.now() - new Date(r.p.ring_at)) / 1e3));
-        when = `${rt}<span class="bw-wait">⏳ รอ ${sec < 60 ? sec + ' วิ' : Math.floor(sec / 60) + ' นาที'}</span>`;
+        when = `${rt}<span class="bw-wait" data-wait-since="${bell_esc(r.p.ring_at)}" data-prefix="⏳ รอ ">⏳ รอ ${sec < 60 ? sec + ' วิ' : Math.floor(sec / 60) + ' นาที'}</span>`;
       }
     }
     const ringBtn = window._bellCanRing && r.online ? `\n            <button onclick="bell_ringOne('${r.id}')" class="bell-ringbtn"><span class="material-icons" style="font-size:14px">notifications_active</span> เรียก</button>` : '';
-    return `\n        <div class="bell-row ${r.online ? '' : 'offline'} ${window._bellSelected.has(r.id) ? 'sel' : ''}" ${r.online ? `onclick="if(!event.target.closest('button'))bell_toggleOne('${r.id}', !window._bellSelected.has('${r.id}'))"` : 'title="ยังไม่เปิดแอป เรียกไม่ได้"'}>\n            <span class="bell-check"></span>\n            <div class="flex-1 min-w-0">\n                <div class="bell-name truncate">${bell_esc(r.username)}${bell_shiftOf(r) ? `<span class="bell-shtag">กะ${bell_shiftOf(r)}</span>` : ''} ${verBadge}</div>\n                <div class="bell-sub">${bell_esc(r.team || '-')}${r.department ? ' · ' + bell_esc(r.department) : ''}</div>\n            </div>\n            <div class="bell-when">${when}</div>\n            <span class="bell-badge ${badge.c}">${badge.t}</span>\n            ${ringBtn}\n        </div>`;
+    return `\n        <div class="bell-row ${r.online ? '' : 'offline'} ${window._bellSelected.has(r.id) ? 'sel' : ''}" ${r.online ? `onclick="if(!event.target.closest('button'))bell_toggleOne('${r.id}', !window._bellSelected.has('${r.id}'))"` : 'title="ยังไม่เปิดแอป เรียกไม่ได้"'}>\n            <span class="bell-check"></span>\n            <span class="bl-av" style="--av:${bell_avColor(r.username)}">${bell_esc(String(r.username || '?').slice(0, 2).toUpperCase())}<i class="${r.st === 'offline' ? '' : r.st === 'online' ? 'on' : r.st}"></i></span>\n            <div class="flex-1 min-w-0">\n                <div class="bell-name truncate">${bell_esc(r.username)}${bell_shiftOf(r) ? `<span class="bell-shtag">กะ${bell_shiftOf(r)}</span>` : ''} ${verBadge}</div>\n                <div class="bell-sub">${bell_esc(r.team || '-')}${r.department ? ' · ' + bell_esc(r.department) : ''}</div>\n                <div class="bell-when">${when}</div>\n            </div>\n            <span class="bell-badge ${badge.c}">${badge.t}</span>\n            ${ringBtn}\n        </div>`;
   })).join('');
 };
 
@@ -387,8 +416,20 @@ window.bell_ringShift = function(sh) {
     bell_setStatus(`ไม่มีพนักงานกะ${sh}${dl}เปิดแอปอยู่`, 'warn');
     return;
   }
-  if (!confirm(`เรียกพนักงานกะ${sh}${dl} ทั้งหมด ${rows.length} คน?`)) return;
-  bell_ring(rows);
+  const go = () => bell_ring(rows);
+  if (window.Swal) {
+    Swal.fire({
+      icon: 'question',
+      title: `เรียกกะ${sh}${dl}?`,
+      text: `ทั้งหมด ${rows.length} คนที่เปิดแอปอยู่`,
+      showCancelButton: true,
+      confirmButtonText: '🔔 เรียกเลย',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#f59e0b'
+    }).then((r => {
+      if (r.isConfirmed) go();
+    }));
+  } else if (confirm(`เรียกพนักงานกะ${sh}${dl} ทั้งหมด ${rows.length} คน?`)) go();
 };
 
 window.bell_toggleOne = function(id, on) {
@@ -419,7 +460,10 @@ async function bell_ring(rows) {
   const nowIso = bell_now().toISOString();
   const rungBy = window.currentUser && window.currentUser.username || 'admin';
   let ok = 0;
-  for (const r of rows) {
+  const btn = document.querySelector('.bell-selring');
+  if (btn) btn.disabled = true;
+  bell_setStatus(`🔔 กำลังเรียก ${rows.length} คน…`, 'warn');
+  await Promise.all(rows.map((async r => {
     const token = bell_uuid();
     try {
       const up = await window.appDB.from('bell_presence').update({
@@ -427,8 +471,9 @@ async function bell_ring(rows) {
         ring_token: token,
         ring_at: nowIso,
         confirmed_at: null
-      }).eq('user_id', r.id);
+      }).eq('user_id', r.id).select('user_id');
       if (up.error) throw up.error;
+      if (Array.isArray(up.data) && up.data.length === 0) throw new Error('ไม่พบสถานะแอปของ ' + r.username);
       const ins = await window.appDB.from('bell_history').insert([ {
         user_id: r.id,
         username: r.username,
@@ -444,7 +489,7 @@ async function bell_ring(rows) {
     } catch (e) {
       console.error('ring error', r.id, e);
     }
-  }
+  })));
   bell_setStatus(`🔔 เรียกแล้ว ${ok}/${rows.length} คน`, ok ? 'ok' : 'err');
   window._bellSelected = new Set;
   const sa = document.getElementById('bellSelectAll');
@@ -563,7 +608,12 @@ window.bell_exportCSV = function() {
   }
   const header = [ 'ชื่อ', 'ทีม', 'เวลาเรียก', 'เวลายืนยัน', 'ใช้เวลา(วินาที)', 'สถานะ', 'เรียกโดย' ];
   const lines = [ header.join(',') ];
-  rows.forEach((r => lines.push([ r.name || r.username || '', r.team || '', bell_full(r.ring_at), bell_full(r.confirmed_at), r.elapsed_sec != null ? r.elapsed_sec : '', r.status || '', r.rung_by || '' ].map((c => `"${String(c).replace(/"/g, '""')}"`)).join(','))));
+  const cell = c => {
+    let v = String(c == null ? '' : c);
+    if (/^[=+\-@]/.test(v)) v = "'" + v;
+    return `"${v.replace(/"/g, '""')}"`;
+  };
+  rows.forEach((r => lines.push([ r.name || r.username || '', r.team || '', bell_full(r.ring_at), bell_full(r.confirmed_at), r.elapsed_sec != null ? r.elapsed_sec : '', r.status || '', r.rung_by || '' ].map(cell).join(','))));
   const blob = new Blob([ '\ufeff' + lines.join('\r\n') ], {
     type: 'text/csv;charset=utf-8;'
   });
@@ -633,9 +683,10 @@ window.bell_selectSound = async function(i) {
 window.bell_removeSound = async function(idx) {
   if (idx < 0 || idx >= window._bellSounds.length) return;
   const removed = window._bellSounds[idx];
-  window._bellSounds.splice(idx, 1);
   try {
-    await bell_setSetting(BELL_SOUNDS_KEY, window._bellSounds);
+    const latest = (await bell_getSetting(BELL_SOUNDS_KEY) || []).filter((x => x && x.url !== removed.url));
+    await bell_setSetting(BELL_SOUNDS_KEY, latest);
+    window._bellSounds = latest;
     if (window._bellSound && window._bellSound.url === removed.url) await window.bell_selectSound(0);
     bell_renderSounds();
   } catch (e) {
@@ -682,8 +733,10 @@ window.bell_uploadSound = async function() {
       size: file.size,
       added_at: bell_now().toISOString()
     };
-    window._bellSounds.push(entry);
-    await bell_setSetting(BELL_SOUNDS_KEY, window._bellSounds);
+    const latest = await bell_getSetting(BELL_SOUNDS_KEY) || [];
+    latest.push(entry);
+    await bell_setSetting(BELL_SOUNDS_KEY, latest);
+    window._bellSounds = latest;
     await window.bell_selectSound(window._bellSounds.length);
     if (fileEl) fileEl.value = '';
     status('');
@@ -708,73 +761,6 @@ window.bell_loadRelease = async function() {
   }
 };
 
-async function bell_sha256(buf) {
-  const hash = await crypto.subtle.digest('SHA-256', buf);
-  return Array.from(new Uint8Array(hash)).map((b => b.toString(16).padStart(2, '0'))).join('');
-}
-
-window.bell_uploadRelease = async function() {
-  if (!window.appDB) return;
-  const version = (document.getElementById('bellRelVersion').value || '').trim().replace(/^v/i, '');
-  const notes = (document.getElementById('bellRelNotes').value || '').trim();
-  const fileEl = document.getElementById('bellRelFile');
-  const file = fileEl && fileEl.files && fileEl.files[0];
-  const status = t => {
-    const s = document.getElementById('bellUploadStatus');
-    if (s) s.textContent = t;
-  };
-  if (!/^\d+(\.\d+)*$/.test(version)) {
-    bell_setStatus('เลขเวอร์ชันต้องเป็นตัวเลขคั่นจุด เช่น 1.0.1', 'warn');
-    return;
-  }
-  if (!file) {
-    bell_setStatus('กรุณาเลือกไฟล์ BellEmployee.exe', 'warn');
-    return;
-  }
-  if (window._bellRelease && bell_verCmp(version, window._bellRelease.version) <= 0) {
-    bell_setStatus(`เวอร์ชันต้องสูงกว่าตัวล่าสุด (v${window._bellRelease.version})`, 'warn');
-    return;
-  }
-  const btn = document.getElementById('bellBtnUpload');
-  if (btn) btn.disabled = true;
-  try {
-    status('🔢 กำลังคำนวณ checksum...');
-    const sha256 = await bell_sha256(await file.arrayBuffer());
-    status(`⬆️ กำลังอัปโหลด (${(file.size / 1048576).toFixed(1)} MB)...`);
-    const path = `v${version}/${BELL_EXE_NAME}`;
-    const up = await window.appDB.storage.from(BELL_BUCKET).upload(path, file, {
-      cacheControl: '60',
-      upsert: true,
-      contentType: 'application/octet-stream'
-    });
-    if (up.error) throw up.error;
-    const {data: pub} = window.appDB.storage.from(BELL_BUCKET).getPublicUrl(path);
-    const rel = {
-      version: version,
-      notes: notes,
-      sha256: sha256,
-      size: file.size,
-      url: pub.publicUrl,
-      updated_at: bell_now().toISOString(),
-      released_by: window.currentUser && window.currentUser.username || ''
-    };
-    status('📝 กำลังบันทึกเวอร์ชัน...');
-    await bell_setSetting(BELL_RELEASE_KEY, rel);
-    window._bellRelease = rel;
-    status('');
-    bell_setStatus(`✅ ปล่อยเวอร์ชัน v${version} แล้ว — แอปพนักงานจะเด้งถามให้อัปเดตเอง`, 'ok');
-    document.getElementById('bellRelVersion').value = '';
-    document.getElementById('bellRelNotes').value = '';
-    if (fileEl) fileEl.value = '';
-    bell_render();
-  } catch (e) {
-    status('');
-    bell_setStatus('อัปโหลดไม่สำเร็จ: ' + (e.message || e), 'err');
-  } finally {
-    if (btn) btn.disabled = false;
-  }
-};
-
 window.initBell = async function() {
   window._bellSelected = new Set;
   window._bellSearch = '';
@@ -790,11 +776,10 @@ window.initBell = async function() {
     const el = document.getElementById(elId);
     if (el) el.style.display = show ? '' : 'none';
   };
-  hide('bellBtnRingSel', window._bellCanRing);
   hide('bellRingControls', window._bellCanRing);
+  hide('bellSelBar', window._bellCanRing);
   hide('bellBtnHistory', bell_can('bell_history'));
   hide('bellSoundCard', bell_can('bell_sound'));
-  hide('bellUpdateCard', bell_can('bell_app_update'));
   await window.bell_loadSounds();
   await window.bell_load();
   window.bell_subscribe();

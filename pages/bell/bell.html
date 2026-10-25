@@ -1,256 +1,240 @@
-<div id="bellApp" class="fade-in flex flex-col min-h-full bg-slate-50 dark:bg-slate-900 pb-10">
+<div id="bellApp" class="fade-in bl-app">
+<style>
+.bl-app{--a:#f59e0b;--ok:#10b981;--ring:#f97316;color:var(--k-tx);background:var(--k-bg);min-height:100%;display:flex;flex-direction:column}
+.bl-app .material-icons{font-size:18px}
+.bl-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 20px;background:var(--k-panel);border-bottom:1px solid var(--k-line);position:sticky;top:0;z-index:20}
+.bl-logo{width:44px;height:44px;border-radius:13px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#1b1406;flex:none;box-shadow:0 8px 22px rgba(245,158,11,.3)}
+.bl-logo .material-icons{font-size:24px}
+.bl-title{margin:0;font-size:19px;font-weight:900;color:var(--k-tx-strong);line-height:1.25}
+.bl-sub{font-size:12.5px;font-weight:700;color:var(--k-mute);margin-top:1px}
+.bl-sub b{color:var(--k-tx2)}
+.bl-sub .on{color:var(--k-green-tx)}
+.bl-sub .rg{color:var(--k-amber-tx)}
+.bl-hr{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.bl-btn{display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 14px;border-radius:12px;font-size:13px;font-weight:800;white-space:nowrap;border:1px solid var(--k-line3);background:var(--k-btn);color:var(--k-tx2);transition:background .15s,color .15s}
+.bl-btn:hover{background:var(--k-btn-h);color:var(--k-tx-strong)}
+.bl-btn .material-icons{font-size:17px}
+#bellStatus{margin:12px 20px 0;padding:11px 14px;border-radius:12px;font-size:13px;font-weight:800;text-align:center}
+.bl-wrap{flex:1;width:100%;max-width:1500px;margin:0 auto;padding:16px 20px 40px;box-sizing:border-box;display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+.bl-card{background:var(--k-panel);border:1px solid var(--k-line);border-radius:18px;box-shadow:var(--k-shadow);min-width:0}
+.bl-ch{display:flex;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid var(--k-line);font-size:14px;font-weight:900;color:var(--k-tx-strong)}
+.bl-ch .material-icons{color:var(--k-mute)}
+.bl-ch small{margin-left:auto;font-size:11.5px;font-weight:700;color:var(--k-mute)}
+.bl-quick{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:14px 16px;border-bottom:1px solid var(--k-line)}
+.bl-quick .bell-shift{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;background:var(--k-sunk);border:1px solid var(--k-line2);text-align:left;cursor:pointer;transition:transform .12s,border-color .15s,box-shadow .15s;font-size:14px;font-weight:900;color:var(--k-tx-strong)}
+.bl-quick .bell-shift .ic{font-size:22px;width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:var(--k-panel);flex:none}
+.bl-quick .bell-shift .n{margin-left:auto;min-width:30px;height:26px;padding:0 8px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;background:rgba(16,185,129,.15);color:var(--k-green-tx)}
+.bl-quick .bell-shift .t small{display:block;font-size:11px;font-weight:700;color:var(--k-mute)}
+.bl-quick .bell-shift:hover:not(:disabled){transform:translateY(-2px);border-color:var(--a);box-shadow:0 8px 20px rgba(245,158,11,.18)}
+.bl-quick .bell-shift:disabled{opacity:.45;cursor:not-allowed}
+.bl-quick .bell-shift:disabled .n{background:var(--k-panel);color:var(--k-mute2)}
+.bl-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 16px}
+.bl-search{flex:1;min-width:200px;display:flex;align-items:center;gap:8px;height:40px;padding:0 12px;border-radius:12px;background:var(--k-field);border:1px solid var(--k-line3)}
+.bl-search:focus-within{border-color:var(--a);box-shadow:0 0 0 3px rgba(245,158,11,.15)}
+.bl-search input{flex:1;min-width:0;background:transparent;border:0;outline:none;color:var(--k-tx-strong);font-size:13.5px;font-weight:600}
+.bl-search .material-icons{color:var(--k-mute2)}
+.bl-seg{display:flex;gap:3px;padding:3px;border-radius:12px;background:var(--k-sunk);border:1px solid var(--k-line)}
+.bl-seg .bell-fbtn{height:32px;padding:0 12px;border-radius:9px;font-size:12.5px;font-weight:800;color:var(--k-mute)}
+.bl-seg .bell-fbtn:hover{color:var(--k-tx-strong)}
+.bl-seg .bell-fbtn.active{background:var(--k-panel);color:var(--k-tx-strong);box-shadow:var(--k-shadow)}
+.bl-depts{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:0 16px 12px}
+.bl-depts .lbl{font-size:11.5px;font-weight:900;color:var(--k-mute);margin-right:2px}
+.bell-dchip{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 11px;border-radius:9px;font-size:12px;font-weight:800;color:var(--k-tx2);background:var(--k-sunk);border:1px solid var(--k-line2)}
+.bell-dchip .n{font-size:10.5px;font-weight:900;padding:0 6px;border-radius:999px;background:rgba(16,185,129,.15);color:var(--k-green-tx)}
+.bell-dchip.active{background:var(--k-tx-strong);border-color:var(--k-tx-strong);color:var(--k-panel)}
+.bell-dchip.active .n{background:rgba(127,127,127,.3);color:inherit}
+.bl-selbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 16px;border-top:1px solid var(--k-line);background:var(--k-sunk)}
+.bell-selall{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:800;color:var(--k-tx2);cursor:pointer}
+.bell-selall input{width:16px;height:16px;accent-color:var(--a)}
+.bell-selclear{height:32px;padding:0 12px;border-radius:9px;font-size:12px;font-weight:800;color:var(--k-mute);border:1px solid var(--k-line3);background:var(--k-panel)}
+.bell-selclear:hover{color:var(--k-tx-strong)}
+.bell-selring{margin-left:auto;display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 16px;border-radius:11px;font-size:13.5px;font-weight:900;color:#1b1406;background:linear-gradient(135deg,#fbbf24,#f59e0b);box-shadow:0 6px 16px rgba(245,158,11,.3);transition:filter .15s,opacity .15s}
+.bell-selring:hover:not(:disabled){filter:brightness(1.06)}
+.bell-selring:disabled{opacity:.45;box-shadow:none;cursor:not-allowed}
+.bell-selring .n{min-width:22px;height:22px;padding:0 6px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;background:rgba(0,0,0,.18);font-size:11.5px}
+#bellList{display:grid;grid-template-columns:repeat(auto-fill,minmax(370px,1fr));gap:8px;padding:12px 16px 16px;max-height:calc(100vh - 360px);min-height:240px;overflow-y:auto}
+.bell-row{position:relative;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:var(--k-sunk);border:1px solid var(--k-line);cursor:pointer;transition:border-color .12s,background .12s;min-width:0}
+.bell-row:hover{border-color:var(--k-line4)}
+.bell-row.sel{border-color:var(--a);background:color-mix(in srgb,#f59e0b 10%,var(--k-sunk));box-shadow:0 0 0 1px var(--a) inset}
+.bell-row.offline{opacity:.55;cursor:default}
+.bell-check{width:18px;height:18px;border-radius:6px;border:2px solid var(--k-line4);flex:none;display:flex;align-items:center;justify-content:center}
+.bell-row.sel .bell-check{background:var(--a);border-color:var(--a)}
+.bell-row.sel .bell-check::after{content:"";width:5px;height:9px;border:solid #1b1406;border-width:0 2px 2px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.bell-row.offline .bell-check{visibility:hidden}
+.bl-av{width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex:none;font-size:13px;font-weight:900;color:#fff;background:var(--av,#64748b);position:relative}
+.bl-av i{position:absolute;right:-2px;bottom:-2px;width:11px;height:11px;border-radius:99px;border:2px solid var(--k-sunk);background:#64748b}
+.bl-av i.on{background:#10b981}
+.bl-av i.ringing{background:#f97316;animation:blPulse 1s infinite}
+.bl-av i.confirmed{background:#3b82f6}
+@keyframes blPulse{50%{box-shadow:0 0 0 4px rgba(249,115,22,.35)}}
+.bell-name{font-size:13.5px;font-weight:900;color:var(--k-tx-strong);display:flex;align-items:center;gap:5px;min-width:0}
+.bell-shtag{font-size:10px;font-weight:800;padding:1px 6px;border-radius:6px;background:var(--k-panel);color:var(--k-tx3);border:1px solid var(--k-line)}
+.bell-ver{font-size:10px;font-weight:800;padding:1px 6px;border-radius:6px;background:var(--k-panel);color:var(--k-mute);border:1px solid var(--k-line)}
+.bell-ver.outdated{color:var(--k-amber-tx);border-color:rgba(245,158,11,.4)}
+.bell-sub{font-size:11.5px;font-weight:700;color:var(--k-mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bell-when{display:flex;flex-wrap:wrap;gap:2px 8px;margin-top:3px;font-size:10.5px;font-weight:800;white-space:nowrap}
+.bell-when:empty{display:none}
+.bw-ring{color:var(--k-mute)}
+.bw-ok{color:var(--k-green-tx)}
+.bw-sec{color:#3b82f6}
+.bw-wait{color:var(--k-amber-tx)}
+.bell-badge{flex:none;font-size:10.5px;font-weight:900;padding:3px 8px;border-radius:999px;white-space:nowrap;border:1px solid transparent}
+.bell-badge.offline{background:var(--k-panel);color:var(--k-mute2);border-color:var(--k-line)}
+.bell-badge.online{background:rgba(16,185,129,.13);color:var(--k-green-tx);border-color:rgba(16,185,129,.3)}
+.bell-badge.ringing{background:rgba(249,115,22,.15);color:var(--k-amber-tx);border-color:rgba(249,115,22,.4);animation:blBlink 1.2s infinite}
+.bell-badge.confirmed{background:rgba(59,130,246,.13);color:#3b82f6;border-color:rgba(59,130,246,.35)}
+@keyframes blBlink{50%{opacity:.55}}
+.bell-ringbtn{flex:none;display:inline-flex;align-items:center;gap:4px;height:30px;padding:0 10px;border-radius:9px;font-size:12px;font-weight:900;color:#1b1406;background:#fbbf24}
+.bell-ringbtn:hover{filter:brightness(1.06)}
+.bell-row:has(.bell-ringbtn) .bell-badge.online{display:none}
+.bl-side{display:flex;flex-direction:column;gap:16px;position:sticky;top:86px}
+.bl-kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:14px}
+.bl-kpi{padding:12px;border-radius:14px;background:var(--k-sunk);border:1px solid var(--k-line)}
+.bl-kpi b{display:block;font-size:24px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1.1;color:var(--c,var(--k-tx-strong))}
+.bl-kpi span{font-size:11.5px;font-weight:800;color:var(--k-mute)}
+#bellWaitList{padding:0 14px 14px;display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto}
+.bl-wait{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:11px;background:rgba(249,115,22,.08);border:1px solid rgba(249,115,22,.3);font-size:12.5px;font-weight:800}
+.bl-wait b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--k-tx-strong)}
+.bl-wait span{color:var(--k-amber-tx);font-variant-numeric:tabular-nums}
+.bl-wait-empty{padding:4px 2px 2px;font-size:12px;font-weight:700;color:var(--k-mute2);text-align:center}
+.bell-histcard{display:flex;align-items:center;gap:10px;width:100%;padding:14px;border-radius:18px;background:var(--k-panel);border:1px solid var(--k-line);box-shadow:var(--k-shadow);text-align:left;color:var(--k-tx-strong)}
+.bell-histcard:hover{border-color:var(--k-line4)}
+.bell-histcard > .material-icons{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:rgba(59,130,246,.13);color:#3b82f6;font-size:20px}
+.bell-histcard b{display:block;font-size:13.5px;font-weight:900}
+.bell-histcard small{font-size:11.5px;font-weight:700;color:var(--k-mute)}
+.bell-histcard .arr{margin-left:auto;color:var(--k-mute2)}
+#bellSoundList{display:flex;flex-direction:column;gap:6px;padding:12px 14px}
+.bell-sound-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:11px;background:var(--k-sunk);border:1px solid var(--k-line)}
+.bell-sound-row.active{border-color:#ec4899;background:color-mix(in srgb,#ec4899 9%,var(--k-sunk))}
+.bell-sound-row input{accent-color:#ec4899}
+.bell-sound-name{flex:1;min-width:0;font-size:12.5px;font-weight:800;color:var(--k-tx-strong);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bell-sound-hint{font-size:10.5px;font-weight:700;color:var(--k-mute2)}
+.bell-minibtn{height:26px;padding:0 9px;border-radius:7px;font-size:11px;font-weight:800;color:var(--k-tx2);background:var(--k-panel);border:1px solid var(--k-line3)}
+.bell-minibtn.danger:hover{color:var(--k-red-tx);background:var(--k-red-bg)}
+.bl-up{display:flex;flex-direction:column;gap:8px;padding:0 14px 14px}
+.bl-up input[type=file]{font-size:11.5px;color:var(--k-mute);width:100%}
+.bl-up button{display:inline-flex;align-items:center;justify-content:center;gap:5px;height:36px;border-radius:10px;font-size:12.5px;font-weight:900;color:#fff;background:#ec4899}
+.bl-up p{margin:0;font-size:11px;font-weight:700;color:var(--k-mute2);line-height:1.5}
+#bellSoundStatus{font-size:11.5px;font-weight:700;color:var(--k-mute)}
+.bl-hwrap{width:100%;max-width:1300px;margin:0 auto;padding:16px 20px 40px;box-sizing:border-box}
+.bl-htools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--k-line)}
+.bl-htools .bell-pbtn{height:32px;padding:0 12px;border-radius:9px;font-size:12.5px;font-weight:800;color:var(--k-mute)}
+.bl-htools .bell-pbtn.active{background:var(--k-panel);color:var(--k-tx-strong);box-shadow:var(--k-shadow)}
+#bellHistCount{font-size:12px;font-weight:800;color:var(--k-mute)}
+.bl-table{width:100%;border-collapse:collapse;font-size:13px}
+.bl-table th{position:sticky;top:0;background:var(--k-sunk);color:var(--k-mute);font-size:11.5px;font-weight:900;padding:10px 12px;text-align:center;border-bottom:1px solid var(--k-line)}
+.bl-table th:first-child{text-align:left}
+.bl-table td{padding:10px 12px;border-bottom:1px solid var(--k-line);color:var(--k-tx2)}
+.bell-hist-row:hover td{background:var(--k-btn-h)}
+.bell-hist-muted{color:var(--k-mute)!important}
+@media (max-width:1100px){ .bl-wrap{grid-template-columns:1fr} .bl-side{position:static} }
+@media (max-width:640px){ .bl-head{padding:12px} .bl-wrap{padding:12px} .bl-quick{grid-template-columns:1fr} #bellList{grid-template-columns:1fr;max-height:none} .bl-hr{width:100%} .bl-hr .bl-btn{flex:1;justify-content:center} }
+@media (prefers-reduced-motion:reduce){ .bell-badge.ringing,.bl-av i.ringing{animation:none} }
+</style>
 
 <div id="bellMainView">
-
-    <div class="bg-gradient-to-r from-amber-600 to-yellow-600 text-white p-4 shadow-md shrink-0 flex justify-between items-center flex-wrap gap-2">
-        <div class="flex items-center gap-3">
-            <div class="bg-white/20 p-2 rounded-full"><span class="material-icons text-2xl">notifications_active</span></div>
-            <div>
-                <h1 class="font-bold text-lg">กระดิ่งเรียกพนักงาน</h1>
-            </div>
+    <div class="bl-head">
+        <div class="bl-logo"><span class="material-icons">notifications_active</span></div>
+        <div>
+            <h1 class="bl-title">กระดิ่งเรียกพนักงาน</h1>
+            <div class="bl-sub" id="bellStatLine">กำลังโหลด…</div>
         </div>
-        <div class="flex gap-2">
-            <button onclick="showPage('dashboard')" class="bg-black/30 hover:bg-black/50 text-white px-4 py-2 rounded-xl font-bold transition-colors flex items-center gap-2 shadow-sm border border-white/20 backdrop-blur-sm">
-                <span class="material-icons text-sm">arrow_back</span> กลับ
-            </button>
+        <div class="bl-hr">
+            <button onclick="showPage('dashboard')" class="bl-btn"><span class="material-icons">arrow_back</span>กลับ</button>
         </div>
     </div>
 
-    <div id="bellStatus" class="hidden mx-4 mt-3 p-3 rounded-xl text-sm font-bold text-center"></div>
+    <div id="bellStatus" class="hidden"></div>
 
-    <div class="p-4 max-w-6xl mx-auto w-full">
-        
-        <div class="grid grid-cols-2 md:grid-cols-6 gap-3 mb-4">
-            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm p-3 text-center">
-                <div class="text-xs text-slate-500 dark:text-slate-400">พนักงานทั้งหมด</div>
-                <div id="bellCountAll" class="text-2xl font-extrabold text-slate-600 dark:text-slate-200">0</div>
+    <div class="bl-wrap">
+        <div class="bl-card">
+            <div class="bl-ch"><span class="material-icons">groups</span>รายชื่อพนักงาน<small>คลิกการ์ดเพื่อเลือก · เรียกได้เฉพาะคนที่เปิดแอป</small></div>
+            <div id="bellRingControls">
+                <div class="bl-quick">
+                    <button class="bell-shift" data-s="เช้า" onclick="bell_ringShift('เช้า')"><span class="ic">🌅</span><span class="t">เรียกกะเช้า<small>ทุกคนที่เปิดแอป</small></span><span class="n" id="bellShN_เช้า">0</span></button>
+                    <button class="bell-shift" data-s="กลาง" onclick="bell_ringShift('กลาง')"><span class="ic">☀️</span><span class="t">เรียกกะกลาง<small>ทุกคนที่เปิดแอป</small></span><span class="n" id="bellShN_กลาง">0</span></button>
+                    <button class="bell-shift" data-s="ดึก" onclick="bell_ringShift('ดึก')"><span class="ic">🌙</span><span class="t">เรียกกะดึก<small>ทุกคนที่เปิดแอป</small></span><span class="n" id="bellShN_ดึก">0</span></button>
+                </div>
             </div>
-            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm p-3 text-center">
-                <div class="text-xs text-slate-500 dark:text-slate-400">🟢 เปิดแอปอยู่</div>
-                <div id="bellCountOnline" class="text-2xl font-extrabold text-emerald-500">0</div>
+            <div class="bl-tools">
+                <label class="bl-search"><span class="material-icons">search</span><input id="bellSearch" type="text" placeholder="ค้นหาชื่อ / ทีม / แผนก" oninput="bell_onSearch(this.value)" aria-label="ค้นหาพนักงาน"></label>
+                <div class="bl-seg" id="bellFilterBar">
+                    <button data-f="all" onclick="bell_setFilter('all')" class="bell-fbtn">ทั้งหมด</button>
+                    <button data-f="online" onclick="bell_setFilter('online')" class="bell-fbtn">เปิดแอปอยู่</button>
+                    <button data-f="offline" onclick="bell_setFilter('offline')" class="bell-fbtn">ยังไม่เปิดแอป</button>
+                </div>
             </div>
-            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm p-3 text-center">
-                <div class="text-xs text-slate-500 dark:text-slate-400">⚫ ยังไม่เปิดแอป</div>
-                <div id="bellCountOffline" class="text-2xl font-extrabold text-slate-400">0</div>
+            <div class="bl-depts"><span class="lbl">แผนก</span><span id="bellDeptChips" style="display:contents"></span></div>
+            <div class="bl-selbar" id="bellSelBar">
+                <label class="bell-selall"><input type="checkbox" id="bellSelectAll" onchange="bell_toggleSelectAll(this)">เลือกทุกคนที่เปิดแอป</label>
+                <button onclick="bell_clearSelection()" class="bell-selclear">ล้างที่เลือก</button>
+                <button onclick="bell_ringSelected()" class="bell-selring"><span class="material-icons">notifications_active</span>เรียกที่เลือก<span class="n" id="bellSelCount2">0</span></button>
             </div>
-            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm p-3 text-center">
-                <div class="text-xs text-slate-500 dark:text-slate-400">🔔 รอยืนยัน</div>
-                <div id="bellCountWaiting" class="text-2xl font-extrabold text-amber-500">0</div>
-            </div>
-            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm p-3 text-center">
-                <div class="text-xs text-slate-500 dark:text-slate-400">✅ ยืนยันแล้ว</div>
-                <div id="bellCountConfirmed" class="text-2xl font-extrabold text-blue-500">0</div>
+            <div id="bellList" class="custom-scrollbar"><div class="bl-wait-empty" style="grid-column:1/-1;padding:30px">กำลังโหลด…</div></div>
+        </div>
+
+        <div class="bl-side">
+            <div class="bl-card">
+                <div class="bl-ch"><span class="material-icons">monitoring</span>สถานะตอนนี้</div>
+                <div class="bl-kpis">
+                    <div class="bl-kpi" style="--c:#10b981"><b id="bellCountOnline">0</b><span>🟢 เปิดแอปอยู่</span></div>
+                    <div class="bl-kpi"><b id="bellCountOffline">0</b><span>⚫ ยังไม่เปิดแอป</span></div>
+                    <div class="bl-kpi" style="--c:#f97316"><b id="bellCountWaiting">0</b><span>🔔 รอยืนยัน</span></div>
+                    <div class="bl-kpi" style="--c:#3b82f6"><b id="bellCountConfirmed">0</b><span>✅ ยืนยันแล้ว</span></div>
+                </div>
+                <div class="bl-ch" style="border-top:1px solid var(--k-line);padding-top:12px"><span class="material-icons">hourglass_top</span>กำลังรอยืนยัน<small>พนักงานทั้งหมด <b id="bellCountAll">0</b> คน</small></div>
+                <div id="bellWaitList" class="custom-scrollbar"><div class="bl-wait-empty">ยังไม่มีคนที่รอยืนยัน</div></div>
             </div>
             <button id="bellBtnHistory" onclick="bell_openHistory()" class="bell-histcard">
                 <span class="material-icons">history</span>
                 <span><b>ประวัติการเรียก</b><small>ดูย้อนหลัง · ดาวน์โหลด CSV</small></span>
                 <span class="material-icons arr">chevron_right</span>
             </button>
-        </div>
-        
-        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
-            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex flex-col md:flex-row md:items-center gap-3">
-                <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2 shrink-0">
-                    <span class="material-icons text-emerald-500 text-sm">groups</span> รายชื่อพนักงาน
-                </h2>
-                <div class="relative flex-1">
-                    <span class="material-icons absolute left-3 top-2.5 text-slate-400 text-base">search</span>
-                    <input id="bellSearch" type="text" placeholder="พิมพ์ชื่อ / ทีม เพื่อค้นหา..." oninput="bell_onSearch(this.value)"
-                        class="bell-input w-full pl-10 pr-3 py-2 rounded-xl text-sm">
+            <div id="bellSoundCard" class="bl-card">
+                <div class="bl-ch"><span class="material-icons" style="color:#ec4899">volume_up</span>เสียงเตือนบนเครื่องพนักงาน</div>
+                <div id="bellSoundCurrent" style="padding:10px 14px 0;font-size:12px;font-weight:800;color:var(--k-mute)">ใช้อยู่: -</div>
+                <div id="bellSoundList"></div>
+                <div class="bl-up">
+                    <input id="bellSoundFile" type="file" accept="audio/*,.mp3,.wav" aria-label="เลือกไฟล์เสียง">
+                    <button onclick="bell_uploadSound()"><span class="material-icons" style="font-size:16px">upload</span>อัปโหลดเสียงใหม่</button>
+                    <span id="bellSoundStatus"></span>
+                    <p>รองรับ .mp3 / .wav ไม่เกิน 5 MB · เสียงที่เลือกมีผลกับพนักงานทุกคนในการเรียกครั้งถัดไป</p>
                 </div>
-                <div class="flex gap-1 text-xs shrink-0" id="bellFilterBar">
-                    <button data-f="all" onclick="bell_setFilter('all')" class="bell-fbtn px-3 py-1.5 rounded-lg font-bold">ทั้งหมด</button>
-                    <button data-f="online" onclick="bell_setFilter('online')" class="bell-fbtn px-3 py-1.5 rounded-lg font-bold">เปิดแอปอยู่</button>
-                    <button data-f="offline" onclick="bell_setFilter('offline')" class="bell-fbtn px-3 py-1.5 rounded-lg font-bold">ยังไม่เปิดแอป</button>
-                </div>
-            </div>
-            
-            <div class="bell-deptbar"><span class="bell-tlbl">แผนก</span><div id="bellDeptChips" class="bell-dchips"></div></div>
-            
-            <div id="bellRingControls" class="bell-toolbar">
-                <div class="bell-tgroup">
-                    <span class="bell-tlbl">เรียกตามกะ</span>
-                    <div class="bell-seg">
-                        <button class="bell-shift" data-s="เช้า" onclick="bell_ringShift('เช้า')"><span class="ic">🌅</span>กะเช้า<span class="n" id="bellShN_เช้า">0</span></button>
-                        <button class="bell-shift" data-s="กลาง" onclick="bell_ringShift('กลาง')"><span class="ic">☀️</span>กะกลาง<span class="n" id="bellShN_กลาง">0</span></button>
-                        <button class="bell-shift" data-s="ดึก" onclick="bell_ringShift('ดึก')"><span class="ic">🌙</span>กะดึก<span class="n" id="bellShN_ดึก">0</span></button>
-                    </div>
-                </div>
-                <div class="bell-tgroup right">
-                    <label class="bell-selall"><input type="checkbox" id="bellSelectAll" onchange="bell_toggleSelectAll(this)"> เลือกทั้งหมด</label>
-                    <button onclick="bell_clearSelection()" class="bell-selclear">ล้าง</button>
-                    <button onclick="bell_ringSelected()" class="bell-selring"><span class="material-icons" style="font-size:16px">notifications_active</span> เรียกที่เลือก <span class="n" id="bellSelCount2">0</span></button>
-                </div>
-            </div>
-            <div id="bellList" class="p-3 space-y-1.5 max-h-[60vh] overflow-y-auto custom-scrollbar">
-                <div class="text-center text-slate-400 py-8 text-sm">กำลังโหลด...</div>
             </div>
         </div>
-        
-        <div id="bellSoundCard" class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mt-4">
-            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center flex-wrap gap-2">
-                <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
-                    <span class="material-icons text-pink-500 text-sm">volume_up</span> เสียงเตือนบนเครื่องพนักงาน
-                </h2>
-                <div id="bellSoundCurrent" class="text-xs text-slate-500 dark:text-slate-400">ใช้อยู่: -</div>
-            </div>
-            <div id="bellSoundList" class="p-3 space-y-1.5"></div>
-            <div class="px-4 pb-4 flex items-center gap-2 flex-wrap">
-                <input id="bellSoundFile" type="file" accept="audio/*,.mp3,.wav" class="text-xs text-slate-600 dark:text-slate-300">
-                <button onclick="bell_uploadSound()" class="bg-pink-600 hover:bg-pink-500 text-white px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1 transition">
-                    <span class="material-icons text-xs">upload</span> อัปโหลดเสียงใหม่
-                </button>
-                <span id="bellSoundStatus" class="text-xs text-slate-500"></span>
-            </div>
-            <p class="text-xs text-slate-400 dark:text-slate-500 px-4 pb-4">รองรับ .mp3 / .wav ไม่เกิน 5 MB — เสียงที่เลือกจะมีผลกับพนักงานทุกคนในการเรียกครั้งถัดไป</p>
-        </div>
-
     </div>
 </div>
 
 <div id="bellHistoryView" class="hidden">
-    <div class="bg-gradient-to-r from-slate-700 to-slate-800 text-white p-4 shadow-md shrink-0 flex justify-between items-center flex-wrap gap-2">
-        <div class="flex items-center gap-3">
-            <button onclick="bell_closeHistory()" class="bg-white/15 hover:bg-white/25 p-2 rounded-full transition" title="กลับ"><span class="material-icons">arrow_back</span></button>
-            <div>
-                <h1 class="font-bold text-lg">📜 ประวัติการเรียกกระดิ่ง</h1>
-                <p class="text-xs text-slate-300">ใครถูกเรียกเมื่อไหร่ กดรับเมื่อไหร่ ใช้เวลาเท่าไหร่</p>
-            </div>
+    <div class="bl-head">
+        <button onclick="bell_closeHistory()" class="bl-btn" title="กลับ" aria-label="กลับ" style="width:40px;padding:0;justify-content:center"><span class="material-icons">arrow_back</span></button>
+        <div>
+            <h1 class="bl-title">ประวัติการเรียกกระดิ่ง</h1>
+            <div class="bl-sub">ใครถูกเรียกเมื่อไหร่ กดรับเมื่อไหร่ ใช้เวลาเท่าไหร่</div>
         </div>
-        <button onclick="bell_exportCSV()" class="bg-emerald-500 hover:bg-emerald-400 text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-1 transition shadow">
-            <span class="material-icons text-sm">download</span> ดาวน์โหลด CSV
-        </button>
+        <div class="bl-hr">
+            <button onclick="bell_exportCSV()" class="bl-btn" style="background:#10b981;border-color:#10b981;color:#fff"><span class="material-icons">download</span>ดาวน์โหลด CSV</button>
+        </div>
     </div>
-    <div class="p-4 max-w-6xl mx-auto w-full">
-        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
-            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex flex-col md:flex-row md:items-center gap-3">
-                <div class="relative flex-1">
-                    <span class="material-icons absolute left-3 top-2.5 text-slate-400 text-base">search</span>
-                    <input id="bellHistSearch" type="text" placeholder="ค้นหาชื่อ / ทีม..." oninput="bell_renderHistory()"
-                        class="bell-input w-full pl-10 pr-3 py-2 rounded-xl text-sm">
+    <div class="bl-hwrap">
+        <div class="bl-card" style="overflow:hidden">
+            <div class="bl-htools">
+                <label class="bl-search"><span class="material-icons">search</span><input id="bellHistSearch" type="text" placeholder="ค้นหาชื่อ / ทีม / ผู้เรียก" oninput="bell_renderHistory()" aria-label="ค้นหาประวัติ"></label>
+                <div class="bl-seg" id="bellHistPeriod">
+                    <button data-p="today" onclick="bell_setHistPeriod('today')" class="bell-pbtn">วันนี้</button>
+                    <button data-p="7" onclick="bell_setHistPeriod('7')" class="bell-pbtn">7 วัน</button>
+                    <button data-p="30" onclick="bell_setHistPeriod('30')" class="bell-pbtn">30 วัน</button>
+                    <button data-p="all" onclick="bell_setHistPeriod('all')" class="bell-pbtn">ทั้งหมด</button>
                 </div>
-                <div class="flex gap-1 text-xs shrink-0" id="bellHistPeriod">
-                    <button data-p="today" onclick="bell_setHistPeriod('today')" class="bell-pbtn px-3 py-1.5 rounded-lg font-bold">วันนี้</button>
-                    <button data-p="7" onclick="bell_setHistPeriod('7')" class="bell-pbtn px-3 py-1.5 rounded-lg font-bold">7 วัน</button>
-                    <button data-p="30" onclick="bell_setHistPeriod('30')" class="bell-pbtn px-3 py-1.5 rounded-lg font-bold">30 วัน</button>
-                    <button data-p="all" onclick="bell_setHistPeriod('all')" class="bell-pbtn px-3 py-1.5 rounded-lg font-bold">ทั้งหมด</button>
-                </div>
-                <div id="bellHistCount" class="text-xs text-slate-500 dark:text-slate-400 shrink-0">0 รายการ</div>
+                <div id="bellHistCount">0 รายการ</div>
             </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead class="bell-hist-th">
-                        <tr>
-                            <th class="px-3 py-2 text-left">ชื่อ</th><th class="px-3 py-2">ทีม</th>
-                            <th class="px-3 py-2">เวลาเรียก</th><th class="px-3 py-2">เวลายืนยัน</th>
-                            <th class="px-3 py-2">ใช้เวลา</th><th class="px-3 py-2">สถานะ</th><th class="px-3 py-2">เรียกโดย</th>
-                        </tr>
-                    </thead>
+            <div style="overflow-x:auto">
+                <table class="bl-table">
+                    <thead class="bell-hist-th"><tr><th>ชื่อ</th><th>ทีม</th><th>เวลาเรียก</th><th>เวลายืนยัน</th><th>ใช้เวลา</th><th>สถานะ</th><th>เรียกโดย</th></tr></thead>
                     <tbody id="bellHistBody"></tbody>
                 </table>
             </div>
         </div>
     </div>
 </div>
-
-<style>
-
-    .bell-histcard { grid-column: span 2 / span 2; display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 16px; cursor: pointer; text-align: left; color:var(--k-tx-strong);
-        background:linear-gradient(135deg, var(--k-btn-h), var(--k-card)); border:1px solid color-mix(in srgb,var(--k-tx-strong) 8.0%,transparent); box-shadow: 0 6px 16px rgba(0,0,0,.15); transition: transform .1s, filter .15s; }
-    @media (min-width: 768px) { .bell-histcard { grid-column: span 1 / span 1; } }
-    .bell-histcard:hover { filter: brightness(1.15); } .bell-histcard:active { transform: translateY(1px); }
-    .bell-histcard .material-icons:first-child { font-size: 24px; color:var(--k-amber-tx); }
-    .bell-histcard b { display: block; font-size: 13px; } .bell-histcard small { font-size: 10.5px; color:var(--k-tx3); }
-    .bell-histcard .arr { margin-left: auto; color:var(--k-tx3); }
-    .bell-deptbar { display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-bottom:1px solid rgba(148,163,184,.15); flex-wrap: wrap; }
-    .bell-dchips { display: flex; gap: 6px; flex-wrap: wrap; }
-    .bell-dchip { padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 800; cursor: pointer; border:1px solid rgba(148,163,184,.3); background:transparent; color:var(--k-tx2); transition: all .15s; }
-    .bell-dchip:hover { border-color:#f59e0b; color:var(--k-amber-tx); }
-    .bell-dchip.active { background:#f59e0b; border-color:#f59e0b; color: #fff; }
-    .bell-dchip .n { margin-left: 5px; font-size: 10.5px; opacity: .8; }
-
-    .bell-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 14px; border-bottom:1px solid rgba(148,163,184,.15); }
-    .bell-tgroup { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-    .bell-tgroup.right { margin-left: auto; }
-    .bell-tlbl { font-size: 11px; font-weight: 800; letter-spacing: .06em; color:var(--k-tx3); }
-    .bell-seg { display: inline-flex; padding: 3px; gap: 3px; border-radius: 12px; background:rgba(148,163,184,.12); }
-    .bell-shift { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border:0; border-radius: 9px; background:transparent; color:var(--k-tx2); font-size: 12.5px; font-weight: 700; cursor: pointer; transition: background .15s, color .15s; }
-    .bell-shift:hover:not(:disabled) { background:#f59e0b; color: #fff; }
-    .bell-shift:hover:not(:disabled) .n { background:color-mix(in srgb,var(--k-panel2) 20.0%,transparent); color:var(--k-tx-strong); }
-    .bell-shift:disabled { opacity: .4; cursor: not-allowed; }
-    .bell-shift .ic { font-size: 14px; }
-    .bell-shift .n, .bell-selring .n { min-width: 20px; padding: 1px 7px; border-radius: 999px; font-size: 11px; background:rgba(148,163,184,.2); color:var(--k-tx); text-align: center; }
-    .bell-selall { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color:var(--k-tx3); cursor: pointer; user-select: none; }
-    .bell-selall input { accent-color: #f59e0b; width: 15px; height: 15px; }
-    .bell-selclear { font-size: 12.5px; color:var(--k-tx3); background:transparent; border:0; cursor: pointer; font-weight: 700; } .bell-selclear:hover { color:var(--k-tx); }
-    .bell-selring { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 10px; border:0; cursor: pointer; font-size: 13px; font-weight: 800; color: #fff; background:linear-gradient(135deg, #f43f5e, #f59e0b); box-shadow: 0 6px 16px rgba(244,63,94,.25); }
-    .bell-selring .n { background:color-mix(in srgb,var(--k-panel2) 20.0%,transparent); color:var(--k-tx-strong); }
-    .bell-selring:disabled { opacity: .35; cursor: default; box-shadow: none; }
-    .bell-shtag { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 999px; font-size: 10.5px; font-weight: 800; background:rgba(245,158,11,.15); color:var(--k-amber-tx); }
-
-    .bell-row { cursor: pointer; }
-    .bell-row.sel { background:rgba(245,158,11,.10); border-color:rgba(245,158,11,.45); }
-    .bell-row.offline { cursor: default; }
-    .bell-check { width: 20px; height: 20px; border-radius: 50%; border:2px solid rgba(148,163,184,.5); flex: none; display: flex; align-items: center; justify-content: center; transition: all .15s; }
-    .bell-row.sel .bell-check { background:#f59e0b; border-color:#f59e0b; }
-    .bell-row.sel .bell-check:after { content: "✓"; color:var(--k-tx-strong); font-size: 12px; font-weight: 900; }
-    .bell-row.offline .bell-check { border-style: dashed; opacity: .4; }
-    .bell-row .bw-ring { color:var(--k-amber-tx) !important; } .bell-row .bw-ok { color:var(--k-green-tx) !important; } .bell-row .bw-sec { color:light-dark(#0352aa,#93c5fd) !important; } .bell-row .bw-wait { color:var(--k-red-tx) !important; }
-    .bell-fbtn, .bell-pbtn { background:transparent; color:var(--k-tx3); border:1px solid transparent; }
-    .bell-fbtn:hover, .bell-pbtn:hover { color:var(--k-tx); }
-    .bell-fbtn.active, .bell-pbtn.active { background:#f59e0b; color: #fff; }
-
-    .bell-input { background:var(--k-panel2); color:var(--k-tx); border:1px solid var(--k-line2); }
-    .bell-input::placeholder { color:var(--k-mute); }
-    .bell-input:focus { outline: none; border-color:#E8C15A; }
-
-    .bell-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px;
-                background:color-mix(in srgb,var(--k-tx-strong) 3.0%,transparent); border:1px solid color-mix(in srgb,var(--k-tx-strong) 7.0%,transparent); transition: background .15s; }
-    .bell-row:hover { background:rgba(232,193,90,0.08); }
-    .bell-row.offline { opacity: .55; }
-    .bell-row .bell-name { font-weight: 700; color:var(--k-tx); }
-    .bell-row .bell-sub { font-size: 12px; color:var(--k-tx3); }
-    .bell-row .bell-when { display: flex; flex-wrap: wrap; gap: 4px 6px; justify-content: flex-end; font-size: 11.5px; font-weight: 700; max-width: 260px; }
-    .bell-row .bell-when span { padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
-    .bell-row .bw-ring { background:rgba(245,158,11,.12); }
-    .bell-row .bw-ok { background:rgba(16,185,129,.12); }
-    .bell-row .bw-sec { background:rgba(59,130,246,.12); }
-    .bell-row .bw-wait { background:rgba(239,68,68,.12); }
-
-    .bell-badge { font-size: 12px; padding: 4px 10px; border-radius: 999px; font-weight: 700; white-space: nowrap; }
-    .bell-badge.offline   { background:rgba(148,163,184,0.15); color:var(--k-tx3); }
-    .bell-badge.online    { background:rgba(52,211,153,0.18); color:light-dark(#199564,#6ee7b7); }
-    .bell-badge.ringing   { background:rgba(251,191,36,0.2);  color:var(--k-amber-tx); animation: bellpulse 1.2s infinite; }
-    .bell-badge.confirmed { background:rgba(96,165,250,0.2);  color:light-dark(#0352aa,#93c5fd); }
-    @keyframes bellpulse { 50% { opacity: .55; } }
-    .bell-ver { font-size: 10px; padding: 2px 6px; border-radius: 6px; background:rgba(148,163,184,0.18); color:var(--k-tx2); margin-left: 4px; }
-    .bell-ver.outdated { background:rgba(244,63,94,0.2); color:light-dark(#aa0418,#fda4af); }
-
-    .bell-ringbtn { background:#f59e0b; color: #fff; font-size: 12px; font-weight: 700; padding: 6px 10px; border-radius: 8px;
-                    display: inline-flex; align-items: center; gap: 4px; border:none; cursor: pointer; }
-    .bell-ringbtn:hover { background:#fbbf24; }
-
-    .bell-sound-row { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 12px;
-                      background:color-mix(in srgb,var(--k-tx-strong) 3.0%,transparent); border:1px solid color-mix(in srgb,var(--k-tx-strong) 7.0%,transparent); color:var(--k-tx); }
-    .bell-sound-row.active { border-color:#ec4899; background:rgba(236,72,153,0.12); }
-    .bell-sound-row .bell-sound-name { flex: 1; font-size: 14px; font-weight: 700; color:var(--k-tx);
-                                       overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .bell-sound-row .bell-sound-hint { font-size: 12px; color:var(--k-tx3); }
-    .bell-minibtn { font-size: 12px; padding: 4px 8px; border-radius: 8px; border:none; cursor: pointer;
-                    background:rgba(148,163,184,0.2); color:var(--k-tx); }
-    .bell-minibtn.danger { background:transparent; color:var(--k-red-tx); }
-    .bell-minibtn:hover { background:rgba(148,163,184,0.35); }
-
-    .bell-hist-row { border-top:1px solid color-mix(in srgb,var(--k-tx-strong) 7.0%,transparent); color:var(--k-tx); }
-    .bell-hist-row td { padding: 8px 12px; }
-    .bell-hist-muted { color:var(--k-tx3); }
-    .bell-hist-th { background:color-mix(in srgb,var(--k-panel2) 60.0%,transparent); color:var(--k-tx2); font-size: 12px; }
-    .bell-hist-th th { padding: 8px 12px; }
-
-    html:not(.dark) .bell-input { background:#fff; color:#1e293b; border-color:#cbd5e1; }
-    html:not(.dark) .bell-row, html:not(.dark) .bell-sound-row { background:#f8fafc; border-color:#e2e8f0; }
-    html:not(.dark) .bell-row .bell-name, html:not(.dark) .bell-sound-row .bell-sound-name,
-    html:not(.dark) .bell-sound-row, html:not(.dark) .bell-hist-row { color:#1e293b; }
-    html:not(.dark) .bell-hist-th { background:#f1f5f9; color:var(--k-mute3); }
-</style>
 </div>
