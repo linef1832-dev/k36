@@ -310,7 +310,7 @@
                         ${_kwList(s.keyword).map((k, ki) => `
                             <div class="${perKw ? 'rounded-xl border border-slate-700/70 bg-slate-800/40 p-1.5 space-y-1' : ''}">
                                 <div class="flex gap-1.5 items-center">
-                                    <input type="text" value="${esc(k)}" oninput="ttsKwSet(${gi},${si},${ki},this.value)" placeholder="เช่น กะเช้า(08:00-20:00 น.)" class="flex-1 bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
+                                    <input type="text" value="${esc(k)}" oninput="ttsKwSet(${gi},${si},${ki},this.value)" placeholder="เช่น ระบบถอนปกติ ขั้นต่ำ * - *" class="flex-1 bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
                                     <button onclick="ttsKwDel(${gi},${si},${ki})" title="ลบคำนี้" class="text-gray-600 hover:text-red-400 shrink-0"><span class="material-icons text-lg">remove_circle_outline</span></button>
                                 </div>
                                 ${perKw ? `<div class="flex gap-1.5 items-start pl-1">
@@ -357,9 +357,10 @@
                         ${same
                             ? `<textarea rows="3" oninput="ttsAllText(${gi},${si},this.value)" placeholder="เช่น ถอนเงินได้ {1} ถึง {2} บาท" class="w-full bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500 resize-none">${sharedText}</textarea>
                                <div class="text-[11px] text-gray-500 mt-1 leading-relaxed">
-                                   พิมพ์ <span class="text-sky-300 font-bold">{1}</span> <span class="text-sky-300 font-bold">{2}</span> แทนตัวเลขตัวที่ 1 และ 2 ในคำที่จับได้ —
-                                   เช่น คำ “ขั้นต่ำ 500 - 10,000” + ข้อความ “ถอนเงินได้ {1} ถึง {2} บาท”
-                                   บอทจะพูดว่า “ถอนเงินได้ 500 ถึง 10,000 บาท” โดยไม่ต้องพิมพ์ทีละคำ
+                                   ใส่ <span class="text-violet-300 font-bold">*</span> ในคำที่จับ แทนตัวเลขอะไรก็ได้ แล้วใช้
+                                   <span class="text-sky-300 font-bold">{1}</span> <span class="text-sky-300 font-bold">{2}</span> ในข้อความนี้ —
+                                   เช่น คำ “ระบบถอนปกติ ขั้นต่ำ * - *” + ข้อความ “ถอนเงินได้ {1} ถึง {2} บาท”
+                                   จะครอบคลุมทุกยอดโดยพิมพ์คำเดียว
                                </div>`
                             : `<div class="text-xs text-gray-500 bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2">ตั้งข้อความแยกในแต่ละห้องทางขวา</div>`}
                     </div>
