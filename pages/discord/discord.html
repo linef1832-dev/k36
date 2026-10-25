@@ -1,4 +1,4 @@
-<div id="dsApp" class="fade-in flex flex-col h-full rounded-2xl overflow-hidden">
+<div id="dsApp" class="fade-in h-full rounded-2xl overflow-hidden dsn">
     
     <style id="ds-premium-tabs">
         .ds-topbar{ background:linear-gradient(180deg,var(--k-panel2),var(--k-panel2)); border-bottom:1px solid rgba(232,193,90,0.12); padding:12px 14px; display:flex; align-items:center; gap:12px; flex-shrink:0; box-shadow:0 6px 24px -12px rgba(0,0,0,.7); }
@@ -32,6 +32,45 @@
         .ds-topbar2 .ds-tab{padding:6px 13px 6px 7px;border-radius:11px}
         .ds-topbar2 .ds-tab:hover{transform:none}
         #dsApp .ds-body{background:var(--k-bg)}
+
+        #dsApp.dsn{display:grid;grid-template-columns:250px minmax(0,1fr);background:var(--k-bg);border:1px solid var(--k-line)}
+        .dsn-side{display:flex;flex-direction:column;gap:6px;padding:16px 12px;background:var(--k-panel);border-right:1px solid var(--k-line);overflow-y:auto;min-height:0}
+        .dsn-brand{display:flex;align-items:center;gap:11px;padding:2px 6px 14px;border-bottom:1px solid var(--k-line);margin-bottom:6px}
+        .dsn-bt{font-size:16px;font-weight:900;color:var(--k-tx-strong);line-height:1.2}
+        .dsn-bs{font-size:11.5px;font-weight:700;color:var(--k-mute)}
+        .dsn-grp{font-size:10.5px;font-weight:900;letter-spacing:.07em;color:var(--k-mute2);padding:12px 8px 4px}
+        .dsn-nav{flex-direction:column!important;align-items:stretch!important;gap:3px!important;overflow:visible!important;padding:0!important;flex:none!important;background:none!important;border:0!important}
+        .dsn-nav .ds-tab{display:flex!important;width:100%;align-items:center;gap:11px;padding:8px 10px!important;border-radius:12px!important;text-align:left;white-space:normal}
+        .dsn-nav .ds-tab:hover{transform:none!important}
+        .dsn-nav .ds-tab .tab-chip{width:34px;height:34px;border-radius:10px}
+        .dsn-nav .ds-tab .tab-chip .material-icons{font-size:18px}
+        .dsn-l{display:flex;flex-direction:column;min-width:0;line-height:1.25}
+        .dsn-l b{font-size:13.5px;font-weight:800}
+        .dsn-l small{font-size:11px;font-weight:700;color:var(--k-mute2)}
+        .dsn-nav .ds-tab-active .dsn-l small{color:var(--k-tx3)}
+        .dsn-back{margin-top:auto;display:flex;align-items:center;justify-content:center;gap:6px;height:40px;border-radius:12px;font-size:13px;font-weight:800;color:var(--k-tx2);background:var(--k-btn);border:1px solid var(--k-line3)}
+        .dsn-back:hover{background:var(--k-btn-h);color:var(--k-tx-strong)}
+        .dsn-back .material-icons{font-size:17px}
+        #dsApp.dsn .ds-body{min-width:0;min-height:0;background:var(--k-bg)}
+        .dsn-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 auto 16px;max-width:1500px}
+        .dsn-title{margin:0;font-size:22px;font-weight:900;color:var(--k-tx-strong);letter-spacing:-.01em}
+        .dsn-desc{font-size:13px;font-weight:700;color:var(--k-mute);margin-top:2px}
+        .dsn-live{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 12px;border-radius:999px;font-size:12px;font-weight:800;color:var(--k-green-tx);background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3)}
+        .dsn-live i{width:8px;height:8px;border-radius:99px;background:#10b981;box-shadow:0 0 0 3px rgba(16,185,129,.25);animation:dsnPulse 2s infinite}
+        @keyframes dsnPulse{50%{opacity:.4}}
+        @media (max-width:900px){
+          #dsApp.dsn{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}
+          .dsn-side{flex-direction:column;border-right:0;border-bottom:1px solid var(--k-line);padding:10px;overflow:visible}
+          .dsn-brand{padding:2px 4px 8px;margin:0}
+          .dsn-grp{display:none}
+          .dsn-nav{flex-direction:row!important;overflow-x:auto!important;scrollbar-width:none}
+          .dsn-nav .ds-tab{width:auto;flex:none;padding:6px 10px 6px 6px!important}
+          .dsn-nav .ds-tab .tab-chip{width:28px;height:28px}
+          .dsn-l small{display:none}
+          .dsn-back{display:none}
+          .dsn-head{margin-bottom:12px}
+        }
+        @media (prefers-reduced-motion:reduce){ .dsn-live i{animation:none} }
 </style>
     
     <style id="ds-skin">
@@ -87,27 +126,23 @@
 
         #dsApp #breaktrackModal > div{background:var(--k-panel) !important;border-color:var(--k-line) !important;border-radius:16px !important}
 </style>
-    <div class="ds-topbar ds-topbar2">
-        <div class="ds-headrow">
+    <aside class="dsn-side">
+        <div class="dsn-brand">
             <div class="ds-brand"><span class="material-icons">discord</span></div>
-            <div class="ds-titlebox">
-                <h1 class="ds-title">บอท Discord</h1>
-                <div class="ds-desc" id="dsTabDesc">ดูว่าใครอยู่ห้องไหน ไมค์ / หูฟัง แบบเรียลไทม์</div>
+            <div><div class="dsn-bt">บอท Discord</div><div class="dsn-bs">ระบบจัดการห้องเสียง</div></div>
+        </div>
+        <nav class="ds-tabs-rail dsn-nav" aria-label="เมนู Discord">
+            <div class="dsn-grp">ติดตาม</div><button onclick="switchDiscordTab('spy')" id="tabDsSpy" class="ds-tab ds-tab-active" style="--acc:#ef4444"><span class="tab-chip"><span class="material-icons">visibility</span></span><span class="dsn-l"><b>Spy Monitor</b><small>ใครอยู่ห้องไหน แบบสด</small></span></button><button onclick="switchDiscordTab('voicelog')" id="tabDsVoicelog" class="ds-tab" style="--acc:#f59e0b"><span class="tab-chip"><span class="material-icons">history</span></span><span class="dsn-l"><b>เข้า / ออกดิส</b><small>ประวัติรายวัน</small></span></button><button onclick="switchDiscordTab('chatcount')" id="tabDsChatcount" class="ds-tab" style="--acc:#0ea5e9;display:none"><span class="tab-chip"><span class="material-icons">forum</span></span><span class="dsn-l"><b>นับแชท</b><small>จำนวนแชทในห้อง</small></span></button><div class="dsn-grp">จัดการ</div><button onclick="switchDiscordTab('move')" id="tabDsMove" class="ds-tab" style="--acc:#6366f1"><span class="tab-chip"><span class="material-icons">move_up</span></span><span class="dsn-l"><b>ย้ายห้อง</b><small>ย้ายพนักงานระหว่างห้อง</small></span></button><button onclick="switchDiscordTab('manage')" id="tabDsManage" class="ds-tab" style="--acc:#8b5cf6"><span class="tab-chip"><span class="material-icons">manage_accounts</span></span><span class="dsn-l"><b>ฐานข้อมูล</b><small>จับคู่บัญชี · กลุ่ม</small></span></button><button onclick="switchDiscordTab('breaktrack')" id="tabDsBreaktrack" class="ds-tab" style="--acc:#10b981"><span class="tab-chip"><span class="material-icons">coffee</span></span><span class="dsn-l"><b>เช็คอิน</b><small>พัก / กลับจากพัก</small></span></button><div class="dsn-grp">เสียงแจ้งเตือน</div><button onclick="switchDiscordTab('ttsvoice')" id="tabDsTtsvoice" class="ds-tab" style="--acc:#0ea5e9"><span class="tab-chip"><span class="material-icons">campaign</span></span><span class="dsn-l"><b>ศูนย์เสียง</b><small>บอทพูดแจ้งเตือน</small></span></button>
+        </nav>
+        <button onclick="showPage('dashboard')" class="dsn-back"><span class="material-icons">arrow_back</span>กลับหน้าหลัก</button>
+    </aside>
+<div class="ds-body flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar">
+        <div class="dsn-head">
+            <div>
+                <h1 class="dsn-title" id="dsPageTitle">Spy Monitor</h1>
+                <div class="dsn-desc" id="dsTabDesc">ดูว่าใครอยู่ห้องไหน ไมค์ / หูฟัง แบบเรียลไทม์</div>
             </div>
-            <button onclick="showPage('dashboard')" class="ds-close"><span class="material-icons" style="font-size:15px">arrow_back</span> กลับ</button>
         </div>
-        <div class="ds-tabs-rail">
-            <button onclick="switchDiscordTab('spy')" id="tabDsSpy" class="ds-tab ds-tab-active" style="--acc:#ef4444"><span class="tab-chip"><span class="material-icons">visibility</span></span> Spy Monitor</button>
-            <button onclick="switchDiscordTab('move')" id="tabDsMove" class="ds-tab" style="--acc:#6366f1"><span class="tab-chip"><span class="material-icons">move_up</span></span> ย้ายห้อง</button>
-            <button onclick="switchDiscordTab('manage')" id="tabDsManage" class="ds-tab" style="--acc:#8b5cf6"><span class="tab-chip"><span class="material-icons">manage_accounts</span></span> ฐานข้อมูล</button>
-            <button onclick="switchDiscordTab('voicelog')" id="tabDsVoicelog" class="ds-tab" style="--acc:#f59e0b"><span class="tab-chip"><span class="material-icons">history</span></span> เข้า/ออกดิส</button>
-            <button onclick="switchDiscordTab('breaktrack')" id="tabDsBreaktrack" class="ds-tab" style="--acc:#10b981"><span class="tab-chip"><span class="material-icons">coffee</span></span> เช็คอิน</button>
-            <button onclick="switchDiscordTab('ttsvoice')" id="tabDsTtsvoice" class="ds-tab" style="--acc:#0ea5e9"><span class="tab-chip"><span class="material-icons">campaign</span></span> ศูนย์เสียง</button>
-            <button onclick="switchDiscordTab('chatcount')" id="tabDsChatcount" class="ds-tab" style="--acc:#0ea5e9;display:none"><span class="tab-chip"><span class="material-icons">forum</span></span> นับแชท</button>
-        </div>
-    </div>
-
-    <div class="ds-body flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar">
         
         <div id="dsContent_spy" class="max-w-[1400px] mx-auto block fade-in pb-10">
             <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden">

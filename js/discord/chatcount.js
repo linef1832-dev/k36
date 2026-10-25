@@ -969,13 +969,44 @@
     ttsvoice: 'บอทพูดแจ้งเตือนในห้องเสียง',
     chatcount: 'นับจำนวนแชทในห้อง'
   };
+  const TITLE = {
+    spy: 'Spy Monitor',
+    move: 'ย้ายห้อง',
+    manage: 'ฐานข้อมูลพนักงาน',
+    voicelog: 'เข้า / ออกดิส',
+    breaktrack: 'เช็คอินพัก',
+    ttsvoice: 'ศูนย์เสียง',
+    chatcount: 'นับแชท'
+  };
   const prev = window.switchDiscordTab;
   if (typeof prev !== 'function' || prev._dsDesc) return;
   window.switchDiscordTab = function(tabName) {
     const r = prev.apply(this, arguments);
     const el = document.getElementById('dsTabDesc');
     if (el && DESC[tabName]) el.textContent = DESC[tabName];
+    const tt = document.getElementById('dsPageTitle');
+    if (tt && TITLE[tabName]) tt.textContent = TITLE[tabName];
+    syncGroups();
     return r;
   };
+  function syncGroups() {
+    document.querySelectorAll('.dsn-nav .dsn-grp').forEach((g => {
+      let n = g.nextElementSibling, any = false;
+      while (n && !n.classList.contains('dsn-grp')) {
+        if (n.style.display !== 'none') any = true;
+        n = n.nextElementSibling;
+      }
+      g.style.display = any ? '' : 'none';
+    }));
+  }
+  const prevPerm = window.applyDiscordPermissions;
+  if (typeof prevPerm === 'function' && !prevPerm._dsGrp) {
+    window.applyDiscordPermissions = function() {
+      const r = prevPerm.apply(this, arguments);
+      syncGroups();
+      return r;
+    };
+    window.applyDiscordPermissions._dsGrp = true;
+  }
   window.switchDiscordTab._dsDesc = true;
 })();
