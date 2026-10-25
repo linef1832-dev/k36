@@ -15,6 +15,7 @@ let odCfgData = {
     chat_id: ''
   },
   lock: {
+    notes: [],
     chat_id: ''
   },
   tags: {
@@ -73,7 +74,7 @@ const OD_TPL_VARS = {
   odol: [ '{เว็บ}', '{รายการยูส}', '{จำนวนยูส}', '{ชื่อ}', '{หมายเหตุ}', '{แท็ก}', '{ผู้ส่ง}', '{วันที่}', '{เวลา}' ],
   big: [ '{เว็บ}', '{ยูส}', '{จำนวนเงิน}', '{แท็ก}', '{ผู้ส่ง}', '{วันที่}', '{เวลา}' ],
   big_na: [ '{เว็บ}', '{ยูส}', '{แท็ก}', '{ผู้ส่ง}', '{วันที่}', '{เวลา}' ],
-  lock: [ '{เว็บ}', '{ยูส}', '{ธนาคาร}', '{เลขบัญชี}', '{รายการบัญชี}', '{จำนวนบัญชี}', '{แท็ก}', '{ผู้ส่ง}', '{วันที่}', '{เวลา}' ],
+  lock: [ '{เว็บ}', '{ยูส}', '{ธนาคาร}', '{เลขบัญชี}', '{รายการบัญชี}', '{จำนวนบัญชี}', '{หมายเหตุ}', '{แท็ก}', '{ผู้ส่ง}', '{วันที่}', '{เวลา}' ],
   audit_edit: [ '{ผู้ส่ง}', '{เวลา}', '{การเปลี่ยนแปลง}', '{คนรับงาน}' ],
   audit_delete: [ '{ผู้ส่ง}', '{เวลา}', '{ข้อความเดิม}', '{คนรับงาน}' ]
 };
@@ -124,6 +125,7 @@ const OD_TPL_SAMPLE = {
     '{เลขบัญชี}': '1234567890 กสิกรไทย',
     '{รายการบัญชี}': '1. 1234567890 กสิกรไทย\n2. 9876543210 กสิกรไทย',
     '{จำนวนบัญชี}': '2',
+    '{หมายเหตุ}': 'บัญชีม้า',
     '{แท็ก}': '@somchai @somsri',
     '{ผู้ส่ง}': 'BIRD',
     '{วันที่}': '21/08/2569',
@@ -307,9 +309,11 @@ window.initOdConfig = async function(opts = {}) {
         ...parsed.big || {}
       };
       odCfgData.lock = {
+        notes: [],
         chat_id: '',
         ...parsed.lock || {}
       };
+      if (!Array.isArray(odCfgData.lock.notes)) odCfgData.lock.notes = [];
       odCfgData.tags = {
         day: '',
         night: '',
@@ -400,6 +404,7 @@ window.initOdConfig = async function(opts = {}) {
           chat_id: ''
         },
         lock: {
+          notes: [],
           chat_id: ''
         },
         tags: {
@@ -587,6 +592,7 @@ function odCfg_renderAll() {
   if (bt) bt.value = odCfgData.bot?.token || '';
   if (ak) ak.value = localStorage.getItem('od_admin_key') || '';
   odCfg_renderNotes();
+  odCfg_renderLockNotes();
   odCfg_paintBotBadge(odCfgData.bot?.enabled !== false, null);
   const to = document.getElementById('odCfgTplOd'), tl = document.getElementById('odCfgTplOdol'), tb = document.getElementById('odCfgTplBig'), tbn = document.getElementById('odCfgTplBigNa');
   if (to) to.value = odCfgData.templates?.od || OD_TPL_DEFAULT.od;
@@ -678,6 +684,81 @@ window.odCfg_delNote = async function(i) {
   odCfgData.odol.notes.splice(i, 1);
   if (!odCfgData.odol.notes.includes(odCfgData.odol.default_note)) odCfgData.odol.default_note = odCfgData.odol.notes[0] || '';
   odCfg_renderNotes();
+  odCfg_refreshPreview();
+};
+
+function odCfg_lockNotes() {
+  if (!odCfgData.lock) odCfgData.lock = { notes: [], chat_id: '' };
+  if (!Array.isArray(odCfgData.lock.notes)) odCfgData.lock.notes = [];
+  return odCfgData.lock.notes;
+}
+
+function odCfg_renderLockNotes() {
+  const list = document.getElementById('odCfgLockNoteList');
+  if (!list) return;
+  const notes = odCfg_lockNotes();
+  if (!notes.length) {
+    list.innerHTML = '<div class="text-gray-400 text-sm py-2">ยังไม่มีหมายเหตุ (ฟอร์มจะมีแค่ช่องพิมพ์เอง)</div>';
+    return;
+  }
+  list.innerHTML = notes.map(((n, i) => `\n        <div class="flex items-center gap-1.5 bg-gray-50 dark:bg-slate-900 border-gray-300 dark:border-slate-600 border rounded-xl px-3 py-1.5">\n            <span class="text-cyan-500">☑</span>\n            <span class="font-bold text-sm text-slate-800 dark:text-white">${odCfg_h(n)}</span>\n            <button onclick="odCfg_editLockNote(${i})" class="text-xs text-sky-400 hover:text-sky-300 ml-1">✏️</button>\n            <button onclick="odCfg_delLockNote(${i})" class="text-xs text-red-400 hover:text-red-300">🗑️</button>\n        </div>`)).join('');
+}
+
+window.odCfg_addLockNote = async function() {
+  const {value: value} = await Swal.fire({
+    title: 'เพิ่มหมายเหตุ (ล็อคบัญชี)',
+    input: 'text',
+    inputPlaceholder: 'เช่น บัญชีม้า',
+    showCancelButton: true,
+    confirmButtonText: 'เพิ่ม',
+    customClass: {
+      popup: 'dark:bg-slate-800 dark:text-white rounded-2xl'
+    }
+  });
+  const v = odCfg_clean(value);
+  if (!v) return;
+  const notes = odCfg_lockNotes();
+  if (notes.includes(v)) return Swal.fire('มีอยู่แล้ว', `หมายเหตุ "${v}" มีอยู่แล้ว`, 'info');
+  notes.push(v);
+  odCfg_renderLockNotes();
+  odCfg_refreshPreview();
+};
+
+window.odCfg_editLockNote = async function(i) {
+  const notes = odCfg_lockNotes();
+  const {value: value} = await Swal.fire({
+    title: 'แก้ไขหมายเหตุ (ล็อคบัญชี)',
+    input: 'text',
+    inputValue: notes[i],
+    showCancelButton: true,
+    confirmButtonText: 'บันทึก',
+    customClass: {
+      popup: 'dark:bg-slate-800 dark:text-white rounded-2xl'
+    }
+  });
+  const v = odCfg_clean(value);
+  if (!v) return;
+  if (notes.some(((x, j) => x === v && j !== i))) return Swal.fire('มีอยู่แล้ว', `หมายเหตุ "${v}" มีอยู่แล้ว`, 'info');
+  notes[i] = v;
+  odCfg_renderLockNotes();
+  odCfg_refreshPreview();
+};
+
+window.odCfg_delLockNote = async function(i) {
+  const notes = odCfg_lockNotes();
+  const {isConfirmed: isConfirmed} = await Swal.fire({
+    title: `ลบ "${notes[i]}"?`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'ลบ',
+    confirmButtonColor: '#ef4444',
+    customClass: {
+      popup: 'dark:bg-slate-800 dark:text-white rounded-2xl'
+    }
+  });
+  if (!isConfirmed) return;
+  notes.splice(i, 1);
+  odCfg_renderLockNotes();
   odCfg_refreshPreview();
 };
 
