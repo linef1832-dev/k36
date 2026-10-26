@@ -1,7 +1,6 @@
 function _galleryCopyFailPopup(err) {
   Swal.fire({
     html: `<div style="padding:12px 8px">\n            <div style="width:52px;height:52px;margin:0 auto 12px;background:rgba(239,68,68,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid rgba(239,68,68,0.3)">\n            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>\n            </div>\n            <div style="font-size:16px;font-weight:800;color:var(--k-tx-strong);margin-bottom:6px">คัดลอกไม่สำเร็จ</div>\n            <div style="font-size:11px;color:var(--k-tx3)">${err.message}</div>\n            </div>`,
-    background: '#0f172a',
     backdrop: 'rgba(0,0,0,0.6)',
     showConfirmButton: true,
     confirmButtonText: 'ตกลง',
@@ -13,101 +12,155 @@ function _galleryCopyFailPopup(err) {
   });
 }
 
-window.copyImageToClipboard = async function(imageUrl) {
-  Swal.fire({
-    html: `\n            <div style="padding:14px 8px">\n                <div style="position:relative;width:50px;height:50px;margin:0 auto 12px">\n                    <div style="position:absolute;inset:0;border-radius:50%;border:3px solid rgba(236,72,153,0.15)"></div>\n                    <div style="position:absolute;inset:0;border-radius:50%;border:3px solid transparent;border-top-color:#ec4899;animation:gspinn .8s linear infinite"></div>\n                    <div style="position:absolute;inset:8px;border-radius:50%;border:2px solid transparent;border-top-color:#f9a8d4;animation:gspinn .6s linear infinite reverse"></div>\n                </div>\n                <div style="font-size:14px;font-weight:700;color:var(--k-tx-strong);margin-bottom:4px">กำลังคัดลอกรูปภาพ</div>\n                <div style="font-size:11px;color:var(--k-tx3)">กำลังแปลงไฟล์ กรุณารอสักครู่...</div>\n            </div>\n            <style>@keyframes gspinn{to{transform:rotate(360deg)}}</style>\n        `,
-    background: '#0f172a',
-    backdrop: 'rgba(0,0,0,0.65)',
-    allowOutsideClick: false,
-    showConfirmButton: false,
-    customClass: {
-      popup: 'rounded-2xl border border-pink-900/40'
-    }
-  });
+const _gxPngCache = new Map;
+
+const GX_PNG_MAX = 40;
+
+async function _gxToPng(blob) {
+  if (blob.type === 'image/png') return blob;
+  const bmp = await createImageBitmap(blob);
   try {
-    if (!navigator.clipboard || !window.ClipboardItem) {
-      throw new Error("เบราว์เซอร์ไม่รองรับการคัดลอกรูปภาพโดยตรง (แนะนำให้ใช้ Chrome หรือ Edge)");
-    }
-    try {
-      const respQ = await fetch(imageUrl, {
-        cache: 'force-cache'
+    if (typeof OffscreenCanvas !== 'undefined') {
+      const oc = new OffscreenCanvas(bmp.width, bmp.height);
+      oc.getContext('2d').drawImage(bmp, 0, 0);
+      return await oc.convertToBlob({
+        type: 'image/png'
       });
-      if (respQ.ok) {
-        const b = await respQ.blob();
-        let png = b;
-        if (b.type !== 'image/png') {
-          const bmp = await createImageBitmap(b);
-          const cv = document.createElement('canvas');
-          cv.width = bmp.width;
-          cv.height = bmp.height;
-          cv.getContext('2d').drawImage(bmp, 0, 0);
-          bmp.close && bmp.close();
-          png = await new Promise((r => cv.toBlob(r, 'image/png')));
-        }
-        await navigator.clipboard.write([ new ClipboardItem({
-          'image/png': png
-        }) ]);
-        _galleryRipple(imageUrl);
-        Swal.fire({
-          toast: true,
-          position: 'top-end',
-          icon: 'success',
-          title: 'คัดลอกรูปแล้ว',
-          showConfirmButton: false,
-          timer: 1500,
-          background: '#0f172a',
-          color: '#e2e8f0'
-        });
-        return;
-      }
-    } catch (fastErr) {}
-    let img;
-    try {
-      const resp = await fetch(imageUrl, {
-        cache: 'force-cache'
-      });
-      if (!resp.ok) throw new Error('fetch failed');
-      const srcBlob = await resp.blob();
-      img = await createImageBitmap(srcBlob);
-    } catch (fetchErr) {
-      img = new Image;
-      img.crossOrigin = "Anonymous";
-      img.src = imageUrl;
-      await new Promise(((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = () => reject(new Error("ไม่สามารถโหลดรูปภาพจากเซิร์ฟเวอร์ได้"));
-      }));
     }
-    const canvas = document.createElement('canvas');
-    canvas.width = img.width;
-    canvas.height = img.height;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(img, 0, 0);
-    canvas.toBlob((async blob => {
-      try {
-        const item = new ClipboardItem({
-          "image/png": blob
-        });
-        await navigator.clipboard.write([ item ]);
-        _galleryRipple(imageUrl);
-        Swal.fire({
-          html: `\n                        <div style="padding:14px 8px">\n                            <div style="width:58px;height:58px;margin:0 auto 14px;background:rgba(34,197,94,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid rgba(34,197,94,0.3);box-shadow:0 0 20px rgba(34,197,94,0.12)">\n                                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>\n                            </div>\n                            <div style="font-size:17px;font-weight:800;color:var(--k-tx-strong);margin-bottom:8px">คัดลอกสำเร็จ!</div>\n                            <div style="font-size:12px;color:var(--k-tx3);line-height:1.8">\n                                นำไปกดวาง\n                                <kbd style="background:color-mix(in srgb,var(--k-tx-strong) 8.0%,transparent);border:1px solid color-mix(in srgb,var(--k-tx-strong) 15.0%,transparent);border-radius:5px;padding:2px 7px;font-size:11px;color:var(--k-tx);font-family:monospace">Ctrl+V</kbd>\n                                ในช่องแชท Line OA ได้เลยครับ\n                            </div>\n                        </div>\n                    `,
-          background: '#0f172a',
-          backdrop: 'rgba(0,0,0,0.6)',
-          timer: 1500,
-          showConfirmButton: false,
-          customClass: {
-            popup: 'rounded-2xl border border-green-900/40'
-          }
-        });
-      } catch (err) {
-        console.error('Clipboard write failed:', err);
-        _galleryCopyFailPopup(err);
-      }
-    }), 'image/png');
+    const cv = document.createElement('canvas');
+    cv.width = bmp.width;
+    cv.height = bmp.height;
+    cv.getContext('2d').drawImage(bmp, 0, 0);
+    return await new Promise(((res, rej) => cv.toBlob((b => b ? res(b) : rej(new Error('แปลงรูปไม่สำเร็จ'))), 'image/png')));
+  } finally {
+    bmp.close && bmp.close();
+  }
+}
+
+async function _gxPngViaImg(url) {
+  const img = new Image;
+  img.crossOrigin = 'anonymous';
+  img.decoding = 'async';
+  img.src = url;
+  await new Promise(((res, rej) => {
+    img.onload = res;
+    img.onerror = () => rej(new Error('ไม่สามารถโหลดรูปภาพจากเซิร์ฟเวอร์ได้'));
+  }));
+  const cv = document.createElement('canvas');
+  cv.width = img.naturalWidth;
+  cv.height = img.naturalHeight;
+  cv.getContext('2d').drawImage(img, 0, 0);
+  return await new Promise(((res, rej) => cv.toBlob((b => b ? res(b) : rej(new Error('แปลงรูปไม่สำเร็จ'))), 'image/png')));
+}
+
+window.galleryPrepPng = function(url) {
+  if (!url) return Promise.reject(new Error('ไม่มีลิงก์รูป'));
+  if (_gxPngCache.has(url)) {
+    const p = _gxPngCache.get(url);
+    _gxPngCache.delete(url);
+    _gxPngCache.set(url, p);
+    return p;
+  }
+  const p = (async () => {
+    try {
+      const r = await fetch(url, {
+        cache: 'force-cache',
+        mode: 'cors'
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return await _gxToPng(await r.blob());
+    } catch (e) {
+      return await _gxPngViaImg(url);
+    }
+  })();
+  p.catch((() => _gxPngCache.delete(url)));
+  _gxPngCache.set(url, p);
+  while (_gxPngCache.size > GX_PNG_MAX) _gxPngCache.delete(_gxPngCache.keys().next().value);
+  return p;
+};
+
+window.galleryWarmPng = function(urls) {
+  const list = (urls || []).filter((u => u && !_gxPngCache.has(u))).slice(0, 6);
+  if (!list.length) return;
+  let i = 0;
+  const next = () => {
+    if (i >= list.length || document.hidden) return;
+    const u = list[i++];
+    window.galleryPrepPng(u).catch((() => {})).finally((() => {
+      if (window.requestIdleCallback) requestIdleCallback(next, {
+        timeout: 1500
+      }); else setTimeout(next, 120);
+    }));
+  };
+  if (window.requestIdleCallback) requestIdleCallback(next, {
+    timeout: 2e3
+  }); else setTimeout(next, 400);
+};
+
+if (!window._gxWarmBound) {
+  window._gxWarmBound = true;
+  const warm = e => {
+    const el = e.target && e.target.closest && e.target.closest('#galleryGrid .gx-card');
+    if (!el) return;
+    const src = el.querySelector('[data-u]');
+    if (src && src.dataset.u) window.galleryPrepPng(src.dataset.u).catch((() => {}));
+  };
+  document.addEventListener('pointerover', warm, {
+    passive: true
+  });
+  document.addEventListener('focusin', warm);
+  document.addEventListener('touchstart', warm, {
+    passive: true
+  });
+}
+
+function _gxToast(icon, title, ms) {
+  Swal.fire({
+    toast: true,
+    position: 'top-end',
+    icon: icon,
+    title: title,
+    showConfirmButton: false,
+    timer: ms || 1600
+  });
+}
+
+window.copyImageToClipboard = async function(imageUrl) {
+  if (!navigator.clipboard || !window.ClipboardItem) {
+    _galleryCopyFailPopup(new Error('เบราว์เซอร์ไม่รองรับการคัดลอกรูปภาพโดยตรง (แนะนำให้ใช้ Chrome หรือ Edge)'));
+    return;
+  }
+  if (window._gxCopying === imageUrl) return;
+  window._gxCopying = imageUrl;
+  const pngP = window.galleryPrepPng(imageUrl);
+  let slowTimer = setTimeout((() => _gxToast('info', 'กำลังเตรียมรูป…', 6e3)), 350);
+  try {
+    let written = false;
+    try {
+      await navigator.clipboard.write([ new ClipboardItem({
+        'image/png': pngP
+      }) ]);
+      written = true;
+    } catch (e1) {
+      if (e1 && e1.name === 'NotAllowedError' && !/promise|Promise/.test(String(e1.message))) throw e1;
+    }
+    if (!written) {
+      const blob = await pngP;
+      await navigator.clipboard.write([ new ClipboardItem({
+        'image/png': blob
+      }) ]);
+    }
+    clearTimeout(slowTimer);
+    if (typeof _galleryRipple === 'function') _galleryRipple(imageUrl);
+    _gxToast('success', 'คัดลอกรูปแล้ว · กด Ctrl+V วางได้เลย', 1500);
   } catch (err) {
+    clearTimeout(slowTimer);
     console.error('Copy image failed:', err);
-    _galleryCopyFailPopup(err);
+    let msg = err && err.message || String(err);
+    if (err && err.name === 'NotAllowedError') msg = 'เบราว์เซอร์ไม่อนุญาตให้คัดลอก ลองคลิกที่หน้าเว็บก่อน แล้วกดคัดลอกอีกครั้ง';
+    _galleryCopyFailPopup(new Error(msg));
+  } finally {
+    window._gxCopying = null;
   }
 };
 
@@ -173,6 +226,7 @@ window.openLightbox = function(index) {
 function _updateLightbox() {
   const img = _lbData[_lbIndex];
   if (!img) return;
+  if (typeof window.galleryPrepPng === 'function') window.galleryPrepPng(img.url).catch((() => {}));
   const el = document.getElementById('lightboxImg');
   const thumb = img.thumb_url || '';
   const myIdx = _lbIndex;
@@ -431,12 +485,10 @@ window.renameGalleryImage = async function(imgId, currentName) {
 function _galleryRipple(imageUrl) {
   const grid = document.getElementById('galleryGrid');
   if (!grid) return;
-  const cards = grid.querySelectorAll('[data-lb-index]');
-  cards.forEach((card => {
-    const btn = card.closest('.bg-slate-800');
-    if (!btn) return;
-    const img = btn.querySelector('img');
-    if (!img || !img.src.includes(imageUrl.split('/').pop())) return;
+  const cards = grid.querySelectorAll('.gx-card');
+  cards.forEach((btn => {
+    const src = btn.querySelector('[data-u]');
+    if (!src || src.dataset.u !== imageUrl) return;
     const ripple = document.createElement('div');
     ripple.style.cssText = `\n            position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:40;\n            background:radial-gradient(circle at center,rgba(34,197,94,0.35),rgba(34,197,94,0.08) 60%,transparent 80%);\n            animation:_gRipple 0.7s ease-out forwards;\n        `;
     btn.style.position = 'relative';
@@ -471,13 +523,13 @@ function _galleryRipple(imageUrl) {
   document.addEventListener('click', removeCtx);
   document.addEventListener('contextmenu', (e => {
     removeCtx();
-    const card = e.target.closest('.bg-slate-800');
+    const card = e.target.closest('#galleryGrid .gx-card');
     if (!card) return;
-    const imgEl = card.querySelector('img');
-    const nameEl = card.querySelector('.text-white.font-bold.text-xs');
-    if (!imgEl) return;
+    const src = card.querySelector('[data-u]');
+    const nameEl = card.querySelector('.gx-card-name');
+    if (!src) return;
     e.preventDefault();
-    const url = imgEl.src;
+    const url = src.dataset.u;
     const name = nameEl ? nameEl.textContent.trim() : 'image';
     const menu = document.createElement('div');
     menu.className = '_gallery-ctx-menu';

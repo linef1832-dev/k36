@@ -4,12 +4,21 @@ let currentGalleryMode = 'general';
 
 let _galleryPage = 1;
 
+const GALLERY_TPL_HTML_KEYS = [ 'renameBtn', 'newBadge', 'adminCheckbox', 'catBadge', 'lightboxClick' ];
+
 function getGalleryTpl(templateId, data = {}) {
   const tpl = document.getElementById(templateId);
   if (!tpl) return '';
   let html = tpl.innerHTML;
   for (const key in data) {
-    const val = data[key] !== undefined && data[key] !== null ? data[key] : '';
+    const raw = data[key] !== undefined && data[key] !== null ? data[key] : '';
+    const val = GALLERY_TPL_HTML_KEYS.includes(key) ? raw : String(raw).replace(/[&<>"']/g, (c => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    })[c]));
     html = html.split(`{{${key}}}`).join(val);
   }
   return html;
@@ -216,7 +225,7 @@ function _renderGalleryGrid() {
       const targetCat = filterVal + currentSuffix;
       if (cat !== targetCat) return false;
     }
-    if (searchVal && !img.name.toLowerCase().includes(searchVal)) return false;
+    if (searchVal && !String(img.name || '').toLowerCase().includes(searchVal)) return false;
     return true;
   }));
   currentGalleryData = filteredData;
@@ -224,7 +233,7 @@ function _renderGalleryGrid() {
   _renderWebBadges(filteredData);
   if (filteredData.length === 0) {
     const msg = GALLERY_MODE_LABEL[currentGalleryMode] || 'ไม่พบรูปภาพ';
-    grid.innerHTML = `<div class="col-span-full text-center text-gray-500 pt-20">${msg}</div>`;
+    grid.innerHTML = `<div class="gx-empty"><span class="material-icons">image_not_supported</span>${searchVal ? 'ไม่พบรูปที่ตรงกับ "' + window.escapeHtml(searchVal) + '"' : msg}</div>`;
     return;
   }
   const sortVal = document.getElementById('gallerySort')?.value || 'newest';
@@ -237,12 +246,12 @@ function _renderGalleryGrid() {
   const pagEl = document.getElementById('galleryPagination');
   if (pagEl) {
     if (maxPage > 1) {
-      let btns = '';
-      for (let i = 1; i <= maxPage; i++) {
-        const active = i === _galleryPage ? 'bg-pink-600 text-white border-pink-400 scale-110' : 'bg-slate-700 text-gray-300 border-slate-600 hover:bg-pink-700 hover:text-white';
-        btns += `<button onclick="_galleryPage=${i}; fetchGalleryImages()" class="text-xs font-bold min-w-[28px] h-7 px-2 rounded-lg border ${active} transition">${i}</button>`;
+      const nums = [];
+      for (let p = 1; p <= maxPage; p++) {
+        if (p === 1 || p === maxPage || Math.abs(p - _galleryPage) <= 1) nums.push(p); else if (nums[nums.length - 1] !== '…') nums.push('…');
       }
-      pagEl.innerHTML = `<span class="text-gray-400 text-xs mr-1">หน้า:</span>${btns}`;
+      const b = (lbl, p, on, dis) => `<button type="button" class="gx-pg${on ? ' on' : ''}" ${dis ? 'disabled' : `onclick="_galleryPage=${p}; fetchGalleryImages()"`}>${lbl}</button>`;
+      pagEl.innerHTML = `<span style="font-size:11.5px;font-weight:700;color:var(--k-mute);margin-right:4px">หน้า ${_galleryPage}/${maxPage}</span>` + b('‹', _galleryPage - 1, false, _galleryPage === 1) + nums.map((p => p === '…' ? '<span style="color:var(--k-mute2)">…</span>' : b(p, p, p === _galleryPage, false))).join('') + b('›', _galleryPage + 1, false, _galleryPage === maxPage);
     } else {
       pagEl.innerHTML = '';
     }
@@ -259,24 +268,26 @@ function _renderGalleryGrid() {
       month: 'short',
       year: 'numeric'
     });
-    const uploadBy = img.uploaded_by ? `โดย ${img.uploaded_by}` : '';
-    const newBadgeG = isNewG ? `<span class="absolute top-2 right-2 bg-red-600 text-white text-[10px] px-2 py-0.5 rounded shadow-lg font-bold animate-pulse z-30 border border-white/50">NEW</span>` : '';
+    const uploadBy = img.uploaded_by ? `· ${img.uploaded_by}` : '';
+    const newBadgeG = isNewG ? `<span class="gx-new">ใหม่</span>` : '';
     const adminCbG = canDelG ? `<div class="absolute top-2 left-2 z-30" onclick="event.stopPropagation()"><input type="checkbox" class="gallery-check w-5 h-5 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer shadow-sm bg-white" value="${img.id}" onchange="updateBulkDeleteButton()"></div>` : '';
-    let catColorG = 'bg-black/60 text-white border-white/20';
     let catNameG = img.category || '';
-    if (catNameG.endsWith('_BONUS')) {
-      catNameG = catNameG.replace('_BONUS', '');
-      catColorG = 'bg-yellow-600/90 text-white border-yellow-300';
-    } else if (catNameG.endsWith('_REACH')) {
-      catNameG = catNameG.replace('_REACH', '');
-      catColorG = 'bg-purple-600/90 text-white border-fuchsia-300';
-    } else if (catNameG.endsWith('_CARD')) {
-      catNameG = catNameG.replace('_CARD', '');
-      catColorG = 'bg-emerald-600/90 text-white border-teal-300';
-    }
-    const catBadgeG = `<span class="absolute bottom-2 left-2 ${catColorG} text-[10px] px-2 py-0.5 rounded border z-20 backdrop-blur-sm font-bold shadow-sm">${catNameG}</span>`;
+    let catBg = 'rgba(15,23,42,.72)';
+    const sufMap = {
+      _BONUS: 'rgba(217,119,6,.9)',
+      _REACH: 'rgba(162,28,175,.9)',
+      _CARD: 'rgba(5,150,105,.9)',
+      _LOGO: 'rgba(225,29,72,.9)'
+    };
+    Object.keys(sufMap).forEach((suf => {
+      if (catNameG.endsWith(suf)) {
+        catNameG = catNameG.slice(0, -suf.length);
+        catBg = sufMap[suf];
+      }
+    }));
+    const catBadgeG = catNameG ? `<span class="gx-badge-cat" style="--bc:${catBg}">${window.escapeHtml(catNameG)}</span>` : '';
     const isAdminRename = canPerm('gallery_rename');
-    const renameBtn = isAdminRename ? `<button data-img-id="${img.id}" data-img-name="${(img.name || '').replace(/"/g, '&quot;')}" onclick="event.stopPropagation(); renameGalleryImage(this.dataset.imgId, this.dataset.imgName)" class="text-amber-400 hover:text-amber-300 shrink-0 transition opacity-0 group-hover:opacity-100"><span class="material-icons text-[14px]">edit</span></button>` : '';
+    const renameBtn = isAdminRename ? `<button data-img-id="${window.escapeHtml(img.id)}" data-img-name="${window.escapeHtml(img.name || '')}" onclick="event.stopPropagation(); renameGalleryImage(this.dataset.imgId, this.dataset.imgName)" class="text-amber-400 hover:text-amber-300 shrink-0 transition opacity-0 group-hover:opacity-100"><span class="material-icons text-[14px]">edit</span></button>` : '';
     return getGalleryTpl('tpl-gallery-card', {
       url: img.url,
       name: img.name,
@@ -294,6 +305,7 @@ function _renderGalleryGrid() {
   })).join('');
   updateBulkDeleteButton();
   if (typeof window.preloadGalleryFulls === 'function') setTimeout((() => window.preloadGalleryFulls(currentGalleryData)), 800);
+  if (typeof window.galleryWarmPng === 'function') window.galleryWarmPng(pageData.map((x => x.url)));
 }
 
 window.handleImageUpload = async function(input) {
@@ -430,10 +442,6 @@ window.deleteSelectedImages = async function() {
       });
     }
   }
-};
-
-window.viewImageFull = function(url) {
-  window.open(url, '_blank');
 };
 
 window.downloadGalleryUrl = async function(url, fileName) {

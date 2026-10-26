@@ -176,6 +176,57 @@
     #adminUploadControls{ flex-direction:row; flex:1 1 100%; }
     .gx-back{ margin-top:0; width:auto; flex:0 0 auto; padding:0 12px; }
 }
+
+#galleryApp.gx-app{background:var(--k-bg)!important;border:1px solid var(--k-line)!important;color:var(--k-tx)}
+#galleryApp .gx-side{background:var(--k-panel)!important;border-right:1px solid var(--k-line)!important}
+#galleryApp .gx-brand-title{color:var(--k-tx-strong)!important}
+#galleryApp .gx-side-label{color:var(--k-mute2)!important}
+#galleryApp .gx-tab{color:var(--k-tx3)!important;background:transparent!important;border:1px solid transparent!important;box-shadow:none!important}
+#galleryApp .gx-tab:hover{background:var(--k-btn-h)!important;color:var(--k-tx-strong)!important}
+#galleryApp .gx-tab.on{background:color-mix(in srgb,var(--tc) 15%,transparent)!important;border-color:color-mix(in srgb,var(--tc) 55%,transparent)!important;color:var(--k-tx-strong)!important}
+#galleryApp .gx-select,#galleryApp #adminUploadControls select{background:var(--k-field)!important;border:1px solid var(--k-line3)!important;color:var(--k-tx-strong)!important}
+#galleryApp .gx-btn{background:var(--k-btn)!important;border:1px solid var(--k-line3)!important;color:var(--k-tx2)!important;box-shadow:none!important}
+#galleryApp .gx-btn:hover{background:var(--k-btn-h)!important;color:var(--k-tx-strong)!important}
+#galleryApp .gx-btn .material-icons{color:#10b981!important}
+#galleryApp .gx-upload-label{background:linear-gradient(135deg,#fbbf24,#f59e0b)!important;color:#1b1406!important;border:0!important}
+#galleryApp .gx-back{background:var(--k-btn)!important;border:1px solid var(--k-line3)!important;color:var(--k-tx2)!important}
+#galleryApp .gx-back:hover{background:var(--k-btn-h)!important;color:var(--k-tx-strong)!important}
+#galleryApp .gx-top{background:var(--k-panel)!important;border-bottom:1px solid var(--k-line)!important}
+#galleryApp .gx-search input{background:var(--k-field)!important;border:1px solid var(--k-line3)!important;color:var(--k-tx-strong)!important}
+#galleryApp .gx-search .material-icons{color:var(--k-mute2)!important}
+#galleryApp .gx-count-pill{background:rgba(232,193,90,.12)!important;border:1px solid rgba(232,193,90,.35)!important;color:var(--k-tx2)!important}
+#galleryApp #galleryCount{color:var(--k-gold-tx,#E8C15A);font-weight:900}
+#galleryApp #galleryDropZone{background:var(--k-sunk)!important;border-color:var(--k-line3)!important;color:var(--k-mute)!important}
+#galleryApp #galleryWebBadges{background:transparent!important;border:0!important}
+#galleryApp #galleryGrid{grid-template-columns:repeat(auto-fill,minmax(210px,1fr))!important;gap:14px!important}
+#galleryApp .gx-card{background:var(--k-panel)!important;border:1px solid var(--k-line)!important;box-shadow:var(--k-shadow)!important;border-radius:16px!important}
+#galleryApp .gx-card:hover{border-color:rgba(232,193,90,.55)!important;box-shadow:0 14px 30px -12px rgba(0,0,0,.35)!important}
+#galleryApp .gx-card-img{height:auto!important;aspect-ratio:4/3;background-color:var(--k-sunk)!important;background-image:conic-gradient(color-mix(in srgb,var(--k-tx-strong) 5%,transparent) 25%,transparent 0 50%,color-mix(in srgb,var(--k-tx-strong) 5%,transparent) 0 75%,transparent 0)!important;background-size:16px 16px!important}
+#galleryApp .gx-card-img img{width:100%;height:100%;object-fit:contain;transition:transform .3s}
+#galleryApp .gx-card:hover .gx-card-img img{transform:scale(1.04)}
+#galleryApp .gx-zoom{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0);transition:background .2s;pointer-events:none}
+#galleryApp .gx-zoom .material-icons{font-size:34px!important;color:#fff;opacity:0;transition:opacity .2s}
+#galleryApp .gx-card:hover .gx-zoom{background:rgba(0,0,0,.28)}
+#galleryApp .gx-card:hover .gx-zoom .material-icons{opacity:.9}
+#galleryApp .gx-card-body{background:transparent!important;border-top:1px solid var(--k-line)!important;padding:10px!important;gap:6px!important}
+#galleryApp .gx-card-row{display:flex;align-items:center;gap:4px;min-width:0}
+#galleryApp .gx-card-name{flex:1;min-width:0;font-size:12.5px!important;font-weight:800!important;color:var(--k-tx-strong)!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#galleryApp .gx-card-meta{font-size:10.5px;font-weight:700;color:var(--k-mute2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#galleryApp .gx-card-acts{display:flex;gap:6px}
+#galleryApp .gx-cbtn{height:32px!important;border-radius:9px!important;font-size:11.5px!important;box-shadow:none!important}
+#galleryApp .gx-cbtn-copy{flex:1;background:linear-gradient(135deg,#fbbf24,#f59e0b)!important;color:#1b1406!important;border:0!important}
+#galleryApp .gx-cbtn-dl{flex:0 0 36px!important;background:var(--k-btn)!important;border:1px solid var(--k-line3)!important;color:var(--k-tx2)!important}
+#galleryApp .gx-cbtn-dl:hover{color:#10b981!important}
+#galleryApp .gx-cbtn .material-icons{font-size:15px!important}
+#galleryApp .gx-badge-cat{position:absolute;bottom:8px;left:8px;z-index:20;font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;color:#fff;background:var(--bc,rgba(15,23,42,.75));backdrop-filter:blur(4px)}
+#galleryApp .gx-new{position:absolute;top:8px;right:8px;z-index:30;font-size:10px;font-weight:900;padding:2px 8px;border-radius:999px;background:#ef4444;color:#fff;box-shadow:0 2px 8px rgba(239,68,68,.4)}
+#galleryApp .gx-foot{background:var(--k-panel)!important;border-top:1px solid var(--k-line)!important;color:var(--k-tx2)!important}
+#galleryApp .gx-foot select{background:var(--k-field)!important;border:1px solid var(--k-line3)!important;color:var(--k-tx-strong)!important;border-radius:9px}
+#galleryApp .gx-pg{min-width:30px;height:30px;padding:0 8px;border-radius:9px;font-size:12px;font-weight:800;border:1px solid var(--k-line2);background:var(--k-panel);color:var(--k-tx2)}
+#galleryApp .gx-pg.on{background:linear-gradient(135deg,#fbbf24,#f59e0b);border-color:transparent;color:#1b1406}
+#galleryApp .gx-pg:disabled{opacity:.4}
+#galleryApp .gx-empty{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;gap:6px;padding:70px 16px;color:var(--k-mute2);font-size:13px;font-weight:700}
+#galleryApp .gx-empty .material-icons{font-size:50px;opacity:.45}
 </style>
     
     <aside class="gx-side">
@@ -277,25 +328,18 @@
                 {{newBadge}}
                 {{adminCheckbox}}
                 {{catBadge}}
-                <img src="{{thumb}}" class="w-full h-full object-contain transition duration-300 group-hover:scale-105" loading="lazy" decoding="async" style="background:linear-gradient(135deg,#1e293b,#0f172a)">
-                <div class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition flex flex-col items-center justify-center pointer-events-none">
-                    <span class="material-icons text-white text-4xl opacity-0 group-hover:opacity-80 transition">zoom_in</span>
-                    <span class="text-white text-[10px] font-bold opacity-0 group-hover:opacity-90 transition mt-1 bg-black/50 px-2 py-0.5 rounded">{{uploadDate}}</span>
-                    <span class="text-gray-300 text-[9px] opacity-0 group-hover:opacity-80 transition bg-black/50 px-2 py-0.5 rounded mt-0.5">{{uploadBy}}</span>
-                </div>
+                <img src="{{thumb}}" alt="{{name}}" loading="lazy" decoding="async">
+                <span class="gx-zoom"><span class="material-icons">zoom_in</span></span>
             </div>
             <div class="gx-card-body">
-                <div class="flex items-center gap-1 group/name">
-                    <span class="gx-card-name truncate flex-1 text-center" title="{{name}}">{{name}}</span>
+                <div class="gx-card-row">
+                    <span class="gx-card-name" title="{{name}}">{{name}}</span>
                     {{renameBtn}}
                 </div>
-                <div class="flex gap-2 w-full">
-                    <button onclick="event.stopPropagation(); copyImageToClipboard('{{url}}')" class="gx-cbtn gx-cbtn-copy">
-                        <span class="material-icons">content_copy</span> คัดลอก
-                    </button>
-                    <button onclick="event.stopPropagation(); downloadGalleryUrl('{{url}}', '{{name}}')" class="gx-cbtn gx-cbtn-dl">
-                        <span class="material-icons">download</span> โหลด
-                    </button>
+                <div class="gx-card-meta">{{uploadDate}} {{uploadBy}}</div>
+                <div class="gx-card-acts">
+                    <button type="button" data-u="{{url}}" onclick="event.stopPropagation(); copyImageToClipboard(this.dataset.u)" class="gx-cbtn gx-cbtn-copy"><span class="material-icons">content_copy</span>คัดลอกรูป</button>
+                    <button type="button" data-u="{{url}}" data-n="{{name}}" onclick="event.stopPropagation(); downloadGalleryUrl(this.dataset.u, this.dataset.n)" class="gx-cbtn gx-cbtn-dl" title="ดาวน์โหลด" aria-label="ดาวน์โหลด"><span class="material-icons">download</span></button>
                 </div>
             </div>
         </div>
