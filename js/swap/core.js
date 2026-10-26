@@ -311,11 +311,12 @@ window.generateSwapPlan = async function() {
     } catch (dbError) {}
     const hasLeave = (userId, dateStr) => userLeaves[userId] && userLeaves[userId].has(dateStr);
     // ── คนที่มีรายการสลับกะ/อยู่กะเดิม บันทึกไว้แล้วในรอบนี้ (pending / info_only) ห้ามดึงมาจัดซ้ำ ──
+    const normName = n => String(n || '').trim().toLowerCase();
     const alreadyIds = new Set;
     const alreadyNames = new Set;
     try {
-      const cycleStart = getSafeDateStr(startDateVal, -7);
-      const {data: existingTasks, error: existErr} = await appDB.from('scheduled_tasks').select('payload, scheduled_for, status').eq('task_type', 'individual_shift_update').in('status', [ 'pending', 'info_only' ]).gte('scheduled_for', `${cycleStart}T00:00:00`);
+      // ดึงชุดเดียวกับที่แสดงในหน้า "ตารางสลับกะ > รอสลับ" (pending + info_only ทุกวัน) ให้ตรงกันเป๊ะ
+      const {data: existingTasks, error: existErr} = await appDB.from('scheduled_tasks').select('payload, scheduled_for, status').eq('task_type', 'individual_shift_update').in('status', [ 'pending', 'info_only' ]);
       if (existErr) throw existErr;
       (existingTasks || []).forEach((t => {
         let p = {};
@@ -323,12 +324,12 @@ window.generateSwapPlan = async function() {
           p = typeof t.payload === 'string' ? JSON.parse(t.payload) : t.payload || {};
         } catch (e) {}
         if (p.user_id != null) alreadyIds.add(String(p.user_id));
-        if (p.user_name) alreadyNames.add(String(p.user_name));
+        if (p.user_name) alreadyNames.add(normName(p.user_name));
       }));
     } catch (e) {
       console.warn('[generateSwapPlan] โหลดตารางสลับกะเดิมไม่ได้:', e);
     }
-    const isAlreadyScheduled = u => alreadyIds.has(String(u.id)) || alreadyNames.has(u.username);
+    const isAlreadyScheduled = u => alreadyIds.has(String(u.id)) || alreadyNames.has(normName(u.username));
     const skippedExisting = [];
     let mStaff = GLOBAL_USER_LIST.filter((u => {
       const uDept = u.department || 'AM';
