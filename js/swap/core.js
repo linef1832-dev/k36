@@ -310,6 +310,26 @@ window.generateSwapPlan = async function() {
       }
     } catch (dbError) {}
     const hasLeave = (userId, dateStr) => userLeaves[userId] && userLeaves[userId].has(dateStr);
+    // ── คนที่มีรายการสลับกะ/อยู่กะเดิม บันทึกไว้แล้วในรอบนี้ (pending / info_only) ห้ามดึงมาจัดซ้ำ ──
+    const alreadyIds = new Set;
+    const alreadyNames = new Set;
+    try {
+      const cycleStart = getSafeDateStr(startDateVal, -7);
+      const {data: existingTasks, error: existErr} = await appDB.from('scheduled_tasks').select('payload, scheduled_for, status').eq('task_type', 'individual_shift_update').in('status', [ 'pending', 'info_only' ]).gte('scheduled_for', `${cycleStart}T00:00:00`);
+      if (existErr) throw existErr;
+      (existingTasks || []).forEach((t => {
+        let p = {};
+        try {
+          p = typeof t.payload === 'string' ? JSON.parse(t.payload) : t.payload || {};
+        } catch (e) {}
+        if (p.user_id != null) alreadyIds.add(String(p.user_id));
+        if (p.user_name) alreadyNames.add(String(p.user_name));
+      }));
+    } catch (e) {
+      console.warn('[generateSwapPlan] โหลดตารางสลับกะเดิมไม่ได้:', e);
+    }
+    const isAlreadyScheduled = u => alreadyIds.has(String(u.id)) || alreadyNames.has(u.username);
+    const skippedExisting = [];
     let mStaff = GLOBAL_USER_LIST.filter((u => {
       const uDept = u.department || 'AM';
       if (u.allowed_shift !== pair.from) return false;
@@ -319,6 +339,10 @@ window.generateSwapPlan = async function() {
         if (uDept !== targetDept) return false;
       }
       if (excludeMList.some((e => e.id === u.id))) return false;
+      if (isAlreadyScheduled(u)) {
+        skippedExisting.push(u.username);
+        return false;
+      }
       return true;
     }));
     let nStaff = pair.bidirectional ? GLOBAL_USER_LIST.filter((u => {
@@ -330,9 +354,18 @@ window.generateSwapPlan = async function() {
         if (uDept !== targetDept) return false;
       }
       if (excludeNList.some((e => e.id === u.id))) return false;
+      if (isAlreadyScheduled(u)) {
+        skippedExisting.push(u.username);
+        return false;
+      }
       return true;
     })) : [];
-    if (mStaff.length === 0 && nStaff.length === 0) return Swal.fire('ไม่พบข้อมูล', `ไม่มีพนักงานให้สลับในแผนกที่เลือก`, 'error');
+    const skippedNote = skippedExisting.length > 0 ? `<p class="mt-3 text-xs text-gray-500">ข้าม ${skippedExisting.length} คนที่มีในตารางสลับกะแล้ว: ${skippedExisting.map((n => window.escapeHtml(n))).join(', ')}</p>` : '';
+    if (mStaff.length === 0 && nStaff.length === 0) return Swal.fire({
+      icon: 'info',
+      title: 'ไม่มีพนักงานเหลือให้จัด',
+      html: `<div class="text-left text-sm">พนักงานในแผนกนี้ถูกจัดไว้ในตารางสลับกะครบแล้ว หรือถูกล็อกไว้ทั้งหมด${skippedNote}</div>`
+    });
     mStaff.sort((() => Math.random() - .5));
     nStaff.sort((() => Math.random() - .5));
     let mBuckets = Array.from({
@@ -389,7 +422,14 @@ window.generateSwapPlan = async function() {
       Swal.fire({
         icon: 'warning',
         title: `⚠️ พบ ${allFailed.length} คน ที่ชนวันหยุด`,
-        html: `<div class="text-left text-sm"><p class="mb-2">พนักงานต่อไปนี้คิวสลับชนกับวันหยุดพอดี ระบบยังคงจัดให้สลับกะตามปกติ</p><p class="font-bold text-orange-600">${nameList}</p><p class="mt-2 text-xs text-gray-500">ถ้าต้องการให้ใครอยู่กะเดิม ให้เลือกเองที่ช่อง "ล็อกพนักงาน" แล้วคำนวณใหม่</p></div>`,
+        html: `<div class="text-left text-sm"><p class="mb-2">พนักงานต่อไปนี้คิวสลับชนกับวันหยุดพอดี ระบบยังคงจัดให้สลับกะตามปกติ</p><p class="font-bold text-orange-600">${nameList}</p><p class="mt-2 text-xs text-gray-500">ถ้าต้องการให้ใครอยู่กะเดิม ให้เลือกเองที่ช่อง "ล็อกพนักงาน" แล้วคำนวณใหม่</p>${skippedNote}</div>`,
+        confirmButtonText: 'รับทราบ'
+      });
+    } else if (skippedExisting.length > 0) {
+      Swal.fire({
+        icon: 'info',
+        title: `ข้าม ${skippedExisting.length} คนที่จัดไว้แล้ว`,
+        html: `<div class="text-left text-sm">คนเหล่านี้มีรายการในตารางสลับกะอยู่แล้ว ระบบจึงไม่นำมาจัดซ้ำ${skippedNote}</div>`,
         confirmButtonText: 'รับทราบ'
       });
     } else {
