@@ -161,27 +161,69 @@
     border-color:#06b6d4;
   }
   .le-text-overlay.selected { box-shadow: 0 0 0 1px rgba(6, 182, 212, 0.3); }
+
+#logoEditorApp.lx-app{background:var(--k-bg);border:1px solid var(--k-line)}
+.lx-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 16px;background:var(--k-panel);border-bottom:1px solid var(--k-line);flex-shrink:0;z-index:30;position:relative}
+.lx-logo{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#ec4899,#8b5cf6);color:#fff;flex:none;box-shadow:0 8px 20px rgba(168,85,247,.3)}
+.lx-logo .material-icons{font-size:22px}
+.lx-title{margin:0;font-size:17px;font-weight:900;color:var(--k-tx-strong);line-height:1.25}
+.lx-sub{font-size:12px;font-weight:700;color:var(--k-mute)}
+.lx-acts{margin-left:auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.lx-btn{display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 12px;border-radius:11px;font-size:12.5px;font-weight:800;white-space:nowrap;border:1px solid var(--k-line3);background:var(--k-btn);color:var(--k-tx2);transition:background .15s,color .15s,filter .15s}
+.lx-btn:hover{background:var(--k-btn-h);color:var(--k-tx-strong)}
+.lx-btn .material-icons{font-size:17px}
+.lx-btn.lx-dl{background:linear-gradient(135deg,#8b5cf6,#ec4899);border-color:transparent;color:#fff;padding:0 16px;box-shadow:0 6px 16px rgba(168,85,247,.3)}
+.lx-btn.lx-dl:hover{filter:brightness(1.08);color:#fff}
+.lx-sep{width:1px;height:24px;background:var(--k-line3);margin:0 4px}
+.lx-aside{width:368px;flex-direction:row!important;border-right:1px solid var(--k-line)!important;border-top:0!important;border-left:0!important;border-bottom:0!important;border-radius:0!important;background:var(--k-panel)!important;backdrop-filter:none!important}
+.lx-aside > .le-tab-nav{flex-direction:column!important;width:76px;flex:none;overflow-y:auto!important;overflow-x:hidden!important;gap:2px;padding:8px 6px;border-bottom:0!important;border-right:1px solid var(--k-line)!important;background:var(--k-sunk)!important;scrollbar-width:none}
+.lx-aside > .le-tab-nav .le-tab-btn{min-width:0!important;width:100%;flex:none!important;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 2px!important;border-radius:12px;border-bottom:0!important;font-size:10.5px!important;font-weight:800!important;color:var(--k-mute)!important;line-height:1.15;text-align:center}
+.lx-aside > .le-tab-nav .le-tab-btn .material-icons{font-size:21px!important;width:36px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:9px}
+.lx-aside > .le-tab-nav .le-tab-btn:hover{background:var(--k-btn-h)!important;color:var(--k-tx-strong)!important}
+.lx-aside > .le-tab-nav .le-tab-btn.active{background:var(--k-panel)!important;color:var(--k-tx-strong)!important;box-shadow:var(--k-shadow)}
+.lx-aside > .le-tab-nav .le-tab-btn.active .material-icons{background:linear-gradient(135deg,#8b5cf6,#ec4899);color:#fff}
+.lx-aside > .flex-1{min-width:0;color:var(--k-tx)}
+#leCanvasArea{background-color:var(--k-bg)}
+@media (max-width:900px){
+  .lx-aside{width:100%;height:auto!important;max-height:45vh!important;border-right:0!important;border-bottom:1px solid var(--k-line)!important}
+  .lx-t{display:none}
+  .lx-sub{display:none}
+}
+#logoEditorApp aside.lx-aside{flex-direction:row!important}
+#logoEditorApp aside.lx-aside > div.le-tab-nav{flex:0 0 76px!important;overflow-y:auto!important;overflow-x:hidden!important;height:100%!important;max-height:none!important}
+#logoEditorApp aside.lx-aside > div.flex-1{flex:1 1 0%!important;min-width:0;min-height:0;overflow-y:auto!important}
+@media (max-width:900px){ #logoEditorApp aside.lx-aside{flex-direction:column!important} #logoEditorApp aside.lx-aside > div.le-tab-nav{flex:0 0 auto!important;flex-direction:row!important;width:100%;height:auto!important;max-height:76px!important;overflow-x:auto!important;overflow-y:hidden!important} #logoEditorApp aside.lx-aside > div.le-tab-nav .le-tab-btn{width:68px} }
+#logoEditorApp #leCanvasArea{background-color:var(--k-sunk)!important;background-image:conic-gradient(color-mix(in srgb,var(--k-tx-strong) 7%,transparent) 25%,transparent 0 50%,color-mix(in srgb,var(--k-tx-strong) 7%,transparent) 0 75%,transparent 0)!important;background-size:22px 22px!important;background-position:0 0!important}
+#logoEditorApp aside.lx-aside{color:var(--k-tx)!important}
+#logoEditorApp aside.lx-aside :is(input[type=text],input[type=number],textarea,select){background:var(--k-field)!important;border:1px solid var(--k-line3)!important;color:var(--k-tx-strong)!important}
+#logoEditorApp aside.lx-aside :is(h3,h4,.text-white){color:var(--k-tx-strong)!important}
+#logoEditorApp aside.lx-aside :is(.le-btn-primary,.le-btn-danger,.le-btn-success,.le-btn-download,.le-btn-amber,.le-btn-cyan),#logoEditorApp aside.lx-aside :is(.le-btn-primary,.le-btn-danger,.le-btn-success,.le-btn-download,.le-btn-amber,.le-btn-cyan) *{color:#fff!important}
+#logoEditorApp aside.lx-aside label.le-btn-primary{color:#fff!important}
+#logoEditorApp #leEmptyState h3{color:var(--k-tx-strong)!important}
+#logoEditorApp #leEmptyState p{color:var(--k-mute)!important}
+#logoEditorApp #leEmptyState .inline-flex{background:var(--k-panel)!important;border-color:var(--k-line)!important}
 </style>
 
-<div id="logoEditorApp" class="fade-in flex flex-col h-full relative bg-slate-950 rounded-2xl shadow-sm border border-slate-700 overflow-hidden">
+<div id="logoEditorApp" class="fade-in flex flex-col h-full relative rounded-2xl overflow-hidden lx-app">
     
-    <div class="bg-gradient-to-r from-fuchsia-800 via-purple-800 to-indigo-900 text-white px-4 py-2 shadow-lg shrink-0 flex justify-between items-center z-30 relative">
-        <div class="flex items-center gap-3">
-            <div class="bg-white/15 p-1.5 rounded-xl border border-white/20">
-                <span class="material-icons text-xl text-pink-200">photo_filter</span>
-            </div>
-            <div>
-                <h1 class="font-black text-base tracking-wide flex items-center gap-2">เครื่องมือแต่งรูป <span class="text-[9px] bg-white/20 px-1.5 py-0.5 rounded-full border border-white/30 font-bold tracking-widest">PRO</span></h1>
-            </div>
+    <div class="lx-head">
+        <div class="lx-logo"><span class="material-icons">photo_filter</span></div>
+        <div class="lx-tbox">
+            <h1 class="lx-title">เครื่องมือแต่งรูป</h1>
+            <div class="lx-sub">ลบโลโก้ · ใส่ข้อความ · วาด · ปรับสี · ลายน้ำ</div>
         </div>
-        <button onclick="showPage('dashboard')" class="bg-black/30 hover:bg-black/50 text-white px-3 py-1.5 rounded-lg font-bold text-xs transition flex items-center gap-1.5 border border-white/20">
-            <span class="material-icons text-sm">arrow_back</span> กลับ
-        </button>
+        <div class="lx-acts">
+            <button onclick="leUndoLast()" class="lx-btn" title="ย้อนกลับ (Ctrl+Z)"><span class="material-icons">undo</span><span class="lx-t">ย้อนกลับ</span></button>
+            <button onclick="leResetAll()" class="lx-btn" title="เริ่มใหม่"><span class="material-icons">refresh</span><span class="lx-t">เริ่มใหม่</span></button>
+            <button id="leDownloadBtn" onclick="leDownload()" class="lx-btn lx-dl"><span class="material-icons">download</span>ดาวน์โหลดรูป</button>
+            <span class="lx-sep"></span>
+            <button onclick="showPage('dashboard')" class="lx-btn" title="กลับหน้าหลัก"><span class="material-icons">arrow_back</span><span class="lx-t">กลับ</span></button>
+        </div>
     </div>
 
     <div class="flex-1 flex relative" style="min-height:0; height:100%; max-height:100%;">
         
-        <aside class="le-tool-panel w-72 shrink-0 flex flex-col text-white" style="height:100%; min-height:0; max-height:100%;">
+        <aside class="le-tool-panel lx-aside shrink-0 flex text-white" style="height:100%; min-height:0; max-height:100%;">
             
             <div class="le-tab-nav flex">
                 <button onclick="leSwitchTab('replace')" id="leTabReplace" class="le-tab-btn active">
@@ -1101,19 +1143,6 @@
                 <div class="h-4"></div>
             </div>
             
-            <div class="shrink-0 p-3 bg-black/40 border-t-2 border-white/10 space-y-2">
-                <div class="grid grid-cols-2 gap-2">
-                    <button onclick="leUndoLast()" class="bg-white/5 hover:bg-white/10 text-white px-2 py-2 rounded-lg font-bold text-[11px] border border-white/10 flex items-center justify-center gap-1">
-                        <span class="material-icons text-sm">undo</span> ย้อนกลับ
-                    </button>
-                    <button onclick="leResetAll()" class="bg-white/5 hover:bg-white/10 text-white px-2 py-2 rounded-lg font-bold text-[11px] border border-white/10 flex items-center justify-center gap-1">
-                        <span class="material-icons text-sm">refresh</span> เริ่มใหม่
-                    </button>
-                </div>
-                <button id="leDownloadBtn" onclick="leDownload()" class="le-btn-download w-full text-white px-3 py-3 rounded-lg font-black text-sm shadow-lg flex items-center justify-center gap-2 border border-white/10 active:scale-95">
-                    <span class="material-icons">download</span> ดาวน์โหลดรูป
-                </button>
-            </div>
         </aside>
         
         <main id="leCanvasArea" class="flex-1 relative overflow-auto custom-scrollbar">

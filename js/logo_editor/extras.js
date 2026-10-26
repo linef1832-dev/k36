@@ -231,8 +231,6 @@ window.leApplyResize = function() {
   newImg.src = tmp.toDataURL('image/png');
 };
 
-window._leAiBgModule = null;
-
 function leGetAllLayers() {
   const s = window.leState;
   const layers = [];

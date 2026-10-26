@@ -520,7 +520,9 @@ function leSaveHistory() {
   if (!s.ctx || !s.canvas) return;
   try {
     s.history.push(s.ctx.getImageData(0, 0, s.canvas.width, s.canvas.height));
-    if (s.history.length > 20) s.history.shift();
+    const bytes = s.canvas.width * s.canvas.height * 4 || 1;
+    const maxSteps = Math.max(3, Math.min(20, Math.floor(240 * 1024 * 1024 / bytes)));
+    while (s.history.length > maxSteps) s.history.shift();
   } catch (e) {}
 }
 

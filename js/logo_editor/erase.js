@@ -482,36 +482,6 @@ function leClipToShape(ctx, sel) {
   ctx.clip();
 }
 
-function leComputeAvgEdgeColor(bbox) {
-  const s = window.leState;
-  const ctx = s.ctx;
-  const samples = [];
-  const pad = 5;
-  const sampleEdge = (sx, sy, w, h) => {
-    try {
-      const safeSx = Math.max(0, Math.floor(sx));
-      const safeSy = Math.max(0, Math.floor(sy));
-      const safeW = Math.min(Math.floor(w), s.canvas.width - safeSx);
-      const safeH = Math.min(Math.floor(h), s.canvas.height - safeSy);
-      if (safeW <= 0 || safeH <= 0) return;
-      const d = ctx.getImageData(safeSx, safeSy, safeW, safeH);
-      for (let i = 0; i < d.data.length; i += 16) samples.push([ d.data[i], d.data[i + 1], d.data[i + 2] ]);
-    } catch (e) {}
-  };
-  sampleEdge(bbox.x - pad, bbox.y - pad, bbox.w + pad * 2, pad);
-  sampleEdge(bbox.x - pad, bbox.y + bbox.h, bbox.w + pad * 2, pad);
-  sampleEdge(bbox.x - pad, bbox.y, pad, bbox.h);
-  sampleEdge(bbox.x + bbox.w, bbox.y, pad, bbox.h);
-  if (samples.length === 0) return '#ffffff';
-  let r = 0, g = 0, b = 0;
-  samples.forEach((s => {
-    r += s[0];
-    g += s[1];
-    b += s[2];
-  }));
-  return `rgb(${Math.round(r / samples.length)},${Math.round(g / samples.length)},${Math.round(b / samples.length)})`;
-}
-
 function leBoxBlur(imgData, radius) {
   const w = imgData.width, h = imgData.height;
   const src = imgData.data;
