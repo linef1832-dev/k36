@@ -825,14 +825,54 @@ window.oa_render = function() {
     L.innerHTML = '<div class="text-center text-slate-400 py-12 text-sm">ยังไม่มีการตอบแชทในช่วงนี้</div>';
     return;
   }
-  L.innerHTML = recent.map((([id, x]) => {
+  const PER = window.OA_LIST_PER || 20;
+  const fkey = [ o.shift, o.dept, o.site, o.oaline, (document.getElementById('oaSearch') || {}).value || '', document.getElementById('oaFrom') && document.getElementById('oaFrom').value, document.getElementById('oaTo') && document.getElementById('oaTo').value ].join('|');
+  if (o._listKey !== fkey) {
+    o._listKey = fkey;
+    o.listPage = 1;
+  }
+  const pages = Math.max(1, Math.ceil(recent.length / PER));
+  o.listPage = Math.min(Math.max(1, o.listPage || 1), pages);
+  const pageRows = recent.slice((o.listPage - 1) * PER, o.listPage * PER);
+  L.innerHTML = pageRows.map((([id, x]) => {
     const i = rankOf[id];
     const sv = oa_sitesOfRows(x.rows);
     return `<div class="oa-row ${o.open.has(id) ? 'open' : ''}" onclick="oa_toggle('${oa_jsq(id)}')">\n            <span class="oa-rank">${oa_rankBadge(i)}</span>\n            <div class="min-w-0"><div class="oa-name truncate">${oa_esc(x.name)}</div><div class="oa-meta">${x.dept && x.dept !== '-' ? oa_esc(x.dept) + ' · ' : ''}ตอบล่าสุด ${oa_lastLabel(x.last)}</div>${sv.length ? `<div class="oa-usites">${sv.map((w => `<span class="oa-usite">${oa_esc(w)}</span>`)).join('')}</div>` : ''}<div class="oa-bar"><i style="width:${oa_barW(x.n, max)}%"></i></div></div>\n            <div class="oa-n">${x.n}<small>แชท</small></div>\n            <span class="material-icons oa-chev">chevron_right</span>\n        </div><div class="oa-detail"><div class="oa-paged" data-uid="${oa_esc(id)}"></div></div>`;
-  })).join('');
+  })).join('') + oa_pagerHtml(o.listPage, pages, recent.length, 'oa_gotoListPage', 'คน');
+  const onPage = new Set(pageRows.map((([id]) => id)));
   o.open.forEach((id => {
-    if (by[id]) oa_drawChats(id); else o.open.delete(id);
+    if (by[id] && onPage.has(id)) oa_drawChats(id); else if (!by[id]) o.open.delete(id);
   }));
+};
+
+function oa_pagerHtml(page, pages, total, fn, unit) {
+  if (pages <= 1) return total ? `<div class="oa-pager"><span class="oa-pg-info">ทั้งหมด ${total.toLocaleString('en-US')} ${unit}</span></div>` : '';
+  const nums = [];
+  for (let p = 1; p <= pages; p++) {
+    if (p === 1 || p === pages || Math.abs(p - page) <= 2) nums.push(p); else if (nums[nums.length - 1] !== '…') nums.push('…');
+  }
+  const b = (lbl, p, on, dis) => `<button type="button" class="oa-pg${on ? ' on' : ''}" ${dis ? 'disabled' : `onclick="event.stopPropagation();${fn}(${p})"`}>${lbl}</button>`;
+  return `<div class="oa-pager"><span class="oa-pg-info">ทั้งหมด ${total.toLocaleString('en-US')} ${unit} · หน้า ${page}/${pages}</span><div class="oa-pg-btns">${b('‹', page - 1, false, page === 1)}${nums.map((p => p === '…' ? '<span class="oa-pg-dots">…</span>' : b(p, p, p === page, false))).join('')}${b('›', page + 1, false, page === pages)}</div></div>`;
+}
+
+window.oa_gotoListPage = function(p) {
+  window._oa.listPage = p;
+  window.oa_render();
+  const L = document.getElementById('oaList');
+  if (L) L.scrollIntoView({
+    behavior: 'smooth',
+    block: 'start'
+  });
+};
+
+window.oa_gotoActPage = function(p) {
+  window._oa.actPage = p;
+  oa_renderAct();
+  const L = document.getElementById('oaActList');
+  if (L) L.scrollIntoView({
+    behavior: 'smooth',
+    block: 'start'
+  });
 };
 
 window.oa_renderRank = function(list, max) {
@@ -865,7 +905,7 @@ window.oa_setTab = function(tb) {
   if (va) va.style.display = tb === 'act' ? '' : 'none';
   const fp = document.querySelector('#oaApp .oa-fp');
   if (fp) fp.style.display = tb === 'act' ? 'none' : '';
-  if (tb === 'act') oa_loadAct(true);
+  if (tb === 'act') oa_loadAct();
   if (tb === 'rank' && o._list) oa_renderRank(o._list, o._max || 1);
 };
 
@@ -1399,23 +1439,41 @@ function oa_copyToast(name) {
 
 window._oaAct = window._oaAct || { rows: [] };
 window.oa_loadAct = async function (force) {
-    const o = window._oa, f = document.getElementById('oaFrom').value, t = document.getElementById('oaTo').value;
-    if (!force && window._oaAct._from === f && window._oaAct._to === t && window._oaAct.loaded) { oa_renderAct(); return; }
-    const L = document.getElementById('oaActList'); if (L) L.innerHTML = '<div class="text-center text-slate-400 py-10 text-sm">กำลังโหลด...</div>';
-    const S = document.getElementById('oaActList'); window._oaAct._reqId = (window._oaAct._reqId || 0) + 1; const myReq = window._oaAct._reqId;
+    const f = document.getElementById('oaFrom').value, t = document.getElementById('oaTo').value;
+    const A = window._oaAct;
+    const sameRange = A._from === f && A._to === t && A.loaded;
+    if (sameRange) {
+        oa_renderAct();
+        if (!force && Date.now() - (A._at || 0) < 30000) return;
+    } else {
+        const L = document.getElementById('oaActList'); if (L) L.innerHTML = '<div class="text-center text-slate-400 py-10 text-sm"><span class="material-icons animate-spin" style="vertical-align:middle">sync</span> กำลังโหลด...</div>';
+    }
+    A._reqId = (A._reqId || 0) + 1; const myReq = A._reqId;
     try {
-        let all = [], off = 0;
-        for (;;) {
-            const { data, error } = await window.appDB.from('oa_actions').select('work_date, username, action, oa_name, chat_id, chat_name, acted_at').gte('work_date', f).lte('work_date', t).order('acted_at', { ascending: false }).range(off, off + 999);
-            if (error) throw error;
-            all = all.concat(data || []); if (!data || data.length < 1000) break; off += 1000;
+        const PAGE = 1000;
+        const q = (withCount) => window.appDB.from('oa_actions').select('work_date, username, action, oa_name, chat_id, chat_name, acted_at', withCount ? { count: 'exact' } : undefined).gte('work_date', f).lte('work_date', t).order('acted_at', { ascending: false });
+        const first = await q(true).range(0, PAGE - 1);
+        if (first.error) throw first.error;
+        let all = first.data || [];
+        const total = typeof first.count === 'number' ? first.count : 0;
+        if (all.length === PAGE) {
+            if (total > PAGE) {
+                const starts = []; for (let st = PAGE; st < total; st += PAGE) starts.push(st);
+                for (let i = 0; i < starts.length; i += 4) {
+                    const res = await Promise.all(starts.slice(i, i + 4).map(st => q(false).range(st, st + PAGE - 1)));
+                    res.forEach(rz => { if (rz.error) throw rz.error; all = all.concat(rz.data || []); });
+                }
+            } else {
+                let off = PAGE;
+                for (;;) { const { data, error } = await q(false).range(off, off + PAGE - 1); if (error) throw error; all = all.concat(data || []); if (!data || data.length < PAGE) break; off += PAGE; }
+            }
         }
-        if (myReq !== window._oaAct._reqId) return;
-        window._oaAct.rows = all; window._oaAct._from = f; window._oaAct._to = t; window._oaAct.loaded = true;
+        if (myReq !== A._reqId) return;
+        A.rows = all; A._from = f; A._to = t; A.loaded = true; A._at = Date.now();
         oa_renderAct();
     } catch (e) {
-        if (myReq !== window._oaAct._reqId) return;
-        if (L) L.innerHTML = '<div class="text-center text-red-400 py-10 text-sm">โหลดไม่ได้ — ตรวจว่าสร้างตาราง oa_actions แล้ว</div>';
+        if (myReq !== A._reqId) return;
+        if (!sameRange) { const L = document.getElementById('oaActList'); if (L) L.innerHTML = '<div class="text-center text-red-400 py-10 text-sm">โหลดไม่ได้ — ลองกดรีเฟรชอีกครั้ง</div>'; }
     }
 };
 window.oa_setActSite = function (s) {
@@ -1460,5 +1518,10 @@ window.oa_renderAct = function () {
         const remL = c.remAt ? `<div class="pc-ev"><span class="pc-badge rem">↩️ เอาออก</span><b>${esc(c.remBy)}</b><span class="pc-t">${tm(c.remAt)}</span></div>` : `<div class="pc-ev pc-wait"><span class="pc-badge wait">⏳</span>ยังไม่มีใครเอาออก</div>`;
         return `<div class="pc ${pending?'pc-pending':'pc-done'}"><div class="pc-head"><div class="pc-name"><button class="pc-copy" onclick="oa_copyName(event,'${esc(nm).replace(/'/g,"\\'")}')" title="คัดลอกชื่อ"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>${esc(nm)}${c.oa?`<span class="pc-oa">${esc(c.oa)}</span>`:''}</div></div><div class="pc-body">${addL}${remL}</div></div>`;
     };
-    L.innerHTML = groups.map(card).join('');
+    const PER = window.OA_ACT_PER || 20;
+    const akey = [o.actSite, q, window._oaAct._from, window._oaAct._to].join('|');
+    if (o._actKey !== akey) { o._actKey = akey; o.actPage = 1; }
+    const pages = Math.max(1, Math.ceil(groups.length / PER));
+    o.actPage = Math.min(Math.max(1, o.actPage || 1), pages);
+    L.innerHTML = groups.slice((o.actPage - 1) * PER, o.actPage * PER).map(card).join('') + oa_pagerHtml(o.actPage, pages, groups.length, 'oa_gotoActPage', 'เคส');
 };
