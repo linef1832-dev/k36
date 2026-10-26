@@ -2,44 +2,65 @@ let globalTeleLinks = [];
 
 let currentTeleFilter = 'all';
 
+let currentTeleStatus = 'all';
+
+const TELE_COLORS = { blue: '#3b82f6', green: '#10b981', red: '#ef4444', orange: '#f97316', purple: '#8b5cf6', gray: '#64748b' };
+
+const TELE_STATUS = { active: '🟢 ใช้งาน', paused: '🟡 ปิดชั่วคราว', archived: '⚫ เก็บถาวร' };
+
+const _tgEsc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+const _tgCatLabel = c => c === 'General' ? '🌐 กลุ่มกลาง' : c || '-';
+
+const _tgSafeUrl = u => {
+  const s = String(u || '').trim();
+  if (/^https?:\/\//i.test(s)) return s;
+  if (/^(t\.me|telegram\.me)\//i.test(s)) return 'https://' + s;
+  return '';
+};
+
+const _tgCanManage = () => typeof canPerm === 'function' && canPerm('telegram_manage');
+
 async function initTelegramApp() {
   const catSelect = document.getElementById('teleCategory');
-  if (catSelect) {
-    catSelect.innerHTML = TEAM_LIST.map((t => `<option value="${t}">${t}</option>`)).join('') + `<option value="General">กลุ่มกลาง</option>`;
-  }
-  if (canPerm('telegram_manage')) {
-    document.getElementById('teleAdminControls')?.classList.remove('hidden');
-  }
+  if (catSelect) catSelect.innerHTML = (typeof TEAM_LIST !== 'undefined' ? TEAM_LIST : []).map(t => `<option value="${_tgEsc(t)}">${_tgEsc(t)}</option>`).join('') + '<option value="General">🌐 กลุ่มกลาง</option>';
+  document.getElementById('teleAdminControls')?.classList.toggle('hidden', !_tgCanManage());
+  currentTeleFilter = 'all';
+  currentTeleStatus = 'all';
+  const si = document.getElementById('teleSearch');
+  if (si) si.value = '';
   await fetchTeleLinks();
 }
 
 async function fetchTeleLinks() {
   const grid = document.getElementById('teleGrid');
   if (!grid) return;
-  grid.innerHTML = `<div class="col-span-full text-center py-10"><span class="material-icons animate-spin text-sky-500 text-4xl">sync</span></div>`;
-  const {data: data, error: error} = await appDB.from('telegram_links').select('*').order('created_at', {
-    ascending: false
-  });
-  if (data) {
-    globalTeleLinks = data;
-    renderTeleFilter();
-    renderTeleGrid();
+  grid.innerHTML = '<div class="tg-empty"><span class="material-icons animate-spin">sync</span><b>กำลังโหลด…</b></div>';
+  const { data, error } = await appDB.from('telegram_links').select('*').order('created_at', { ascending: false });
+  if (error) {
+    grid.innerHTML = `<div class="tg-empty"><span class="material-icons">error_outline</span><b>โหลดข้อมูลไม่สำเร็จ</b><span>${_tgEsc(error.message)}</span></div>`;
+    return;
   }
+  globalTeleLinks = data || [];
+  renderTeleFilter();
+  renderTeleGrid();
 }
 
 function renderTeleFilter() {
   const container = document.getElementById('teleFilterContainer');
   if (!container) return;
-  const webs = [ ...new Set(globalTeleLinks.map((l => l.category))) ].sort();
-  if (!webs.includes('General')) webs.unshift('General');
-  let html = `<button onclick="filterTele('all')" class="px-3 py-1 rounded-full text-sm font-bold border transition ${currentTeleFilter === 'all' ? 'bg-sky-600 text-white border-sky-600 shadow-md' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}">ทั้งหมด</button>`;
-  webs.forEach((w => {
-    const isActive = currentTeleFilter === w;
-    const activeClass = isActive ? 'bg-sky-600 text-white border-sky-600 shadow-md' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50';
-    const label = w === 'General' ? '🌐 กลุ่มกลาง' : w;
-    html += `<button onclick="filterTele('${w}')" class="px-3 py-1 rounded-full text-sm font-bold border transition ${activeClass}">${label}</button>`;
-  }));
-  container.innerHTML = html;
+  const cnt = {};
+  globalTeleLinks.forEach(l => { cnt[l.category] = (cnt[l.category] || 0) + 1; });
+  const webs = Object.keys(cnt).filter(w => w !== 'General').sort();
+  if (cnt.General) webs.unshift('General');
+  if (currentTeleFilter !== 'all' && !cnt[currentTeleFilter]) currentTeleFilter = 'all';
+  const chip = (val, label, n) => `<button type="button" class="tg-chip${currentTeleFilter === val ? ' on' : ''}" data-v="${_tgEsc(val)}" onclick="filterTele(this.dataset.v)">${label}<b>${n}</b></button>`;
+  container.innerHTML = chip('all', 'ทุกเว็บ', globalTeleLinks.length) + webs.map(w => chip(w, _tgEsc(_tgCatLabel(w)), cnt[w])).join('');
+  const st = document.getElementById('teleStatLine');
+  if (st) {
+    const act = globalTeleLinks.filter(l => (l.status || 'active') === 'active').length;
+    st.innerHTML = `ทั้งหมด <b>${globalTeleLinks.length}</b> กลุ่ม · ใช้งานอยู่ <b>${act}</b> · ${webs.length} เว็บ`;
+  }
 }
 
 window.filterTele = function(category) {
@@ -48,138 +69,167 @@ window.filterTele = function(category) {
   renderTeleGrid();
 };
 
+window.setTeleStatus = function(s) {
+  currentTeleStatus = s;
+  const h = document.getElementById('teleStatusFilter');
+  if (h) h.value = s;
+  document.querySelectorAll('#teleStatusSeg button').forEach(b => b.classList.toggle('on', b.dataset.s === s));
+  renderTeleGrid();
+};
+
+function _tgCard(link, canManage) {
+  const st = link.status || 'active';
+  const off = st !== 'active';
+  const url = _tgSafeUrl(link.url);
+  const id = _tgEsc(link.id);
+  const color = TELE_COLORS[link.icon_color] || TELE_COLORS.blue;
+  return `<article class="tg-card${off ? ' off' : ''}">
+    ${canManage ? `<div class="tg-adm"><button type="button" class="tg-ib" data-id="${id}" onclick="editTeleLink(this.dataset.id)" title="แก้ไข" aria-label="แก้ไข"><span class="material-icons">edit</span></button><button type="button" class="tg-ib del" data-id="${id}" onclick="deleteTeleLink(this.dataset.id)" title="ลบ" aria-label="ลบ"><span class="material-icons">delete</span></button></div>` : ''}
+    <div class="tg-top">
+      <span class="tg-ic" style="--c:${color}"><span class="material-icons">send</span></span>
+      <div class="tg-tt">
+        <div class="tg-name" title="${_tgEsc(link.name)}">${_tgEsc(link.name || 'ไม่มีชื่อ')}</div>
+        <div class="tg-meta"><span class="tg-tag">${_tgEsc(_tgCatLabel(link.category))}</span><span class="tg-st ${_tgEsc(st)}">${_tgEsc(TELE_STATUS[st] || st)}</span></div>
+      </div>
+    </div>
+    <div class="tg-acts">
+      ${url ? `<a class="tg-open${st === 'archived' ? ' dis' : ''}" href="${_tgEsc(url)}" target="_blank" rel="noopener noreferrer"><span class="material-icons">open_in_new</span>เปิดกลุ่ม</a>` : '<span class="tg-open dis">ลิงก์ไม่ถูกต้อง</span>'}
+      ${url ? `<button type="button" class="tg-ib" data-u="${_tgEsc(url)}" onclick="copyToClip(this.dataset.u, this)" title="คัดลอกลิงก์" aria-label="คัดลอกลิงก์"><span class="material-icons">content_copy</span></button>` : ''}
+    </div>
+  </article>`;
+}
+
 function renderTeleGrid() {
   const grid = document.getElementById('teleGrid');
   if (!grid) return;
   let links = globalTeleLinks;
-  if (currentTeleFilter !== 'all') links = links.filter((l => l.category === currentTeleFilter));
-  const searchVal = (document.getElementById('teleSearch')?.value || '').toLowerCase().trim();
-  if (searchVal) links = links.filter((l => (l.name || '').toLowerCase().includes(searchVal) || (l.category || '').toLowerCase().includes(searchVal)));
-  const statusFilter = document.getElementById('teleStatusFilter')?.value || 'all';
-  if (statusFilter !== 'all') links = links.filter((l => (l.status || 'active') === statusFilter));
-  if (links.length === 0) {
-    grid.innerHTML = `<div class="col-span-full flex flex-col items-center justify-center py-20 text-gray-400"><span class="material-icons text-6xl mb-2 opacity-20">sentiment_dissatisfied</span><p>ไม่พบกลุ่มงานในหมวดนี้</p></div>`;
+  if (currentTeleFilter !== 'all') links = links.filter(l => l.category === currentTeleFilter);
+  const q = (document.getElementById('teleSearch')?.value || '').toLowerCase().trim();
+  if (q) links = links.filter(l => String(l.name || '').toLowerCase().includes(q) || String(l.category || '').toLowerCase().includes(q) || _tgCatLabel(l.category).toLowerCase().includes(q));
+  if (currentTeleStatus !== 'all') links = links.filter(l => (l.status || 'active') === currentTeleStatus);
+  if (!links.length) {
+    grid.innerHTML = `<div class="tg-empty"><span class="material-icons">forum</span><b>${q ? `ไม่พบ "${_tgEsc(q)}"` : 'ไม่มีกลุ่มงานในหมวดนี้'}</b></div>`;
     return;
   }
-  const colorMap = {
-    blue: 'bg-blue-100 text-blue-600',
-    green: 'bg-green-100 text-green-600',
-    red: 'bg-red-100 text-red-600',
-    orange: 'bg-orange-100 text-orange-600',
-    purple: 'bg-purple-100 text-purple-600',
-    gray: 'bg-gray-100 text-gray-600'
-  };
-  const statusMap = {
-    active: '<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 border border-green-200 dark:border-green-800">🟢 Active</span>',
-    paused: '<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-800">🟡 ปิดชั่วคราว</span>',
-    archived: '<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-500 dark:bg-slate-700 dark:text-slate-400 border border-slate-300 dark:border-slate-600">⚫ เก็บถาวร</span>'
-  };
-  const isAdmin = canPerm('telegram_manage');
-  grid.innerHTML = links.map((link => {
-    const colorClass = colorMap[link.icon_color] || colorMap['blue'];
-    const statusBadge = statusMap[link.status || 'active'] || statusMap['active'];
-    const isInactive = link.status === 'archived' || link.status === 'paused';
-    const adminBtns = isAdmin ? `\n            <div class="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition z-10">\n                <button onclick="editTeleLink(${link.id})" class="text-gray-400 hover:text-orange-500 p-1 bg-white/50 dark:bg-black/20 rounded-md transition" title="แก้ไข"><span class="material-icons text-[18px]">edit</span></button>\n                <button onclick="deleteTeleLink(${link.id})" class="text-gray-400 hover:text-red-500 p-1 bg-white/50 dark:bg-black/20 rounded-md transition" title="ลบ"><span class="material-icons text-[18px]">delete</span></button>\n            </div>` : '';
-    return window.renderTemplate('tpl-tele-card', {
-      adminBtns: adminBtns,
-      colorClass: colorClass + (isInactive ? ' opacity-50' : ''),
-      category: link.category === 'General' ? '🌐 กลุ่มกลาง' : link.category,
-      name: link.name,
-      url: link.url,
-      statusBadge: statusBadge
-    });
-  })).join('');
+  const canManage = _tgCanManage();
+  const rank = s => ({ active: 0, paused: 1, archived: 2 }[s || 'active'] ?? 3);
+  const sorted = links.slice().sort((a, b) => rank(a.status) - rank(b.status));
+  if (currentTeleFilter !== 'all') {
+    grid.innerHTML = `<div class="tg-grid">${sorted.map(l => _tgCard(l, canManage)).join('')}</div>`;
+    return;
+  }
+  const groups = {};
+  sorted.forEach(l => { (groups[l.category] = groups[l.category] || []).push(l); });
+  const keys = Object.keys(groups).sort((a, b) => a === 'General' ? -1 : b === 'General' ? 1 : a.localeCompare(b));
+  grid.innerHTML = keys.map(k => `<section class="tg-sec"><div class="tg-sec-h">${_tgEsc(_tgCatLabel(k))}<span>${groups[k].length}</span></div><div class="tg-grid">${groups[k].map(l => _tgCard(l, canManage)).join('')}</div></section>`).join('');
+}
+
+window.pickTeleColor = function(c) {
+  const h = document.getElementById('teleColor');
+  if (h) h.value = c;
+  document.querySelectorAll('#teleColorPick button').forEach(b => b.classList.toggle('on', b.dataset.c === c));
+};
+
+function _tgSetModalMode(edit) {
+  document.getElementById('teleModalTitle').innerHTML = edit ? '<span class="material-icons">edit</span>แก้ไขกลุ่ม' : '<span class="material-icons">add_link</span>เพิ่มกลุ่มใหม่';
+  const b = document.getElementById('teleSubmitBtn');
+  b.innerText = edit ? 'บันทึกการแก้ไข' : 'บันทึกข้อมูล';
+  b.classList.toggle('edit', !!edit);
 }
 
 window.openAddTeleModal = function() {
-  document.getElementById('teleModal').classList.remove('hidden');
+  if (!_tgCanManage()) return;
   document.getElementById('teleId').value = '';
   document.getElementById('teleName').value = '';
   document.getElementById('teleUrl').value = '';
-  document.getElementById('teleModalTitle').innerHTML = '<span class="material-icons">add_link</span> เพิ่มลิงก์ใหม่';
-  document.getElementById('teleSubmitBtn').innerText = 'บันทึกข้อมูล';
+  const cat = document.getElementById('teleCategory');
+  if (cat && currentTeleFilter !== 'all') cat.value = currentTeleFilter;
+  document.getElementById('teleStatus').value = 'active';
+  window.pickTeleColor('blue');
+  _tgSetModalMode(false);
+  document.getElementById('teleModal').classList.remove('hidden');
 };
 
 window.editTeleLink = function(id) {
-  const link = globalTeleLinks.find((l => l.id === id));
+  if (!_tgCanManage()) return;
+  const link = globalTeleLinks.find(l => String(l.id) === String(id));
   if (!link) return;
   document.getElementById('teleId').value = link.id;
-  document.getElementById('teleName').value = link.name;
-  document.getElementById('teleCategory').value = link.category;
-  document.getElementById('teleColor').value = link.icon_color;
-  document.getElementById('teleUrl').value = link.url;
-  if (document.getElementById('teleStatus')) document.getElementById('teleStatus').value = link.status || 'active';
-  document.getElementById('teleModalTitle').innerHTML = '<span class="material-icons text-orange-400">edit</span> แก้ไขข้อมูลลิงก์';
-  document.getElementById('teleSubmitBtn').innerText = 'บันทึกการแก้ไข';
-  document.getElementById('teleSubmitBtn').className = "w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl shadow-lg transition transform active:scale-95 mt-2";
+  document.getElementById('teleName').value = link.name || '';
+  const cat = document.getElementById('teleCategory');
+  if (cat && ![ ...cat.options ].some(o => o.value === link.category)) cat.insertAdjacentHTML('beforeend', `<option value="${_tgEsc(link.category)}">${_tgEsc(link.category)}</option>`);
+  if (cat) cat.value = link.category;
+  document.getElementById('teleUrl').value = link.url || '';
+  document.getElementById('teleStatus').value = link.status || 'active';
+  window.pickTeleColor(link.icon_color || 'blue');
+  _tgSetModalMode(true);
   document.getElementById('teleModal').classList.remove('hidden');
 };
 
 window.closeTeleModal = function() {
   document.getElementById('teleModal').classList.add('hidden');
-  document.getElementById('teleSubmitBtn').className = "w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 rounded-xl shadow-lg transition transform active:scale-95 mt-2";
 };
 
 window.saveTeleLink = async function(e) {
   e.preventDefault();
+  if (!_tgCanManage() || window._tgSaving) return;
   const id = document.getElementById('teleId').value;
   const payload = {
-    name: document.getElementById('teleName').value,
-    url: document.getElementById('teleUrl').value,
+    name: document.getElementById('teleName').value.trim(),
+    url: document.getElementById('teleUrl').value.trim(),
     category: document.getElementById('teleCategory').value,
-    icon_color: document.getElementById('teleColor').value,
-    status: document.getElementById('teleStatus')?.value || 'active'
+    icon_color: document.getElementById('teleColor').value || 'blue',
+    status: document.getElementById('teleStatus').value || 'active'
   };
   if (!payload.name || !payload.url) return;
-  Swal.fire({
-    title: 'กำลังบันทึก...',
-    didOpen: () => Swal.showLoading()
-  });
-  let error;
-  if (id) {
-    const res = await appDB.from('telegram_links').update(payload).eq('id', id);
-    error = res.error;
-  } else {
-    const res = await appDB.from('telegram_links').insert([ payload ]);
-    error = res.error;
-  }
-  if (error) Swal.fire('Error', error.message, 'error'); else {
+  if (!_tgSafeUrl(payload.url)) return Swal.fire('ลิงก์ไม่ถูกต้อง', 'ลิงก์ต้องขึ้นต้นด้วย https:// หรือ t.me/', 'warning');
+  payload.url = _tgSafeUrl(payload.url);
+  window._tgSaving = true;
+  Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading() });
+  try {
+    const res = id ? await appDB.from('telegram_links').update(payload).eq('id', id).select('id') : await appDB.from('telegram_links').insert([ payload ]).select('id');
+    if (res.error) throw res.error;
+    if (id && Array.isArray(res.data) && res.data.length === 0) throw new Error('ฐานข้อมูลไม่ยอมแก้รายการนี้ (อาจไม่มีสิทธิ์)');
     closeTeleModal();
     await fetchTeleLinks();
-    Swal.fire({
-      icon: 'success',
-      title: id ? 'อัปเดตเรียบร้อย' : 'เพิ่มเรียบร้อย',
-      timer: 1500,
-      showConfirmButton: false
-    });
+    Swal.fire({ icon: 'success', title: id ? 'อัปเดตเรียบร้อย' : 'เพิ่มเรียบร้อย', timer: 1400, showConfirmButton: false });
+  } catch (err) {
+    Swal.fire('บันทึกไม่สำเร็จ', err.message || String(err), 'error');
+  } finally {
+    window._tgSaving = false;
   }
 };
 
 window.deleteTeleLink = async function(id) {
-  const result = await Swal.fire({
-    title: 'ลบกลุ่มนี้?',
-    text: "เอาจริงดิ?",
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonColor: '#d33',
-    confirmButtonText: 'ลบเลย'
-  });
-  if (result.isConfirmed) {
-    await appDB.from('telegram_links').delete().eq('id', id);
-    fetchTeleLinks();
-    Swal.fire('Deleted', '', 'success');
-  }
+  if (!_tgCanManage()) return;
+  const link = globalTeleLinks.find(l => String(l.id) === String(id));
+  const r = await Swal.fire({ title: 'ลบกลุ่มนี้?', text: link ? `"${link.name}" · กู้คืนไม่ได้` : 'กู้คืนไม่ได้', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'ลบเลย', cancelButtonText: 'ยกเลิก' });
+  if (!r.isConfirmed) return;
+  const { data, error } = await appDB.from('telegram_links').delete().eq('id', id).select('id');
+  if (error) return Swal.fire('ลบไม่สำเร็จ', error.message, 'error');
+  if (Array.isArray(data) && data.length === 0) return Swal.fire('ลบไม่สำเร็จ', 'ฐานข้อมูลไม่ยอมลบรายการนี้ (อาจไม่มีสิทธิ์)', 'error');
+  await fetchTeleLinks();
+  Swal.fire({ icon: 'success', title: 'ลบแล้ว', timer: 1200, showConfirmButton: false });
 };
 
-window.copyToClip = function(text) {
-  navigator.clipboard.writeText(text);
-  Swal.mixin({
-    toast: true,
-    position: 'top-end',
-    showConfirmButton: false,
-    timer: 1e3
-  }).fire({
-    icon: 'success',
-    title: 'คัดลอกลิงก์แล้ว'
-  });
+window.copyToClip = async function(text, btn) {
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (e) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand('copy');
+    } catch (e2) {}
+    ta.remove();
+  }
+  if (btn) {
+    const o = btn.innerHTML;
+    btn.classList.add('ok');
+    btn.innerHTML = '<span class="material-icons">check</span>';
+    setTimeout(() => { btn.classList.remove('ok'); btn.innerHTML = o; }, 1300);
+  } else Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1000 }).fire({ icon: 'success', title: 'คัดลอกลิงก์แล้ว' });
 };

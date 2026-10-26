@@ -1,114 +1,145 @@
-<div id="telegramApp" class="fade-in flex flex-col h-full bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden pb-10">
-
-   <div style="--acc:14,165,233;background:linear-gradient(120deg,rgba(var(--acc),0.22),color-mix(in srgb,var(--k-panel2) 55.0%,transparent) 45%,color-mix(in srgb,var(--k-panel2) 20.0%,transparent)),var(--k-panel2);border-bottom:1px solid rgba(var(--acc),0.4);box-shadow:0 6px 24px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.06)" class="k-pagehead text-white p-4 shrink-0 flex justify-between items-center">
-        <div class="flex items-center gap-3">
-            <div class="bg-white/20 p-2 rounded-full"><span class="material-icons text-3xl">telegram</span></div>
-            <div>
-                <h1 class="font-bold text-xl">ศูนย์รวมกลุ่มงาน (Telegram Hub)</h1>
+<div id="telegramApp" class="fade-in tg-app">
+<style>
+.tg-app{--a:#0ea5e9;color:var(--k-tx);background:var(--k-bg);min-height:100%;display:flex;flex-direction:column;border-radius:18px;border:1px solid var(--k-line);overflow:hidden}
+.tg-app .material-icons{font-size:18px}
+.tg-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 20px;background:var(--k-panel);border-bottom:1px solid var(--k-line)}
+.tg-logo{width:44px;height:44px;border-radius:13px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#38bdf8,#0284c7);color:#fff;flex:none;box-shadow:0 8px 22px rgba(14,165,233,.3)}
+.tg-logo .material-icons{font-size:23px}
+.tg-title{margin:0;font-size:19px;font-weight:900;color:var(--k-tx-strong);line-height:1.25}
+.tg-sub{font-size:12.5px;font-weight:700;color:var(--k-mute);margin-top:1px}
+.tg-sub b{color:var(--k-tx2)}
+.tg-hr{margin-left:auto;display:flex;gap:8px}
+.tg-btn{display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 14px;border-radius:12px;font-size:13px;font-weight:800;white-space:nowrap;border:1px solid var(--k-line3);background:var(--k-btn);color:var(--k-tx2);transition:background .15s,color .15s,filter .15s}
+.tg-btn:hover{background:var(--k-btn-h);color:var(--k-tx-strong)}
+.tg-btn.pri{background:linear-gradient(135deg,#38bdf8,#0284c7);border-color:transparent;color:#fff;box-shadow:0 6px 16px rgba(14,165,233,.28)}
+.tg-btn.pri:hover{filter:brightness(1.07);color:#fff}
+.tg-btn .material-icons{font-size:17px}
+#teleAdminControls.hidden{display:none}
+.tg-bar{display:flex;flex-direction:column;gap:10px;padding:14px 20px 0;max-width:1400px;width:100%;margin:0 auto;box-sizing:border-box}
+.tg-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.tg-search{flex:1;min-width:220px;display:flex;align-items:center;gap:8px;height:42px;padding:0 12px;border-radius:12px;background:var(--k-field);border:1px solid var(--k-line3)}
+.tg-search:focus-within{border-color:var(--a);box-shadow:0 0 0 3px rgba(14,165,233,.15)}
+.tg-search input{flex:1;min-width:0;background:transparent;border:0;outline:none;color:var(--k-tx-strong);font-size:13.5px;font-weight:600}
+.tg-search .material-icons{color:var(--k-mute2)}
+.tg-seg{display:flex;gap:3px;padding:3px;border-radius:12px;background:var(--k-sunk);border:1px solid var(--k-line)}
+.tg-seg button{height:34px;padding:0 12px;border-radius:9px;font-size:12.5px;font-weight:800;color:var(--k-mute);white-space:nowrap}
+.tg-seg button:hover{color:var(--k-tx-strong)}
+.tg-seg button.on{background:var(--k-panel);color:var(--k-tx-strong);box-shadow:var(--k-shadow)}
+#teleFilterContainer{display:flex;gap:6px;flex-wrap:wrap}
+.tg-chip{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:999px;font-size:12.5px;font-weight:800;color:var(--k-tx3);background:var(--k-panel);border:1px solid var(--k-line2)}
+.tg-chip b{font-size:10.5px;font-weight:900;padding:0 7px;border-radius:999px;background:var(--k-sunk);color:var(--k-mute)}
+.tg-chip:hover{color:var(--k-tx-strong);border-color:var(--k-line4)}
+.tg-chip.on{background:rgba(14,165,233,.14);border-color:var(--a);color:var(--k-tx-strong)}
+.tg-chip.on b{background:var(--a);color:#fff}
+.tg-body{flex:1;width:100%;max-width:1400px;margin:0 auto;padding:14px 20px 40px;box-sizing:border-box}
+.tg-sec{margin-bottom:18px}
+.tg-sec-h{display:flex;align-items:center;gap:8px;margin:2px 0 10px;font-size:13px;font-weight:900;color:var(--k-tx2)}
+.tg-sec-h span{font-size:11px;font-weight:900;padding:1px 8px;border-radius:999px;background:var(--k-sunk);color:var(--k-mute);border:1px solid var(--k-line)}
+.tg-sec-h::after{content:"";flex:1;height:1px;background:var(--k-line)}
+.tg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.tg-card{position:relative;display:flex;flex-direction:column;gap:12px;padding:14px;border-radius:16px;background:var(--k-panel);border:1px solid var(--k-line);box-shadow:var(--k-shadow);transition:transform .15s,border-color .15s;min-width:0}
+.tg-card:hover{transform:translateY(-2px);border-color:rgba(14,165,233,.45)}
+.tg-card.off{opacity:.62}
+.tg-top{display:flex;align-items:center;gap:11px;min-width:0}
+.tg-ic{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none;background:color-mix(in srgb,var(--c) 16%,transparent);color:var(--c)}
+.tg-ic .material-icons{font-size:22px}
+.tg-tt{flex:1;min-width:0}
+.tg-name{font-size:14.5px;font-weight:900;color:var(--k-tx-strong);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tg-meta{display:flex;gap:5px;flex-wrap:wrap;margin-top:4px}
+.tg-tag{font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:999px;background:var(--k-sunk);color:var(--k-tx3);border:1px solid var(--k-line)}
+.tg-st{font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:999px;border:1px solid}
+.tg-st.active{background:rgba(16,185,129,.12);color:var(--k-green-tx);border-color:rgba(16,185,129,.3)}
+.tg-st.paused{background:rgba(234,179,8,.12);color:var(--k-amber-tx);border-color:rgba(234,179,8,.35)}
+.tg-st.archived{background:var(--k-sunk);color:var(--k-mute);border-color:var(--k-line)}
+.tg-acts{display:flex;gap:6px}
+.tg-open{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;height:38px;border-radius:11px;font-size:13px;font-weight:900;color:#fff;background:linear-gradient(135deg,#38bdf8,#0284c7);text-decoration:none;transition:filter .15s}
+.tg-open:hover{filter:brightness(1.07)}
+.tg-open.dis{background:var(--k-sunk);color:var(--k-mute);pointer-events:none}
+.tg-ib{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex:none;border:1px solid var(--k-line3);background:var(--k-btn);color:var(--k-tx2)}
+.tg-ib:hover{background:var(--k-btn-h);color:var(--k-tx-strong)}
+.tg-ib.ok{color:var(--k-green-tx)}
+.tg-ib.del:hover{background:var(--k-red-bg);color:var(--k-red-tx)}
+.tg-adm{position:absolute;top:10px;right:10px;display:flex;gap:4px;opacity:0;transition:opacity .15s}
+.tg-card:hover .tg-adm,.tg-adm:focus-within{opacity:1}
+.tg-adm .tg-ib{width:30px;height:30px;border-radius:9px}
+.tg-adm .material-icons{font-size:16px}
+.tg-empty{display:flex;flex-direction:column;align-items:center;gap:6px;padding:70px 16px;text-align:center;color:var(--k-mute2);font-size:13px;font-weight:700}
+.tg-empty .material-icons{font-size:50px;opacity:.45}
+.tg-empty b{font-size:15px;color:var(--k-tx3)}
+#teleModal .tm-box{width:100%;max-width:460px;border-radius:20px;overflow:hidden;background:var(--k-panel);border:1px solid var(--k-line3);box-shadow:0 24px 60px rgba(0,0,0,.45);color:var(--k-tx)}
+#teleModal .tm-h{display:flex;align-items:center;gap:10px;padding:15px 18px;border-bottom:1px solid var(--k-line)}
+#teleModal .tm-h h3{margin:0 auto 0 0;display:flex;align-items:center;gap:8px;font-size:16px;font-weight:900;color:var(--k-tx-strong)}
+#teleModal .tm-h h3 .material-icons{color:#0ea5e9}
+#teleModal .tm-x{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--k-mute)}
+#teleModal .tm-x:hover{background:var(--k-btn-h);color:var(--k-tx-strong)}
+#teleModal form{padding:16px 18px 18px;display:flex;flex-direction:column;gap:13px}
+#teleModal label.tm-l{display:block;font-size:12.5px;font-weight:800;color:var(--k-tx3);margin-bottom:6px}
+#teleModal .tm-in{width:100%;box-sizing:border-box;height:42px;padding:0 12px;border-radius:12px;background:var(--k-field);border:1px solid var(--k-line3);color:var(--k-tx-strong);font-size:14px;font-weight:700;outline:none}
+#teleModal .tm-in:focus{border-color:#0ea5e9;box-shadow:0 0 0 3px rgba(14,165,233,.16)}
+#teleModal .tm-g{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#teleModal .tm-colors{display:flex;gap:6px;flex-wrap:wrap}
+#teleModal .tm-colors button{width:30px;height:30px;border-radius:9px;border:2px solid transparent;background:var(--c)}
+#teleModal .tm-colors button.on{border-color:var(--k-tx-strong);box-shadow:0 0 0 2px var(--k-panel) inset}
+#teleSubmitBtn{height:46px;border-radius:13px;font-size:15px;font-weight:900;color:#fff;background:linear-gradient(135deg,#38bdf8,#0284c7);box-shadow:0 8px 20px rgba(14,165,233,.25)}
+#teleSubmitBtn.edit{background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#1b1406;box-shadow:0 8px 20px rgba(245,158,11,.25)}
+@media (max-width:640px){ .tg-head,.tg-bar,.tg-body{padding-left:12px;padding-right:12px} .tg-grid{grid-template-columns:1fr} .tg-btn .tg-t{display:none} .tg-adm{opacity:1} }
+</style>
+    <div class="tg-head">
+        <div class="tg-logo"><span class="material-icons">send</span></div>
+        <div>
+            <h1 class="tg-title">กลุ่มงาน Telegram</h1>
+            <div class="tg-sub" id="teleStatLine">กำลังโหลด…</div>
+        </div>
+        <div class="tg-hr">
+            <div id="teleAdminControls" class="hidden"><button onclick="openAddTeleModal()" class="tg-btn pri"><span class="material-icons">add</span>เพิ่มกลุ่มใหม่</button></div>
+            <button onclick="showPage('dashboard')" class="tg-btn"><span class="material-icons">arrow_back</span><span class="tg-t">กลับ</span></button>
+        </div>
+    </div>
+    <div class="tg-bar">
+        <div class="tg-row">
+            <label class="tg-search"><span class="material-icons">search</span><input type="text" id="teleSearch" oninput="renderTeleGrid()" placeholder="ค้นหาชื่อกลุ่ม / เว็บ" aria-label="ค้นหากลุ่ม"></label>
+            <div class="tg-seg" id="teleStatusSeg" role="group" aria-label="สถานะ">
+                <button type="button" data-s="all" onclick="setTeleStatus('all')" class="on">ทุกสถานะ</button>
+                <button type="button" data-s="active" onclick="setTeleStatus('active')">🟢 ใช้งาน</button>
+                <button type="button" data-s="paused" onclick="setTeleStatus('paused')">🟡 ปิดชั่วคราว</button>
+                <button type="button" data-s="archived" onclick="setTeleStatus('archived')">⚫ เก็บถาวร</button>
             </div>
+            <input type="hidden" id="teleStatusFilter" value="all">
         </div>
-        <button onclick="showPage('dashboard')" class="bg-black/20 hover:bg-black/40 text-white px-4 py-2 rounded-lg font-bold transition flex items-center gap-2 shadow-sm border border-white/20 backdrop-blur-sm shrink-0">
-            <span class="material-icons text-sm">arrow_back</span> กลับ
-        </button>
+        <div id="teleFilterContainer"></div>
     </div>
-
-    <div class="bg-white dark:bg-slate-800 p-4 border-b dark:border-slate-700 flex flex-wrap gap-4 items-center justify-between shadow-sm z-10">
-        <div class="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
-            <span class="material-icons text-sky-500">filter_alt</span>
-            <span class="font-bold text-slate-600 dark:text-gray-300 whitespace-nowrap">เลือกเว็บ:</span>
-            <div id="teleFilterContainer" class="flex gap-2"></div>
-        </div>
-        
-        <div class="relative w-full md:w-64">
-            <span class="material-icons absolute left-2.5 top-2.5 text-gray-400 text-[18px]">search</span>
-            <input type="text" id="teleSearch" onkeyup="renderTeleGrid()" placeholder="ค้นหาชื่อกลุ่ม..." class="w-full pl-8 pr-3 py-2 text-sm font-bold bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:border-sky-500 transition dark:text-white">
-        </div>
-        
-        <select id="teleStatusFilter" onchange="renderTeleGrid()" class="text-sm font-bold bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-white rounded-xl px-3 py-2 outline-none focus:border-sky-500 transition cursor-pointer">
-            <option value="all">📋 ทุกสถานะ</option>
-            <option value="active">🟢 Active</option>
-            <option value="paused">🟡 ปิดชั่วคราว</option>
-            <option value="archived">⚫ เก็บถาวร</option>
-        </select>
-        <div id="teleAdminControls" class="hidden flex gap-2 w-full md:w-auto justify-end">
-            <button onclick="openAddTeleModal()" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition transform active:scale-95">
-                <span class="material-icons text-sm">add_circle</span> เพิ่มกลุ่มใหม่
-            </button>
-        </div>
-    </div>
-
-    <div class="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50 dark:bg-slate-900/50 custom-scrollbar">
-        <div id="teleGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-w-7xl mx-auto pb-10"></div>
-    </div>
+    <div class="tg-body"><div id="teleGrid"></div></div>
 </div>
 
-<div id="teleModal" class="fixed inset-0 bg-black/70 z-[100] hidden flex items-center justify-center p-4 fade-in backdrop-blur-sm">
-    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 dark:border-slate-700">
-        <div class="bg-gradient-to-r from-sky-600 to-blue-600 p-4 flex justify-between items-center text-white">
-            <h3 id="teleModalTitle" class="font-bold text-lg flex items-center gap-2"><span class="material-icons">add_link</span> เพิ่มลิงก์ใหม่</h3>
-            <button type="button" onclick="closeTeleModal()" class="text-white/80 hover:text-white p-1 rounded-full bg-white/10 hover:bg-white/20 transition"><span class="material-icons text-sm block">close</span></button>
+<div id="teleModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 fade-in" style="background:rgba(2,6,23,.62);backdrop-filter:blur(4px)">
+    <div class="tm-box">
+        <div class="tm-h">
+            <h3 id="teleModalTitle"><span class="material-icons">add_link</span>เพิ่มกลุ่มใหม่</h3>
+            <button type="button" onclick="closeTeleModal()" class="tm-x" aria-label="ปิด"><span class="material-icons">close</span></button>
         </div>
-        <form onsubmit="saveTeleLink(event)" class="p-6 space-y-4 text-left">
+        <form onsubmit="saveTeleLink(event)">
             <input type="hidden" id="teleId">
-            <div>
-                <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">ชื่อกลุ่ม / คำอธิบาย</label>
-                <input type="text" id="teleName" required placeholder="เช่น กลุ่มหลัก, กลุ่มแจ้งโอน..." class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none text-sm shadow-inner transition">
-            </div>
-            <div>
-                <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">ลิงก์กลุ่ม (URL)</label>
-                <input type="text" id="teleUrl" required placeholder="https://t.me/..." class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none font-mono text-sm shadow-inner transition">
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">หมวดหมู่เว็บ</label>
-                    <select id="teleCategory" required class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none text-sm cursor-pointer shadow-inner transition">
-                        </select>
-                </div>
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">สีไอคอน</label>
-                    <select id="teleColor" class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none text-sm cursor-pointer shadow-inner transition">
-                        <option value="blue">🔵 ฟ้า (Blue)</option>
-                        <option value="green">🟢 เขียว (Green)</option>
-                        <option value="red">🔴 แดง (Red)</option>
-                        <option value="orange">🟠 ส้ม (Orange)</option>
-                        <option value="purple">🟣 ม่วง (Purple)</option>
-                        <option value="gray">⚪ เทา (Gray)</option>
-                    </select>
+            <div><label class="tm-l" for="teleName">ชื่อกลุ่ม / คำอธิบาย</label><input type="text" id="teleName" required maxlength="120" placeholder="เช่น กลุ่มหลัก, กลุ่มแจ้งโอน" class="tm-in"></div>
+            <div><label class="tm-l" for="teleUrl">ลิงก์กลุ่ม</label><input type="text" id="teleUrl" required maxlength="500" placeholder="https://t.me/..." class="tm-in" style="font-family:ui-monospace,monospace;font-size:13px"></div>
+            <div class="tm-g">
+                <div><label class="tm-l" for="teleCategory">เว็บ</label><select id="teleCategory" required class="tm-in"></select></div>
+                <div><label class="tm-l" for="teleStatus">สถานะ</label>
+                    <select id="teleStatus" class="tm-in"><option value="active">🟢 ใช้งาน</option><option value="paused">🟡 ปิดชั่วคราว</option><option value="archived">⚫ เก็บถาวร</option></select>
                 </div>
             </div>
             <div>
-                <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">สถานะกลุ่ม</label>
-                <select id="teleStatus" class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none text-sm cursor-pointer shadow-inner transition">
-                    <option value="active">🟢 Active — ใช้งานปกติ</option>
-                    <option value="paused">🟡 ปิดชั่วคราว</option>
-                    <option value="archived">⚫ เก็บถาวร</option>
-                </select>
+                <label class="tm-l">สีไอคอน</label>
+                <input type="hidden" id="teleColor" value="blue">
+                <div class="tm-colors" id="teleColorPick">
+                    <button type="button" data-c="blue" style="--c:#3b82f6" onclick="pickTeleColor(this.dataset.c)" aria-label="ฟ้า"></button>
+                    <button type="button" data-c="green" style="--c:#10b981" onclick="pickTeleColor(this.dataset.c)" aria-label="เขียว"></button>
+                    <button type="button" data-c="red" style="--c:#ef4444" onclick="pickTeleColor(this.dataset.c)" aria-label="แดง"></button>
+                    <button type="button" data-c="orange" style="--c:#f97316" onclick="pickTeleColor(this.dataset.c)" aria-label="ส้ม"></button>
+                    <button type="button" data-c="purple" style="--c:#8b5cf6" onclick="pickTeleColor(this.dataset.c)" aria-label="ม่วง"></button>
+                    <button type="button" data-c="gray" style="--c:#64748b" onclick="pickTeleColor(this.dataset.c)" aria-label="เทา"></button>
+                </div>
             </div>
-            <button type="submit" id="teleSubmitBtn" class="w-full bg-sky-600 hover:bg-sky-500 text-white font-black py-3.5 rounded-xl shadow-lg mt-4 transition transform active:scale-95 border border-sky-400 flex items-center justify-center gap-2 text-base">
-                บันทึกข้อมูล
-            </button>
+            <button type="submit" id="teleSubmitBtn">บันทึกข้อมูล</button>
         </form>
     </div>
-</div>
-
-<div id="teleTemplates" class="hidden">
-    <template id="tpl-tele-card">
-        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition relative group">
-            {{adminBtns}}
-            <div class="flex items-start gap-4">
-                <div class="w-12 h-12 rounded-full {{colorClass}} flex items-center justify-center shrink-0"><span class="material-icons text-2xl">near_me</span></div>
-                <div class="flex-1 min-w-0 pr-10">
-                    <div class="flex items-center gap-2 mb-0.5">
-                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{{category}}</span>
-                        {{statusBadge}}
-                    </div>
-                    <h4 class="font-bold text-slate-800 dark:text-white truncate text-base mb-1" title="{{name}}">{{name}}</h4>
-                    <div class="flex gap-2 mt-3">
-                        <a href="{{url}}" target="_blank" class="flex-1 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:bg-sky-900/30 dark:text-sky-300 py-1.5 rounded-lg text-xs font-bold text-center transition">เข้าร่วม</a>
-                        <button onclick="copyToClip('{{url}}')" class="px-3 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-xs font-bold transition" title="คัดลอกลิงก์"><span class="material-icons text-sm pt-1">content_copy</span></button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </template>
 </div>

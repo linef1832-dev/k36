@@ -308,12 +308,12 @@ const PERM_GROUPS = [ {
   } ]
 }, {
   id: 'page_telegram',
-  name: 'กลุ่มงาน (Telegram)',
+  name: 'กลุ่มงาน Telegram',
   icon: 'near_me',
   theme: 'sky',
   items: [ {
     id: 'telegram',
-    name: 'เข้าหน้ากลุ่มงาน (Telegram)',
+    name: 'เข้าหน้ากลุ่มงาน Telegram',
     isSub: false
   }, {
     id: 'telegram_manage',
