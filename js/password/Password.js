@@ -1,35 +1,3 @@
-async function initPasswordApp() {
-  if (!currentUser) return;
-  const isGlobalAdmin = canPerm('password_view_all');
-  const canViewAll = isGlobalAdmin || typeof window.hasUserPerm === 'function' && window.hasUserPerm('password_view_all');
-  if (canViewAll) {
-    document.getElementById('pwdManagerControls')?.classList.remove('hidden');
-    document.getElementById('pwdStaffLabel')?.classList.add('hidden');
-    try {
-      const users = await window.getUsersCached();
-      _pwdPopulateUserDropdown(users);
-    } catch (e) {
-      _pwdPopulateUserDropdown([]);
-    }
-  } else {
-    document.getElementById('pwdManagerControls')?.classList.add('hidden');
-    document.getElementById('pwdStaffLabel')?.classList.remove('hidden');
-  }
-  fetchPasswords();
-}
-
-function _pwdPopulateUserDropdown(users) {
-  const userSelect = document.getElementById('pwdUserFilter');
-  if (!userSelect) return;
-  const list = users || window.GLOBAL_USER_LIST || [];
-  const oldVal = userSelect.value;
-  userSelect.innerHTML = `<option value="all">-- ดูทั้งหมด --</option>`;
-  list.filter((u => u && u.username)).sort(((a, b) => String(a.username).localeCompare(String(b.username)))).forEach((u => {
-    userSelect.innerHTML += `<option value="${u.id}" style="background:var(--k-card);color:var(--k-tx-strong)">${u.username}</option>`;
-  }));
-  if (oldVal) userSelect.value = oldVal;
-}
-
 const PWD_PAGE_SIZE = 12;
 
 let _pwdPage = 1;
@@ -38,56 +6,131 @@ let _pwdSearchQ = '';
 
 let _pwdSearchTimer = null;
 
+window._pwdVals = {};
+
+window._pwdRows = {};
+
+const _pwdEsc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+const _pwdCanViewAll = () => (typeof canPerm === 'function' && canPerm('password_view_all')) || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('password_view_all'));
+
+const _pwdIsGlobalAdmin = () => typeof canPerm === 'function' && canPerm('password_view_all');
+
+const _pwdSafeUrl = u => {
+  const s = String(u || '').trim();
+  if (!s) return '';
+  if (/^https?:\/\//i.test(s)) return s;
+  if (/^[a-z0-9.-]+\.[a-z]{2,}(\/|$)/i.test(s)) return 'https://' + s;
+  return '';
+};
+
+const _pwdHost = u => {
+  try {
+    return new URL(u).host.replace(/^www\./, '');
+  } catch (e) {
+    return u;
+  }
+};
+
+const PWD_COLORS = [ '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#ef4444', '#14b8a6', '#6366f1', '#f97316', '#0ea5e9' ];
+
+const _pwdColor = name => {
+  let h = 0;
+  String(name || '').split('').forEach(c => { h = h * 31 + c.charCodeAt(0) >>> 0; });
+  return PWD_COLORS[h % PWD_COLORS.length];
+};
+
+async function initPasswordApp() {
+  if (!currentUser) return;
+  const viewAll = _pwdCanViewAll();
+  const ctl = document.getElementById('pwdManagerControls');
+  if (ctl) ctl.classList.toggle('hidden', !viewAll);
+  if (viewAll) {
+    try {
+      _pwdPopulateUserDropdown(await window.getUsersCached());
+    } catch (e) {
+      _pwdPopulateUserDropdown([]);
+    }
+  }
+  _pwdPage = 1;
+  _pwdSearchQ = '';
+  const si = document.getElementById('pwdSearchInput');
+  if (si) si.value = '';
+  fetchPasswords();
+}
+
+function _pwdPopulateUserDropdown(users) {
+  const sel = document.getElementById('pwdUserFilter');
+  if (!sel) return;
+  const list = users || window.GLOBAL_USER_LIST || [];
+  const oldVal = sel.value;
+  sel.innerHTML = '<option value="all">ทุกคน</option>' + list.filter(u => u && u.username).sort((a, b) => String(a.username).localeCompare(String(b.username))).map(u => `<option value="${_pwdEsc(u.id)}">${_pwdEsc(u.username)}</option>`).join('');
+  if (oldVal) sel.value = oldVal;
+  if (!sel.value) sel.value = 'all';
+}
+
 window.fetchPasswords = async function(resetPage) {
   if (resetPage) _pwdPage = 1;
   const grid = document.getElementById('pwdGrid');
   if (!grid) return;
-  grid.innerHTML = '<div class="col-span-full text-center py-10"><span class="material-icons animate-spin text-amber-500 text-4xl">sync</span></div>';
-  const isGlobalAdmin = canPerm('password_view_all');
-  const canViewAll = isGlobalAdmin || typeof window.hasUserPerm === 'function' && window.hasUserPerm('password_view_all');
-  let query = appDB.from('user_passwords').select(`*, users(username)`, {
-    count: 'exact'
-  });
-  if (!canViewAll) {
-    query = query.eq('user_id', currentUser.id);
-  } else {
+  grid.innerHTML = '<div class="pw-empty"><span class="material-icons animate-spin">sync</span><b>กำลังโหลด…</b></div>';
+  const viewAll = _pwdCanViewAll();
+  let query = appDB.from('user_passwords').select('*, users(username)', { count: 'exact' });
+  if (!viewAll) query = query.eq('user_id', currentUser.id); else {
     const filterId = document.getElementById('pwdUserFilter')?.value;
     if (filterId && filterId !== 'all') query = query.eq('user_id', filterId);
   }
   if (_pwdSearchQ) {
-    const q = _pwdSearchQ.replace(/[%,()]/g, '');
-    query = query.or(`site_name.ilike.%${q}%,login_user.ilike.%${q}%,site_url.ilike.%${q}%`);
+    const q = _pwdSearchQ.replace(/[%,()*\\]/g, '');
+    if (q) query = query.or(`site_name.ilike.%${q}%,login_user.ilike.%${q}%,site_url.ilike.%${q}%`);
   }
   const from = (_pwdPage - 1) * PWD_PAGE_SIZE;
-  const {data: data, error: error, count: count} = await query.order('created_at', {
-    ascending: false
-  }).range(from, from + PWD_PAGE_SIZE - 1);
+  const { data, error, count } = await query.order('created_at', { ascending: false }).range(from, from + PWD_PAGE_SIZE - 1);
+  const stat = document.getElementById('pwdStatLine');
   if (error) {
-    grid.innerHTML = `<div class="col-span-full text-center text-red-500">โหลดข้อมูลไม่สำเร็จ: ${error.message}</div>`;
+    grid.innerHTML = `<div class="pw-empty"><span class="material-icons">error_outline</span><b>โหลดข้อมูลไม่สำเร็จ</b><span>${_pwdEsc(error.message)}</span></div>`;
     renderPwdPagination(0);
     return;
   }
+  if (stat) stat.innerHTML = `<span class="material-icons">shield</span>${viewAll ? 'รหัสผ่านที่บันทึกไว้' : 'รหัสผ่านของคุณ'} <b style="color:var(--k-tx2)">${(count || 0).toLocaleString()}</b> รายการ · รหัสจะแสดงเมื่อกดดูเท่านั้น`;
+  window._pwdVals = {};
+  window._pwdRows = {};
   if (!data || data.length === 0) {
-    grid.innerHTML = `<div class="col-span-full text-center text-gray-400 py-10 flex flex-col items-center gap-2"><span class="material-icons text-5xl opacity-20">no_encryption</span><span>${_pwdSearchQ ? 'ไม่พบรายการที่ค้นหา' : 'ยังไม่มีรหัสผ่านที่บันทึกไว้'}</span></div>`;
+    grid.innerHTML = `<div class="pw-empty"><span class="material-icons">no_encryption</span><b>${_pwdSearchQ ? `ไม่พบ "${_pwdEsc(_pwdSearchQ)}"` : 'ยังไม่มีรหัสผ่านที่บันทึกไว้'}</b>${_pwdSearchQ ? '' : '<span>กด "เพิ่มรหัสผ่าน" เพื่อเริ่ม</span>'}</div>`;
     renderPwdPagination(count || 0);
     return;
   }
-  grid.innerHTML = data.map((item => {
-    const esc = window.escapeHtml, escA = window.escapeAttr;
-    const ownerName = item.users ? item.users.username : 'Unknown';
-    const ownerBadge = canViewAll ? `<div style="position:absolute;top:10px;right:10px;background:color-mix(in srgb,var(--k-panel2) 55.0%,transparent);color:var(--k-tx);font-size:10px;padding:3px 10px;border-radius:99px;backdrop-filter:blur(4px);display:flex;align-items:center;gap:3px;border:1px solid color-mix(in srgb,var(--k-tx-strong) 10.0%,transparent)"><span class="material-icons" style="font-size:10px">person</span> ${esc(ownerName)}</div>` : '';
-    const delBtn = isGlobalAdmin || item.user_id === currentUser.id ? `<button onclick="deletePassword(${item.id})" style="color:var(--k-tx3);font-size:11px;font-weight:700;display:flex;align-items:center;gap:3px;padding:5px 10px;border-radius:8px;border:none;background:transparent;cursor:pointer;transition:all .15s" onmouseover="this.style.color='#f87171';this.style.background='rgba(239,68,68,0.1)'" onmouseout="this.style.color='#94a3b8';this.style.background='transparent'"><span class="material-icons" style="font-size:14px">delete</span> ลบ</button>` : '';
-    const urlHtml = item.site_url ? `<a href="${escA(item.site_url)}" target="_blank" style="font-size:11px;color:light-dark(#054ea8,#60a5fa);text-decoration:none;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${esc(item.site_url)}</a>` : '';
-    return window.renderTemplate('tpl-pwd-card', {
-      ownerBadge: ownerBadge,
-      site_name: esc(item.site_name),
-      urlHtml: urlHtml,
-      id: item.id,
-      login_user: esc(item.login_user || '-'),
-      login_pass: esc(item.login_pass),
-      delBtn: delBtn
-    });
-  })).join('');
+  const isAdmin = _pwdIsGlobalAdmin();
+  grid.innerHTML = data.map(item => {
+    window._pwdVals[item.id] = { u: item.login_user || '', p: item.login_pass || '' };
+    window._pwdRows[item.id] = item;
+    const owner = item.users ? item.users.username : 'Unknown';
+    const mine = String(item.user_id) === String(currentUser.id);
+    const canEdit = isAdmin || mine;
+    const url = _pwdSafeUrl(item.site_url);
+    const name = item.site_name || 'ไม่มีชื่อ';
+    const when = item.updated_at || item.created_at;
+    const whenTxt = when ? new Date(when).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' }) : '';
+    const id = _pwdEsc(item.id);
+    return `<article class="pw-card">
+      <div class="pw-top">
+        <span class="pw-av" style="--c:${_pwdColor(name)}">${_pwdEsc(String(name).trim().charAt(0).toUpperCase() || '?')}</span>
+        <div class="pw-tt">
+          <div class="pw-name" title="${_pwdEsc(name)}">${_pwdEsc(name)}</div>
+          ${url ? `<a class="pw-url" href="${_pwdEsc(url)}" target="_blank" rel="noopener noreferrer"><span class="material-icons">open_in_new</span>${_pwdEsc(_pwdHost(url))}</a>` : '<span class="pw-nourl">ไม่มีลิงก์</span>'}
+          ${viewAll ? `<div><span class="pw-owner"><span class="material-icons">person</span>${_pwdEsc(owner)}</span></div>` : ''}
+        </div>
+      </div>
+      <div class="pw-fields">
+        <div class="pw-f"><small>User</small><span class="pw-v">${_pwdEsc(item.login_user || '-')}</span><button type="button" class="pw-ib" data-id="${id}" data-k="u" onclick="pwdCopy(this)" title="คัดลอก Username" aria-label="คัดลอก Username"><span class="material-icons">content_copy</span></button></div>
+        <div class="pw-f"><small>Pass</small><span class="pw-v pass masked" id="pass_${id}">••••••••</span><button type="button" class="pw-ib" data-id="${id}" onclick="togglePwdVisible(this.dataset.id, this)" title="แสดง (ซ่อนเองใน 5 วิ)" aria-label="แสดงรหัสผ่าน"><span class="material-icons">visibility</span></button><button type="button" class="pw-ib" data-id="${id}" data-k="p" onclick="pwdCopy(this)" title="คัดลอกรหัสผ่าน" aria-label="คัดลอกรหัสผ่าน"><span class="material-icons">content_copy</span></button></div>
+      </div>
+      <div class="pw-foot">
+        <span class="pw-date">${_pwdEsc(whenTxt)}</span>
+        ${canEdit ? `<button type="button" class="pw-act" data-id="${id}" onclick="openEditPwdModal(this.dataset.id)"><span class="material-icons">edit</span>แก้ไข</button><button type="button" class="pw-act del" data-id="${id}" onclick="deletePassword(this.dataset.id)"><span class="material-icons">delete</span>ลบ</button>` : ''}
+      </div>
+    </article>`;
+  }).join('');
   renderPwdPagination(count || 0);
 };
 
@@ -96,103 +139,162 @@ function renderPwdPagination(total) {
   if (!bar) return;
   const pages = Math.max(1, Math.ceil(total / PWD_PAGE_SIZE));
   if (pages <= 1) {
-    bar.innerHTML = total ? `<span style="font-size:11px;color:var(--k-mute)">ทั้งหมด ${total} รายการ</span>` : '';
+    bar.innerHTML = total ? `<span class="pw-pginfo">ทั้งหมด ${total} รายการ</span>` : '';
     return;
   }
   if (_pwdPage > pages) _pwdPage = pages;
-  const btn = (label, page, active, disabled) => `\n        <button ${disabled ? 'disabled' : `onclick="pwdGotoPage(${page})"`}\n            style="min-width:34px;height:34px;padding:0 10px;border-radius:10px;font-size:12.5px;font-weight:800;cursor:${disabled ? 'default' : 'pointer'};transition:all .15s;\n            ${active ? 'background:linear-gradient(135deg,#f59e0b,#d97706);color:#1a1206;border:1px solid rgba(255,255,255,0.2);box-shadow:0 4px 12px rgba(245,158,11,0.3)' : 'background:rgba(255,255,255,0.05);color:' + (disabled ? '#3f4b61' : '#aab6c8') + ';border:1px solid rgba(255,255,255,0.09)'}">${label}</button>`;
-  let nums = [];
+  const btn = (label, page, active, disabled) => `<button class="pw-pg${active ? ' on' : ''}" ${disabled ? 'disabled' : `onclick="pwdGotoPage(${page})"`}>${label}</button>`;
+  const nums = [];
   for (let p = 1; p <= pages; p++) {
     if (p === 1 || p === pages || Math.abs(p - _pwdPage) <= 1) nums.push(p); else if (nums[nums.length - 1] !== '...') nums.push('...');
   }
-  bar.innerHTML = `\n        <span style="font-size:11px;color:var(--k-mute);margin-right:8px">ทั้งหมด ${total} รายการ · หน้า ${_pwdPage}/${pages}</span>\n        ${btn('‹', _pwdPage - 1, false, _pwdPage === 1)}\n        ${nums.map((p => p === '...' ? '<span style="color:var(--k-mute3);padding:0 2px">…</span>' : btn(p, p, p === _pwdPage, false))).join('')}\n        ${btn('›', _pwdPage + 1, false, _pwdPage === pages)}`;
+  bar.innerHTML = `<span class="pw-pginfo">ทั้งหมด ${total} รายการ · หน้า ${_pwdPage}/${pages}</span>${btn('‹', _pwdPage - 1, false, _pwdPage === 1)}${nums.map(p => p === '...' ? '<span style="color:var(--k-mute2);padding:0 2px">…</span>' : btn(p, p, p === _pwdPage, false)).join('')}${btn('›', _pwdPage + 1, false, _pwdPage === pages)}`;
 }
 
 window.pwdGotoPage = function(p) {
   _pwdPage = p;
   fetchPasswords();
-  document.getElementById('pwdGrid')?.scrollIntoView({
-    behavior: 'smooth',
-    block: 'start'
-  });
+  document.getElementById('pwdGrid')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 
-window.openAddPwdModal = function() {
+function _pwdFillModal(row) {
+  document.getElementById('pwdEditId').value = row ? row.id : '';
+  document.getElementById('pwdSite').value = row ? row.site_name || '' : '';
+  document.getElementById('pwdUrl').value = row ? row.site_url || '' : '';
+  document.getElementById('pwdUser').value = row ? row.login_user || '' : '';
+  document.getElementById('pwdPass').value = row ? row.login_pass || '' : '';
+  window.checkPwdStrength(row ? row.login_pass || '' : '');
+  const t = document.getElementById('pwdModalTitle');
+  if (t) t.innerHTML = `<span class="material-icons">${row ? 'edit' : 'vpn_key'}</span>${row ? 'แก้ไขรหัสผ่าน' : 'บันทึกรหัสผ่าน'}`;
+  const b = document.getElementById('pwdSaveBtn');
+  if (b) b.textContent = row ? 'บันทึกการแก้ไข' : 'บันทึก';
   document.getElementById('pwdModal').classList.remove('hidden');
-  document.getElementById('pwdSite').value = '';
-  document.getElementById('pwdUrl').value = '';
-  document.getElementById('pwdUser').value = '';
+  setTimeout(() => document.getElementById('pwdSite')?.focus(), 50);
+}
+
+window.openAddPwdModal = function() {
+  _pwdFillModal(null);
+};
+
+window.openEditPwdModal = function(id) {
+  const row = window._pwdRows[id];
+  if (!row) return;
+  _pwdFillModal(row);
+};
+
+window.closePwdModal = function() {
+  document.getElementById('pwdModal').classList.add('hidden');
   document.getElementById('pwdPass').value = '';
 };
 
 window.savePassword = async function(e) {
   e.preventDefault();
-  const site = document.getElementById('pwdSite').value;
-  const url = document.getElementById('pwdUrl').value;
-  const user = document.getElementById('pwdUser').value;
+  if (window._pwdSaving) return;
+  const id = document.getElementById('pwdEditId').value;
+  const site = document.getElementById('pwdSite').value.trim();
+  const url = document.getElementById('pwdUrl').value.trim();
+  const user = document.getElementById('pwdUser').value.trim();
   const pass = document.getElementById('pwdPass').value;
-  Swal.fire({
-    title: 'กำลังบันทึก...',
-    didOpen: () => Swal.showLoading()
-  });
-  const {error: error} = await appDB.from('user_passwords').insert([ {
-    user_id: currentUser.id,
-    site_name: site,
-    site_url: url,
-    login_user: user,
-    login_pass: pass
-  } ]);
-  if (error) {
-    Swal.fire('Error', error.message, 'error');
-  } else {
-    document.getElementById('pwdModal').classList.add('hidden');
-    fetchPasswords();
-    Swal.fire({
-      icon: 'success',
-      title: 'บันทึกเรียบร้อย',
-      timer: 1500,
-      showConfirmButton: false
-    });
+  if (!site || !pass) return;
+  if (url && !_pwdSafeUrl(url)) return Swal.fire('ลิงก์ไม่ถูกต้อง', 'ลิงก์ต้องขึ้นต้นด้วย http:// หรือ https://', 'warning');
+  window._pwdSaving = true;
+  Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading() });
+  try {
+    const payload = { site_name: site, site_url: url, login_user: user, login_pass: pass };
+    let res;
+    if (id) res = await appDB.from('user_passwords').update(payload).eq('id', id).select('id');
+    else res = await appDB.from('user_passwords').insert([ { user_id: currentUser.id, ...payload } ]).select('id');
+    if (res.error) throw res.error;
+    if (id && Array.isArray(res.data) && res.data.length === 0) throw new Error('ฐานข้อมูลไม่ยอมแก้รายการนี้ (อาจไม่มีสิทธิ์)');
+    window.closePwdModal();
+    fetchPasswords(!id);
+    Swal.fire({ icon: 'success', title: id ? 'แก้ไขเรียบร้อย' : 'บันทึกเรียบร้อย', timer: 1400, showConfirmButton: false });
+  } catch (err) {
+    Swal.fire('บันทึกไม่สำเร็จ', err.message || String(err), 'error');
+  } finally {
+    window._pwdSaving = false;
   }
 };
 
 window.deletePassword = async function(id) {
-  Swal.fire({
-    title: 'ลบรหัสผ่านนี้?',
-    text: "ไม่สามารถกู้คืนได้",
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonColor: '#d33',
-    confirmButtonText: 'ลบเลย'
-  }).then((async result => {
-    if (result.isConfirmed) {
-      await appDB.from('user_passwords').delete().eq('id', id);
-      fetchPasswords();
-      Swal.fire('Deleted', '', 'success');
-    }
-  }));
+  const row = window._pwdRows[id];
+  const r = await Swal.fire({ title: 'ลบรหัสผ่านนี้?', text: row ? `"${row.site_name}" · กู้คืนไม่ได้` : 'กู้คืนไม่ได้', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'ลบเลย', cancelButtonText: 'ยกเลิก' });
+  if (!r.isConfirmed) return;
+  const { data, error } = await appDB.from('user_passwords').delete().eq('id', id).select('id');
+  if (error) return Swal.fire('ลบไม่สำเร็จ', error.message, 'error');
+  if (Array.isArray(data) && data.length === 0) return Swal.fire('ลบไม่สำเร็จ', 'ฐานข้อมูลไม่ยอมลบรายการนี้ (อาจไม่มีสิทธิ์)', 'error');
+  fetchPasswords();
+  Swal.fire({ icon: 'success', title: 'ลบแล้ว', timer: 1200, showConfirmButton: false });
 };
 
 window.filterPwdCards = function() {
   clearTimeout(_pwdSearchTimer);
-  _pwdSearchTimer = setTimeout((() => {
+  _pwdSearchTimer = setTimeout(() => {
     _pwdSearchQ = (document.getElementById('pwdSearchInput')?.value || '').trim();
     fetchPasswords(true);
-  }), 350);
+  }, 350);
 };
 
-window.copyText = function(txt) {
+async function _pwdClip(txt) {
+  try {
+    await navigator.clipboard.writeText(txt);
+    return true;
+  } catch (e) {
+    const ta = document.createElement('textarea');
+    ta.value = txt;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try {
+      ok = document.execCommand('copy');
+    } catch (e2) {}
+    ta.remove();
+    return ok;
+  }
+}
+
+window.copyText = async function(txt) {
   if (!txt) return;
-  navigator.clipboard.writeText(txt);
-  Swal.mixin({
-    toast: true,
-    position: 'top-end',
-    showConfirmButton: false,
-    timer: 1e3
-  }).fire({
-    icon: 'success',
-    title: 'คัดลอกแล้ว'
-  });
+  await _pwdClip(txt);
+  Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1000 }).fire({ icon: 'success', title: 'คัดลอกแล้ว' });
+};
+
+window.pwdCopy = async function(btn) {
+  const v = window._pwdVals[btn.dataset.id];
+  const txt = v ? v[btn.dataset.k] : '';
+  if (!txt) return;
+  const ok = await _pwdClip(txt);
+  if (!ok) return;
+  const orig = btn.innerHTML;
+  btn.classList.add('ok');
+  btn.innerHTML = '<span class="material-icons">check</span>';
+  setTimeout(() => {
+    btn.classList.remove('ok');
+    btn.innerHTML = orig;
+  }, 1300);
+};
+
+window._pwdAutoHideTimers = {};
+
+window.togglePwdVisible = function(id, el) {
+  const span = document.getElementById('pass_' + id);
+  if (!span) return;
+  const hide = () => {
+    span.textContent = '••••••••';
+    span.classList.add('masked');
+    if (el) el.innerHTML = '<span class="material-icons">visibility</span>';
+    clearTimeout(window._pwdAutoHideTimers[id]);
+  };
+  if (span.classList.contains('masked')) {
+    const v = window._pwdVals[id];
+    span.textContent = v ? v.p : '';
+    span.classList.remove('masked');
+    if (el) el.innerHTML = '<span class="material-icons">visibility_off</span>';
+    clearTimeout(window._pwdAutoHideTimers[id]);
+    window._pwdAutoHideTimers[id] = setTimeout(hide, 5e3);
+  } else hide();
 };
 
 window.checkPwdStrength = function(val) {
@@ -210,27 +312,7 @@ window.checkPwdStrength = function(val) {
   if (/[A-Z]/.test(val)) score++;
   if (/[0-9]/.test(val)) score++;
   if (/[^A-Za-z0-9]/.test(val)) score++;
-  const levels = [ {
-    pct: '20%',
-    color: '#ef4444',
-    text: '🔴 อ่อนมาก'
-  }, {
-    pct: '40%',
-    color: '#f97316',
-    text: '🟠 อ่อน'
-  }, {
-    pct: '60%',
-    color: '#eab308',
-    text: '🟡 ปานกลาง'
-  }, {
-    pct: '80%',
-    color: '#22c55e',
-    text: '🟢 แข็งแรง'
-  }, {
-    pct: '100%',
-    color: '#10b981',
-    text: '✅ แข็งแรงมาก'
-  } ];
+  const levels = [ { pct: '20%', color: '#ef4444', text: '🔴 อ่อนมาก' }, { pct: '40%', color: '#f97316', text: '🟠 อ่อน' }, { pct: '60%', color: '#eab308', text: '🟡 ปานกลาง' }, { pct: '80%', color: '#22c55e', text: '🟢 แข็งแรง' }, { pct: '100%', color: '#10b981', text: '✅ แข็งแรงมาก' } ];
   const lv = levels[Math.min(score, 4)];
   bar.style.width = lv.pct;
   bar.style.background = lv.color;
@@ -238,79 +320,25 @@ window.checkPwdStrength = function(val) {
 };
 
 window.generatePassword = function() {
-  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=';
-  let pwd = '';
-  pwd += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Math.floor(Math.random() * 26)];
-  pwd += 'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random() * 26)];
-  pwd += '0123456789'[Math.floor(Math.random() * 10)];
-  pwd += '!@#$%^&*'[Math.floor(Math.random() * 8)];
-  for (let i = 4; i < 16; i++) {
-    pwd += chars[Math.floor(Math.random() * chars.length)];
+  const rnd = n => {
+    const a = new Uint32Array(1);
+    crypto.getRandomValues(a);
+    return a[0] % n;
+  };
+  const sets = [ 'ABCDEFGHJKLMNPQRSTUVWXYZ', 'abcdefghijkmnopqrstuvwxyz', '23456789', '!@#$%^&*_-+=' ];
+  const all = sets.join('');
+  const chars = sets.map(s => s[rnd(s.length)]);
+  while (chars.length < 16) chars.push(all[rnd(all.length)]);
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = rnd(i + 1);
+    [ chars[i], chars[j] ] = [ chars[j], chars[i] ];
   }
-  pwd = pwd.split('').sort((() => Math.random() - .5)).join('');
+  const pwd = chars.join('');
   const inp = document.getElementById('pwdPass');
   if (inp) {
     inp.value = pwd;
-    inp.type = 'text';
     window.checkPwdStrength(pwd);
-    inp.style.borderColor = '#22c55e';
-    inp.style.boxShadow = '0 0 0 3px rgba(34,197,94,0.2)';
-    setTimeout((() => {
-      inp.style.borderColor = '';
-      inp.style.boxShadow = '';
-    }), 1e3);
   }
-  navigator.clipboard.writeText(pwd).catch((() => {}));
-  Swal.mixin({
-    toast: true,
-    position: 'top-end',
-    showConfirmButton: false,
-    timer: 1800
-  }).fire({
-    icon: 'success',
-    title: '🎲 สร้างรหัสผ่านแล้ว',
-    text: 'คัดลอกไปแล้วด้วย'
-  });
-};
-
-window.copyTextFlash = function(txt, btnEl) {
-  if (!txt) return;
-  navigator.clipboard.writeText(txt).then((() => {
-    if (!btnEl) return;
-    const orig = btnEl.innerHTML;
-    btnEl.innerHTML = '<span class="material-icons text-xs text-green-500">check</span>';
-    btnEl.style.pointerEvents = 'none';
-    setTimeout((() => {
-      btnEl.innerHTML = orig;
-      btnEl.style.pointerEvents = '';
-    }), 1500);
-  }));
-};
-
-window.copyFromRow = function(btnEl) {
-  const row = btnEl.parentElement;
-  const valEl = row ? row.querySelector('.select-all') : null;
-  const txt = valEl ? valEl.textContent : '';
-  window.copyTextFlash(txt, btnEl);
-};
-
-window._pwdAutoHideTimers = {};
-
-window.togglePwdVisible = function(id, el) {
-  const span = document.getElementById('pass_' + id);
-  if (!span) return;
-  const isHidden = span.classList.contains('blur-sm');
-  if (isHidden) {
-    span.classList.remove('blur-sm');
-    el.innerHTML = '<span class="material-icons text-xs">visibility_off</span>';
-    clearTimeout(window._pwdAutoHideTimers[id]);
-    window._pwdAutoHideTimers[id] = setTimeout((() => {
-      span.classList.add('blur-sm');
-      if (el) el.innerHTML = '<span class="material-icons text-xs">visibility</span>';
-    }), 5e3);
-  } else {
-    span.classList.add('blur-sm');
-    el.innerHTML = '<span class="material-icons text-xs">visibility</span>';
-    clearTimeout(window._pwdAutoHideTimers[id]);
-  }
+  _pwdClip(pwd);
+  Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1800 }).fire({ icon: 'success', title: '🎲 สร้างรหัสผ่านแล้ว', text: 'คัดลอกไปแล้วด้วย' });
 };
