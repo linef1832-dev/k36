@@ -1,63 +1,106 @@
 
-<div class="w-full animate-fade-in pb-10" id="btPage">
+<div class="w-full animate-fade-in pb-10" id="btPage" style="max-width:1500px;margin:0 auto">
     <style>
-        #btPage .bt-card{background:var(--k-panel2);border:1px solid rgba(148,163,184,.14);border-radius:12px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:66px;transition:border-color .15s,background .15s}
-        #btPage .bt-card:hover{border-color:rgba(96,165,250,.5);background:var(--k-panel2)}
-        #btPage .bt-card.bt-empty{opacity:.55}
-        #btPage .bt-time{font-weight:800;font-size:15px;color:var(--k-tx);letter-spacing:.2px;font-family:ui-monospace,Menlo,monospace}
-        #btPage .bt-sub{font-size:11.5px;color:var(--k-tx3);margin-top:3px}
-        .bt-av{width:28px;height:28px;border-radius:50%;border:2px solid var(--k-line);display:inline-flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:900;color:var(--k-tx-strong);margin-left:-8px;letter-spacing:.3px}
+        #btPage{color:var(--k-tx)}
+        #btPage .material-icons{font-size:18px}
+        .bt2-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 18px;border-radius:18px;background:var(--k-panel);border:1px solid var(--k-line);box-shadow:var(--k-shadow)}
+        .bt2-logo{width:44px;height:44px;border-radius:13px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#22d3ee,#0891b2);color:#fff;flex:none;box-shadow:0 8px 22px rgba(8,145,178,.3)}
+        .bt2-logo .material-icons{font-size:24px}
+        .bt2-title{margin:0;font-size:19px;font-weight:900;color:var(--k-tx-strong);line-height:1.25}
+        .bt2-sub{font-size:12.5px;font-weight:700;color:var(--k-mute);margin-top:1px}
+        .bt2-hr{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+        .bt2-date{display:flex;align-items:center;height:40px;border-radius:12px;background:var(--k-field);border:1px solid var(--k-line3);overflow:hidden}
+        .bt2-date button{width:36px;height:100%;display:flex;align-items:center;justify-content:center;color:var(--k-mute)}
+        .bt2-date button:hover{background:var(--k-btn-h);color:var(--k-tx-strong)}
+        .bt2-date input{height:100%;border:0;background:transparent;color:var(--k-tx-strong);font-size:13px;font-weight:800;outline:none;padding:0 4px;min-width:130px;text-align:center}
+        .bt2-btn{display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 13px;border-radius:12px;font-size:12.5px;font-weight:800;white-space:nowrap;border:1px solid var(--k-line3);background:var(--k-btn);color:var(--k-tx2);transition:background .15s,color .15s,filter .15s}
+        .bt2-btn:hover{background:var(--k-btn-h);color:var(--k-tx-strong)}
+        .bt2-btn .material-icons{font-size:17px}
+        .bt2-btn.xl{background:#10b981;border-color:#10b981;color:#fff}
+        .bt2-btn.xl:hover{filter:brightness(1.07);color:#fff}
+        #btUpdatedAt{font-size:11px;font-weight:700;color:var(--k-mute2)}
+        .bt2-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px;padding:10px;border-radius:16px;background:var(--k-panel);border:1px solid var(--k-line)}
+        .bt2-seg{display:flex;gap:3px;padding:3px;border-radius:12px;background:var(--k-sunk);border:1px solid var(--k-line)}
+        .bt2-seg button{height:34px;padding:0 12px;border-radius:9px;font-size:12.5px;font-weight:800;color:var(--k-mute);white-space:nowrap}
+        .bt2-seg button:hover:not(:disabled){color:var(--k-tx-strong)}
+        .bt2-seg button.on{background:var(--k-panel);color:var(--k-tx-strong);box-shadow:var(--k-shadow)}
+        .bt2-seg button:disabled{opacity:.4;cursor:not-allowed}
+        #btPage .bt-sel{height:40px;background:var(--k-field);border:1px solid var(--k-line3);color:var(--k-tx-strong);border-radius:11px;padding:0 10px;font-size:13px;font-weight:700;outline:none;min-width:130px}
+        #btPage .bt-sel:focus{border-color:#06b6d4}
+        .bt2-search{flex:1;min-width:180px;display:flex;align-items:center;gap:8px;height:40px;padding:0 12px;border-radius:11px;background:var(--k-field);border:1px solid var(--k-line3)}
+        .bt2-search:focus-within{border-color:#06b6d4}
+        .bt2-search input{flex:1;min-width:0;background:transparent;border:0;outline:none;color:var(--k-tx-strong);font-size:13px;font-weight:600}
+        .bt2-search .material-icons{color:var(--k-mute2)}
+        .bt2-sum{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:16px 2px 4px}
+        #btDateTitle{font-size:16px;font-weight:900;color:var(--k-tx-strong)}
+        #btTotal{font-size:12.5px;font-weight:700;color:var(--k-mute)}
+        #btPage .bt-shift-h{display:flex;align-items:center;gap:10px;margin:18px 0 10px;padding:0;border:0}
+        #btPage .bt-shift-h > div:first-child{font-size:14px!important;font-weight:900!important;color:var(--k-tx-strong)!important}
+        #btPage .bt-shift-h::after{content:"";flex:1;height:1px;background:var(--k-line);order:2}
+        #btPage .bt-shift-h .bt-tag{order:3}
+        #btPage .bt-card{background:var(--k-panel);border:1px solid var(--k-line);border-radius:14px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:68px;cursor:pointer;box-shadow:var(--k-shadow);transition:border-color .15s,transform .12s}
+        #btPage .bt-card:hover{border-color:#06b6d4;transform:translateY(-1px)}
+        #btPage .bt-card.bt-empty{opacity:.6;box-shadow:none;background:var(--k-sunk)}
+        #btPage .bt-time{font-weight:900;font-size:15px;color:var(--k-tx-strong);font-family:ui-monospace,Menlo,monospace;display:flex;align-items:center;flex-wrap:wrap;white-space:nowrap}
+        #btPage #btGrid > div[style*="grid-template-columns"]{grid-template-columns:repeat(auto-fill,minmax(270px,1fr))!important}
+        #btPage .bt-sub{font-size:11.5px;color:var(--k-mute);margin-top:3px;font-weight:700}
+        #btPage .bt-eye{width:30px;height:30px;border-radius:9px;border:1px solid var(--k-line2);background:var(--k-sunk);color:var(--k-mute);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+        #btPage .bt-card:hover .bt-eye{color:#06b6d4;border-color:#06b6d4}
+        .bt-av{width:28px;height:28px;border-radius:50%;border:2px solid var(--k-panel)!important;display:inline-flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:900;color:#fff!important;margin-left:-8px;letter-spacing:.3px}
         .bt-av:first-child{margin-left:0}
-        .bt-more{background:var(--k-btn-h);color:var(--k-tx)}
-        #btPage .bt-eye{width:30px;height:30px;border-radius:8px;border:1px solid rgba(148,163,184,.2);background:rgba(148,163,184,.06);color:var(--k-tx2);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
-        #btPage .bt-eye:hover{border-color:#60a5fa;color:light-dark(#0352aa,#93c5fd)}
-        #btPage .bt-sel{background:var(--k-panel2);border:1px solid var(--k-line2);color:var(--k-tx);border-radius:9px;padding:8px 10px;font-size:13px;font-weight:700;outline:none;min-width:130px}
-        #btPage .bt-sel:focus{border-color:#60a5fa}
-        #btPage .bt-navbtn{width:34px;height:34px;border-radius:9px;border:1px solid var(--k-line2);background:var(--k-panel2);color:var(--k-tx2);display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
-        #btPage .bt-navbtn:hover{border-color:#60a5fa;color:var(--k-tx-strong)}
-        #btPage .bt-shift-h{display:flex;align-items:center;justify-content:space-between;margin:18px 0 8px;padding-bottom:6px;border-bottom:1px solid rgba(148,163,184,.14)}
+        .bt-more{background:var(--k-btn-h)!important;color:var(--k-tx)!important}
         .bt-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:8px;border:1px solid var(--k-line2);background:var(--k-panel2);color:var(--k-tx2);font-size:12px;font-weight:700;cursor:pointer;user-select:none}
-        .bt-chip.on{border-color:#3b82f6;color:light-dark(#0352aa,#93c5fd);background:rgba(59,130,246,.15)}
+        .bt-chip.on{border-color:#06b6d4;color:var(--k-tx-strong);background:rgba(6,182,212,.14)}
         .bt-chip b{background:var(--k-card);padding:0 7px;border-radius:5px;font-size:11px}
-        .bt-row{display:grid;grid-template-columns:1.4fr .7fr .8fr .9fr 1.1fr 42px;gap:8px;align-items:center;padding:10px 8px;border-bottom:1px solid rgba(148,163,184,.1);font-size:13px}
-        .bt-row:hover{background:rgba(148,163,184,.05)}
+        .bt-row{display:grid;grid-template-columns:1.4fr .7fr .8fr .9fr 1.1fr 42px;gap:8px;align-items:center;padding:10px 8px;border-bottom:1px solid var(--k-line);font-size:13px}
+        .bt-row:hover{background:var(--k-btn-h)}
         .bt-det{grid-column:1/-1;font-size:11.5px;color:var(--k-tx3);padding:0 8px 6px 46px;display:none;line-height:1.6}
         .bt-row.open .bt-det{display:block}
-        .bt-tag{display:inline-block;background:var(--k-card);color:var(--k-tx);border:1px solid var(--k-line2);padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700}
-
-        #btPage .bt-card.bt-now{border-color:#22d3ee;background:linear-gradient(135deg,rgba(34,211,238,.10),rgba(16,185,129,.06));box-shadow:0 0 0 1px rgba(34,211,238,.35),0 0 18px rgba(34,211,238,.25);opacity:1}
-        #btPage .bt-now-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(34,211,238,.15);border:1px solid rgba(34,211,238,.45);color:light-dark(#0794a7,#67e8f9);font-size:10px;font-weight:900;padding:1px 8px;border-radius:99px;margin-left:6px;white-space:nowrap}
+        .bt-tag{display:inline-block;background:var(--k-sunk);color:var(--k-tx2);border:1px solid var(--k-line2);padding:2px 8px;border-radius:999px;font-size:11px;font-weight:800}
+        #btPage .bt-card.bt-now{border-color:#22d3ee;background:linear-gradient(135deg,rgba(34,211,238,.12),var(--k-panel) 70%);box-shadow:0 0 0 1px rgba(34,211,238,.35),0 8px 22px rgba(34,211,238,.18);opacity:1}
+        #btPage .bt-now-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(34,211,238,.15);border:1px solid rgba(34,211,238,.45);color:light-dark(#0794a7,#67e8f9);font-size:10px;font-weight:900;padding:1px 8px;border-radius:99px;margin-left:6px;white-space:nowrap;font-family:inherit}
         #btPage .bt-now-dot{width:6px;height:6px;border-radius:50%;background:#22d3ee;animation:btPulse 1.2s infinite}
         @keyframes btPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
-
-        .bt-missing-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);color:var(--k-amber-tx);font-size:11.5px;font-weight:800;padding:4px 12px;border-radius:99px;cursor:pointer;transition:background .15s}
+        .bt-missing-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);color:var(--k-amber-tx);font-size:12px;font-weight:800;padding:5px 12px;border-radius:99px;cursor:pointer;transition:background .15s}
         .bt-missing-badge:hover{background:rgba(245,158,11,.25)}
+        @media (max-width:700px){ .bt2-hr{margin-left:0;width:100%} .bt2-date{flex:1} .bt2-date input{flex:1} .bt2-btn .bt2-t{display:none} }
+        @media (prefers-reduced-motion:reduce){ #btPage .bt-now-dot{animation:none} }
 </style>
     
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-[#151f32] p-4 rounded-2xl border border-slate-700 shadow-xl">
+    <div class="bt2-head">
+        <div class="bt2-logo"><span class="material-icons">restaurant</span></div>
         <div>
-            <h2 class="text-xl font-black text-white flex items-center gap-2"><span class="material-icons text-cyan-400">restaurant</span> ลงเวลากินข้าว</h2>
+            <h2 class="bt2-title">ลงเวลากินข้าว</h2>
+            <div class="bt2-sub">ใครพักช่วงไหน · กดช่วงเวลาเพื่อดูรายชื่อ <span id="btUpdatedAt"></span></div>
         </div>
-        <div class="flex items-center gap-2 flex-wrap">
-            <button class="bt-navbtn" onclick="btShiftDate(-1)" title="วันก่อน"><span class="material-icons text-[18px]">chevron_left</span></button>
-            <input type="date" id="wDate" onchange="btRender()" class="bt-sel" style="min-width:150px;text-align:center">
-            <button class="bt-navbtn" onclick="btShiftDate(1)" title="วันถัดไป"><span class="material-icons text-[18px]">chevron_right</span></button>
-            <span id="btUpdatedAt" class="text-[11px] text-gray-500 ml-1"></span>
-            <button id="btExportBtn" onclick="btExportExcel()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg text-sm font-bold items-center gap-1" style="display:none"><span class="material-icons text-sm">download</span> Excel</button>
-            <button onclick="btRender(true)" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-1"><span class="material-icons text-sm">refresh</span> รีเฟรช</button>
+        <div class="bt2-hr">
+            <div class="bt2-date">
+                <button type="button" onclick="btShiftDate(-1)" title="วันก่อน" aria-label="วันก่อน"><span class="material-icons">chevron_left</span></button>
+                <input type="date" id="wDate" onchange="btRender(true)" aria-label="เลือกวันที่">
+                <button type="button" onclick="btShiftDate(1)" title="วันถัดไป" aria-label="วันถัดไป"><span class="material-icons">chevron_right</span></button>
+            </div>
+            <button type="button" onclick="btGoToday()" class="bt2-btn"><span class="material-icons">today</span><span class="bt2-t">วันนี้</span></button>
+            <button type="button" onclick="btRender(true)" class="bt2-btn" title="รีเฟรช"><span class="material-icons">refresh</span><span class="bt2-t">รีเฟรช</span></button>
+            <button id="btExportBtn" onclick="btExportExcel()" class="bt2-btn xl" style="display:none"><span class="material-icons">download</span>Excel</button>
         </div>
     </div>
-    
-    <div class="bg-[#0f172a] mt-3 p-3 rounded-2xl border border-slate-700 flex flex-wrap gap-3 items-end">
-        <div><div class="text-[10px] text-gray-400 font-bold mb-1">แผนก</div><select id="btDept" class="bt-sel" onchange="btRender()"><option value="all">ทุกแผนก</option></select></div>
-        <div><div class="text-[10px] text-gray-400 font-bold mb-1">เว็บ</div><select id="btTeam" class="bt-sel" onchange="btRender()"><option value="all">ทุกเว็บ</option></select></div>
-        <div><div class="text-[10px] text-gray-400 font-bold mb-1">กะ</div><select id="btShift" class="bt-sel" onchange="btRender()"><option value="all">ทุกกะ</option><option value="กะเช้า">☀️ กะเช้า</option><option value="กะกลาง">🌤️ กะกลาง</option><option value="กะดึก">🌙 กะดึก</option></select></div>
-        <div class="flex-1 min-w-[160px]"><div class="text-[10px] text-gray-400 font-bold mb-1">ค้นหาชื่อ</div><input id="btSearch" oninput="btRender()" placeholder="พิมพ์ชื่อ..." class="bt-sel w-full"></div>
+
+    <div class="bt2-bar">
+        <div class="bt2-seg" id="btShiftSeg" role="group" aria-label="กะ">
+            <button type="button" data-s="all" onclick="btSetShift('all')">ทุกกะ</button>
+            <button type="button" data-s="กะเช้า" onclick="btSetShift('กะเช้า')">☀️ เช้า</button>
+            <button type="button" data-s="กะกลาง" onclick="btSetShift('กะกลาง')">🌤️ กลาง</button>
+            <button type="button" data-s="กะดึก" onclick="btSetShift('กะดึก')">🌙 ดึก</button>
+        </div>
+        <select id="btShift" onchange="btRender()" style="display:none" aria-hidden="true"><option value="all">ทุกกะ</option><option value="กะเช้า">กะเช้า</option><option value="กะกลาง">กะกลาง</option><option value="กะดึก">กะดึก</option></select>
+        <select id="btDept" class="bt-sel" onchange="btRender()" aria-label="แผนก"><option value="all">ทุกแผนก</option></select>
+        <select id="btTeam" class="bt-sel" onchange="btRender()" aria-label="เว็บ"><option value="all">ทุกเว็บ</option></select>
+        <label class="bt2-search"><span class="material-icons">search</span><input id="btSearch" oninput="btRender()" placeholder="ค้นหาชื่อพนักงาน" aria-label="ค้นหาชื่อ"></label>
     </div>
-    
-    <div class="flex items-center justify-between mt-4 mb-1">
-        <div class="text-lg font-black text-white" id="btDateTitle">—</div>
-        <div class="flex items-center gap-2"><span id="btMissing"></span><span class="text-[12px] text-gray-400" id="btTotal">จองแล้ว 0 คน</span></div>
+
+    <div class="bt2-sum">
+        <div><div id="btDateTitle">—</div><div id="btTotal">ลงแล้ว 0 คน</div></div>
+        <span id="btMissing"></span>
     </div>
     <div id="btGrid"><div class="text-center text-gray-500 py-10 text-sm"><span class="material-icons animate-spin text-3xl text-blue-500">sync</span><br>กำลังโหลด...</div></div>
 </div>

@@ -53,6 +53,8 @@
     }))));
     _rows.forEach((r => {
       if (!r.time_slot) return;
+      if (shiftFilter !== 'all' && r.shift_name !== shiftFilter) return;
+      if (deptFilter !== 'all' && (r.department || 'AM') !== deptFilter) return;
       if (!set.has(r.time_slot)) set.set(r.time_slot, new Set);
       set.get(r.time_slot).add(r.shift_name);
     }));
@@ -68,11 +70,11 @@
   }
   async function load(force) {
     const d = dateVal();
-    if (!force && _lastDate === d && _rows.length) return;
+    if (!force && _lastDate === d) return;
     const {data: data, error: error} = await appDB.from('schedules').select('id, work_date, staff_name, team, shift_name, time_slot, department, created_at').eq('work_date', d);
     if (error) {
       console.error(error);
-      _rows = [];
+      if (_lastDate !== d) _rows = [];
     } else _rows = data || [];
     _lastDate = d;
     const u = $('btUpdatedAt');
@@ -96,8 +98,30 @@
     return a < b ? nowMin >= a && nowMin < b : nowMin >= a || nowMin < b;
   }
   let _btScrolledOnce = false;
+  window.btSetShift = function(s) {
+    const sel = $('btShift');
+    if (!sel || sel.disabled) return;
+    sel.value = s;
+    btRender();
+  };
+  function btSyncShiftSeg() {
+    const sel = $('btShift');
+    if (!sel) return;
+    document.querySelectorAll('#btShiftSeg button').forEach((b => {
+      b.classList.toggle('on', b.dataset.s === sel.value);
+      b.disabled = sel.disabled && b.dataset.s !== sel.value;
+    }));
+  }
+  window.btGoToday = function() {
+    const t = new Date;
+    if (t.getHours() < 8) t.setDate(t.getDate() - 1);
+    $('wDate').value = iso(t);
+    _btScrolledOnce = false;
+    btRender(true);
+  };
   window.btRender = async function(force) {
     if (!$('btGrid')) return;
+    btSyncShiftSeg();
     await load(force);
     const d = dateVal();
     const rows = filtered();
@@ -112,7 +136,7 @@
     rows.forEach((r => (bySlot[r.time_slot] = bySlot[r.time_slot] || []).push(r)));
     const slots = slotList($('btShift').value, $('btDept').value);
     if (!slots.length) {
-      $('btGrid').innerHTML = `<div class="text-center text-gray-500 py-10 text-sm">ไม่มีช่วงเวลา</div>`;
+      $('btGrid').innerHTML = `<div style="padding:50px 16px;text-align:center;color:var(--k-mute2);font-weight:700;font-size:13px"><span class="material-icons" style="font-size:44px;opacity:.45;display:block;margin:0 auto 6px;width:auto;height:auto">event_busy</span>ไม่มีช่วงเวลาพักในตัวกรองนี้</div>`;
       return;
     }
     const groups = {};
@@ -230,12 +254,12 @@
       title: `<div style="text-align:left;font-size:17px;font-weight:900;color:var(--k-amber-tx)">🔔 ยังไม่ลงพัก ${_btMissingList.length} คน</div><div style="text-align:left;font-size:11.5px;color:var(--k-tx3);font-weight:500">${fmtDate(dateVal())} · ${window._btActiveShifts ? 'เฉพาะกะที่ทำงานอยู่ตอนนี้ (' + window._btActiveShifts.join(', ') + ')' : 'ทุกกะของวันนั้น'} · ไม่นับคนลา/หยุด · ไม่นับหัวหน้า/แอดมิน</div>`,
       html: `<div style="text-align:left;max-height:60vh;overflow-y:auto">${html}</div>`,
       width: 'min(760px, 96vw)',
-      background: '#0f172a',
-      color: '#e2e8f0',
+      background: 'var(--k-panel)',
+        color: 'var(--k-tx)',
       showConfirmButton: false,
       showCloseButton: true,
       customClass: {
-        popup: 'rounded-2xl border border-slate-700'
+        popup: 'rounded-2xl'
       }
     });
   };
@@ -260,8 +284,8 @@
       Swal.fire({
         title: 'กำลังสร้างไฟล์ Excel...',
         didOpen: () => Swal.showLoading(),
-        background: '#0f172a',
-        color: '#e2e8f0'
+        background: 'var(--k-panel)',
+        color: 'var(--k-tx)'
       });
       await btLoadExcelLib();
       await load(true);
@@ -346,24 +370,26 @@
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = `ลงเวลาพัก_${d}.xlsx`;
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(a.href);
+      a.remove();
+      setTimeout((() => URL.revokeObjectURL(a.href)), 2e3);
       Swal.fire({
         icon: 'success',
         title: 'โหลดไฟล์แล้ว',
         text: `ลงเวลาพัก_${d}.xlsx (${rows.length} รายการ ตามตัวกรองที่เลือก)`,
         timer: 1800,
         showConfirmButton: false,
-        background: '#0f172a',
-        color: '#e2e8f0'
+        background: 'var(--k-panel)',
+        color: 'var(--k-tx)'
       });
     } catch (e) {
       Swal.fire({
         icon: 'error',
         title: 'สร้างไฟล์ไม่สำเร็จ',
         text: String(e.message || e),
-        background: '#0f172a',
-        color: '#e2e8f0'
+        background: 'var(--k-panel)',
+        color: 'var(--k-tx)'
       });
     }
   };
@@ -402,12 +428,12 @@
       title: `<div style="text-align:left"><div style="font-size:20px;font-weight:900;color:var(--k-tx-strong);font-family:monospace">${esc(slot.replace('-', ' – '))}</div><div style="font-size:12px;color:var(--k-tx3);font-weight:500">${fmtDate(dateVal())} · จองแล้ว <span id="btSlotCount">0</span> คน</div></div>`,
       html: `<div id="btSlotBox" style="text-align:left"></div>`,
       width: 'min(960px, 96vw)',
-      background: '#0f172a',
-      color: '#e2e8f0',
+      background: 'var(--k-panel)',
+        color: 'var(--k-tx)',
       showConfirmButton: false,
       showCloseButton: true,
       customClass: {
-        popup: 'rounded-2xl border border-slate-700',
+        popup: 'rounded-2xl',
         htmlContainer: 'm-0 p-0'
       },
       didOpen: render,
@@ -431,7 +457,8 @@
         confirmButtonColor: '#dc2626'
       });
       if (!ok.isConfirmed) return;
-      await appDB.from('schedules').delete().eq('id', id);
+      const {error: error} = await appDB.from('schedules').delete().eq('id', id);
+      if (error) return Swal.fire('ลบไม่สำเร็จ', error.message, 'error');
     }
     await btRender(true);
   };
@@ -484,6 +511,7 @@
       $('btShift').value = me.allowed_shift;
       $('btShift').disabled = true;
     }
+    btSyncShiftSeg();
     _btScrolledOnce = false;
     await btRender(true);
     await btFillDepts();
@@ -494,8 +522,17 @@
         window._btNowTimer = null;
         return;
       }
-      btRender();
+      if (!document.hidden) btRender();
     }), 6e4);
+    if (!window._btVisBound) {
+      window._btVisBound = true;
+      document.addEventListener('visibilitychange', (() => {
+        if (!document.hidden && window._btStale && $('btGrid')) {
+          window._btStale = false;
+          btRender(true);
+        }
+      }));
+    }
     if (_sub) {
       try {
         appDB.removeChannel(_sub);
@@ -506,10 +543,17 @@
       event: '*',
       schema: 'public',
       table: 'schedules'
-    }, (() => {
+    }, (payload => {
+      const row = payload.new && payload.new.work_date ? payload.new : payload.old || {};
+      const d = dateVal();
+      if (row.work_date && row.work_date !== d) return;
+      if (!row.work_date && row.id != null && !_rows.some((r => String(r.id) === String(row.id)))) return;
+      if (document.hidden) {
+        window._btStale = true;
+        return;
+      }
       clearTimeout(timer);
       timer = setTimeout((async () => {
-        await load(true);
         await btRender(true);
         if (Swal.isVisible() && window._btRerenderSlot) window._btRerenderSlot();
       }), 300);
