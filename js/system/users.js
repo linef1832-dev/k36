@@ -229,6 +229,8 @@ function checkBookingTime(shiftName) {
 
 window.saveData = async function(e) {
   e.preventDefault();
+  window._lastSaveOk = false;
+  window._lastSaveMsg = '';
   const btn = document.getElementById('btnSave');
   btn.disabled = true;
   btn.innerHTML = '<span class="animate-spin material-icons">sync</span> กำลังบันทึก...';
@@ -485,8 +487,10 @@ window.saveData = async function(e) {
   }
   if (error) {
     window.resetBtn();
+    window._lastSaveMsg = error.message;
     Swal.fire('Error', error.message, 'error');
   } else {
+    window._lastSaveOk = true;
     if (!window._qrbSilent) Swal.fire({
       icon: 'success',
       title: 'บันทึกสำเร็จ',
@@ -711,7 +715,7 @@ function renderTableRows(data) {
     const canDelete = canPerm('schedule_delete_any') || i.staff_name === currentUser.username;
     let delBtn = canDelete ? `<button onclick="delSch(${i.id}, '${i.shift_name}')" class="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-2 rounded-lg bg-red-50 dark:bg-red-900/30 transition"><span class="material-icons text-lg">delete</span></button>` : '';
     const deptColor = i.department === 'OD' ? 'bg-pink-100 text-pink-700' : 'bg-blue-100 text-blue-700';
-    htmlContent += `<tr class="border-b dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/50">\n            <td class="px-6 py-4 w-32 text-center"><div class="flex justify-center"><span class="${pClass} font-extrabold text-sm border px-2 py-0.5 rounded-full whitespace-nowrap flex items-center justify-center min-w-[60px] min-h-[28px]">${displayPeriod}</span></div></td>\n            <td class="px-6 py-4 font-bold text-slate-700 dark:text-gray-200">${i.staff_name}</td>\n            <td class="px-6 py-4">\n                <div class="flex items-center gap-1 flex-wrap">\n                    <span class="px-2 py-1 rounded bg-indigo-100 text-indigo-800 text-xs font-bold">${window.escapeHtml(i.team || '-')}</span>\n                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${deptColor}">${i.department || 'AM'}</span>\n                    ${(() => {
+    htmlContent += `<tr class="border-b dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/50">\n            <td class="px-6 py-4 w-32 text-center"><div class="flex justify-center"><span class="${pClass} font-extrabold text-sm border px-2 py-0.5 rounded-full whitespace-nowrap flex items-center justify-center min-w-[60px] min-h-[28px]">${displayPeriod}</span></div></td>\n            <td class="px-6 py-4 font-bold text-slate-700 dark:text-gray-200">${window.escapeHtml(i.staff_name)}</td>\n            <td class="px-6 py-4">\n                <div class="flex items-center gap-1 flex-wrap">\n                    <span class="px-2 py-1 rounded bg-indigo-100 text-indigo-800 text-xs font-bold">${window.escapeHtml(i.team || '-')}</span>\n                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${deptColor}">${i.department || 'AM'}</span>\n                    ${(() => {
       const assigned = globalAssignmentMap[`${i.staff_name}|${i.shift_name}`];
       if (assigned) {
         if (assigned.includes(i.team)) return '';
@@ -723,7 +727,7 @@ function renderTableRows(data) {
         return `<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-orange-500 text-white animate-pulse shadow-sm" title="ไม่มีรายชื่อในตารางจัดหน้าที่กะนี้">⚠️ ไม่มีในตารางหน้าที่!</span>`;
       }
       return '';
-    })()}\n                </div>\n            </td>\n            <td class="px-6 py-4"><span class="px-3 py-1 rounded-full text-xs font-bold bg-gray-200 text-slate-700 dark:bg-slate-600 dark:text-white" style="white-space:nowrap">${i.shift_name}</span></td>\n            <td class="px-6 py-4 font-mono text-base text-slate-700 dark:text-gray-300" style="white-space:nowrap">${i.time_slot}</td>\n            <td class="px-6 py-4" style="white-space:nowrap">${(() => {
+    })()}\n                </div>\n            </td>\n            <td class="px-6 py-4"><span class="px-3 py-1 rounded-full text-xs font-bold bg-gray-200 text-slate-700 dark:bg-slate-600 dark:text-white" style="white-space:nowrap">${i.shift_name}</span></td>\n            <td class="px-6 py-4 font-mono text-base text-slate-700 dark:text-gray-300" style="white-space:nowrap">${window.escapeHtml(i.time_slot)}</td>\n            <td class="px-6 py-4" style="white-space:nowrap">${(() => {
       if (!i.created_at) return '<span class="text-gray-500 text-xs">-</span>';
       const d = new Date(i.created_at);
       const hh = String(d.getHours()).padStart(2, '0'), mm = String(d.getMinutes()).padStart(2, '0'), ss = String(d.getSeconds()).padStart(2, '0');
@@ -799,7 +803,7 @@ async function delSch(id, shiftName) {
   }
   const {data: item} = await appDB.from('schedules').select('*').eq('id', id).single();
   if (!item) return Swal.fire('ไม่พบรายการ', 'รายการนี้อาจถูกลบไปแล้ว', 'info');
-  const isOwn = item.staff_name === currentUser.username;
+  const isOwn = String(item.staff_name || '').toLowerCase() === String(currentUser.username || '').toLowerCase();
   if (!isOwn && !window.sysIsAdmin()) return Swal.fire('ไม่มีสิทธิ์', 'ลบได้เฉพาะรายการของตัวเองครับ', 'error');
   Swal.fire({
     title: 'ยืนยันการลบ?',
@@ -816,9 +820,14 @@ async function delSch(id, shiftName) {
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading()
       });
-      const {error: error} = await appDB.from('schedules').delete().eq('id', id);
+      const {data: delRows, error: error} = await appDB.from('schedules').delete().eq('id', id).select('id');
       if (error) {
         Swal.fire('Error', error.message, 'error');
+        return;
+      }
+      if (Array.isArray(delRows) && delRows.length === 0) {
+        Swal.fire('ลบไม่สำเร็จ', 'ฐานข้อมูลไม่ยอมลบรายการนี้ (อาจไม่มีสิทธิ์ หรือถูกลบไปแล้ว)', 'error');
+        if (typeof fetchData === 'function') fetchData();
         return;
       }
       if (item) await logAction('ลบรายการ', `ลบรายการของ ${item.staff_name} (${item.shift_name} ${item.time_slot})`);
