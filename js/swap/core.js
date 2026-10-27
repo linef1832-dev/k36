@@ -310,12 +310,10 @@ window.generateSwapPlan = async function() {
       }
     } catch (dbError) {}
     const hasLeave = (userId, dateStr) => userLeaves[userId] && userLeaves[userId].has(dateStr);
-    // ── คนที่มีรายการสลับกะ/อยู่กะเดิม บันทึกไว้แล้วในรอบนี้ (pending / info_only) ห้ามดึงมาจัดซ้ำ ──
     const normName = n => String(n || '').trim().toLowerCase();
     const alreadyIds = new Set;
     const alreadyNames = new Set;
     try {
-      // ดึงชุดเดียวกับที่แสดงในหน้า "ตารางสลับกะ > รอสลับ" (pending + info_only ทุกวัน) ให้ตรงกันเป๊ะ
       const {data: existingTasks, error: existErr} = await appDB.from('scheduled_tasks').select('payload, scheduled_for, status').eq('task_type', 'individual_shift_update').in('status', [ 'pending', 'info_only' ]);
       if (existErr) throw existErr;
       (existingTasks || []).forEach((t => {

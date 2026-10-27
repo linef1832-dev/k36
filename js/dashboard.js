@@ -1,3 +1,12 @@
+window.k36WorkDate = function() {
+  const now = typeof window.serverNow === 'function' ? window.serverNow() : new Date;
+  const d = new Date(now.getTime());
+  const sh = window.currentUser && window.currentUser.allowed_shift || '';
+  const dayShift = sh === 'กะเช้า' || sh === 'กะกลาง';
+  if (!dayShift && d.getHours() < 8) d.setDate(d.getDate() - 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
 function _mtTaskDateTH(ts) {
   if (!ts) return '';
   let s = String(ts).trim().replace(' ', 'T');
@@ -32,13 +41,16 @@ window.initDashboard = async function() {
   if (typeof populateTeamSelects === 'function') populateTeamSelects();
   const dInput = document.getElementById('wDate');
   if (dInput) {
-    const today = new Date;
-    const currentHour = today.getHours();
-    if (currentHour >= 0 && currentHour < 8) {
-      today.setDate(today.getDate() - 1);
-    }
-    const localDate = new Date(today.getTime() - today.getTimezoneOffset() * 6e4).toISOString().split('T')[0];
+    const localDate = window.k36WorkDate();
     dInput.value = localDate;
+    if (!dInput.dataset.k36Bound) {
+      dInput.dataset.k36Bound = '1';
+      dInput.addEventListener('change', (() => {
+        if (typeof refreshTimeSlots === 'function') refreshTimeSlots();
+        if (typeof fetchData === 'function') fetchData();
+        if (typeof initQuickRebook === 'function') initQuickRebook();
+      }));
+    }
     const displayDate = document.getElementById('displayDate');
     if (displayDate) displayDate.innerText = new Date(localDate).toLocaleDateString('th-TH');
   }
@@ -416,6 +428,10 @@ window.saveMulti = async function(ev) {
       icon: 'warning',
       title: `ลงสำเร็จ ${ok.length}/${picks.length} รอบ`,
       text: `สำเร็จ: ${ok.join(', ')} — อีกรอบไม่ผ่าน (ดูเหตุผลจากกล่องเตือนก่อนหน้า)`
+    }); else if (!document.querySelector('.swal2-container .swal2-icon-error, .swal2-container .swal2-icon-warning, .swal2-container .swal2-icon-info')) Swal.fire({
+      icon: 'error',
+      title: 'ลงไม่สำเร็จ',
+      text: window._lastSaveMsg || 'รอบที่เลือกลงไม่ได้ ลองเลือกรอบอื่น'
     });
   } catch (e) {}
   window._pickedSlots = [];
@@ -808,15 +824,6 @@ window.subscribeDashboardChanges = function() {
   if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(dashboardSubscription);
 };
 
-setTimeout((() => {
-  const dInput = document.getElementById('wDate');
-  if (dInput) {
-    dInput.addEventListener('change', (() => {
-      if (typeof refreshTimeSlots === 'function') refreshTimeSlots();
-      if (typeof fetchData === 'function') fetchData();
-    }));
-  }
-}), 1e3);
 
 setTimeout((() => {
   const teamInput = document.getElementById('dailyTeam');
@@ -1155,12 +1162,12 @@ window._rtIsMine = function(row) {
 };
 
 window.myTodaySetDate = function(v) {
-  window._myTodayDate = v || '';
+  window._myTodayDate = v || window.k36WorkDate();
   if (typeof window.renderMyToday === 'function') window.renderMyToday();
 };
 
 window.myTodayShift = function(n) {
-  const cur = window._myTodayDate || (document.getElementById('myTodayDate') || {}).value || (new Date).toISOString().slice(0, 10);
+  const cur = window._myTodayDate || (document.getElementById('myTodayDate') || {}).value || window.k36WorkDate();
   const d = new Date(cur + 'T00:00:00');
   d.setDate(d.getDate() + n);
   window.myTodaySetDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
@@ -1192,8 +1199,7 @@ window._renderMyTodayNow = async function() {
   if (!box || !window.currentUser) return;
   const me = window.currentUser;
   const dateEl = document.getElementById('wDate');
-  const t = new Date;
-  const todayIso = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+  const todayIso = window.k36WorkDate();
   const dateVal = window._myTodayDate || dateEl && dateEl.value || todayIso;
   const isToday = dateVal === todayIso;
   const myDep = me.department || 'AM';
