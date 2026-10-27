@@ -538,7 +538,8 @@ async function _doRefreshTimeSlots() {
     if (_slotCache[slotCacheKey] && now - _slotCache[slotCacheKey].ts < _SLOT_TTL) {
       bookings = _slotCache[slotCacheKey].data;
     } else {
-      const {data: data} = await appDB.from('schedules').select('time_slot, department, team, staff_name').eq('work_date', dateVal).eq('shift_name', shiftName);
+      const {data: data, error: slotErr} = await appDB.from('schedules').select('id, time_slot, department, team, staff_name').eq('work_date', dateVal).eq('shift_name', shiftName);
+      if (slotErr) throw slotErr;
       bookings = data;
       _slotCache[slotCacheKey] = {
         data: bookings,
@@ -688,6 +689,70 @@ const _slotCache = {};
 
 const _SLOT_TTL = 90 * 1e3;
 
+window._dashPatchSlotCache = function(payload, date, shift) {
+  const ev = payload.eventType;
+  const row = payload.new || {};
+  const oldRow = payload.old || {};
+  const slim = r => ({
+    id: r.id,
+    time_slot: r.time_slot,
+    department: r.department,
+    team: r.team,
+    staff_name: r.staff_name
+  });
+  if (ev === 'DELETE') {
+    const id = oldRow.id;
+    let found = false;
+    for (const k in _slotCache) {
+      const c = _slotCache[k];
+      if (!c || !Array.isArray(c.data)) continue;
+      const n = c.data.length;
+      c.data = c.data.filter((b => String(b.id) !== String(id)));
+      if (c.data.length !== n) found = true;
+    }
+    if (!found && date && shift) delete _slotCache[`${date}|${shift}`];
+    return;
+  }
+  if (!date || !shift) return;
+  if (ev === 'UPDATE' && oldRow.id != null) {
+    for (const k in _slotCache) {
+      const c = _slotCache[k];
+      if (c && Array.isArray(c.data) && k !== `${date}|${shift}`) c.data = c.data.filter((b => String(b.id) !== String(row.id)));
+    }
+  }
+  const key = `${date}|${shift}`;
+  const c = _slotCache[key];
+  if (!c || !Array.isArray(c.data)) return;
+  if (c.data.length && c.data.some((b => b.id === undefined))) {
+    delete _slotCache[key];
+    return;
+  }
+  const idx = c.data.findIndex((b => String(b.id) === String(row.id)));
+  if (idx > -1) c.data[idx] = slim(row); else c.data.push(slim(row));
+};
+
+window._dashResync = function(jitter) {
+  const run = () => {
+    for (const k in _slotCache) delete _slotCache[k];
+    if (typeof fetchData === 'function') fetchData();
+    if (typeof refreshTimeSlots === 'function') refreshTimeSlots();
+    if (typeof window._myTodayRefresh === 'function') window._myTodayRefresh();
+  };
+  if (jitter) setTimeout(run, Math.floor(Math.random() * 3e3)); else run();
+};
+
+if (!window._dashVisBound) {
+  window._dashVisBound = true;
+  document.addEventListener('visibilitychange', (() => {
+    if (document.hidden) {
+      window._dashHiddenAt = Date.now();
+      return;
+    }
+    const away = Date.now() - (window._dashHiddenAt || Date.now());
+    if (away > 6e4 && document.getElementById('mainContentArea')) window._dashResync(true);
+  }));
+}
+
 window.subscribeDashboardChanges = function() {
   if (dashboardSubscription) {
     try {
@@ -750,18 +815,17 @@ window.subscribeDashboardChanges = function() {
       }
     }
     const mainContent = document.getElementById('mainContentArea');
+    if (!mainContent || mainContent.classList.contains('hidden')) {
+      const k = (payload.new && payload.new.work_date || payload.old && payload.old.work_date) && `${payload.new?.work_date || payload.old?.work_date}|${payload.new?.shift_name || payload.old?.shift_name}`;
+      if (k && _slotCache[k]) delete _slotCache[k];
+    }
     if (mainContent && !mainContent.classList.contains('hidden')) {
       const dateEl = document.getElementById('wDate');
       const dateVal = dateEl ? dateEl.value : '';
       if (payload.eventType !== 'DELETE' && payload.new.work_date !== dateVal) return;
       const _rtDate = payload.new?.work_date || payload.old?.work_date;
       const _rtShift = payload.new?.shift_name || payload.old?.shift_name;
-      if (_rtDate && _rtShift) {
-        const _rtKey = `${_rtDate}|${_rtShift}`;
-        if (_slotCache[_rtKey]) delete _slotCache[_rtKey];
-      } else if (payload.eventType === 'DELETE') {
-        for (const k in _slotCache) delete _slotCache[k];
-      }
+      window._dashPatchSlotCache(payload, _rtDate, _rtShift);
       if (payload.eventType === 'INSERT') {
         const isExist = globalScheduleData.some((item => String(item.id) === String(payload.new.id)));
         if (!isExist) globalScheduleData.push(payload.new);
@@ -820,7 +884,16 @@ window.subscribeDashboardChanges = function() {
   }, (payload => {
     const uid = String(payload.new && payload.new.user_id || payload.old && payload.old.user_id || '');
     if (!uid || window.currentUser && uid === String(window.currentUser.id)) window._myTodayRefresh();
-  })).subscribe();
+  })).subscribe((status => {
+    if (status === 'SUBSCRIBED') {
+      if (window._dashRtDropped) {
+        window._dashRtDropped = false;
+        window._dashResync(true);
+      }
+    } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+      window._dashRtDropped = true;
+    }
+  }));
   if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(dashboardSubscription);
 };
 
