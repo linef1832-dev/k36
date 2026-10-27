@@ -170,14 +170,15 @@ window.renderSheetMenu = function() {
   const chip = (k, label, icon) => `<button type="button" class="sm2-chip${f === k ? ' on' : ''}" onclick="setSheetFilter('${k}')"><span class="material-icons">${icon}</span>${label}<b>${cnt[k]}</b></button>`;
   const stat = document.getElementById('sheetStatLine');
   if (stat) stat.textContent = `${all.length} รายการ · ${new Set(all.map(s => s.group_name || 'ทั่วไป')).size} หมวด`;
-  const row = s => {
+  const tile = (s, sub) => {
     const k = KIND[window.sheetKindOf(s)];
     const col = window.sheetColorOf(s);
     const name = esc(s.name || s.title || 'ไม่มีชื่อ');
     const id = esc(s.id);
     const pin = isPinned(s);
-    const thumb = s.cover_url && String(s.cover_url).trim() ? `<span class="sm2-ic img" style="--c:${col}"><img src="${esc(s.cover_url)}" alt="" loading="lazy" onerror="this.parentNode.classList.remove('img');this.remove()"><span class="material-icons">${k.icon}</span></span>` : `<span class="sm2-ic" style="--c:${col}"><span class="material-icons">${k.icon}</span></span>`;
-    return `<div class="sm2-row" role="button" tabindex="0" data-id="${id}" onclick="openSheetById(this.dataset.id)" onkeydown="if(event.key==='Enter')openSheetById(this.dataset.id)">${thumb}<span class="sm2-nm">${name}<small>${k.label}</small></span><button type="button" class="sm2-pin${pin ? ' on' : ''}" data-id="${id}" onclick="togglePin(event, this.dataset.id)" title="${pin ? 'เลิกปักหมุด' : 'ปักหมุด'}" aria-label="${pin ? 'เลิกปักหมุด' : 'ปักหมุด'} ${name}"><span class="material-icons">${pin ? 'star' : 'star_outline'}</span></button></div>`;
+    const hasImg = s.cover_url && String(s.cover_url).trim();
+    const ic = hasImg ? `<span class="sm3-ic img" style="--c:${col}"><img src="${esc(s.cover_url)}" alt="" loading="lazy" onerror="this.parentNode.classList.remove('img');this.remove()"><span class="material-icons">${k.icon}</span></span>` : `<span class="sm3-ic" style="--c:${col}"><span class="material-icons">${k.icon}</span></span>`;
+    return `<div class="sm3-tile${pin ? ' pinned' : ''}" role="button" tabindex="0" title="${name}" data-id="${id}" onclick="openSheetById(this.dataset.id)" onkeydown="if(event.key==='Enter')openSheetById(this.dataset.id)">${ic}<span class="sm3-nm">${name}</span><span class="sm3-sub">${esc(sub || k.label)}</span><button type="button" class="sm3-pin${pin ? ' on' : ''}" data-id="${id}" onclick="togglePin(event, this.dataset.id)" title="${pin ? 'เลิกปักหมุด' : 'ปักหมุด'}" aria-label="${pin ? 'เลิกปักหมุด' : 'ปักหมุด'} ${name}"><span class="material-icons">${pin ? 'star' : 'star_outline'}</span></button></div>`;
   };
   let html = `<div class="sm2-bar">${chip('all', 'ทั้งหมด', 'apps')}${chip('pin', 'ปักหมุด', 'star')}${chip('link', 'ลิงก์', 'link')}${chip('note', 'หน้าข้อความ', 'table_chart')}</div>`;
   if (!list.length) {
@@ -186,22 +187,20 @@ window.renderSheetMenu = function() {
   }
   const pins = list.filter(isPinned);
   if (pins.length && f !== 'pin' && !term) {
-    html += `<div class="sm2-sec"><span class="material-icons" style="color:#f59e0b">star</span>ปักหมุด</div><div class="sm2-pins">${pins.map(s => {
-      const k = KIND[window.sheetKindOf(s)];
-      return `<button type="button" class="sm2-tile" style="--c:${window.sheetColorOf(s)}" data-id="${esc(s.id)}" onclick="openSheetById(this.dataset.id)"><span class="sm2-ic"><span class="material-icons">${k.icon}</span></span><span class="sm2-nm">${esc(s.name || s.title || 'ไม่มีชื่อ')}<small>${esc(s.group_name || 'ทั่วไป')}</small></span></button>`;
-    }).join('')}</div>`;
+    html += `<section class="sm3-sec pin wide"><div class="sm3-h"><span class="material-icons" style="color:#f59e0b">star</span><b>ปักหมุด</b><span class="sm3-n">${pins.length}</span></div><div class="sm3-grid">${pins.map((s => tile(s, s.group_name || 'ทั่วไป'))).join('')}</div></section>`;
   }
   const groups = {};
-  list.forEach(s => {
+  list.forEach((s => {
     const g = s.owner ? window.MY_SHEET_GROUP : s.group_name || 'ทั่วไป';
     (groups[g] = groups[g] || []).push(s);
-  });
-  const names = Object.keys(groups).sort(((a, b) => (a === window.MY_SHEET_GROUP ? -1 : b === window.MY_SHEET_GROUP ? 1 : a.localeCompare(b, 'th'))));
-  html += `<div class="sm2-sec"><span class="material-icons">folder_open</span>หมวดทั้งหมด</div><div class="sm2-groups">${names.map(g => {
+  }));
+  const names = Object.keys(groups).sort(((a, b) => a === window.MY_SHEET_GROUP ? -1 : b === window.MY_SHEET_GROUP ? 1 : a.localeCompare(b, 'th')));
+  html += '<div class="sm3-wrap">' + names.map((g => {
     const items = groups[g];
     const mine = g === window.MY_SHEET_GROUP;
-    return `<section class="sm2-grp${mine ? ' mine' : ''}" style="--gc:${mine ? '#10b981' : window.sheetColorOf(items[0])}"><div class="sm2-grp-h"><span class="sm2-dot"></span><b>${esc(g)}</b>${mine ? '<span class="sm2-lock"><span class="material-icons">lock</span>เห็นเฉพาะคุณ</span>' : ''}<span class="sm2-n">${items.length}</span></div>${items.map(row).join('')}</section>`;
-  }).join('')}</div>`;
+    const gc = mine ? '#10b981' : window.sheetColorOf(items[0]);
+    return `<section class="sm3-sec${items.length > 3 ? ' wide' : ''}" style="--gc:${gc}"><div class="sm3-h"><span class="sm3-dot"></span><b>${esc(g)}</b>${mine ? '<span class="sm2-lock"><span class="material-icons">lock</span>เห็นเฉพาะคุณ</span>' : ''}<span class="sm3-n">${items.length}</span></div><div class="sm3-grid">${items.map((s => tile(s))).join('')}</div></section>`;
+  })).join('') + '</div>';
   container.innerHTML = html;
 };
 

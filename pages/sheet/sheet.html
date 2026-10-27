@@ -170,6 +170,34 @@
     #noteToolbar .nt-palette{top:calc(100% + 6px)}
     @media (max-width:1280px){ #noteToolbar .nt-lbl{display:none} }
     @media (max-width:900px){ #noteToolbar .nt-info{display:none} #noteToolbar .nt-end{margin-left:auto} }
+
+        .sm3-wrap{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px;align-items:start}
+        .sm3-wrap .sm3-sec{margin:0}
+        .sm3-wrap .sm3-sec.wide{grid-column:1/-1}
+        .sm3-sec{margin:0 0 14px;padding:14px;border-radius:18px;background:var(--k-panel);border:1px solid var(--k-line);box-shadow:var(--k-shadow)}
+        .sm3-sec.pin{background:linear-gradient(180deg,rgba(245,158,11,.08),var(--k-panel) 70%);border-color:rgba(245,158,11,.35)}
+        .sm3-h{display:flex;align-items:center;gap:8px;margin:0 2px 12px;font-size:13.5px;color:var(--k-tx-strong)}
+        .sm3-h b{font-weight:900}
+        .sm3-h .material-icons{font-size:18px}
+        .sm3-dot{width:10px;height:10px;border-radius:50%;background:var(--gc,#3b82f6);box-shadow:0 0 0 3px color-mix(in srgb,var(--gc,#3b82f6) 22%,transparent)}
+        .sm3-n{margin-left:auto;font-size:11px;font-weight:900;padding:1px 8px;border-radius:999px;background:var(--k-sunk);color:var(--k-mute);border:1px solid var(--k-line)}
+        .sm3-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px}
+        .sm3-tile{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px 10px;border-radius:16px;background:var(--k-sunk);border:1px solid var(--k-line);cursor:pointer;text-align:center;transition:transform .14s,border-color .14s,background .14s;min-width:0}
+        .sm3-tile:hover{transform:translateY(-3px);border-color:color-mix(in srgb,var(--gc,#3b82f6) 60%,var(--k-line));background:var(--k-panel2)}
+        .sm3-tile:focus-visible{outline:2px solid var(--gc,#3b82f6);outline-offset:2px}
+        .sm3-ic{width:54px;height:54px;border-radius:16px;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--c) 18%,transparent);color:var(--c);box-shadow:0 6px 16px -8px var(--c);overflow:hidden;flex:none}
+        .sm3-ic .material-icons{font-size:28px}
+        .sm3-ic.img{background:#fff}
+        .sm3-ic.img img{width:100%;height:100%;object-fit:cover}
+        .sm3-ic.img .material-icons{display:none}
+        .sm3-nm{max-width:100%;font-size:12.5px;font-weight:800;color:var(--k-tx-strong);line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+        .sm3-sub{font-size:10.5px;font-weight:700;color:var(--k-mute2);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .sm3-pin{position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--k-mute2);opacity:0;transition:opacity .14s,background .14s}
+        .sm3-pin .material-icons{font-size:17px}
+        .sm3-tile:hover .sm3-pin,.sm3-pin:focus-visible,.sm3-pin.on{opacity:1}
+        .sm3-pin.on{color:#f59e0b}
+        .sm3-pin:hover{background:var(--k-btn-h)}
+        @media (max-width:640px){ .sm3-grid{grid-template-columns:repeat(auto-fill,minmax(92px,1fr))} .sm3-ic{width:46px;height:46px} .sm3-pin{opacity:1} }
 </style>
 <div id="sheetApp" class="k-auto-light hidden fade-in flex flex-col h-full relative rounded-2xl overflow-hidden" style="height:calc(100vh - 2rem)">
     <div class="sh-head shrink-0">
