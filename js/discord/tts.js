@@ -299,6 +299,9 @@
                 <!-- ซ้าย: เงื่อนไขการพูด -->
                 <div class="space-y-3">
                     <div>
+                        <label class="text-xs text-gray-400 font-bold block mb-1">ชื่อกะ (ตั้งเองได้ เช่น เปิดถอน / ปิดถอน)</label>
+                        <input type="text" value="${esc(s.name)}" oninput="ttsSF(${gi},${si},'name',this.value)" onchange="ttsSFR(${gi},${si},'name',this.value)" placeholder="เช่น เปิดถอน" class="w-full bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500 mb-3">
+
                         <div class="flex items-center justify-between mb-1.5 gap-2">
                             <label class="text-xs text-gray-400 font-bold">คำที่จับ — เจอคำไหนก็พูด</label>
                             <label class="flex items-center gap-1.5 text-xs cursor-pointer select-none ${perKw ? 'text-sky-300' : 'text-gray-400'}" title="ให้แต่ละคำมีข้อความพูดของตัวเอง">
