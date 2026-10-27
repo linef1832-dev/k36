@@ -150,8 +150,8 @@
             text: s.announce_text || ''
           })));
         }
-        return {
-          name: nm,
+        const out = {
+          name: String(s.name || '').trim() || nm,
           enabled: !!s.enabled,
           keyword: s.keyword || '',
           voice_name: s.voice_name || 'th-TH-PremwadeeNeural',
@@ -164,6 +164,10 @@
             bot_id: r.bot_id ? String(r.bot_id) : ''
           })))
         };
+        if (s.text_per_kw) out.text_per_kw = true;
+        if (Array.isArray(s.kw_texts)) out.kw_texts = s.kw_texts.map((x => String(x || '')));
+        if (typeof s.same_text === 'boolean') out.same_text = s.same_text;
+        return out;
       }))
     })));
     while (_cfg.groups.length < 2) _cfg.groups.push(newGroup());
@@ -864,11 +868,15 @@
       sh.keyword = list.join('\n');
     }))));
     _cfg.updated_at = (new Date).toISOString();
+    (_cfg.groups || []).forEach((g => (g.shifts || []).forEach(((sh, i) => {
+      sh.name = String(sh.name || '').trim() || SHIFT_NAMES[i] || 'กะ';
+    }))));
     try {
-      await appDB.from('settings').upsert([ {
+      const {error: saveErr} = await appDB.from('settings').upsert([ {
         key: 'tts_voice_config',
         value: JSON.stringify(_cfg)
       } ]);
+      if (saveErr) throw saveErr;
       if (window.Swal) Swal.fire({
         icon: 'success',
         title: 'บันทึกแล้ว',
