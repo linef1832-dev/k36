@@ -130,6 +130,18 @@
 @media (max-width:1100px){ .bl-wrap{grid-template-columns:1fr} .bl-side{position:static} }
 @media (max-width:640px){ .bl-head{padding:12px} .bl-wrap{padding:12px} .bl-quick{grid-template-columns:1fr} #bellList{grid-template-columns:1fr;max-height:none} .bl-hr{width:100%} .bl-hr .bl-btn{flex:1;justify-content:center} }
 @media (prefers-reduced-motion:reduce){ .bell-badge.ringing,.bl-av i.ringing{animation:none} }
+.bl-hlbl{font-size:11.5px;font-weight:900;color:var(--k-mute)}
+.bl-htools .bl-seg .bell-pbtn{height:32px;padding:0 12px;border-radius:9px;font-size:12.5px;font-weight:800;color:var(--k-mute)}
+.bl-htools .bl-seg .bell-pbtn.active{background:var(--k-panel);color:var(--k-tx-strong);box-shadow:var(--k-shadow)}
+.bl-pager{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:12px 16px}
+.bl-pager:empty{display:none}
+.bl-pg-info{font-size:12px;font-weight:700;color:var(--k-mute)}
+.bl-pg-btns{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.bl-pg{min-width:34px;height:34px;padding:0 10px;border-radius:10px;font-size:12.5px;font-weight:800;border:1px solid var(--k-line2);background:var(--k-panel);color:var(--k-tx2)}
+.bl-pg:hover:not(:disabled){border-color:#f59e0b}
+.bl-pg.on{background:linear-gradient(135deg,#fbbf24,#f59e0b);border-color:transparent;color:#1b1406}
+.bl-pg:disabled{opacity:.4}
+.bl-pg-dots{color:var(--k-mute2);padding:0 2px}
 </style>
 
 <div id="bellMainView">
@@ -219,7 +231,7 @@
     <div class="bl-hwrap">
         <div class="bl-card" style="overflow:hidden">
             <div class="bl-htools">
-                <label class="bl-search"><span class="material-icons">search</span><input id="bellHistSearch" type="text" placeholder="ค้นหาชื่อ / ทีม / ผู้เรียก" oninput="bell_renderHistory()" aria-label="ค้นหาประวัติ"></label>
+                <label class="bl-search"><span class="material-icons">search</span><input id="bellHistSearch" type="text" placeholder="ค้นหาชื่อ / ทีม / ผู้เรียก" oninput="bell_onHistSearch()" aria-label="ค้นหาประวัติ"></label>
                 <div class="bl-seg" id="bellHistPeriod">
                     <button data-p="today" onclick="bell_setHistPeriod('today')" class="bell-pbtn">วันนี้</button>
                     <button data-p="7" onclick="bell_setHistPeriod('7')" class="bell-pbtn">7 วัน</button>
@@ -228,12 +240,24 @@
                 </div>
                 <div id="bellHistCount">0 รายการ</div>
             </div>
+            <div class="bl-htools" style="padding-top:0;border-bottom:1px solid var(--k-line)">
+                <span class="bl-hlbl">แผนก</span>
+                <div class="bl-seg" id="bellHistDept"></div>
+                <span class="bl-hlbl">กะ</span>
+                <div class="bl-seg" id="bellHistShift">
+                    <button data-s="ALL" onclick="bell_setHistShift('ALL')" class="bell-pbtn">ทุกกะ</button>
+                    <button data-s="เช้า" onclick="bell_setHistShift('เช้า')" class="bell-pbtn">🌅 เช้า</button>
+                    <button data-s="กลาง" onclick="bell_setHistShift('กลาง')" class="bell-pbtn">☀️ กลาง</button>
+                    <button data-s="ดึก" onclick="bell_setHistShift('ดึก')" class="bell-pbtn">🌙 ดึก</button>
+                </div>
+            </div>
             <div style="overflow-x:auto">
                 <table class="bl-table">
-                    <thead class="bell-hist-th"><tr><th>ชื่อ</th><th>ทีม</th><th>เวลาเรียก</th><th>เวลายืนยัน</th><th>ใช้เวลา</th><th>สถานะ</th><th>เรียกโดย</th></tr></thead>
+                    <thead class="bell-hist-th"><tr><th>ชื่อ</th><th>แผนก</th><th>กะ</th><th>ทีม</th><th>เวลาเรียก</th><th>เวลายืนยัน</th><th>ใช้เวลา</th><th>สถานะ</th><th>เรียกโดย</th></tr></thead>
                     <tbody id="bellHistBody"></tbody>
                 </table>
             </div>
+            <div id="bellHistPager" class="bl-pager"></div>
         </div>
     </div>
 </div>

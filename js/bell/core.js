@@ -137,7 +137,7 @@ async function bell_setSetting(key, obj) {
 }
 
 window.bell_loadUsers = async function() {
-  const {data: data, error: error} = await window.appDB.from('users').select('id, username, team, department, role').order('username', {
+  const {data: data, error: error} = await window.appDB.from('users').select('id, username, team, department, role, allowed_shift').order('username', {
     ascending: true
   });
   if (error) throw error;
@@ -562,6 +562,58 @@ window.bell_loadHistory = async function() {
 
 window.bell_setHistPeriod = function(p) {
   window._bellHistPeriod = p;
+  window._bellHistPage = 1;
+  bell_renderHistory();
+};
+
+window._bellHistDept = window._bellHistDept || 'ALL';
+
+window._bellHistShift = window._bellHistShift || 'ALL';
+
+window._bellHistPage = 1;
+
+const BELL_HIST_PER = 25;
+
+function bell_histUser(r) {
+  const us = window._bellUsers || [];
+  return us.find((u => r.user_id != null && String(u.id) === String(r.user_id))) || us.find((u => String(u.username || '').toLowerCase() === String(r.username || r.name || '').toLowerCase())) || null;
+}
+
+function bell_histDept(r) {
+  const u = bell_histUser(r);
+  return u && u.department || '';
+}
+
+function bell_histShift(r) {
+  const u = bell_histUser(r);
+  const sh = String(u && u.allowed_shift || '');
+  return sh.replace('กะ', '') || '';
+}
+
+window.bell_setHistDept = function(d) {
+  window._bellHistDept = d;
+  window._bellHistPage = 1;
+  bell_renderHistory();
+};
+
+window.bell_setHistShift = function(sh) {
+  window._bellHistShift = sh;
+  window._bellHistPage = 1;
+  bell_renderHistory();
+};
+
+window.bell_histGoto = function(p) {
+  window._bellHistPage = p;
+  bell_renderHistory();
+  const t = document.getElementById('bellHistBody');
+  if (t) t.closest('.bl-card').scrollIntoView({
+    behavior: 'smooth',
+    block: 'start'
+  });
+};
+
+window.bell_onHistSearch = function() {
+  window._bellHistPage = 1;
   bell_renderHistory();
 };
 
@@ -576,8 +628,11 @@ function bell_histFiltered() {
   } else if (p === '7' || p === '30') {
     since = new Date(now.getTime() - parseInt(p, 10) * 864e5);
   }
+  const dF = window._bellHistDept, sF = window._bellHistShift;
   return window._bellHistory.filter((r => {
     if (since && new Date(r.ring_at) < since) return false;
+    if (dF !== 'ALL' && bell_histDept(r) !== dF) return false;
+    if (sF !== 'ALL' && bell_histShift(r) !== sF) return false;
     if (!q) return true;
     return (r.name || r.username || '').toLowerCase().includes(q) || (r.team || '').toLowerCase().includes(q) || (r.rung_by || '').toLowerCase().includes(q);
   }));
@@ -585,18 +640,40 @@ function bell_histFiltered() {
 
 window.bell_renderHistory = function() {
   document.querySelectorAll('#bellHistPeriod .bell-pbtn').forEach((b => b.classList.toggle('active', b.dataset.p === window._bellHistPeriod)));
+  const depts = [ ...new Set(((window._bellHistory || []).map(bell_histDept)).filter(Boolean)) ].sort();
+  const dBox = document.getElementById('bellHistDept');
+  if (dBox) dBox.innerHTML = [ 'ALL' ].concat(depts).map((d => `<button type="button" data-d="${bell_esc(d)}" onclick="bell_setHistDept(this.dataset.d)" class="bell-pbtn${window._bellHistDept === d ? ' active' : ''}">${d === 'ALL' ? 'ทุกแผนก' : bell_esc(d)}</button>`)).join('');
+  document.querySelectorAll('#bellHistShift .bell-pbtn').forEach((b => b.classList.toggle('active', b.dataset.s === window._bellHistShift)));
   const rows = bell_histFiltered();
   const cnt = document.getElementById('bellHistCount');
-  if (cnt) cnt.textContent = `${rows.length} รายการ`;
   const body = document.getElementById('bellHistBody');
+  const pag = document.getElementById('bellHistPager');
   if (!body) return;
   if (rows.length === 0) {
-    body.innerHTML = '<tr><td colspan="7" class="text-center bell-hist-muted py-8">ไม่มีประวัติในช่วงที่เลือก</td></tr>';
+    if (cnt) cnt.textContent = '0 รายการ';
+    if (pag) pag.innerHTML = '';
+    body.innerHTML = '<tr><td colspan="9" class="text-center bell-hist-muted py-8">ไม่มีประวัติในช่วงที่เลือก</td></tr>';
     return;
   }
-  body.innerHTML = rows.map((r => {
+  const pages = Math.max(1, Math.ceil(rows.length / BELL_HIST_PER));
+  window._bellHistPage = Math.min(Math.max(1, window._bellHistPage || 1), pages);
+  const pg = window._bellHistPage;
+  const pageRows = rows.slice((pg - 1) * BELL_HIST_PER, pg * BELL_HIST_PER);
+  if (cnt) cnt.textContent = `${rows.length.toLocaleString('en-US')} รายการ`;
+  if (pag) {
+    if (pages <= 1) pag.innerHTML = ''; else {
+      const nums = [];
+      for (let p = 1; p <= pages; p++) {
+        if (p === 1 || p === pages || Math.abs(p - pg) <= 2) nums.push(p); else if (nums[nums.length - 1] !== '…') nums.push('…');
+      }
+      const b = (lbl, p, on, dis) => `<button type="button" class="bl-pg${on ? ' on' : ''}" ${dis ? 'disabled' : `onclick="bell_histGoto(${p})"`}>${lbl}</button>`;
+      pag.innerHTML = `<span class="bl-pg-info">หน้า ${pg}/${pages} · แสดง ${(pg - 1) * BELL_HIST_PER + 1}–${(pg - 1) * BELL_HIST_PER + pageRows.length} จาก ${rows.length.toLocaleString('en-US')}</span><div class="bl-pg-btns">${b('‹', pg - 1, false, pg === 1)}${nums.map((p => p === '…' ? '<span class="bl-pg-dots">…</span>' : b(p, p, p === pg, false))).join('')}${b('›', pg + 1, false, pg === pages)}</div>`;
+    }
+  }
+  body.innerHTML = pageRows.map((r => {
     const done = r.status === 'เข้างานแล้ว';
-    return `<tr class="bell-hist-row">\n            <td class="font-bold">${bell_esc(r.name || r.username || '')}</td>\n            <td class="text-center bell-hist-muted">${bell_esc(r.team || '-')}</td>\n            <td class="text-center">${bell_esc(bell_full(r.ring_at))}</td>\n            <td class="text-center">${bell_esc(bell_full(r.confirmed_at)) || '-'}</td>\n            <td class="text-center">${r.elapsed_sec != null ? bell_hms(r.elapsed_sec) : '-'}</td>\n            <td class="text-center"><span class="bell-badge ${done ? 'confirmed' : 'ringing'}" style="animation:none">${bell_esc(r.status || '')}</span></td>\n            <td class="text-center bell-hist-muted">${bell_esc(r.rung_by || '')}</td>\n        </tr>`;
+    const dep = bell_histDept(r), sh = bell_histShift(r);
+    return `<tr class="bell-hist-row">\n            <td class="font-bold">${bell_esc(r.name || r.username || '')}</td>\n            <td class="text-center bell-hist-muted">${bell_esc(dep || '-')}</td>\n            <td class="text-center bell-hist-muted">${sh ? 'กะ' + bell_esc(sh) : '-'}</td>\n            <td class="text-center bell-hist-muted">${bell_esc(r.team || '-')}</td>\n            <td class="text-center">${bell_esc(bell_full(r.ring_at))}</td>\n            <td class="text-center">${bell_esc(bell_full(r.confirmed_at)) || '-'}</td>\n            <td class="text-center">${r.elapsed_sec != null ? bell_hms(r.elapsed_sec) : '-'}</td>\n            <td class="text-center"><span class="bell-badge ${done ? 'confirmed' : 'ringing'}" style="animation:none">${bell_esc(r.status || '')}</span></td>\n            <td class="text-center bell-hist-muted">${bell_esc(r.rung_by || '')}</td>\n        </tr>`;
   })).join('');
 };
 
@@ -606,14 +683,14 @@ window.bell_exportCSV = function() {
     bell_setStatus('ไม่มีข้อมูลให้ดาวน์โหลด', 'warn');
     return;
   }
-  const header = [ 'ชื่อ', 'ทีม', 'เวลาเรียก', 'เวลายืนยัน', 'ใช้เวลา(วินาที)', 'สถานะ', 'เรียกโดย' ];
+  const header = [ 'ชื่อ', 'แผนก', 'กะ', 'ทีม', 'เวลาเรียก', 'เวลายืนยัน', 'ใช้เวลา(วินาที)', 'สถานะ', 'เรียกโดย' ];
   const lines = [ header.join(',') ];
   const cell = c => {
     let v = String(c == null ? '' : c);
     if (/^[=+\-@]/.test(v)) v = "'" + v;
     return `"${v.replace(/"/g, '""')}"`;
   };
-  rows.forEach((r => lines.push([ r.name || r.username || '', r.team || '', bell_full(r.ring_at), bell_full(r.confirmed_at), r.elapsed_sec != null ? r.elapsed_sec : '', r.status || '', r.rung_by || '' ].map(cell).join(','))));
+  rows.forEach((r => lines.push([ r.name || r.username || '', bell_histDept(r), bell_histShift(r) ? 'กะ' + bell_histShift(r) : '', r.team || '', bell_full(r.ring_at), bell_full(r.confirmed_at), r.elapsed_sec != null ? r.elapsed_sec : '', r.status || '', r.rung_by || '' ].map(cell).join(','))));
   const blob = new Blob([ '\ufeff' + lines.join('\r\n') ], {
     type: 'text/csv;charset=utf-8;'
   });
