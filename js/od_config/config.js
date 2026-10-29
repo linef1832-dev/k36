@@ -173,15 +173,33 @@ function odCfg_syncSaveBar() {
 window.odCfg_go = function(id) {
   const el = document.getElementById(id);
   if (!el) return;
-  el.scrollIntoView({
-    behavior: 'smooth',
-    block: 'start'
-  });
+  document.querySelectorAll('#odConfigApp .oc-sec').forEach((sec => {
+    sec.style.display = sec.id === id ? '' : 'none';
+  }));
   document.querySelectorAll('#odConfigApp .oc-nav button').forEach((b => b.classList.toggle('on', b.dataset.sec === id)));
+  try {
+    sessionStorage.setItem('od_cfg_tab', id);
+  } catch (e) {}
+  const app = document.getElementById('odConfigApp');
+  const sc = app && (app.closest('#app-content') || app.parentElement);
+  if (sc && sc.scrollTop > 0) sc.scrollTo({
+    top: 0,
+    behavior: 'smooth'
+  });
 };
 
 function odCfg_bindNavSpy() {
   const app = document.getElementById('odConfigApp');
+  if (app && !app.dataset.tabInit) {
+    app.dataset.tabInit = '1';
+    let t = 'ocSecBot';
+    try {
+      t = sessionStorage.getItem('od_cfg_tab') || t;
+    } catch (e) {}
+    if (!document.getElementById(t)) t = 'ocSecBot';
+    window.odCfg_go(t);
+  }
+  return;
   if (!app || app.dataset.navSpy || typeof IntersectionObserver === 'undefined') return;
   app.dataset.navSpy = '1';
   const io = new IntersectionObserver((entries => {
@@ -290,8 +308,12 @@ window.initOdConfig = async function(opts = {}) {
     return;
   }
   if (!opts.fromRealtime) odCfg_showStatus('กำลังโหลดข้อมูล...', 'loading');
+  window._odCfgLoadedNow = false;
   try {
     const {data: data, error: error} = await appDB.from('settings').select('value').eq('key', OD_CFG_KEY).maybeSingle();
+    if (error) throw error;
+    window._odCfgLoadOk = true;
+    window._odCfgLoadedNow = true;
     if (data && data.value) {
       const parsed = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
       odCfgData = {
@@ -472,11 +494,16 @@ window.initOdConfig = async function(opts = {}) {
     odCfg_showStatus('โหลดข้อมูลสำเร็จ', 'success');
     setTimeout((() => odCfg_hideStatus()), 2e3);
   } catch (e) {
-    odCfg_showStatus('โหลดไม่สำเร็จ: ' + e.message, 'error');
+    if (!window._odCfgLoadedNow) window._odCfgLoadOk = false;
+    odCfg_showStatus('โหลดไม่สำเร็จ: ' + e.message + ' · รีเฟรชหน้าอีกครั้ง (ระหว่างนี้บันทึกไม่ได้ เพื่อกันค่าเดิมถูกทับ)', 'error');
   }
 };
 
 window.odCfg_save = async function() {
+  if (window._odCfgLoadOk === false) {
+    odCfg_showStatus('❌ ยังโหลดการตั้งค่าเดิมไม่สำเร็จ จึงยังบันทึกไม่ได้ (กันค่าเดิมถูกทับ) · รีเฟรชหน้าแล้วลองใหม่', 'error');
+    return false;
+  }
   odCfg_showStatus('กำลังบันทึก...', 'loading');
   try {
     odCfgData.server_url = document.getElementById('odCfgServerUrl').value.trim();
@@ -1151,7 +1178,7 @@ function odCfg_showStatus(msg, type) {
     success: 'bg-emerald-900/50 text-emerald-300 border border-emerald-700',
     error: 'bg-red-900/50 text-red-300 border border-red-700'
   };
-  el.className = `mx-4 mt-3 p-3 rounded-xl text-sm font-bold text-center ${colors[type] || ''}`;
+  el.className = `oc-toast ${type || ''}`;
   el.textContent = msg;
 }
 

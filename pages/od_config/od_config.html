@@ -111,6 +111,16 @@
 @media (max-width:1100px){ #odConfigApp .oc-nav{display:none} #odConfigApp .oc-webs,#odConfigApp .oc-tpl{grid-template-columns:1fr} }
 @media (max-width:760px){ #odConfigApp .oc-grid,#odConfigApp .oc-bot,#odConfigApp .oc-forms{grid-template-columns:1fr} #odConfigApp .oc-body{padding:14px 12px 110px} #odConfigApp .oc-sec-a{margin-left:0} }
 @media (prefers-reduced-motion:reduce){ #odConfigApp *{transition:none!important} }
+
+#odConfigApp #odCfgStatus.oc-toast{position:fixed;top:84px;right:24px;left:auto;transform:none;z-index:9000;width:min(420px,calc(100vw - 32px));padding:12px 16px;border-radius:14px;font-size:13px;font-weight:800;text-align:left;background:var(--k-panel);color:var(--k-tx-strong);border:1px solid var(--k-line3);box-shadow:0 14px 36px rgba(0,0,0,.35)}
+#odConfigApp #odCfgStatus.oc-toast.hidden{display:none}
+#odConfigApp #odCfgStatus.oc-toast.loading{border-color:rgba(59,130,246,.5);box-shadow:inset 4px 0 0 #3b82f6,0 14px 36px rgba(0,0,0,.35)}
+#odConfigApp #odCfgStatus.oc-toast.success{border-color:rgba(16,185,129,.5);box-shadow:inset 4px 0 0 #10b981,0 14px 36px rgba(0,0,0,.35)}
+#odConfigApp #odCfgStatus.oc-toast.error{border-color:rgba(239,68,68,.55);box-shadow:inset 4px 0 0 #ef4444,0 14px 36px rgba(0,0,0,.35)}
+#odConfigApp .oc-sec{animation:ocIn .18s ease-out}
+@keyframes ocIn{from{opacity:.4;transform:translateY(4px)}to{opacity:1;transform:none}}
+@media (max-width:900px){ #odConfigApp .oc-nav{display:flex!important;flex-direction:row;position:static;flex:none;overflow-x:auto;width:100%;scrollbar-width:none} #odConfigApp .oc-nav button{flex:none;white-space:nowrap} #odConfigApp .oc-body{flex-direction:column} }
+@media (prefers-reduced-motion:reduce){ #odConfigApp .oc-sec{animation:none} }
 </style>
     
     <div class="oc-head">
