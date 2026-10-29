@@ -900,17 +900,26 @@ window.spy_moveSingleUser = async function(uid, targetId) {
 };
 
 window.ds_fetchSpy = async function() {
+  if (window._dsSpyBusy) return;
+  window._dsSpyBusy = true;
+  const ctl = typeof AbortController !== 'undefined' ? new AbortController : null;
+  const tm = ctl ? setTimeout((() => ctl.abort()), 1e4) : null;
   try {
-    const res = await fetch(DISCORD_API_URL + '/api/spy-data?t=' + Date.now());
+    const res = await fetch(DISCORD_API_URL + '/api/spy-data?t=' + Date.now(), ctl ? {
+      signal: ctl.signal
+    } : undefined);
     if (res.ok) {
       const data = await res.json();
-      globalSpyData = Object.keys(data).map((key => ({
+      globalSpyData = Object.keys(data || {}).map((key => ({
         id: key,
         ...data[key]
-      }))).sort(((a, b) => a.currentRoom ? -1 : 1));
+      }))).sort(((a, b) => (b.currentRoom ? 1 : 0) - (a.currentRoom ? 1 : 0)));
       if (!window.isSpyDropdownFocused) ds_renderSpyTable();
     }
-  } catch (e) {}
+  } catch (e) {} finally {
+    if (tm) clearTimeout(tm);
+    window._dsSpyBusy = false;
+  }
 };
 
 window.ds_fetchChannelsSilently = async function() {

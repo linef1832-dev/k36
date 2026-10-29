@@ -464,8 +464,8 @@ const PERM_GROUPS = [ {
     name: 'ดูประวัติ DS',
     isSub: true
   }, {
-    id: 'ds_sendmsg',
-    name: 'ส่งข้อความ',
+    id: 'ds_tts',
+    name: 'ศูนย์เสียง (TTS)',
     isSub: true
   }, {
     id: 'ds_chatcount',

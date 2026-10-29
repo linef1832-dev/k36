@@ -4,10 +4,21 @@
   const SUB_ON = "tts-sub tts-sub-active";
   const SUB_OFF = "tts-sub";
   const _orig = window.switchDiscordTab;
+  const ttsCan = () => typeof canPerm === 'function' && (canPerm('ds_tts') || canPerm('ds_manage'));
   window.switchDiscordTab = function(tabName) {
     const myPanel = document.getElementById('dsContent_ttsvoice');
     const myBtn = document.getElementById('tabDsTtsvoice');
     if (tabName === 'ttsvoice') {
+      if (!ttsCan()) {
+        if (window.Swal) Swal.fire('ไม่มีสิทธิ์', 'คุณไม่มีสิทธิ์ใช้งานศูนย์เสียง', 'error');
+        return;
+      }
+      try {
+        if (typeof spyInterval !== 'undefined' && spyInterval) clearInterval(spyInterval);
+      } catch (e) {}
+      try {
+        if (typeof logInterval !== 'undefined' && logInterval) clearInterval(logInterval);
+      } catch (e) {}
       document.querySelectorAll('[id^="dsContent_"]').forEach((el => el.classList.add('hidden')));
       document.querySelectorAll('[id^="tabDs"]').forEach((btn => {
         if (btn.id !== 'tabDsTtsvoice') btn.className = INACTIVE;
@@ -21,6 +32,28 @@
     if (myBtn) myBtn.className = INACTIVE;
     _ttsStopStatus();
     if (typeof _orig === 'function') return _orig.apply(this, arguments);
+  };
+  const _origPermTts = window.applyDiscordPermissions;
+  window.applyDiscordPermissions = function() {
+    try {
+      return typeof _origPermTts === 'function' ? _origPermTts.apply(this, arguments) : undefined;
+    } finally {
+      try {
+        const btn = document.getElementById('tabDsTtsvoice');
+        const ok = ttsCan();
+        if (btn) btn.style.display = ok ? '' : 'none';
+        if (!ok) {
+          const pn = document.getElementById('dsContent_ttsvoice');
+          if (pn) pn.classList.add('hidden');
+        } else {
+          const noAccess = document.getElementById('discordNoAccessMessage');
+          if (noAccess) {
+            noAccess.remove();
+            window.switchDiscordTab('ttsvoice');
+          }
+        }
+      } catch (e) {}
+    }
   };
   const SHIFT_NAMES = [ 'กะเช้า', 'กะบ่าย', 'กะดึก' ];
   const newShift = n => ({
