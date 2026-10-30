@@ -1173,3 +1173,549 @@ window.srSubscribe = function() {
     }
   })).subscribe();
 };
+
+function _srFilteredForExport() {
+  const qName = (document.getElementById('srFilterName')?.value || '').trim().toLowerCase();
+  const fDept = document.getElementById('srFilterDept')?.value || 'all';
+  const fTopic = document.getElementById('srFilterTopic')?.value || 'all';
+  const fShift = document.getElementById('srFilterShift')?.value || 'all';
+  const fDay = document.getElementById('srFilterDay')?.value || 'all';
+  const rows = SR.rows.filter((r => {
+    if (qName && !String(r.user_name).toLowerCase().includes(qName)) return false;
+    if (fTopic !== 'all' && _srLabel(r.topic) !== fTopic) return false;
+    if (fDay !== 'all' && r.record_date !== fDay) return false;
+    if (fDept !== 'all' || fShift !== 'all') {
+      const u = _srUserOf(r.user_name);
+      if (!u) return false;
+      if (fDept !== 'all' && (u.department || 'AM') !== fDept) return false;
+      if (fShift !== 'all' && u.allowed_shift !== fShift) return false;
+    }
+    return true;
+  }));
+  const parts = [];
+  if (fDept !== 'all') parts.push('แผนก ' + fDept);
+  if (fShift !== 'all') parts.push(fShift);
+  if (fTopic !== 'all') parts.push('หัวข้อ ' + fTopic);
+  if (fDay !== 'all') parts.push('วันที่ ' + fDay);
+  if (qName) parts.push('ค้นหา "' + qName + '"');
+  return {
+    rows: rows,
+    filterText: parts.join(' · ')
+  };
+}
+
+function _srLoadExcelLib() {
+  if (window.ExcelJS) return Promise.resolve();
+  if (!window._excelLibP) {
+    const add = src => new Promise(((res, rej) => {
+      const sc = document.createElement('script');
+      sc.src = src;
+      sc.onload = res;
+      sc.onerror = () => rej(new Error('load ' + src));
+      document.body.appendChild(sc);
+    }));
+    window._excelLibP = (window.JSZip ? Promise.resolve() : add('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js')).then((() => add('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js'))).catch((e => {
+      window._excelLibP = null;
+      throw e;
+    }));
+  }
+  return window._excelLibP;
+}
+
+window.srExportExcel = async function() {
+  const {rows: rows, filterText: filterText} = _srFilteredForExport();
+  if (!rows.length) return Swal.fire('ไม่มีข้อมูล', 'เดือน/ตัวกรองนี้ยังไม่มีประวัติให้ส่งออก', 'info');
+  Swal.fire({
+    title: 'กำลังสร้างไฟล์ Excel…',
+    allowOutsideClick: false,
+    didOpen: () => Swal.showLoading()
+  });
+  try {
+    await _srLoadExcelLib();
+  } catch (e) {
+    return Swal.fire('โหลดเครื่องมือ Excel ไม่สำเร็จ', 'ตรวจการเชื่อมต่ออินเทอร์เน็ตแล้วลองใหม่อีกครั้ง', 'error');
+  }
+  try {
+    const [yy, mm] = SR.month.split('-').map(Number);
+    const monthTxt = `${_srTH_M[mm - 1]} ${yy + 543}`;
+    const fullM = [ 'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม' ][mm - 1] + ' ' + (yy + 543);
+    const dTxt = d => {
+      const [a, b, c] = String(d || '').split('-').map(Number);
+      return a ? `${c} ${_srTH_M[b - 1]} ${a + 543}` : '-';
+    };
+    const people = {};
+    rows.forEach((r => {
+      const k = String(r.user_name).toLowerCase();
+      const p = people[k] = people[k] || {
+        name: r.user_name,
+        items: [],
+        cnt: {},
+        notes: 0,
+        days: {}
+      };
+      p.items.push(r);
+      const t = _srLabel(r.topic);
+      if (_srIsNote(r)) {
+        p.notes++;
+        return;
+      }
+      p.cnt[t] = (p.cnt[t] || 0) + 1;
+      (p.days[t] = p.days[t] || new Set).add(String(r.record_date));
+    }));
+    const plist = Object.values(people).map((p => ({
+      ...p,
+      total: Object.values(p.cnt).reduce(((a, n) => a + n), 0)
+    }))).sort(((a, b) => b.total - a.total || a.name.localeCompare(b.name)));
+    const topicTotals = {};
+    plist.forEach((p => Object.entries(p.cnt).forEach((([t, n]) => {
+      topicTotals[t] = topicTotals[t] || {
+        n: 0,
+        people: []
+      };
+      topicTotals[t].n += n;
+      topicTotals[t].people.push([ p.name, n ]);
+    }))));
+    const topics = Object.keys(topicTotals).sort(((a, b) => topicTotals[b].n - topicTotals[a].n || a.localeCompare(b)));
+    const totalOff = plist.reduce(((a, p) => a + p.total), 0);
+    const totalNotes = plist.reduce(((a, p) => a + p.notes), 0);
+    const offPeople = plist.filter((p => p.total > 0)).length;
+    const wb = new ExcelJS.Workbook;
+    wb.creator = 'k36';
+    const FONT = 'Tahoma';
+    const thin = {
+      style: 'thin',
+      color: {
+        argb: 'FFCBD5E1'
+      }
+    };
+    const border = {
+      top: thin,
+      left: thin,
+      bottom: thin,
+      right: thin
+    };
+    const fill = c => ({
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: {
+        argb: c
+      }
+    });
+    const hexArgb = h => 'FF' + String(h || '#64748b').replace('#', '').toUpperCase().padStart(6, '0').slice(0, 6);
+    const lighten = h => {
+      const x = String(h || '#64748b').replace('#', '');
+      const r = parseInt(x.slice(0, 2), 16), g = parseInt(x.slice(2, 4), 16), b = parseInt(x.slice(4, 6), 16);
+      const mix = v => Math.round(v + (255 - v) * .82).toString(16).padStart(2, '0');
+      return ('FF' + mix(r) + mix(g) + mix(b)).toUpperCase();
+    };
+    const titleRow = (ws, text, cols, sub) => {
+      ws.mergeCells(1, 1, 1, cols);
+      const c = ws.getCell(1, 1);
+      c.value = text;
+      c.font = {
+        name: FONT,
+        bold: true,
+        size: 15,
+        color: {
+          argb: 'FFFFFFFF'
+        }
+      };
+      c.fill = fill('FF1E293B');
+      c.alignment = {
+        vertical: 'middle',
+        horizontal: 'left',
+        indent: 1
+      };
+      ws.getRow(1).height = 30;
+      ws.mergeCells(2, 1, 2, cols);
+      const s = ws.getCell(2, 1);
+      s.value = sub;
+      s.font = {
+        name: FONT,
+        size: 10,
+        color: {
+          argb: 'FF475569'
+        }
+      };
+      s.fill = fill('FFF1F5F9');
+      s.alignment = {
+        vertical: 'middle',
+        indent: 1
+      };
+      ws.getRow(2).height = 20;
+    };
+    const head = (row, bg) => {
+      row.eachCell((c => {
+        c.font = {
+          name: FONT,
+          bold: true,
+          size: 10.5,
+          color: {
+            argb: 'FFFFFFFF'
+          }
+        };
+        c.fill = fill(bg || 'FF334155');
+        c.alignment = {
+          vertical: 'middle',
+          horizontal: 'center',
+          wrapText: true
+        };
+        c.border = border;
+      }));
+      row.height = 32;
+    };
+    const subTxt = `เดือน ${fullM}${filterText ? ' · ตัวกรอง: ' + filterText : ''} · ส่งออกเมื่อ ${(new Date).toLocaleString('th-TH')}`;
+    const addGroup = (plist, gLabel) => {
+      const topicTotals = {};
+      plist.forEach((p => Object.entries(p.cnt).forEach((([t, n]) => {
+        topicTotals[t] = topicTotals[t] || {
+          n: 0,
+          people: []
+        };
+        topicTotals[t].n += n;
+        topicTotals[t].people.push([ p.name, n ]);
+      }))));
+      const topics = Object.keys(topicTotals).sort(((a, b) => topicTotals[b].n - topicTotals[a].n || a.localeCompare(b)));
+      const totalOff = plist.reduce(((a, p) => a + p.total), 0);
+      const totalNotes = plist.reduce(((a, p) => a + p.notes), 0);
+      const offPeople = plist.filter((p => p.total > 0)).length;
+    const ws1 = wb.addWorksheet(`สรุป ${gLabel}`, {
+      views: [ {
+        state: 'frozen',
+        xSplit: 2,
+        ySplit: 6,
+        zoomScale: 90
+      } ]
+    });
+    const fixedCols = [ 'ลำดับ', 'ชื่อพนักงาน', 'แผนก', 'กะ', 'ผิดทั้งหมด (ครั้ง)' ];
+    const tailCols = [ 'บันทึกเรื่องราว', 'ถึงเกณฑ์', 'วันที่ผิด' ];
+    const nCols = fixedCols.length + topics.length + tailCols.length;
+    titleRow(ws1, `สรุปประวัติการทำงานพนักงาน แผนก ${gLabel} — ${fullM}`, nCols, subTxt);
+    ws1.mergeCells(4, 1, 4, nCols);
+    const kc = ws1.getCell(4, 1);
+    const seg = (t, bold, color, size) => ({
+      text: t,
+      font: {
+        name: FONT,
+        size: size || 11,
+        bold: !!bold,
+        color: {
+          argb: color || 'FF475569'
+        }
+      }
+    });
+    kc.value = {
+      richText: [ seg('พนักงานทั้งหมด  '), seg(`${plist.length} คน`, true, 'FF0F172A', 13), seg('      มีประวัติผิด  '), seg(`${offPeople} คน`, true, 'FF0F172A', 13), seg('      ผิดรวมทั้งหมด  '), seg(`${totalOff} ครั้ง`, true, 'FFDC2626', 13), seg('      บันทึกเรื่องราว (ไม่นับเป็นการผิด)  '), seg(`${totalNotes} รายการ`, true, 'FF0F172A', 13), seg(`      (แผนก ${gLabel})`, true, 'FF7C3AED', 11) ]
+    };
+    kc.fill = fill('FFFFFBEB');
+    kc.alignment = {
+      vertical: 'middle',
+      indent: 1
+    };
+    kc.border = border;
+    ws1.getRow(4).height = 30;
+    const hr = ws1.getRow(6);
+    hr.values = [ ...fixedCols, ...topics, ...tailCols ];
+    head(hr);
+    topics.forEach(((t, i) => {
+      const c = hr.getCell(fixedCols.length + 1 + i);
+      c.fill = fill(hexArgb(_srTopicColor(t)));
+    }));
+    let r = 7;
+    plist.forEach(((p, i) => {
+      const u = _srUserOf(p.name) || {};
+      const lim = topics.filter((t => {
+        const L = _srTopicLimit(t);
+        return L && (p.cnt[t] || 0) >= L;
+      })).map((t => `${t} (${p.cnt[t]}/${_srTopicLimit(t)})`));
+      const allDays = [ ...new Set(Object.values(p.days).flatMap((s => [ ...s ]))) ].sort().map((d => Number(d.split('-')[2]))).join(', ');
+      const row = ws1.getRow(r);
+      row.values = [ i + 1, p.name, u.department || '-', u.allowed_shift ? String(u.allowed_shift).replace('กะ', '') : '-', p.total, ...topics.map((t => p.cnt[t] || '')), p.notes || '', lim.join(', ') || '', allDays ? `${allDays} ${_srTH_M[mm - 1]}` : '' ];
+      row.eachCell({
+        includeEmpty: true
+      }, ((c, col) => {
+        c.font = {
+          name: FONT,
+          size: 10.5,
+          color: {
+            argb: 'FF0F172A'
+          }
+        };
+        c.border = border;
+        c.alignment = {
+          vertical: 'middle',
+          horizontal: col === 2 || col >= nCols - 1 ? 'left' : 'center',
+          wrapText: col >= nCols - 1
+        };
+        if (i % 2) c.fill = fill('FFF8FAFC');
+      }));
+      row.getCell(2).font = {
+        name: FONT,
+        size: 10.5,
+        bold: true,
+        color: {
+          argb: 'FF0F172A'
+        }
+      };
+      const tc = row.getCell(5);
+      tc.font = {
+        name: FONT,
+        size: 12,
+        bold: true,
+        color: {
+          argb: p.total >= 5 ? 'FFDC2626' : p.total ? 'FFEA580C' : 'FF94A3B8'
+        }
+      };
+      tc.fill = fill(p.total >= 5 ? 'FFFEE2E2' : 'FFFFF7ED');
+      topics.forEach(((t, j) => {
+        const n = p.cnt[t] || 0;
+        if (!n) return;
+        const c = row.getCell(fixedCols.length + 1 + j);
+        c.fill = fill(lighten(_srTopicColor(t)));
+        c.font = {
+          name: FONT,
+          size: 10.5,
+          bold: true,
+          color: {
+            argb: hexArgb(_srTopicColor(t))
+          }
+        };
+      }));
+      if (lim.length) {
+        const c = row.getCell(nCols - 1);
+        c.font = {
+          name: FONT,
+          size: 10,
+          bold: true,
+          color: {
+            argb: 'FFDC2626'
+          }
+        };
+      }
+      row.height = 22;
+      r++;
+    }));
+    const tr = ws1.getRow(r);
+    tr.values = [ '', 'รวมทุกคน', '', '', totalOff, ...topics.map((t => topicTotals[t].n)), totalNotes || '', '', '' ];
+    tr.eachCell({
+      includeEmpty: true
+    }, (c => {
+      c.font = {
+        name: FONT,
+        size: 11,
+        bold: true,
+        color: {
+          argb: 'FFFFFFFF'
+        }
+      };
+      c.fill = fill('FF1E293B');
+      c.alignment = {
+        vertical: 'middle',
+        horizontal: 'center'
+      };
+      c.border = border;
+    }));
+    tr.height = 24;
+    ws1.getColumn(1).width = 7;
+    ws1.getColumn(2).width = 22;
+    ws1.getColumn(3).width = 9;
+    ws1.getColumn(4).width = 8;
+    ws1.getColumn(5).width = 12;
+    topics.forEach(((t, j) => ws1.getColumn(fixedCols.length + 1 + j).width = Math.max(10, Math.min(18, String(t).length * 1.3 + 2))));
+    ws1.getColumn(nCols - 2).width = 12;
+    ws1.getColumn(nCols - 1).width = 26;
+    ws1.getColumn(nCols).width = 26;
+    const ws2 = wb.addWorksheet(`รายละเอียด ${gLabel}`, {
+      views: [ {
+        state: 'frozen',
+        ySplit: 3,
+        zoomScale: 90
+      } ]
+    });
+    const dCols = [ 'วันที่', 'ชื่อพนักงาน', 'แผนก', 'กะ', 'หัวข้อที่ผิด', 'ประเภท', 'ครั้งที่ (หัวข้อนี้)', 'รายละเอียด', 'ลงโดย', 'เวลาที่ลง' ];
+    titleRow(ws2, `รายละเอียดประวัติทุกครั้ง แผนก ${gLabel} — ${fullM}`, dCols.length, subTxt);
+    ws2.getRow(3).values = dCols;
+    head(ws2.getRow(3));
+    let rr = 4;
+    plist.forEach(((p, pi) => {
+      const u = _srUserOf(p.name) || {};
+      const items = p.items.slice().sort(((a, b) => String(a.record_date).localeCompare(String(b.record_date)) || String(a.created_at || '').localeCompare(String(b.created_at || ''))));
+      const seen = {};
+      ws2.mergeCells(rr, 1, rr, dCols.length);
+      const g = ws2.getCell(rr, 1);
+      g.value = `${p.name}  ·  ผิด ${p.total} ครั้ง${p.notes ? `  ·  บันทึก ${p.notes}` : ''}`;
+      g.font = {
+        name: FONT,
+        size: 11,
+        bold: true,
+        color: {
+          argb: 'FFFDE68A'
+        }
+      };
+      g.fill = fill('FF0F172A');
+      g.alignment = {
+        vertical: 'middle',
+        indent: 1
+      };
+      ws2.getRow(rr).height = 22;
+      rr++;
+      items.forEach(((it, ii) => {
+        const t = _srLabel(it.topic);
+        const isN = _srIsNote(it);
+        if (!isN) seen[t] = (seen[t] || 0) + 1;
+        const lim = _srTopicLimit(t);
+        const row = ws2.getRow(rr);
+        row.values = [ dTxt(it.record_date), p.name, u.department || '-', u.allowed_shift ? String(u.allowed_shift).replace('กะ', '') : '-', t, isN ? 'บันทึกเรื่องราว' : 'ทำผิด', isN ? '-' : lim ? `${seen[t]}/${lim}` : seen[t], _srNoteShow(it) || '-', it.created_by || '-', it.created_at ? new Date(it.created_at).toLocaleString('th-TH', {
+          day: 'numeric',
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit'
+        }) : '-' ];
+        row.eachCell({
+          includeEmpty: true
+        }, ((c, col) => {
+          c.font = {
+            name: FONT,
+            size: 10.5,
+            color: {
+              argb: isN ? 'FF64748B' : 'FF0F172A'
+            }
+          };
+          c.border = border;
+          c.alignment = {
+            vertical: 'middle',
+            horizontal: col === 8 || col === 2 || col === 5 ? 'left' : 'center',
+            wrapText: col === 8
+          };
+          if (ii % 2) c.fill = fill('FFF8FAFC');
+        }));
+        const tc = row.getCell(5);
+        tc.fill = fill(lighten(_srTopicColor(t)));
+        tc.font = {
+          name: FONT,
+          size: 10.5,
+          bold: true,
+          color: {
+            argb: hexArgb(_srTopicColor(t))
+          }
+        };
+        if (!isN && lim && seen[t] >= lim) row.getCell(7).font = {
+          name: FONT,
+          size: 10.5,
+          bold: true,
+          color: {
+            argb: 'FFDC2626'
+          }
+        };
+        rr++;
+      }));
+    }));
+    [ 14, 20, 8, 7, 22, 13, 12, 42, 14, 16 ].forEach(((w, i) => ws2.getColumn(i + 1).width = w));
+    };
+    const deptOf = name => {
+      const u = _srUserOf(name);
+      return u ? _srGroupOf(u.department) : 'ไม่ระบุแผนก';
+    };
+    const groupsOrder = [ 'AM', 'OD', 'ไม่ระบุแผนก' ];
+    groupsOrder.forEach((g => {
+      const gl = plist.filter((p => deptOf(p.name) === g));
+      if (gl.length) addGroup(gl, g);
+    }));
+    const ws3 = wb.addWorksheet('สรุปตามหัวข้อ', {
+      views: [ {
+        state: 'frozen',
+        ySplit: 3,
+        zoomScale: 90
+      } ]
+    });
+    const tCols = [ 'หัวข้อที่ผิด', 'ผิดรวม (ครั้ง)', 'AM (ครั้ง)', 'OD (ครั้ง)', 'จำนวนคน', 'เกณฑ์/เดือน', 'รายชื่อ (ครั้ง)' ];
+    titleRow(ws3, `สรุปตามหัวข้อ — ${fullM}`, tCols.length, subTxt);
+    ws3.getRow(3).values = tCols;
+    head(ws3.getRow(3));
+    topics.forEach(((t, i) => {
+      const tt = topicTotals[t];
+      const row = ws3.getRow(4 + i);
+      const byD = g => tt.people.filter((([n]) => deptOf(n) === g)).reduce(((a, [, c]) => a + c), 0);
+      row.values = [ t, tt.n, byD('AM') || '', byD('OD') || '', tt.people.length, _srTopicLimit(t) || '-', tt.people.sort(((a, b) => b[1] - a[1])).map((([n, c]) => `${n}${deptOf(n) !== 'ไม่ระบุแผนก' ? ' [' + deptOf(n) + ']' : ''} (${c})`)).join(', ') ];
+      row.eachCell({
+        includeEmpty: true
+      }, ((c, col) => {
+        c.font = {
+          name: FONT,
+          size: 10.5,
+          color: {
+            argb: 'FF0F172A'
+          }
+        };
+        c.border = border;
+        c.alignment = {
+          vertical: 'middle',
+          horizontal: col === 1 || col === 7 ? 'left' : 'center',
+          wrapText: col === 7
+        };
+      }));
+      const c1 = row.getCell(1);
+      c1.fill = fill(lighten(_srTopicColor(t)));
+      c1.font = {
+        name: FONT,
+        size: 11,
+        bold: true,
+        color: {
+          argb: hexArgb(_srTopicColor(t))
+        }
+      };
+      row.getCell(2).font = {
+        name: FONT,
+        size: 12,
+        bold: true,
+        color: {
+          argb: 'FFDC2626'
+        }
+      };
+    }));
+    [ 26, 13, 11, 11, 11, 12, 70 ].forEach(((w, i) => ws3.getColumn(i + 1).width = w));
+    const tsum = ws3.getRow(4 + topics.length);
+    const allBy = g => plist.filter((p => deptOf(p.name) === g)).reduce(((a, p) => a + p.total), 0);
+    tsum.values = [ 'รวมทุกหัวข้อ', totalOff, allBy('AM'), allBy('OD'), offPeople, '', '' ];
+    tsum.eachCell({
+      includeEmpty: true
+    }, (c => {
+      c.font = {
+        name: FONT,
+        size: 11,
+        bold: true,
+        color: {
+          argb: 'FFFFFFFF'
+        }
+      };
+      c.fill = fill('FF1E293B');
+      c.alignment = {
+        vertical: 'middle',
+        horizontal: 'center'
+      };
+      c.border = border;
+    }));
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([ buf ], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `ประวัติการทำงาน_${monthTxt.replace(/\s+/g, '_')}${filterText ? '_กรอง' : ''}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout((() => URL.revokeObjectURL(a.href)), 3e3);
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'success',
+      title: `ส่งออก ${plist.length} คน · ${rows.length} รายการ`,
+      showConfirmButton: false,
+      timer: 1800
+    });
+  } catch (e) {
+    console.error('srExportExcel', e);
+    Swal.fire('สร้างไฟล์ไม่สำเร็จ', e.message || String(e), 'error');
+  }
+};

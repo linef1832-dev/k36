@@ -315,6 +315,9 @@
     #srApp .sr-kbd kbd{font-family:inherit;padding:0 5px;border-radius:5px;border:1px solid var(--k-line3);background:var(--k-btn);font-size:10.5px}
     @media (max-width:1100px){ #srApp .sr-wrap{grid-template-columns:1fr} #srApp .sr-form{position:static} }
     @media (max-width:640px){ #srApp .sr-kpis{grid-template-columns:1fr} #srApp .sr-month{margin-left:0;width:100%;justify-content:space-between} #srApp .sr-emp-row{flex-wrap:wrap} #srApp .sr-chips{justify-content:flex-start;order:3;flex-basis:100%} #srApp .sr-tl-i{grid-template-columns:80px minmax(0,1fr) auto} #srApp .sr-tl-i .sr-tl-t{grid-column:2} }
+    #srApp .sr-xl{display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 14px;border-radius:11px;font-size:13px;font-weight:900;background:#10b981;color:#fff;border:0;box-shadow:0 6px 16px rgba(16,185,129,.25);cursor:pointer}
+    #srApp .sr-xl:hover{filter:brightness(1.07)}
+    #srApp .sr-xl .material-icons{font-size:17px}
 </style>
 
 <div id="srApp" class="fade-in flex flex-col h-full rounded-2xl overflow-hidden">
@@ -334,6 +337,7 @@
             <button type="button" onclick="srShiftMonth(1)" title="เดือนถัดไป"><span class="material-icons">chevron_right</span></button>
             <button type="button" class="sr-now" onclick="srShiftMonth(0)">เดือนนี้</button>
         </div>
+        <button type="button" class="sr-xl" onclick="srExportExcel()" title="ส่งออก Excel ตามเดือนและตัวกรองที่เลือก"><span class="material-icons">download</span>Excel</button>
     </div>
 
     <div class="sr-body custom-scrollbar">
