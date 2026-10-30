@@ -18,6 +18,8 @@ window.initWithdrawalReport = async function() {
   _activeShiftFilter = 'ALL';
   _caseDate = null;
   _setDefaultDate();
+  const firstTab = [ 'stats', 'summary', 'log', 'settings' ].find(_canViewTab) || 'stats';
+  if (_canViewTab(firstTab)) window.switchCaseTab(firstTab);
   await _loadShiftMap();
   await _loadBotStatus();
   await _loadCaseData();
@@ -39,11 +41,31 @@ function _subscribeRealtimeCases() {
     event: 'INSERT',
     schema: 'public',
     table: 'tg_case_logs'
-  }, (() => {
-    _setDefaultDate();
-    _loadCaseData();
-    if (_caseTab === 'summary') loadSummary();
+  }, (payload => {
+    const row = payload && payload.new || {};
+    if (row.msg_date && _caseDate && row.msg_date !== _caseDate && row.msg_date < _caseDate) return;
+    if (document.hidden) {
+      window._caseRtStale = true;
+      return;
+    }
+    clearTimeout(window._caseRtTimer);
+    window._caseRtTimer = setTimeout((() => {
+      _setDefaultDate();
+      _loadCaseData(true);
+      if (_caseTab === 'summary') loadSummary(true);
+    }), 1500);
   })).subscribe();
+  if (!window._caseVisBound) {
+    window._caseVisBound = true;
+    document.addEventListener('visibilitychange', (() => {
+      if (!document.hidden && window._caseRtStale && document.getElementById('caseStaffGrid')) {
+        window._caseRtStale = false;
+        _setDefaultDate();
+        _loadCaseData(true);
+        if (_caseTab === 'summary') loadSummary(true);
+      }
+    }));
+  }
   if (typeof window.registerPageSubscription === 'function') {
     window.registerPageSubscription(_realtimeCaseSub);
   }
@@ -94,23 +116,19 @@ window.switchCaseTab = function(tab) {
   [ 'stats', 'summary', 'log', 'settings' ].forEach((t => {
     const el = document.getElementById(`caseTab-${t}`);
     const btn = document.getElementById(`tab-${t}`);
-    if (!el || !btn) return;
-    el.classList.toggle('hidden', t !== tab);
-    const cfg = _TAB_COLORS[t] || {};
-    const canView = _canViewTab(t);
-    if (t === tab) {
-      btn.style.background = cfg.active || '#4f46e5';
-      btn.style.color = '#fff';
-      btn.style.boxShadow = `0 2px 10px ${cfg.shadow || 'rgba(79,70,229,0.4)'}`;
-      btn.style.opacity = '1';
-    } else {
-      btn.style.background = 'rgba(124,58,237,0.12)';
-      btn.style.color = canView ? '#a78bfa' : '#4b5563';
-      btn.style.boxShadow = 'none';
-      btn.style.opacity = canView ? '1' : '0.4';
+    if (el) {
+      el.classList.toggle('hidden', t !== tab);
+      el.style.display = t === tab ? t === 'stats' || t === 'summary' ? 'flex' : '' : 'none';
+    }
+    if (btn) {
+      const canView = _canViewTab(t);
+      btn.classList.toggle('wr-on', t === tab);
+      btn.classList.toggle('wr-lock', !canView);
       btn.title = canView ? '' : 'ไม่มีสิทธิ์เข้าถึง';
     }
   }));
+  const fb = document.getElementById('caseFilterBar');
+  if (fb) fb.style.display = tab === 'stats' || tab === 'log' ? '' : 'none';
   if (tab === 'summary') loadSummary();
 };
 
@@ -141,26 +159,46 @@ window.applyFilters = function() {
   _loadCaseData();
 };
 
-async function _loadCaseData() {
+window._caseFetchAll = async function(build) {
+  const PAGE = 1e3;
+  let all = [], from = 0;
+  for (let guard = 0; guard < 200; guard++) {
+    const {data: data, error: error} = await build().range(from, from + PAGE - 1);
+    if (error) throw error;
+    all = all.concat(data || []);
+    if (!data || data.length < PAGE) break;
+    from += PAGE;
+  }
+  return all;
+};
+
+async function _loadCaseData(silent) {
   const grid = document.getElementById('caseStaffGrid');
   const logBody = document.getElementById('caseLogBody');
-  if (grid) grid.innerHTML = `<div class="col-span-full text-center py-8"><span class="material-icons animate-spin text-violet-400 text-3xl">sync</span></div>`;
-  if (logBody) logBody.innerHTML = `<tr><td colspan="7" class="text-center py-8"><span class="material-icons animate-spin text-violet-400 text-2xl">sync</span></td></tr>`;
+  if (!silent || !_caseData.length) {
+    if (grid) grid.innerHTML = `<div class="wr-empty"><span class="material-icons animate-spin">sync</span>กำลังโหลด…</div>`;
+    if (logBody) logBody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px"><span class="material-icons animate-spin">sync</span></td></tr>`;
+  }
+  const reqId = window._caseReqId = (window._caseReqId || 0) + 1;
   try {
-    let q = appDB.from('tg_case_logs').select('*').eq('msg_date', _caseDate).order('created_at', {
-      ascending: false
-    });
-    if (_caseSite !== 'ALL') q = q.eq('site', _caseSite);
-    if (_caseType !== 'ALL') q = q.eq('case_type', _caseType);
-    const {data: data, error: error} = await q;
-    if (error) throw error;
+    const data = await window._caseFetchAll((() => {
+      let q = appDB.from('tg_case_logs').select('*').eq('msg_date', _caseDate).order('created_at', {
+        ascending: false
+      });
+      if (_caseSite !== 'ALL') q = q.eq('site', _caseSite);
+      if (_caseType !== 'ALL') q = q.eq('case_type', _caseType);
+      return q;
+    }));
+    if (reqId !== window._caseReqId) return;
     _caseData = data || [];
     _renderSummary();
     _renderStaffGrid();
     _renderLogTable();
   } catch (e) {
-    if (grid) grid.innerHTML = `<div class="col-span-full text-center py-8 text-red-400"><span class="material-icons text-3xl">error_outline</span><p class="mt-2 text-sm">โหลดข้อมูลไม่สำเร็จ: ${e.message}</p></div>`;
-    if (logBody) logBody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-red-400">Error: ${e.message}</td></tr>`;
+    if (reqId !== window._caseReqId) return;
+    const em = window.escapeHtml(e.message || String(e));
+    if (grid) grid.innerHTML = `<div class="wr-empty" style="color:var(--k-red-tx)"><span class="material-icons">error_outline</span>โหลดข้อมูลไม่สำเร็จ: ${em}</div>`;
+    if (logBody) logBody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--k-red-tx)">Error: ${em}</td></tr>`;
   }
 }
 
@@ -195,9 +233,8 @@ function _updateCardActiveStyle() {
   [ [ 'cardAll', 'ALL' ], [ 'cardChk', 'เช็ค' ], [ 'cardUnb', 'ปลด' ], [ 'cardOther', 'other' ] ].forEach((([id, k]) => {
     const el = document.getElementById(id);
     if (!el) return;
-    el.style.outline = _activeTypeFilter === k ? '2px solid #fff' : 'none';
-    el.style.opacity = _activeTypeFilter === 'ALL' || _activeTypeFilter === k ? '1' : '0.5';
-    el.style.cursor = 'pointer';
+    el.classList.toggle('on', _activeTypeFilter === k);
+    el.classList.toggle('dim', !(_activeTypeFilter === 'ALL' || _activeTypeFilter === k));
   }));
 }
 
@@ -212,6 +249,7 @@ function _getShift(name, fullName, shiftMap) {
   const src = fullName || name || '';
   if (/08.00-20.00|08:00-20:00/i.test(src)) return 'กะเช้า';
   if (/20.00-08.00|20:00-08:00/i.test(src)) return 'กะดึก';
+  if (/กะกลาง|12.00-24.00|12:00-00:00/i.test(src)) return 'กะกลาง';
   return 'ไม่ระบุ';
 }
 
@@ -235,12 +273,9 @@ let _activeShiftFilter = 'ALL';
 
 window.filterByShift = function(shift) {
   _activeShiftFilter = _activeShiftFilter === shift ? 'ALL' : shift;
-  [ 'ALL', 'กะเช้า', 'กะดึก', 'ไม่ระบุ' ].forEach((s => {
+  [ 'ALL', 'กะเช้า', 'กะกลาง', 'กะดึก', 'ไม่ระบุ' ].forEach((s => {
     const el = document.getElementById('shiftBtn-' + s);
-    if (!el) return;
-    el.style.background = _activeShiftFilter === s ? '#7c3aed' : 'rgba(124,58,237,0.15)';
-    el.style.color = _activeShiftFilter === s ? '#fff' : 'light-dark(#6d28d9,#a78bfa)';
-    el.style.borderColor = _activeShiftFilter === s ? '#7c3aed' : 'rgba(124,58,237,0.3)';
+    if (el) el.classList.toggle('wr-on', _activeShiftFilter === s);
   }));
   _renderStaffGrid();
 };
@@ -279,28 +314,47 @@ function _renderStaffCards(counts, search) {
   if (!grid) return;
   const sorted = Object.entries(counts).filter((([name]) => !search || name.toLowerCase().includes(search.toLowerCase()))).filter((([, c]) => c.total > 0)).sort(((a, b) => b[1].total - a[1].total));
   if (sorted.length === 0) {
-    grid.innerHTML = `<div class="col-span-full text-center py-10 text-gray-400">\n            <span class="material-icons text-4xl">inbox</span>\n            <p class="mt-2 text-sm">${search ? 'ไม่พบชื่อที่ค้นหา' : 'ไม่พบข้อมูล'}</p></div>`;
+    grid.innerHTML = `<div class="wr-empty"><span class="material-icons">inbox</span>${search ? 'ไม่พบชื่อที่ค้นหา' : 'ยังไม่มีเคสในวันนี้'}</div>`;
     return;
   }
   const max = sorted[0][1].total || 1;
-  const medals = [ '🥇', '🥈', '🥉' ];
-  const esc = window.escapeHtml, escA = window.escapeAttr;
-  grid.innerHTML = sorted.map((([name, c], i) => {
-    const pct = Math.round(c.total / max * 100);
-    const mdl = medals[i] || `#${i + 1}`;
-    const ring = i === 0 ? 'outline:2px solid #facc15;' : '';
-    const shift = c.shift || _getShift(name, c.fullName, _shiftMap);
-    const shiftColor = shift === 'กะเช้า' ? '#fbbf24' : shift === 'กะดึก' ? '#818cf8' : '#64748b';
-    const shiftIcon = shift === 'กะเช้า' ? '🌅' : shift === 'กะดึก' ? '🌙' : '❓';
-    const typeTags = [ c.เช็ค ? `<span style="background:rgba(16,185,129,0.2);color:var(--k-green-tx);padding:2px 7px;border-radius:999px;font-size:11px;font-weight:700;">เช็ค/ลบ/ล้าง ${c.เช็ค}</span>` : '', c.ปลด ? `<span style="background:rgba(245,158,11,0.2);color:var(--k-amber-tx);padding:2px 7px;border-radius:999px;font-size:11px;font-weight:700;">ปลด ${c.ปลด}</span>` : '', c.reply ? `<span style="background:rgba(100,116,139,0.2);color:var(--k-tx3);padding:2px 7px;border-radius:999px;font-size:11px;font-weight:700;">อื่นๆ ${c.reply}</span>` : '' ].filter(Boolean).join('');
-    const siteTags = Object.entries(c.sites).sort(((a, b) => b[1] - a[1])).map((([s, n]) => `<span style="background:rgba(14,165,233,0.15);color:light-dark(#0676a8,#38bdf8);padding:2px 6px;border-radius:999px;font-size:10px;font-weight:700;">${esc(s)}×${n}</span>`)).join('');
-    const displayName = (() => {
-      const m = name.match(/^[^-]+-([^-]+)-/);
-      return m ? m[1] : name;
-    })();
-    return `\n        <div onclick="openStaffDetail(this.dataset.name)" data-name="${escA(name)}"\n             style="cursor:pointer;background:var(--k-card);border-radius:12px;padding:16px;border:1px solid var(--k-line2);transition:all .15s;${ring}"\n             onmouseover="this.style.background='#263548';this.style.borderColor='#7c3aed'"\n             onmouseout="this.style.background='#1e293b';this.style.borderColor='#334155'">\n            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">\n                <div style="display:flex;align-items:center;gap:8px;min-width:0;">\n                    <span style="font-size:20px;flex-shrink:0;">${mdl}</span>\n                    <span style="font-weight:700;color:var(--k-tx);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escA(name)}">${esc(displayName)}</span>\n                </div>\n                <span style="font-size:24px;font-weight:900;color:light-dark(#2f07a6,#a78bfa);flex-shrink:0;">${c.total}</span>\n            </div>\n            <div style="margin-bottom:8px;">\n                <span style="font-size:11px;font-weight:700;color:${shiftColor};background:${shiftColor}22;padding:2px 8px;border-radius:999px;">\n                    ${shiftIcon} กะ${shift}\n                </span>\n            </div>\n            <div style="width:100%;background:var(--k-btn-h);border-radius:999px;height:5px;margin-bottom:8px;">\n                <div style="background:#7c3aed;height:5px;border-radius:999px;width:${pct}%;"></div>\n            </div>\n            <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:${siteTags ? '5px' : '0'};">${typeTags}</div>\n            ${siteTags ? `<div style="display:flex;flex-wrap:wrap;gap:4px;">${siteTags}</div>` : ''}\n        </div>`;
-  })).join('');
+  const esc = window.escapeHtml, escA = window.escapeAttr || window.escapeHtml;
+  grid.innerHTML = sorted.map((([name, c], i) => window._caseCardHtml(name, c, i, max, esc, escA, true))).join('');
 }
+
+window._caseShiftView = function(shift) {
+  const s = String(shift || 'ไม่ระบุ');
+  const color = s === 'กะเช้า' ? '#f59e0b' : s === 'กะกลาง' ? '#0ea5e9' : s === 'กะดึก' ? '#818cf8' : '#64748b';
+  const icon = s === 'กะเช้า' ? '🌅' : s === 'กะกลาง' ? '☀️' : s === 'กะดึก' ? '🌙' : '❓';
+  return {
+    color: color,
+    label: `${icon} ${s}`
+  };
+};
+
+window._caseDisplayName = function(name) {
+  const m = String(name || '').match(/^[^-]+-([^-]+)-/);
+  return m ? m[1] : String(name || '');
+};
+
+window._caseCardHtml = function(name, c, i, max, esc, escA, clickable) {
+  const pct = Math.round(c.total / max * 100);
+  const medals = [ '🥇', '🥈', '🥉' ];
+  const sv = window._caseShiftView(c.shift || _getShift(name, c.fullName, _shiftMap));
+  const chk = c.เช็ค || 0, unb = c.ปลด || 0, oth = c.reply != null ? c.reply : c.other || 0;
+  const tags = [ chk ? `<span class="wr-tag" style="--tc:#10b981">เช็ค/ลบ/ล้าง ${chk}</span>` : '', unb ? `<span class="wr-tag" style="--tc:#f59e0b">ปลด ${unb}</span>` : '', oth ? `<span class="wr-tag" style="--tc:#64748b">อื่นๆ ${oth}</span>` : '' ].filter(Boolean).join('');
+  const sites = c.sites ? Object.entries(c.sites).sort(((a, b) => b[1] - a[1])).map((([s, n]) => `<span class="wr-tag" style="--tc:#0ea5e9">${esc(s)} ×${n}</span>`)).join('') : '';
+  const disp = c.display || window._caseDisplayName(name);
+  return `<div class="${clickable ? 'wr-sc' : 'wr-rk'}${i === 0 && clickable ? ' top' : ''}"${clickable ? ` role="button" tabindex="0" onclick="openStaffDetail(this.dataset.name)" onkeydown="if(event.key==='Enter')openStaffDetail(this.dataset.name)" data-name="${escA(name)}"` : ''}>
+    ${clickable ? `<div class="wr-sc-h"><span class="wr-md">${medals[i] || '#' + (i + 1)}</span><span class="wr-nm" title="${escA(name)}">${esc(disp)}</span><span class="wr-num">${c.total}</span></div>
+    <span class="wr-sh" style="--sc:${sv.color}">${esc(sv.label)}</span>
+    <div class="wr-barx"><i style="width:${pct}%"></i></div>
+    <div class="wr-tags">${tags}</div>${sites ? `<div class="wr-tags" style="margin-top:4px">${sites}</div>` : ''}` : `<span class="wr-md">${medals[i] || '#' + (i + 1)}</span>
+    <div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:8px;margin-bottom:5px"><span class="wr-nm" style="flex:none;max-width:60%">${esc(disp)}</span><span class="wr-sh" style="--sc:${sv.color};margin:0">${esc(sv.label)}</span></div>
+    <div class="wr-barx"><i style="width:${pct}%"></i></div><div class="wr-tags">${tags}</div></div>
+    <span class="wr-num">${c.total}</span>`}
+  </div>`;
+};
 
 window.searchStaff = function(val) {
   _renderStaffCards(window._staffCounts || {}, val);
@@ -311,11 +365,7 @@ let _myCaseOnly = false;
 window.toggleMyCase = function() {
   _myCaseOnly = !_myCaseOnly;
   const btn = document.getElementById('btnMyCase');
-  if (btn) {
-    btn.style.background = _myCaseOnly ? '#059669' : 'rgba(16,185,129,0.15)';
-    btn.style.color = _myCaseOnly ? '#fff' : '#34d399';
-    btn.style.borderColor = _myCaseOnly ? '#059669' : 'rgba(16,185,129,0.3)';
-  }
+  if (btn) btn.classList.toggle('wr-on', _myCaseOnly);
   if (_myCaseOnly) {
     const myName = (window.currentUser || {}).username || '';
     const counts = window._staffCounts || {};
@@ -359,8 +409,6 @@ window.openStaffDetail = function(name) {
   Swal.fire({
     title: `<span style="font-size:16px;">📋 ${esc(name)} — ${rows.length} เคส</span>`,
     html: `<div style="display:flex;flex-direction:column;gap:8px;max-height:420px;overflow-y:auto;text-align:left;">${html}</div>`,
-    background: '#1e293b',
-    color: '#e2e8f0',
     confirmButtonText: 'ปิด',
     confirmButtonColor: '#7c3aed',
     width: '600px'
@@ -375,16 +423,15 @@ function _renderLogTable() {
   const start = (_casePage - 1) * _casePageSize;
   const page = _caseData.slice(start, start + _casePageSize);
   if (page.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-gray-400">ไม่มีข้อมูล</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--k-mute2)">ไม่มีข้อมูล</td></tr>`;
     _renderPagination(0);
     return;
   }
   const esc = window.escapeHtml, escA = window.escapeAttr;
   const badge = t => {
-    if ((t || '').includes('ลบ')) return `<span class="bg-blue-900/50 text-blue-300 text-[10px] font-bold px-2 py-0.5 rounded-full">${esc(t)}</span>`;
-    if ((t || '').includes('เช็ค')) return `<span class="bg-emerald-900/50 text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full">${esc(t)}</span>`;
-    if ((t || '').includes('ปลด')) return `<span class="bg-amber-900/50 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-full">${esc(t)}</span>`;
-    return `<span class="bg-slate-700 text-gray-300 text-[10px] font-bold px-2 py-0.5 rounded-full">${esc(t || 'reply')}</span>`;
+    const v = t || 'reply';
+    const c = v.includes('ลบ') ? '#3b82f6' : v.includes('เช็ค') ? '#10b981' : v.includes('ปลด') ? '#f59e0b' : '#64748b';
+    return `<span class="wr-tag" style="--tc:${c}">${esc(v)}</span>`;
   };
   tbody.innerHTML = page.map(((d, i) => {
     const ts = new Date(d.created_at);
@@ -396,7 +443,7 @@ function _renderLogTable() {
     });
     const rawMsg2 = d.message_text || '';
     const msg = /^\d{4}-\d{2}-\d{2}/.test(rawMsg2.trim()) ? '—' : rawMsg2.slice(0, 60) + (rawMsg2.length > 60 ? '…' : '');
-    return `<tr class="hover:bg-slate-800/30 transition">\n            <td class="p-3 text-center text-gray-500 text-xs">${start + i + 1}</td>\n            <td class="p-3 text-xs text-gray-400 font-mono">${t}</td>\n            <td class="p-3 font-bold text-sm text-violet-300">${esc(d.sender_name)}</td>\n            <td class="p-3">${badge(d.case_type)}</td>\n            <td class="p-3 text-xs font-bold text-sky-400">${esc(d.site || '—')}</td>\n            <td class="p-3 text-xs text-gray-500 font-mono">${esc(d.quoted_from || '—')}</td>\n            <td class="p-3 text-xs text-gray-400 max-w-[200px] truncate" title="${escA(d.message_text || '')}">${esc(msg || '—')}</td>\n        </tr>`;
+    return `<tr><td style="text-align:center;color:var(--k-mute2);font-size:12px">${start + i + 1}</td><td style="font-family:ui-monospace,monospace;font-size:12px">${t}</td><td style="font-weight:800;color:var(--k-tx-strong)">${esc(window._caseDisplayName(d.sender_name))}</td><td>${badge(d.case_type)}</td><td style="font-weight:800;color:#0ea5e9;font-size:12px">${esc(d.site || '—')}</td><td style="font-size:12px;color:var(--k-mute)">${esc(d.quoted_from || '—')}</td><td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px" title="${escA(d.message_text || '')}">${esc(msg || '—')}</td></tr>`;
   })).join('');
   _renderPagination(total);
 }
@@ -409,10 +456,21 @@ function _renderPagination(total) {
     el.innerHTML = '';
     return;
   }
+  if (_casePage > pages) _casePage = pages;
   const from = (_casePage - 1) * _casePageSize + 1;
   const to = Math.min(_casePage * _casePageSize, total);
-  el.innerHTML = `\n        <span>${from}–${to} จาก ${total.toLocaleString()}</span>\n        <div class="flex gap-2">\n            ${_casePage > 1 ? `<button onclick="window._casePrev()" class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg font-bold">‹ ก่อนหน้า</button>` : ''}\n            ${_casePage < pages ? `<button onclick="window._caseNext()" class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg font-bold">ถัดไป ›</button>` : ''}\n        </div>`;
+  const nums = [];
+  for (let p = 1; p <= pages; p++) {
+    if (p === 1 || p === pages || Math.abs(p - _casePage) <= 2) nums.push(p); else if (nums[nums.length - 1] !== '…') nums.push('…');
+  }
+  const b = (lbl, p, on, dis) => `<button type="button" class="wr-pg${on ? ' on' : ''}" ${dis ? 'disabled' : `onclick="window._caseGo(${p})"`}>${lbl}</button>`;
+  el.innerHTML = `<span>แสดง ${from}–${to} จาก ${total.toLocaleString()}</span><div style="display:flex;gap:4px;flex-wrap:wrap">${b('‹', _casePage - 1, false, _casePage === 1)}${nums.map((p => p === '…' ? '<span style="padding:0 2px">…</span>' : b(p, p, p === _casePage, false))).join('')}${b('›', _casePage + 1, false, _casePage === pages)}</div>`;
 }
+
+window._caseGo = p => {
+  _casePage = p;
+  _renderLogTable();
+};
 
 window._casePrev = () => {
   _casePage--;

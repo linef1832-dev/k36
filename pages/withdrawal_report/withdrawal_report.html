@@ -1,61 +1,117 @@
-<div class="fade-in flex flex-col h-full bg-slate-100 dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden pb-10">
-    
-    <div class="bg-gradient-to-r from-violet-600 to-indigo-700 text-white p-4 shadow-md shrink-0 z-10">
-        <div class="flex items-center justify-between flex-wrap gap-3">
-            <div class="flex items-center gap-3">
-                <div class="bg-white/20 p-2 rounded-xl"><span class="material-icons text-3xl">analytics</span></div>
-                <div>
-                    <h1 class="font-black text-xl">สถิติเคสพนักงาน (Telegram)</h1>
-                    <div class="flex items-center gap-2 mt-0.5">
-                        <span id="botStatusDot" class="w-2 h-2 rounded-full bg-gray-400 inline-block"></span>
-                        <span id="botStatusText" class="text-xs text-violet-200">ยังไม่ได้เชื่อมต่อบอท</span>
-                    </div>
-                </div>
-            </div>
-            <div class="flex items-center gap-2 flex-wrap">
-                <button onclick="openBotSettings()" class="bg-white/15 hover:bg-white/25 text-white px-3 py-2 rounded-xl font-bold flex items-center gap-2 transition border border-white/20">
-                    <span class="material-icons text-sm">settings</span> ตั้งค่าบอท
-                </button>
-                <button onclick="initCaseReport()" class="bg-white/15 hover:bg-white/25 text-white px-3 py-2 rounded-xl font-bold flex items-center gap-2 transition border border-white/20">
-                    <span class="material-icons text-sm">refresh</span> รีเฟรช
-                </button>
-                <button onclick="exportCaseExcel()" style="background:#fff;color:#7c3aed;padding:8px 16px;border-radius:12px;font-weight:700;display:flex;align-items:center;gap:8px;border:none;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,0.2);">
-                    <span class="material-icons text-sm">download</span> Excel
-                </button>
-            </div>
+<div id="caseApp" class="fade-in wr-app">
+<style>
+.wr-app{--a:#7c3aed;color:var(--k-tx);background:var(--k-bg);min-height:100%;display:flex;flex-direction:column;border-radius:18px;border:1px solid var(--k-line);overflow:hidden}
+.wr-app .material-icons{font-size:18px}
+.wr-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 20px;background:var(--k-panel);border-bottom:1px solid var(--k-line)}
+.wr-logo{width:44px;height:44px;border-radius:13px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#8b5cf6,#4f46e5);color:#fff;flex:none;box-shadow:0 8px 22px rgba(124,58,237,.3)}
+.wr-logo .material-icons{font-size:24px}
+.wr-title{margin:0;font-size:19px;font-weight:900;color:var(--k-tx-strong);line-height:1.25}
+.wr-sub{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700;color:var(--k-mute);margin-top:2px}
+#botStatusDot{width:8px;height:8px;border-radius:50%;background:#94a3b8;display:inline-block}
+.wr-hr{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.wr-btn{display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 14px;border-radius:12px;font-size:13px;font-weight:800;white-space:nowrap;border:1px solid var(--k-line3);background:var(--k-btn);color:var(--k-tx2);transition:background .15s,color .15s,filter .15s}
+.wr-btn:hover{background:var(--k-btn-h);color:var(--k-tx-strong)}
+.wr-btn.xl{background:#10b981;border-color:#10b981;color:#fff}
+.wr-btn.xl:hover{filter:brightness(1.07);color:#fff}
+.wr-btn .material-icons{font-size:17px}
+.wr-tabs{display:flex;gap:3px;padding:3px;margin:14px 20px 0;border-radius:13px;background:var(--k-sunk);border:1px solid var(--k-line);align-self:flex-start;max-width:calc(100% - 40px);overflow-x:auto}
+.wr-tabs button{display:inline-flex!important;align-items:center;gap:6px;height:36px!important;padding:0 14px!important;border-radius:10px!important;border:0!important;font-size:13px!important;font-weight:800!important;background:transparent!important;color:var(--k-mute)!important;box-shadow:none!important;white-space:nowrap}
+.wr-tabs button:hover{color:var(--k-tx-strong)!important}
+.wr-tabs button.wr-on{background:var(--k-panel)!important;color:var(--k-tx-strong)!important;box-shadow:var(--k-shadow)!important}
+.wr-tabs button.wr-on .material-icons{color:var(--a)}
+.wr-tabs button.wr-lock{opacity:.4!important}
+.wr-body{flex:1;width:100%;max-width:1500px;margin:0 auto;padding:14px 20px 40px;box-sizing:border-box;display:flex;flex-direction:column;gap:14px}
+.wr-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;border-radius:14px;background:var(--k-panel);border:1px solid var(--k-line)}
+.wr-date{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 12px;border-radius:10px;background:rgba(124,58,237,.12);color:var(--k-tx-strong);font-size:13px;font-weight:800}
+.wr-date .material-icons{color:var(--a)}
+.wr-lbl{font-size:12px;font-weight:800;color:var(--k-mute);margin-left:4px}
+.wr-sel{height:36px;padding:0 10px;border-radius:10px;background:var(--k-field);border:1px solid var(--k-line3);color:var(--k-tx-strong);font-size:13px;font-weight:700;outline:none}
+.wr-sel:focus{border-color:var(--a)}
+.wr-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.wr-kpi{position:relative;padding:14px 16px;border-radius:16px;background:var(--k-panel);border:1px solid var(--k-line);box-shadow:var(--k-shadow);cursor:pointer;text-align:left;transition:border-color .15s,transform .12s,opacity .15s}
+.wr-kpi:hover{transform:translateY(-2px);border-color:var(--c)}
+.wr-kpi.on{border-color:var(--c);box-shadow:0 0 0 1px var(--c) inset,var(--k-shadow)}
+.wr-kpi.dim{opacity:.5}
+.wr-kpi p{margin:0;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;color:var(--k-mute)}
+.wr-kpi p i{width:9px;height:9px;border-radius:50%;background:var(--c)}
+.wr-kpi h3{margin:4px 0 0;font-size:28px;font-weight:900;color:var(--k-tx-strong);font-variant-numeric:tabular-nums}
+.wr-card{padding:14px 16px;border-radius:18px;background:var(--k-panel);border:1px solid var(--k-line);box-shadow:var(--k-shadow)}
+.wr-ch{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.wr-ch h3{margin:0;display:flex;align-items:center;gap:7px;font-size:14.5px;font-weight:900;color:var(--k-tx-strong)}
+.wr-ch h3 .material-icons{color:var(--a)}
+.wr-seg{display:flex;gap:3px;padding:3px;border-radius:11px;background:var(--k-sunk);border:1px solid var(--k-line)}
+.wr-seg button{height:30px!important;padding:0 11px!important;border-radius:8px!important;font-size:12px!important;font-weight:800!important;border:0!important;background:transparent!important;color:var(--k-mute)!important}
+.wr-seg button.wr-on{background:var(--k-panel)!important;color:var(--k-tx-strong)!important;box-shadow:var(--k-shadow)!important}
+.wr-tools{margin-left:auto;display:flex;align-items:center;gap:8px}
+#btnMyCase{display:inline-flex;align-items:center;gap:5px;height:34px;padding:0 12px;border-radius:10px;font-size:12.5px;font-weight:800;border:1px solid var(--k-line3)!important;background:var(--k-btn)!important;color:var(--k-tx2)!important}
+#btnMyCase.wr-on{background:#10b981!important;border-color:#10b981!important;color:#fff!important}
+.wr-search{display:flex;align-items:center;gap:6px;height:34px;padding:0 10px;border-radius:10px;background:var(--k-field);border:1px solid var(--k-line3);min-width:200px}
+.wr-search:focus-within{border-color:var(--a)}
+.wr-search input{flex:1;min-width:0;background:transparent;border:0;outline:none;color:var(--k-tx-strong);font-size:13px;font-weight:600}
+.wr-search .material-icons{color:var(--k-mute2)}
+#caseStaffGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.wr-sc{position:relative;padding:14px;border-radius:14px;background:var(--k-sunk);border:1px solid var(--k-line);cursor:pointer;transition:border-color .15s,transform .12s,background .15s}
+.wr-sc:hover{border-color:var(--a);transform:translateY(-2px);background:var(--k-panel2)}
+.wr-sc.top{border-color:rgba(250,204,21,.6);box-shadow:0 0 0 1px rgba(250,204,21,.35) inset}
+.wr-sc-h{display:flex;align-items:center;gap:8px;min-width:0}
+.wr-md{font-size:20px;flex:none;width:28px;text-align:center;font-weight:900;color:var(--k-mute)}
+.wr-nm{flex:1;min-width:0;font-weight:900;color:var(--k-tx-strong);font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wr-num{font-size:24px;font-weight:900;color:var(--a);flex:none;font-variant-numeric:tabular-nums}
+.wr-sh{display:inline-flex;margin:6px 0 8px 36px;font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:999px;color:var(--sc);background:color-mix(in srgb,var(--sc) 15%,transparent)}
+.wr-barx{height:5px;border-radius:999px;background:var(--k-line2);margin-bottom:8px;overflow:hidden}
+.wr-barx i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#8b5cf6,#4f46e5)}
+.wr-tags{display:flex;flex-wrap:wrap;gap:4px}
+.wr-tag{font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:999px;background:color-mix(in srgb,var(--tc) 16%,transparent);color:var(--tc)}
+.wr-empty{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;gap:6px;padding:46px 16px;color:var(--k-mute2);font-size:13px;font-weight:700;text-align:center}
+.wr-empty .material-icons{font-size:42px;opacity:.5}
+#summaryRanking{display:flex;flex-direction:column;gap:8px}
+.wr-rk{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:var(--k-sunk);border:1px solid var(--k-line)}
+.wr-rk .wr-md{font-size:22px;width:34px}
+.wr-rk .wr-num{font-size:26px;min-width:44px;text-align:right}
+.wr-table{width:100%;border-collapse:collapse;font-size:13px}
+.wr-table th{background:var(--k-sunk);color:var(--k-mute);font-size:11.5px;font-weight:900;padding:10px 12px;text-align:left;border-bottom:1px solid var(--k-line);position:sticky;top:0}
+.wr-table td{padding:9px 12px;border-bottom:1px solid var(--k-line);color:var(--k-tx2)}
+.wr-table tr:hover td{background:var(--k-btn-h)}
+#casePagination{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding-top:12px;font-size:12px;font-weight:700;color:var(--k-mute)}
+#casePagination:empty{display:none}
+.wr-pg{min-width:34px;height:34px;padding:0 10px;border-radius:10px;font-size:12.5px;font-weight:800;border:1px solid var(--k-line2);background:var(--k-panel);color:var(--k-tx2)}
+.wr-pg.on{background:var(--a);border-color:var(--a);color:#fff}
+.wr-pg:disabled{opacity:.4}
+.wr-form label{display:block;font-size:12.5px;font-weight:800;color:var(--k-tx3);margin-bottom:6px}
+.wr-in{width:100%;box-sizing:border-box;height:42px;padding:0 12px;border-radius:12px;background:var(--k-field);border:1px solid var(--k-line3);color:var(--k-tx-strong);font-size:13.5px;font-weight:700;outline:none;font-family:ui-monospace,monospace}
+.wr-in:focus{border-color:var(--a)}
+.wr-hint{margin:6px 0 0;font-size:11.5px;font-weight:700;color:var(--k-mute2)}
+.wr-kv{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--k-line);font-size:13px}
+.wr-kv span:first-child{color:var(--k-mute);font-weight:700}
+.wr-kv span:last-child{color:var(--k-tx-strong);font-weight:800}
+.wr-code{margin-top:10px;padding:10px 12px;border-radius:10px;background:var(--k-sunk);border:1px solid var(--k-line);font-family:ui-monospace,monospace;font-size:12px;color:var(--k-green-tx)}
+.wr-st{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;align-items:start}
+@media (max-width:760px){ .wr-kpis{grid-template-columns:repeat(2,minmax(0,1fr))} .wr-head,.wr-body{padding-left:12px;padding-right:12px} .wr-tabs{margin-left:12px;margin-right:12px} .wr-tools{margin-left:0;width:100%} .wr-search{flex:1;min-width:0} .wr-btn .wr-t{display:none} }
+</style>
+    <div class="wr-head">
+        <div class="wr-logo"><span class="material-icons">analytics</span></div>
+        <div>
+            <h1 class="wr-title">สถิติเคสพนักงาน (Telegram)</h1>
+            <div class="wr-sub"><span id="botStatusDot"></span><span id="botStatusText">ยังไม่ได้เชื่อมต่อบอท</span></div>
         </div>
-        
-        <div class="flex gap-1 mt-4">
-            <button onclick="switchCaseTab('stats')" id="tab-stats"
-                style="padding:8px 16px;border-radius:10px;font-size:13px;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .2s;background:#4f46e5;color:#fff;box-shadow:0 2px 8px rgba(79,70,229,0.4);">
-                <span class="material-icons" style="font-size:16px;">leaderboard</span> สถิติ
-            </button>
-            <button onclick="switchCaseTab('summary')" id="tab-summary"
-                style="padding:8px 16px;border-radius:10px;font-size:13px;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .2s;background:rgba(124,58,237,0.15);color:#a78bfa;">
-                <span class="material-icons" style="font-size:16px;">bar_chart</span> สรุปรวม
-            </button>
-            <button onclick="switchCaseTab('log')" id="tab-log"
-                style="padding:8px 16px;border-radius:10px;font-size:13px;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .2s;background:rgba(124,58,237,0.15);color:#a78bfa;">
-                <span class="material-icons" style="font-size:16px;">history</span> Log
-            </button>
-            <button onclick="switchCaseTab('settings')" id="tab-settings"
-                style="padding:8px 16px;border-radius:10px;font-size:13px;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .2s;background:rgba(124,58,237,0.15);color:#a78bfa;">
-                <span class="material-icons" style="font-size:16px;">smart_toy</span> บอท
-            </button>
+        <div class="wr-hr">
+            <button onclick="initCaseReport()" class="wr-btn"><span class="material-icons">refresh</span><span class="wr-t">รีเฟรช</span></button>
+            <button onclick="exportCaseExcel()" class="wr-btn xl"><span class="material-icons">download</span>Excel</button>
         </div>
     </div>
-    
-    <input type="date" id="caseDatePicker" style="display:none;">
-    <div class="bg-white dark:bg-slate-800 px-4 py-3 border-b dark:border-slate-700 flex flex-wrap gap-3 items-center shadow-sm">
-        <div class="flex items-center gap-2">
-            <span class="material-icons text-violet-500 text-sm">today</span>
-            <span id="caseTodayLabel" class="text-xs font-bold text-violet-400"></span>
-        </div>
-        <div class="flex items-center gap-2">
-            <span class="material-icons text-violet-500 text-sm">language</span>
-            <label class="text-xs font-bold text-gray-500 dark:text-gray-400">เว็บ:</label>
-            <select id="caseSiteFilter" onchange="applyFilters()" class="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-white text-xs font-bold rounded-lg px-2 py-1.5 focus:border-violet-500 outline-none transition cursor-pointer">
-                <option value="ALL">ทั้งหมด</option>
+    <div class="wr-tabs" role="tablist">
+        <button onclick="switchCaseTab('stats')" id="tab-stats" class="wr-on"><span class="material-icons">leaderboard</span>สถิติวันนี้</button>
+        <button onclick="switchCaseTab('summary')" id="tab-summary"><span class="material-icons">bar_chart</span>สรุปรวม</button>
+        <button onclick="switchCaseTab('log')" id="tab-log"><span class="material-icons">history</span>Log ข้อความ</button>
+        <button onclick="switchCaseTab('settings')" id="tab-settings"><span class="material-icons">smart_toy</span>ตั้งค่าบอท</button>
+    </div>
+    <input type="date" id="caseDatePicker" style="display:none" aria-hidden="true">
+    <div class="wr-body">
+        <div class="wr-bar" id="caseFilterBar">
+            <span class="wr-date"><span class="material-icons">today</span><span id="caseTodayLabel"></span></span>
+            <span class="wr-lbl">เว็บ</span>
+            <select id="caseSiteFilter" onchange="applyFilters()" class="wr-sel" aria-label="เว็บ">
+                <option value="ALL">ทุกเว็บ</option>
                 <option value="JUN88">JUN88</option><option value="MK8">MK8</option>
                 <option value="BT678">BT678</option><option value="K188">K188</option>
                 <option value="VV72">VV72</option><option value="TH26">TH26</option>
@@ -63,296 +119,139 @@
                 <option value="JL69">JL69</option><option value="NM9">NM9</option>
                 <option value="OTHER">อื่นๆ</option>
             </select>
-        </div>
-        <div class="flex items-center gap-2">
-            <span class="material-icons text-violet-500 text-sm">category</span>
-            <label class="text-xs font-bold text-gray-500 dark:text-gray-400">ประเภท:</label>
-            <select id="caseTypeFilter" onchange="applyFilters()" class="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-white text-xs font-bold rounded-lg px-2 py-1.5 focus:border-violet-500 outline-none transition cursor-pointer">
-                <option value="ALL">ทั้งหมด</option>
+            <span class="wr-lbl">ประเภท</span>
+            <select id="caseTypeFilter" onchange="applyFilters()" class="wr-sel" aria-label="ประเภท">
+                <option value="ALL">ทุกประเภท</option>
                 <option value="ลบเทิร์น">ลบเทิร์น</option>
                 <option value="เช็คเทิร์น">เช็คเทิร์น</option>
                 <option value="ปลดบล็อค">ปลดบล็อค</option>
                 <option value="reply">reply ทั่วไป</option>
             </select>
         </div>
-    </div>
-    
-    <div class="flex-1 overflow-y-auto custom-scrollbar">
-        
-        <div id="caseTab-stats" class="p-4 sm:p-5 space-y-5">
-            
-            <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
-                <div id="cardAll" onclick="filterByType('ALL')" class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-4 shadow-lg border border-slate-700" style="transition:all .2s;cursor:pointer;" onmouseover="this.style.borderColor='#7c3aed'" onmouseout="this.style.borderColor=''">
-                    <p class="text-gray-400 text-xs font-bold mb-1">เคสรวมทั้งหมด</p>
-                    <h3 class="text-3xl font-black text-white" id="caseTotal">—</h3>
-                </div>
-                <div id="cardDel" onclick="filterByType('ลบ')" class="bg-gradient-to-br from-blue-900 to-blue-950 rounded-2xl p-4 shadow-lg border border-blue-800" style="transition:all .2s;cursor:pointer;" onmouseover="this.style.borderColor='#fff'" onmouseout="this.style.borderColor=''">
-                    <p class="text-blue-300 text-xs font-bold mb-1">ลบเทิร์น</p>
-                    <h3 class="text-3xl font-black text-blue-100" id="caseDeleteTurn">—</h3>
-                </div>
-                <div id="cardChk" onclick="filterByType('เช็ค')" class="bg-gradient-to-br from-emerald-900 to-emerald-950 rounded-2xl p-4 shadow-lg border border-emerald-800" style="transition:all .2s;cursor:pointer;" onmouseover="this.style.borderColor='#fff'" onmouseout="this.style.borderColor=''">
-                    <p class="text-emerald-300 text-xs font-bold mb-1">เช็คเทิร์น</p>
-                    <h3 class="text-3xl font-black text-emerald-100" id="caseCheckTurn">—</h3>
-                </div>
-                <div id="cardUnb" onclick="filterByType('ปลด')" class="bg-gradient-to-br from-amber-900 to-amber-950 rounded-2xl p-4 shadow-lg border border-amber-800" style="transition:all .2s;cursor:pointer;" onmouseover="this.style.borderColor='#fff'" onmouseout="this.style.borderColor=''">
-                    <p class="text-amber-300 text-xs font-bold mb-1">ปลดบล็อค</p>
-                    <h3 class="text-3xl font-black text-amber-100" id="caseUnblock">—</h3>
-                </div>
-                <div id="cardOther" onclick="filterByType('other')" class="bg-gradient-to-br from-slate-700 to-slate-800 rounded-2xl p-4 shadow-lg border border-slate-600" style="transition:all .2s;cursor:pointer;" onmouseover="this.style.borderColor='#fff'" onmouseout="this.style.borderColor=''">
-                    <p class="text-slate-300 text-xs font-bold mb-1">อื่นๆ (reply)</p>
-                    <h3 class="text-3xl font-black text-slate-100" id="caseOther">—</h3>
-                </div>
+
+        <div id="caseTab-stats" style="display:flex;flex-direction:column;gap:14px">
+            <div class="wr-kpis">
+                <button type="button" class="wr-kpi" id="cardAll" onclick="filterByType('ALL')" style="--c:#7c3aed"><p><i></i>เคสรวมทั้งหมด</p><h3 id="caseTotal">—</h3></button>
+                <button type="button" class="wr-kpi" id="cardChk" onclick="filterByType('เช็ค')" style="--c:#10b981"><p><i></i>เช็ค / ลบ / ล้างเทิร์น</p><h3 id="caseCheckTurn">—</h3></button>
+                <button type="button" class="wr-kpi" id="cardUnb" onclick="filterByType('ปลด')" style="--c:#f59e0b"><p><i></i>ปลดบล็อค</p><h3 id="caseUnblock">—</h3></button>
+                <button type="button" class="wr-kpi" id="cardOther" onclick="filterByType('other')" style="--c:#64748b"><p><i></i>อื่นๆ (reply)</p><h3 id="caseOther">—</h3></button>
+                <span id="caseDeleteTurn" style="display:none"></span>
             </div>
-            
-            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-5">
-                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--k-line);">
-                    <h3 style="font-size:14px;font-weight:700;color:var(--k-tx2);display:flex;align-items:center;gap:8px;">
-                        <span class="material-icons" style="color:#7c3aed;">leaderboard</span> จำนวนเคสแต่ละคน (เรียงมากสุด)
-                    </h3>
-                    
-                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                        <button id="shiftBtn-ALL" onclick="filterByShift('ALL')"
-                            style="background:#7c3aed;color:#fff;border:1px solid #7c3aed;border-radius:8px;padding:4px 12px;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;">
-                            ทั้งหมด
-                        </button>
-                        <button id="shiftBtn-กะเช้า" onclick="filterByShift('กะเช้า')"
-                            style="background:rgba(124,58,237,0.15);color:#a78bfa;border:1px solid rgba(124,58,237,0.3);border-radius:8px;padding:4px 12px;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;">
-                            🌅 กะเช้า
-                        </button>
-                        <button id="shiftBtn-กะดึก" onclick="filterByShift('กะดึก')"
-                            style="background:rgba(124,58,237,0.15);color:#a78bfa;border:1px solid rgba(124,58,237,0.3);border-radius:8px;padding:4px 12px;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;">
-                            🌙 กะดึก
-                        </button>
-                        <button id="shiftBtn-ไม่ระบุ" onclick="filterByShift('ไม่ระบุ')"
-                            style="background:rgba(124,58,237,0.15);color:#a78bfa;border:1px solid rgba(124,58,237,0.3);border-radius:8px;padding:4px 12px;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;">
-                            ❓ ไม่ระบุ
-                        </button>
+            <div class="wr-card">
+                <div class="wr-ch">
+                    <h3><span class="material-icons">leaderboard</span>จำนวนเคสแต่ละคน</h3>
+                    <div class="wr-seg" id="caseShiftSeg">
+                        <button id="shiftBtn-ALL" onclick="filterByShift('ALL')" class="wr-on">ทุกกะ</button>
+                        <button id="shiftBtn-กะเช้า" onclick="filterByShift('กะเช้า')">🌅 เช้า</button>
+                        <button id="shiftBtn-กะกลาง" onclick="filterByShift('กะกลาง')">☀️ กลาง</button>
+                        <button id="shiftBtn-กะดึก" onclick="filterByShift('กะดึก')">🌙 ดึก</button>
+                        <button id="shiftBtn-ไม่ระบุ" onclick="filterByShift('ไม่ระบุ')">❓ ไม่ระบุ</button>
                     </div>
-                    <div style="display:flex;align-items:center;gap:8px;">
-                        
-                        <button id="btnMyCase" onclick="toggleMyCase()"
-                            style="background:rgba(16,185,129,0.15);color:var(--k-green-tx);border:1px solid rgba(16,185,129,0.3);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap;display:flex;align-items:center;gap:5px;">
-                            <span class="material-icons" style="font-size:15px;">person</span> ของฉัน
-                        </button>
-                        
-                        <div style="position:relative;">
-                            <span class="material-icons" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--k-mute);font-size:17px;">search</span>
-                            <input type="text" id="staffSearchInput" placeholder="ค้นหาชื่อพนักงาน..." oninput="searchStaff(this.value)"
-                                style="background:var(--k-panel2);border:1px solid var(--k-line2);border-radius:10px;padding:7px 14px 7px 34px;color:var(--k-tx-strong);font-size:13px;outline:none;font-family:inherit;width:200px;"
-                                onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#334155'">
-                        </div>
+                    <div class="wr-tools">
+                        <button id="btnMyCase" onclick="toggleMyCase()"><span class="material-icons" style="font-size:16px">person</span>ของฉัน</button>
+                        <label class="wr-search"><span class="material-icons">search</span><input type="text" id="staffSearchInput" placeholder="ค้นหาชื่อพนักงาน" oninput="searchStaff(this.value)" aria-label="ค้นหาพนักงาน"></label>
                     </div>
                 </div>
-                <div id="caseStaffGrid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                    <div class="col-span-full text-center py-8 text-gray-400">
-                        <span class="material-icons animate-spin text-violet-400 text-3xl">sync</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div id="caseTab-summary" class="hidden p-4 sm:p-5 space-y-5">
-            
-            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-4 flex flex-wrap gap-3 items-center">
-                <span class="material-icons text-violet-500">date_range</span>
-                <span class="text-sm font-bold text-gray-400">ดูสถิติ:</span>
-                <select id="summaryPeriod" onchange="loadSummary()" class="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-white text-sm font-bold rounded-lg px-3 py-2 outline-none focus:border-violet-500 cursor-pointer">
-                    <option value="today">📅 วันนี้</option>
-                    <option value="yesterday">📅 เมื่อวาน</option>
-                    <option value="week">📅 สัปดาห์นี้</option>
-                    <option value="last_week">📅 สัปดาห์ที่แล้ว</option>
-                    <option value="month">📆 เดือนนี้</option>
-                    <option value="last_month">📆 เดือนที่แล้ว</option>
-                    <option value="custom">🗓️ กำหนดเอง</option>
-                </select>
-                <div id="summaryCustomRange" class="hidden flex items-center gap-2">
-                    <input type="date" id="summaryFrom" class="bg-slate-100 dark:bg-slate-900 border border-slate-600 text-white text-xs font-bold rounded-lg px-2 py-1.5 outline-none focus:border-violet-500">
-                    <span class="text-gray-400 text-xs">ถึง</span>
-                    <input type="date" id="summaryTo" class="bg-slate-100 dark:bg-slate-900 border border-slate-600 text-white text-xs font-bold rounded-lg px-2 py-1.5 outline-none focus:border-violet-500">
-                    <button onclick="loadSummary()" class="bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition">ค้นหา</button>
-                </div>
-                
-                <div class="flex items-center gap-2 ml-2">
-                    <span class="material-icons text-violet-500 text-sm">schedule</span>
-                    <span class="text-sm font-bold text-gray-400">กะ:</span>
-                    <select id="summaryShift" onchange="loadSummary()"
-                        class="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-white text-sm font-bold rounded-lg px-3 py-2 outline-none focus:border-violet-500 cursor-pointer">
-                        <option value="ALL">ทั้งหมด</option>
-                        <option value="กะเช้า">🌅 กะเช้า</option>
-                        <option value="กะดึก">🌙 กะดึก</option>
-                        <option value="ไม่ระบุ">❓ ไม่ระบุ</option>
-                    </select>
-                </div>
-                <span id="summaryDateRange" class="text-xs text-gray-500 ml-2"></span>
-                
-                <div class="ml-auto flex items-center gap-2">
-                    <span class="relative flex h-2 w-2">
-                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                        <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                    </span>
-                    <span class="text-xs text-green-400 font-bold">Realtime</span>
-                </div>
-            </div>
-            
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="summaryCards">
-                <div class="bg-slate-800 rounded-2xl p-4 border border-slate-700">
-                    <p class="text-gray-400 text-xs font-bold mb-1">เคสรวม</p>
-                    <h3 class="text-3xl font-black text-white" id="sumTotal">—</h3>
-                </div>
-                <div class="bg-blue-900/50 rounded-2xl p-4 border border-blue-800">
-                    <p class="text-blue-300 text-xs font-bold mb-1">ลบเทิร์น</p>
-                    <h3 class="text-3xl font-black text-blue-100" id="sumDel">—</h3>
-                </div>
-                <div class="bg-amber-900/50 rounded-2xl p-4 border border-amber-800">
-                    <p class="text-amber-300 text-xs font-bold mb-1">ปลดบล็อค</p>
-                    <h3 class="text-3xl font-black text-amber-100" id="sumUnb">—</h3>
-                </div>
-                <div class="bg-slate-700/50 rounded-2xl p-4 border border-slate-600">
-                    <p class="text-slate-300 text-xs font-bold mb-1">อื่นๆ</p>
-                    <h3 class="text-3xl font-black text-slate-100" id="sumOther">—</h3>
-                </div>
-            </div>
-            
-            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-5">
-                <h3 class="text-sm font-bold text-gray-300 flex items-center gap-2 mb-4 pb-3 border-b border-slate-700">
-                    <span class="material-icons text-violet-500">emoji_events</span> Ranking พนักงาน (เรียงเคสมากสุด)
-                </h3>
-                <div id="summaryRanking" class="space-y-2">
-                    <div class="text-center py-8 text-gray-400">
-                        <span class="material-icons animate-spin text-violet-400 text-3xl">sync</span>
-                    </div>
-                </div>
+                <div id="caseStaffGrid"><div class="wr-empty"><span class="material-icons animate-spin">sync</span></div></div>
             </div>
         </div>
 
-        <div id="caseTab-log" class="hidden p-4 sm:p-5">
-            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                <div class="px-5 py-3 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                        <span class="material-icons text-gray-400 text-[18px]">history</span>
-                        <span class="font-bold text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Log ข้อความทั้งหมด</span>
-                    </div>
-                    <span id="caseLogCount" class="text-xs text-gray-400"></span>
+        <div id="caseTab-summary" class="hidden" style="display:none;flex-direction:column;gap:14px">
+            <div class="wr-bar">
+                <span class="wr-lbl" style="margin-left:0">ช่วงเวลา</span>
+                <select id="summaryPeriod" onchange="loadSummary()" class="wr-sel">
+                    <option value="today">วันนี้</option>
+                    <option value="yesterday">เมื่อวาน</option>
+                    <option value="week">สัปดาห์นี้</option>
+                    <option value="last_week">สัปดาห์ที่แล้ว</option>
+                    <option value="month" selected>เดือนนี้</option>
+                    <option value="last_month">เดือนที่แล้ว</option>
+                    <option value="custom">กำหนดเอง</option>
+                </select>
+                <div id="summaryCustomRange" class="hidden" style="display:none;align-items:center;gap:6px">
+                    <input type="date" id="summaryFrom" class="wr-sel">
+                    <span class="wr-lbl" style="margin:0">ถึง</span>
+                    <input type="date" id="summaryTo" class="wr-sel">
+                    <button onclick="loadSummary()" class="wr-btn" style="height:36px">ค้นหา</button>
                 </div>
-                <div class="overflow-x-auto custom-scrollbar">
-                    <table class="w-full text-left text-sm whitespace-nowrap">
-                        <thead class="bg-slate-900 text-gray-400 text-[10px] uppercase sticky top-0 shadow-sm border-b border-slate-700">
-                            <tr>
-                                <th class="p-3 font-bold text-center w-12">#</th>
-                                <th class="p-3 font-bold">เวลา</th>
-                                <th class="p-3 font-bold">พนักงาน</th>
-                                <th class="p-3 font-bold">ประเภท</th>
-                                <th class="p-3 font-bold">เว็บ</th>
-                                <th class="p-3 font-bold">ตอบใคร</th>
-                                <th class="p-3 font-bold">ข้อความ</th>
-                            </tr>
-                        </thead>
-                        <tbody id="caseLogBody" class="text-slate-700 dark:text-gray-200 divide-y divide-slate-700/50">
-                            <tr><td colspan="7" class="text-center py-10 text-gray-400">กำลังโหลด...</td></tr>
-                        </tbody>
+                <span class="wr-lbl">กะ</span>
+                <select id="summaryShift" onchange="loadSummary()" class="wr-sel">
+                    <option value="ALL">ทุกกะ</option>
+                    <option value="กะเช้า">🌅 กะเช้า</option>
+                    <option value="กะกลาง">☀️ กะกลาง</option>
+                    <option value="กะดึก">🌙 กะดึก</option>
+                    <option value="ไม่ระบุ">❓ ไม่ระบุ</option>
+                </select>
+                <span id="summaryDateRange" style="margin-left:auto;font-size:12px;font-weight:800;color:var(--k-mute)"></span>
+            </div>
+            <div class="wr-kpis" id="summaryCards">
+                <div class="wr-kpi" style="--c:#7c3aed;cursor:default"><p><i></i>เคสรวม</p><h3 id="sumTotal">—</h3></div>
+                <div class="wr-kpi" style="--c:#10b981;cursor:default"><p><i></i>เช็ค / ลบ / ล้างเทิร์น</p><h3 id="sumDel">—</h3></div>
+                <div class="wr-kpi" style="--c:#f59e0b;cursor:default"><p><i></i>ปลดบล็อค</p><h3 id="sumUnb">—</h3></div>
+                <div class="wr-kpi" style="--c:#64748b;cursor:default"><p><i></i>อื่นๆ</p><h3 id="sumOther">—</h3></div>
+            </div>
+            <div class="wr-card">
+                <div class="wr-ch"><h3><span class="material-icons">emoji_events</span>Ranking พนักงาน</h3></div>
+                <div id="summaryRanking"><div class="wr-empty"><span class="material-icons animate-spin">sync</span></div></div>
+            </div>
+        </div>
+
+        <div id="caseTab-log" class="hidden">
+            <div class="wr-card">
+                <div class="wr-ch"><h3><span class="material-icons">history</span>Log ข้อความทั้งหมด</h3><span id="caseLogCount" style="margin-left:auto;font-size:12px;font-weight:800;color:var(--k-mute)"></span></div>
+                <div style="overflow-x:auto;border:1px solid var(--k-line);border-radius:12px">
+                    <table class="wr-table">
+                        <thead><tr><th style="text-align:center">#</th><th>เวลา</th><th>พนักงาน</th><th>ประเภท</th><th>เว็บ</th><th>ตอบใคร</th><th>ข้อความ</th></tr></thead>
+                        <tbody id="caseLogBody"><tr><td colspan="7" style="text-align:center;padding:30px">กำลังโหลด...</td></tr></tbody>
                     </table>
                 </div>
-                <div id="casePagination" class="px-4 py-3 border-t border-slate-700 flex items-center justify-between text-xs text-gray-400"></div>
-            </div>
-        </div>
-        
-        <div id="caseTab-settings" class="hidden p-4 sm:p-5 space-y-5 max-w-2xl mx-auto">
-            
-            <div id="botConnectCard" class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-6">
-                <h3 class="font-black text-slate-700 dark:text-white text-base flex items-center gap-2 mb-5">
-                    <span class="material-icons text-violet-500">smart_toy</span> เชื่อมต่อบอท Telegram
-                </h3>
-                
-                <div class="mb-4">
-                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Bot Token (จาก BotFather)</label>
-                    <div class="flex gap-2">
-                        <input type="password" id="botTokenInput" placeholder="1234567890:ABCdef..."
-                            class="flex-1 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-white text-sm rounded-xl px-4 py-2.5 outline-none focus:border-violet-500 transition font-mono">
-                        <button onclick="toggleTokenVisibility()" class="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 px-3 rounded-xl transition text-gray-500 dark:text-gray-300">
-                            <span class="material-icons text-sm" id="tokenEyeIcon">visibility</span>
-                        </button>
-                    </div>
-                    <p class="text-xs text-gray-400 mt-1.5">หาได้จาก <span class="text-blue-400 font-bold">@BotFather</span> → /newbot → copy token</p>
-                </div>
-                
-                <div class="mb-5">
-                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Chat ID ของกลุ่ม</label>
-                    <div class="flex gap-2">
-                        <input type="text" id="botChatIdInput" placeholder="-1001234567890"
-                            class="flex-1 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-white text-sm rounded-xl px-4 py-2.5 outline-none focus:border-violet-500 transition font-mono">
-                        <button onclick="helpGetChatId()" class="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 px-3 rounded-xl transition text-gray-500 dark:text-gray-300 text-xs font-bold whitespace-nowrap">
-                            วิธีหา?
-                        </button>
-                    </div>
-                    <p class="text-xs text-gray-400 mt-1.5">Chat ID ของกลุ่มที่บอทอยู่ (เริ่มด้วย -100...)</p>
-                </div>
-
-                <div class="flex gap-3">
-                    <button onclick="testBotConnection()" id="btnTestBot" class="flex-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 border border-slate-300 dark:border-slate-600">
-                        <span class="material-icons text-sm">wifi_tethering</span> ทดสอบ
-                    </button>
-                    <button onclick="saveBotSettings()" id="btnSaveBot" class="flex-2 bg-violet-600 hover:bg-violet-500 text-white font-bold py-3 px-6 rounded-xl transition flex items-center justify-center gap-2 active:scale-95">
-                        <span class="material-icons text-sm">save</span> บันทึกและเชื่อมต่อ
-                    </button>
-                </div>
-                
-                <div id="botTestResult" class="hidden mt-4 p-4 rounded-xl text-sm font-bold"></div>
-            </div>
-            
-            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-5">
-                <h3 class="font-bold text-slate-700 dark:text-white text-sm flex items-center gap-2 mb-4">
-                    <span class="material-icons text-emerald-500">info</span> สถานะบอทปัจจุบัน
-                </h3>
-                <div id="botCurrentStatus" class="space-y-2 text-sm">
-                    <div class="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-700">
-                        <span class="text-gray-500 dark:text-gray-400">สถานะ</span>
-                        <span id="sBot_status" class="font-bold text-gray-400">ยังไม่เชื่อมต่อ</span>
-                    </div>
-                    <div class="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-700">
-                        <span class="text-gray-500 dark:text-gray-400">ชื่อบอท</span>
-                        <span id="sBot_name" class="font-bold text-gray-400">—</span>
-                    </div>
-                    <div class="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-700">
-                        <span class="text-gray-500 dark:text-gray-400">Username</span>
-                        <span id="sBot_username" class="font-bold text-gray-400">—</span>
-                    </div>
-                    <div class="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-700">
-                        <span class="text-gray-500 dark:text-gray-400">Chat ID</span>
-                        <span id="sBot_chatid" class="font-bold text-gray-400">—</span>
-                    </div>
-                    <div class="flex items-center justify-between py-2">
-                        <span class="text-gray-500 dark:text-gray-400">บันทึกล่าสุด</span>
-                        <span id="sBot_saved" class="font-bold text-gray-400">—</span>
-                    </div>
-                </div>
-                <button onclick="disconnectBot()" id="btnDisconnect" class="hidden w-full mt-4 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 font-bold py-2 rounded-xl transition text-sm flex items-center justify-center gap-2">
-                    <span class="material-icons text-sm">link_off</span> ยกเลิกการเชื่อมต่อ
-                </button>
-            </div>
-            
-            <div class="bg-indigo-500/10 border border-indigo-500/30 rounded-2xl p-5 text-sm space-y-3">
-                <h3 class="font-bold text-indigo-300 flex items-center gap-2">
-                    <span class="material-icons text-sm">help_outline</span> วิธีตั้งค่าบอท
-                </h3>
-                <ol class="space-y-2 text-indigo-200 list-decimal list-inside text-xs">
-                    <li>เปิด Telegram → ค้นหา <strong>@BotFather</strong></li>
-                    <li>พิมพ์ <strong>/newbot</strong> → ตั้งชื่อบอท → รับ Token</li>
-                    <li>เพิ่มบอทเข้ากลุ่มที่ต้องการ และให้สิทธิ์ <strong>Admin</strong></li>
-                    <li>นำ Token มาใส่ในช่องด้านบน แล้วกดทดสอบ</li>
-                    <li>รัน <strong>tg_bot.py</strong> บน Server/VPS ของคุณ</li>
-                </ol>
-                <div class="bg-black/20 rounded-xl p-3 font-mono text-xs text-emerald-300 mt-2">
-                    pip install "python-telegram-bot==20.7" httpx<br>
-                    python3 tg_bot.py
-                </div>
+                <div id="casePagination"></div>
             </div>
         </div>
 
+        <div id="caseTab-settings" class="hidden">
+            <div class="wr-st">
+                <div class="wr-card wr-form" id="botConnectCard">
+                    <div class="wr-ch"><h3><span class="material-icons">smart_toy</span>เชื่อมต่อบอท Telegram</h3></div>
+                    <div style="margin-bottom:12px">
+                        <label for="botTokenInput">Bot Token (จาก BotFather)</label>
+                        <div style="display:flex;gap:6px"><input type="password" id="botTokenInput" placeholder="1234567890:ABCdef..." class="wr-in" autocomplete="off"><button onclick="toggleTokenVisibility()" class="wr-btn" style="height:42px;width:44px;justify-content:center;padding:0" aria-label="แสดง/ซ่อน Token"><span id="tokenEyeIcon" class="material-icons">visibility</span></button></div>
+                        <p class="wr-hint">หาได้จาก @BotFather → /newbot → คัดลอก token</p>
+                    </div>
+                    <div style="margin-bottom:14px">
+                        <label for="botChatIdInput">Chat ID ของกลุ่ม</label>
+                        <div style="display:flex;gap:6px"><input type="text" id="botChatIdInput" placeholder="-1001234567890" class="wr-in"><button onclick="helpGetChatId()" class="wr-btn" style="height:42px">วิธีหา?</button></div>
+                        <p class="wr-hint">Chat ID ของกลุ่มที่บอทอยู่ (ขึ้นต้นด้วย -100…)</p>
+                    </div>
+                    <div style="display:flex;gap:8px">
+                        <button onclick="testBotConnection()" id="btnTestBot" class="wr-btn" style="flex:1;justify-content:center"><span class="material-icons">wifi_tethering</span>ทดสอบ</button>
+                        <button onclick="saveBotSettings()" id="btnSaveBot" class="wr-btn" style="flex:1;justify-content:center;background:var(--a);border-color:var(--a);color:#fff"><span class="material-icons">save</span>บันทึกและเชื่อมต่อ</button>
+                    </div>
+                    <div id="botTestResult" class="hidden" style="margin-top:10px"></div>
+                </div>
+                <div class="wr-card">
+                    <div class="wr-ch"><h3><span class="material-icons">info</span>สถานะบอทปัจจุบัน</h3></div>
+                    <div id="botCurrentStatus">
+                        <div class="wr-kv"><span>สถานะ</span><span id="sBot_status">ยังไม่เชื่อมต่อ</span></div>
+                        <div class="wr-kv"><span>ชื่อบอท</span><span id="sBot_name">—</span></div>
+                        <div class="wr-kv"><span>Username</span><span id="sBot_username">—</span></div>
+                        <div class="wr-kv"><span>Chat ID</span><span id="sBot_chatid">—</span></div>
+                        <div class="wr-kv"><span>บันทึกล่าสุด</span><span id="sBot_saved">—</span></div>
+                    </div>
+                    <button onclick="disconnectBot()" id="btnDisconnect" class="wr-btn" style="margin-top:12px;width:100%;justify-content:center;color:var(--k-red-tx)"><span class="material-icons">link_off</span>ยกเลิกการเชื่อมต่อ</button>
+                </div>
+                <div class="wr-card">
+                    <div class="wr-ch"><h3><span class="material-icons">help_outline</span>วิธีตั้งค่าบอท</h3></div>
+                    <ol style="margin:0;padding-left:18px;font-size:13px;line-height:1.9;color:var(--k-tx2)">
+                        <li>เปิด Telegram → ค้นหา <b>@BotFather</b></li>
+                        <li>พิมพ์ <b>/newbot</b> → ตั้งชื่อบอท → รับ Token</li>
+                        <li>เพิ่มบอทเข้ากลุ่ม และให้สิทธิ์ <b>Admin</b></li>
+                        <li>นำ Token มาใส่ด้านซ้าย แล้วกดทดสอบ</li>
+                        <li>รัน <b>tg_bot.py</b> บน Server / VPS</li>
+                    </ol>
+                    <div class="wr-code">pip install "python-telegram-bot==20.7" httpx<br>python3 tg_bot.py</div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
-
-<style>
-.tab-btn-active  { background:color-mix(in srgb,var(--k-tx-strong) 20.0%,transparent); color:var(--k-tx-strong); }
-.tab-btn-inactive { background:color-mix(in srgb,var(--k-tx-strong) 7.0%,transparent); color:color-mix(in srgb,var(--k-tx-strong) 60.0%,transparent); }
-.tab-btn-inactive:hover { background:color-mix(in srgb,var(--k-tx-strong) 13.0%,transparent); color:var(--k-tx-strong); }
-</style>

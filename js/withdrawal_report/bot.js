@@ -73,14 +73,14 @@ function _setBotStatusUI(connected, botInfo, chatId) {
   const dot = document.getElementById('botStatusDot');
   const txt = document.getElementById('botStatusText');
   const disc = document.getElementById('btnDisconnect');
-  if (dot) dot.className = `w-2 h-2 rounded-full inline-block ${connected ? 'bg-emerald-400' : 'bg-gray-400'}`;
+  if (dot) dot.style.background = connected ? '#10b981' : '#94a3b8';
   if (txt) txt.textContent = connected ? `เชื่อมต่อแล้ว: @${botInfo?.username || '...'}` : 'ยังไม่ได้เชื่อมต่อบอท';
   const sName = document.getElementById('sBot_name');
   const sUser = document.getElementById('sBot_username');
   const sStatus = document.getElementById('sBot_status');
   const sChatId = document.getElementById('sBot_chatid');
   if (sStatus) sStatus.textContent = connected ? '✅ เชื่อมต่อแล้ว' : '❌ ไม่ได้เชื่อมต่อ';
-  if (sStatus) sStatus.className = `font-bold ${connected ? 'text-emerald-400' : 'text-red-400'}`;
+  if (sStatus) sStatus.style.color = connected ? 'var(--k-green-tx)' : 'var(--k-red-tx)';
   if (sName) sName.textContent = botInfo?.first_name || '—';
   if (sUser) sUser.textContent = botInfo ? `@${botInfo.username}` : '—';
   if (sChatId) sChatId.textContent = chatId || '—';
@@ -90,7 +90,8 @@ function _setBotStatusUI(connected, botInfo, chatId) {
 function _showTestResult(ok, msg) {
   const el = document.getElementById('botTestResult');
   if (!el) return;
-  el.className = `mt-4 p-4 rounded-xl text-sm font-bold ${ok ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/10 text-red-400 border border-red-500/30'}`;
+  el.className = '';
+  el.style.cssText = `margin-top:10px;padding:11px 14px;border-radius:12px;font-size:13px;font-weight:800;${ok ? 'background:rgba(16,185,129,.1);color:var(--k-green-tx);border:1px solid rgba(16,185,129,.3)' : 'background:rgba(239,68,68,.1);color:var(--k-red-tx);border:1px solid rgba(239,68,68,.3)'}`;
   el.textContent = (ok ? '✅ ' : '❌ ') + msg;
   el.classList.remove('hidden');
   setTimeout((() => el.classList.add('hidden')), 5e3);
@@ -110,13 +111,14 @@ window.saveBotSettings = async function() {
     return Swal.fire('ผิดพลาด', 'Bot Token ไม่ถูกต้อง — กรุณาตรวจสอบใหม่', 'error');
   }
   try {
-    await appDB.from('settings').upsert([ {
+    const {error: saveErr} = await appDB.from('settings').upsert([ {
       key: BOT_SETTING_KEY,
       value: token
     }, {
       key: CHATID_SETTING_KEY,
       value: chatId
     } ]);
+    if (saveErr) throw saveErr;
     const now = (new Date).toLocaleString('th-TH');
     const sSaved = document.getElementById('sBot_saved');
     if (sSaved) sSaved.textContent = now;
@@ -146,7 +148,8 @@ window.disconnectBot = async function() {
     confirmButtonColor: '#ef4444'
   });
   if (!res.isConfirmed) return;
-  await appDB.from('settings').delete().in('key', [ BOT_SETTING_KEY, CHATID_SETTING_KEY ]);
+  const {error: delErr} = await appDB.from('settings').delete().in('key', [ BOT_SETTING_KEY, CHATID_SETTING_KEY ]);
+  if (delErr) return Swal.fire('ยกเลิกไม่สำเร็จ', delErr.message, 'error');
   document.getElementById('botTokenInput').value = '';
   document.getElementById('botChatIdInput').value = '';
   _setBotStatusUI(false, null, '');
@@ -192,42 +195,37 @@ window.exportCaseExcel = async function() {
   XLSX.writeFile(wb, `tg_cases_${_caseDate}.xlsx`);
 };
 
-window.loadSummary = async function() {
+window.loadSummary = async function(silent) {
   const period = document.getElementById('summaryPeriod')?.value || 'month';
   const shiftFilter = document.getElementById('summaryShift')?.value || 'ALL';
   const customDiv = document.getElementById('summaryCustomRange');
-  if (customDiv) customDiv.classList.toggle('hidden', period !== 'custom');
-  const now = new Date;
-  const thNow = new Date(now.getTime() + 7 * 60 * 60 * 1e3);
+  if (customDiv) {
+    customDiv.classList.toggle('hidden', period !== 'custom');
+    customDiv.style.display = period === 'custom' ? 'flex' : 'none';
+  }
+  const thNow = new Date(Date.now() + 7 * 60 * 60 * 1e3);
+  const ymd = d => d.toISOString().slice(0, 10);
+  const addDays = (d, n) => new Date(d.getTime() + n * 864e5);
   let fromDate, toDate;
   if (period === 'today') {
-    fromDate = toDate = thNow.toISOString().slice(0, 10);
+    fromDate = toDate = ymd(thNow);
   } else if (period === 'yesterday') {
-    const yd = new Date(thNow);
-    yd.setDate(thNow.getDate() - 1);
-    fromDate = toDate = yd.toISOString().slice(0, 10);
+    fromDate = toDate = ymd(addDays(thNow, -1));
   } else if (period === 'week') {
-    const day = thNow.getDay() || 7;
-    const mon = new Date(thNow);
-    mon.setDate(thNow.getDate() - day + 1);
-    fromDate = mon.toISOString().slice(0, 10);
-    toDate = thNow.toISOString().slice(0, 10);
+    const day = thNow.getUTCDay() || 7;
+    fromDate = ymd(addDays(thNow, -(day - 1)));
+    toDate = ymd(thNow);
   } else if (period === 'last_week') {
-    const day = thNow.getDay() || 7;
-    const mon = new Date(thNow);
-    mon.setDate(thNow.getDate() - day - 6);
-    const sun = new Date(mon);
-    sun.setDate(mon.getDate() + 6);
-    fromDate = mon.toISOString().slice(0, 10);
-    toDate = sun.toISOString().slice(0, 10);
+    const day = thNow.getUTCDay() || 7;
+    const mon = addDays(thNow, -(day - 1) - 7);
+    fromDate = ymd(mon);
+    toDate = ymd(addDays(mon, 6));
   } else if (period === 'month') {
-    fromDate = `${thNow.getFullYear()}-${String(thNow.getMonth() + 1).padStart(2, '0')}-01`;
-    toDate = thNow.toISOString().slice(0, 10);
+    fromDate = ymd(new Date(Date.UTC(thNow.getUTCFullYear(), thNow.getUTCMonth(), 1)));
+    toDate = ymd(thNow);
   } else if (period === 'last_month') {
-    const lm = new Date(thNow.getFullYear(), thNow.getMonth() - 1, 1);
-    const lme = new Date(thNow.getFullYear(), thNow.getMonth(), 0);
-    fromDate = lm.toISOString().slice(0, 10);
-    toDate = lme.toISOString().slice(0, 10);
+    fromDate = ymd(new Date(Date.UTC(thNow.getUTCFullYear(), thNow.getUTCMonth() - 1, 1)));
+    toDate = ymd(new Date(Date.UTC(thNow.getUTCFullYear(), thNow.getUTCMonth(), 0)));
   } else {
     fromDate = document.getElementById('summaryFrom')?.value;
     toDate = document.getElementById('summaryTo')?.value;
@@ -235,18 +233,17 @@ window.loadSummary = async function() {
   }
   const rangeEl = document.getElementById('summaryDateRange');
   if (rangeEl) rangeEl.textContent = `${fromDate} ถึง ${toDate}`;
-  document.getElementById('summaryRanking').innerHTML = `<div class="text-center py-8"><span class="material-icons animate-spin text-violet-400 text-3xl">sync</span></div>`;
+  if (!silent) document.getElementById('summaryRanking').innerHTML = `<div class="wr-empty"><span class="material-icons animate-spin">sync</span>กำลังโหลด…</div>`;
+  const reqId = window._sumReqId = (window._sumReqId || 0) + 1;
   try {
-    const {data: data, error: error} = await appDB.from('tg_case_logs').select('sender_name, case_type, site, full_name').gte('msg_date', fromDate).lte('msg_date', toDate);
-    if (error) throw error;
-    const rows = data || [];
+    const rows = await window._caseFetchAll((() => appDB.from('tg_case_logs').select('sender_name, case_type, site, full_name, message_text, quoted_text').gte('msg_date', fromDate).lte('msg_date', toDate).order('created_at', {
+      ascending: true
+    })));
+    if (reqId !== window._sumReqId) return;
     const total = rows.length;
-    const del = 0;
+    const del = rows.filter((d => _caseGroup(d) === 'เช็ค')).length;
     const unb = rows.filter((d => _caseGroup(d) === 'ปลด')).length;
-    const other = rows.filter((d => {
-      const t = d.case_type || '';
-      return !t.includes('ลบ') && !t.includes('เช็ค') && !t.includes('ปลด');
-    })).length;
+    const other = rows.filter((d => _caseGroup(d) === 'other')).length;
     document.getElementById('sumTotal').textContent = total.toLocaleString();
     document.getElementById('sumDel').textContent = del.toLocaleString();
     document.getElementById('sumUnb').textContent = unb.toLocaleString();
@@ -271,33 +268,31 @@ window.loadSummary = async function() {
       counts[k].total++;
       const t = d.case_type || '';
       const grp = _caseGroup(d);
-      if (grp === 'เช็ค') counts[k].เช็ค++; else if (t.includes('ปลด')) counts[k].ปลด++; else counts[k].other++;
+      if (grp === 'เช็ค') counts[k].เช็ค++; else if (grp === 'ปลด') counts[k].ปลด++; else counts[k].other++;
     }));
     const sorted = Object.entries(counts).sort(((a, b) => b[1].total - a[1].total));
     const max = sorted[0]?.[1]?.total || 1;
     const medals = [ '🥇', '🥈', '🥉' ];
     const ranking = document.getElementById('summaryRanking');
     if (sorted.length === 0) {
-      ranking.innerHTML = `<div class="text-center py-8 text-gray-400">ไม่มีข้อมูลในช่วงนี้</div>`;
+      ranking.innerHTML = `<div class="wr-empty"><span class="material-icons">inbox</span>ไม่มีข้อมูลในช่วงนี้</div>`;
       return;
     }
     const esc = window.escapeHtml;
-    ranking.innerHTML = sorted.map((([name, c], i) => {
-      const pct = Math.round(c.total / max * 100);
-      const mdl = medals[i] || `#${i + 1}`;
-      const shiftColor = c.shift === 'กะเช้า' ? '#fbbf24' : c.shift === 'กะดึก' ? '#818cf8' : '#64748b';
-      const shiftIcon = c.shift === 'กะเช้า' ? '🌅' : c.shift === 'กะดึก' ? '🌙' : '❓';
-      const tags = [ c.ลบ ? `<span style="background:rgba(59,130,246,0.2);color:light-dark(#054ea8,#60a5fa);padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700;">ลบ ${c.ลบ}</span>` : '', c.เช็ค ? `<span style="background:rgba(16,185,129,0.2);color:var(--k-green-tx);padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700;">เช็ค ${c.เช็ค}</span>` : '', c.ปลด ? `<span style="background:rgba(245,158,11,0.2);color:var(--k-amber-tx);padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700;">ปลด ${c.ปลด}</span>` : '', c.other ? `<span style="background:rgba(100,116,139,0.2);color:var(--k-tx3);padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700;">อื่นๆ ${c.other}</span>` : '' ].filter(Boolean).join('');
-      return `\n            <div style="background:var(--k-panel2);border-radius:12px;padding:12px 16px;border:1px solid var(--k-line);display:flex;align-items:center;gap:12px;">\n                <span style="font-size:22px;flex-shrink:0;width:32px;text-align:center;">${mdl}</span>\n                <div style="flex:1;min-width:0;">\n                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">\n                        <span style="font-weight:800;color:var(--k-tx);font-size:14px;">${esc(c.display)}</span>\n                        <span style="font-size:10px;font-weight:700;color:${shiftColor};background:${shiftColor}22;padding:1px 7px;border-radius:999px;">${shiftIcon}${esc(c.shift)}</span>\n                    </div>\n                    <div style="width:100%;background:var(--k-card);border-radius:999px;height:5px;margin-bottom:6px;">\n                        <div style="background:#7c3aed;height:5px;border-radius:999px;width:${pct}%;transition:width .5s;"></div>\n                    </div>\n                    <div style="display:flex;flex-wrap:wrap;gap:5px;">${tags}</div>\n                </div>\n                <span style="font-size:28px;font-weight:900;color:light-dark(#2f07a6,#a78bfa);flex-shrink:0;min-width:40px;text-align:right;">${c.total}</span>\n            </div>`;
-    })).join('');
+    ranking.innerHTML = sorted.map((([name, c], i) => window._caseCardHtml(name, c, i, max, esc, esc, false))).join('');
   } catch (e) {
-    document.getElementById('summaryRanking').innerHTML = `<div class="text-center py-8 text-red-400">Error: ${e.message}</div>`;
+    if (reqId !== window._sumReqId) return;
+    document.getElementById('summaryRanking').innerHTML = `<div class="wr-empty" style="color:var(--k-red-tx)"><span class="material-icons">error_outline</span>${window.escapeHtml(e.message || String(e))}</div>`;
   }
 };
 
 document.addEventListener('change', (e => {
   if (e.target?.id === 'summaryPeriod') {
     const show = e.target.value === 'custom';
-    document.getElementById('summaryCustomRange')?.classList.toggle('hidden', !show);
+    const el = document.getElementById('summaryCustomRange');
+    if (el) {
+      el.classList.toggle('hidden', !show);
+      el.style.display = show ? 'flex' : 'none';
+    }
   }
 }));
