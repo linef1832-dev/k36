@@ -1223,8 +1223,9 @@ function _srLoadExcelLib() {
 }
 
 window.srExportExcel = async function() {
-  const {rows: rows, filterText: filterText} = _srFilteredForExport();
-  if (!rows.length) return Swal.fire('ไม่มีข้อมูล', 'เดือน/ตัวกรองนี้ยังไม่มีประวัติให้ส่งออก', 'info');
+  const {rows: allRows, filterText: filterText} = _srFilteredForExport();
+  const rows = allRows.filter((r => !!_srUserOf(r.user_name)));
+  if (!rows.length) return Swal.fire('ไม่มีข้อมูล', 'เดือน/ตัวกรองนี้ยังไม่มีประวัติของพนักงานที่อยู่ในระบบ', 'info');
   Swal.fire({
     title: 'กำลังสร้างไฟล์ Excel…',
     allowOutsideClick: false,
@@ -1616,7 +1617,7 @@ window.srExportExcel = async function() {
       const u = _srUserOf(name);
       return u ? _srGroupOf(u.department) : 'ไม่ระบุแผนก';
     };
-    const groupsOrder = [ 'AM', 'OD', 'ไม่ระบุแผนก' ];
+    const groupsOrder = [ 'AM', 'OD' ];
     groupsOrder.forEach((g => {
       const gl = plist.filter((p => deptOf(p.name) === g));
       if (gl.length) addGroup(gl, g);
