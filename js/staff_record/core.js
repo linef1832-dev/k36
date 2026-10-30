@@ -1628,7 +1628,8 @@ window.srExportExcel = async function() {
         zoomScale: 90
       } ]
     });
-    const tCols = [ 'หัวข้อที่ผิด', 'ผิดรวม (ครั้ง)', 'AM (ครั้ง)', 'OD (ครั้ง)', 'จำนวนคน', 'เกณฑ์/เดือน', 'รายชื่อ (ครั้ง)' ];
+    const hasUnk = plist.some((p => deptOf(p.name) === 'ไม่ระบุแผนก'));
+    const tCols = [ 'หัวข้อที่ผิด', 'ผิดรวม (ครั้ง)', 'AM (ครั้ง)', 'OD (ครั้ง)', 'จำนวนคน', 'เกณฑ์/เดือน', 'รายชื่อ AM (ครั้ง)', 'รายชื่อ OD (ครั้ง)', ...hasUnk ? [ 'ไม่ระบุแผนก (ครั้ง)' ] : [] ];
     titleRow(ws3, `สรุปตามหัวข้อ — ${fullM}`, tCols.length, subTxt);
     ws3.getRow(3).values = tCols;
     head(ws3.getRow(3));
@@ -1636,7 +1637,10 @@ window.srExportExcel = async function() {
       const tt = topicTotals[t];
       const row = ws3.getRow(4 + i);
       const byD = g => tt.people.filter((([n]) => deptOf(n) === g)).reduce(((a, [, c]) => a + c), 0);
-      row.values = [ t, tt.n, byD('AM') || '', byD('OD') || '', tt.people.length, _srTopicLimit(t) || '-', tt.people.sort(((a, b) => b[1] - a[1])).map((([n, c]) => `${n}${deptOf(n) !== 'ไม่ระบุแผนก' ? ' [' + deptOf(n) + ']' : ''} (${c})`)).join(', ') ];
+      const namesOf = g => tt.people.filter((([n]) => deptOf(n) === g)).sort(((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))).map((([n, c]) => `${n} (${c})`));
+      const lAM = namesOf('AM'), lOD = namesOf('OD'), lUn = namesOf('ไม่ระบุแผนก');
+      row.values = [ t, tt.n, byD('AM') || '', byD('OD') || '', tt.people.length, _srTopicLimit(t) || '-', lAM.join('\n') || '-', lOD.join('\n') || '-', ...hasUnk ? [ lUn.join('\n') || '-' ] : [] ];
+      row.height = Math.max(22, Math.max(lAM.length, lOD.length, lUn.length) * 15 + 6);
       row.eachCell({
         includeEmpty: true
       }, ((c, col) => {
@@ -1649,9 +1653,9 @@ window.srExportExcel = async function() {
         };
         c.border = border;
         c.alignment = {
-          vertical: 'middle',
-          horizontal: col === 1 || col === 7 ? 'left' : 'center',
-          wrapText: col === 7
+          horizontal: col === 1 || col >= 7 ? 'left' : 'center',
+          vertical: col >= 7 ? 'top' : 'middle',
+          wrapText: col >= 7
         };
       }));
       const c1 = row.getCell(1);
@@ -1673,10 +1677,15 @@ window.srExportExcel = async function() {
         }
       };
     }));
-    [ 26, 13, 11, 11, 11, 12, 70 ].forEach(((w, i) => ws3.getColumn(i + 1).width = w));
+    [ 26, 13, 11, 11, 11, 12, 30, 30, 26 ].slice(0, tCols.length).forEach(((w, i) => ws3.getColumn(i + 1).width = w));
+    const hr3 = ws3.getRow(3);
+    hr3.getCell(7).fill = fill('FF1D4ED8');
+    hr3.getCell(8).fill = fill('FFBE185D');
+    hr3.getCell(3).fill = fill('FF1D4ED8');
+    hr3.getCell(4).fill = fill('FFBE185D');
     const tsum = ws3.getRow(4 + topics.length);
     const allBy = g => plist.filter((p => deptOf(p.name) === g)).reduce(((a, p) => a + p.total), 0);
-    tsum.values = [ 'รวมทุกหัวข้อ', totalOff, allBy('AM'), allBy('OD'), offPeople, '', '' ];
+    tsum.values = [ 'รวมทุกหัวข้อ', totalOff, allBy('AM'), allBy('OD'), offPeople, '', `${plist.filter((p => deptOf(p.name) === 'AM' && p.total)).length} คน`, `${plist.filter((p => deptOf(p.name) === 'OD' && p.total)).length} คน`, ...hasUnk ? [ '' ] : [] ];
     tsum.eachCell({
       includeEmpty: true
     }, (c => {
