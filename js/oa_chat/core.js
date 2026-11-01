@@ -682,7 +682,8 @@ function oa_inView() {
 
 function oa_filtered(inView) {
   const o = window._oa, q = ((document.getElementById('oaSearch') || {}).value || '').trim().toLowerCase();
-  return (inView || oa_inView()).filter((r => (o.dept === 'ALL' || oa_deptOf(r) === o.dept) && (o.shift === 'ALL' || oa_shiftOf(r) === o.shift) && (o.site === 'ALL' || oa_sitesOf(r).includes(o.site)) && (o.oaline === 'ALL' || (r.oa_name || '') === o.oaline) && (!q || oa_nameOf(r).toLowerCase().includes(q) || String(r.chat_name || '').toLowerCase().includes(q))));
+  const N = '__NONE__';
+  return (inView || oa_inView()).filter((r => (o.dept === 'ALL' || (o.dept === N ? oa_deptOf(r) === '-' : oa_deptOf(r) === o.dept)) && (o.shift === 'ALL' || (o.shift === N ? !oa_shiftOf(r) : oa_shiftOf(r) === o.shift)) && (o.site === 'ALL' || (o.site === N ? oa_sitesOf(r).length === 0 : oa_sitesOf(r).includes(o.site))) && (o.oaline === 'ALL' || (o.oaline === N ? !r.oa_name : (r.oa_name || '') === o.oaline)) && (!q || oa_nameOf(r).toLowerCase().includes(q) || String(r.chat_name || '').toLowerCase().includes(q))));
 }
 
 function oa_renderChips(inView) {
@@ -697,26 +698,31 @@ function oa_renderChips(inView) {
   const chip = (cls, on, fn, val, label, n) => `<button class="oa-chip ${cls} ${on ? 'on' : ''}" onclick="${fn}('${oa_jsq(val)}')">${oa_esc(label)}${n != null ? `<i>${n}</i>` : ''}</button>`;
   const allChip = (key, cur, total) => `<button class="oa-chip oa-all ${cur === 'ALL' ? 'on' : ''}" onclick="oa_setFilterAll('${key}')">ทั้งหมด<i>${total}</i></button>`;
   const total = inView.length;
+  const N = '__NONE__';
+  const noneChip = (fn, cur, n, cls) => n ? `<button class="oa-chip ${cls || ''} oa-none ${cur === N ? 'on' : ''}" onclick="${fn}('${N}')" title="ข้อมูลที่ระบบหาค่านี้ไม่เจอ">ไม่ระบุ<i>${n}</i></button>` : '';
   const dp = document.getElementById('oaDeptChips');
   if (dp) {
     const cnt = count(oa_deptOf);
     const ds = Object.keys(cnt).filter((k => k && k !== '-')).sort(((a, b) => a.localeCompare(b, 'th')));
-    if (o.dept !== 'ALL' && !ds.includes(o.dept)) o.dept = 'ALL';
-    dp.innerHTML = ds.length ? allChip('dept', o.dept, total) + ds.map((k => chip('', o.dept === k, 'oa_setDept', k, k, cnt[k]))).join('') : '';
+    const dNone = cnt['-'] || 0;
+    if (o.dept !== 'ALL' && o.dept !== N && !ds.includes(o.dept)) o.dept = 'ALL';
+    dp.innerHTML = ds.length ? allChip('dept', o.dept, total) + ds.map((k => chip('', o.dept === k, 'oa_setDept', k, k, cnt[k]))).join('') + noneChip('oa_setDept', o.dept, dNone) : '';
     const g = dp.closest('.oa-fgroup');
-    if (g) g.style.display = ds.length > 1 || o.dept !== 'ALL' ? '' : 'none';
+    if (g) g.style.display = ds.length > 1 || dNone || o.dept !== 'ALL' ? '' : 'none';
   }
   const sh = document.getElementById('oaShiftChips');
   if (sh) {
     const cnt = count(oa_shiftOf);
-    sh.innerHTML = allChip('shift', o.shift, total) + [ 'เช้า', 'กลาง', 'ดึก' ].map((k => chip('', o.shift === k, 'oa_setShift', k, 'กะ' + k, cnt[k] || 0))).join('');
+    const sNone = inView.filter((r => !oa_shiftOf(r))).length;
+    sh.innerHTML = allChip('shift', o.shift, total) + [ 'เช้า', 'กลาง', 'ดึก' ].map((k => chip('', o.shift === k, 'oa_setShift', k, 'กะ' + k, cnt[k] || 0))).join('') + noneChip('oa_setShift', o.shift, sNone);
   }
   const st = document.getElementById('oaSiteChips');
   if (st) {
     const arr = oa_sitesOfRows(inView).sort();
     const cnt = count(oa_sitesOf);
-    if (o.site !== 'ALL' && !arr.includes(o.site)) o.site = 'ALL';
-    st.innerHTML = arr.length ? allChip('site', o.site, total) + arr.map((k => chip('oa-chip-site', o.site === k, 'oa_setSite', k, k, cnt[k] || 0))).join('') : '';
+    const wNone = inView.filter((r => oa_sitesOf(r).length === 0)).length;
+    if (o.site !== 'ALL' && o.site !== N && !arr.includes(o.site)) o.site = 'ALL';
+    st.innerHTML = arr.length ? allChip('site', o.site, total) + arr.map((k => chip('oa-chip-site', o.site === k, 'oa_setSite', k, k, cnt[k] || 0))).join('') + noneChip('oa_setSite', o.site, wNone, 'oa-chip-site') : '';
     const g = st.closest('.oa-fgroup');
     if (g) g.style.display = arr.length ? '' : 'none';
   }
@@ -724,16 +730,18 @@ function oa_renderChips(inView) {
   if (ol) {
     const cnt = count((r => r.oa_name || ''));
     const arr = Object.keys(cnt).sort();
-    if (o.oaline !== 'ALL' && !arr.includes(o.oaline)) o.oaline = 'ALL';
-    ol.innerHTML = arr.length ? allChip('oaline', o.oaline, total) + arr.map((k => chip('oa-chip-line', o.oaline === k, 'oa_setOaLine', k, k, cnt[k]))).join('') : '';
+    const lNone = inView.filter((r => !r.oa_name)).length;
+    if (o.oaline !== 'ALL' && o.oaline !== N && !arr.includes(o.oaline)) o.oaline = 'ALL';
+    ol.innerHTML = arr.length ? allChip('oaline', o.oaline, total) + arr.map((k => chip('oa-chip-line', o.oaline === k, 'oa_setOaLine', k, k, cnt[k]))).join('') + noneChip('oa_setOaLine', o.oaline, lNone, 'oa-chip-line') : '';
     const g = ol.closest('.oa-fgroup');
     if (g) g.style.display = arr.length ? '' : 'none';
   }
   const act = [];
-  if (o.shift !== 'ALL') act.push([ 'กะ', 'กะ' + o.shift, 'shift' ]);
-  if (o.dept !== 'ALL') act.push([ 'แผนก', o.dept, 'dept' ]);
-  if (o.site !== 'ALL') act.push([ 'เว็บ', o.site, 'site' ]);
-  if (o.oaline !== 'ALL') act.push([ 'ไลน์', o.oaline, 'oaline' ]);
+  const lbl = v => v === N ? 'ไม่ระบุ' : v;
+  if (o.shift !== 'ALL') act.push([ 'กะ', o.shift === N ? 'ไม่ระบุ' : 'กะ' + o.shift, 'shift' ]);
+  if (o.dept !== 'ALL') act.push([ 'แผนก', lbl(o.dept), 'dept' ]);
+  if (o.site !== 'ALL') act.push([ 'เว็บ', lbl(o.site), 'site' ]);
+  if (o.oaline !== 'ALL') act.push([ 'ไลน์', lbl(o.oaline), 'oaline' ]);
   if (q.trim()) act.push([ 'ค้นหา', q.trim(), 'q' ]);
   const bar = document.getElementById('oaActiveBar'), ac = document.getElementById('oaActiveChips');
   if (ac) ac.innerHTML = act.map((([lbl, v, key]) => `<span class="oa-ab-chip"><small>${oa_esc(lbl)}</small>${oa_esc(v)}<button type="button" onclick="oa_setFilterAll('${key}')" aria-label="เอาตัวกรอง ${oa_esc(lbl)} ออก"><span class="material-icons">close</span></button></span>`)).join('');
