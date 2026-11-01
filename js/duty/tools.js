@@ -203,7 +203,7 @@ window.deleteMergeRooms = function() {
       const key = window.dutyMergeKey(targetDate, shiftFilter, currentDutyDept);
       try {
         window.clearSettingCache();
-        await appDB.from('settings').delete().eq('key', key);
+        window.dutyDbOk(await appDB.from('settings').delete().eq('key', key));
         try {
           localStorage.removeItem(key);
         } catch (e) {}
@@ -377,10 +377,10 @@ window.configOdDiscordRooms = async function() {
   });
   if (!r.isConfirmed || !r.value) return;
   try {
-    await appDB.from('settings').upsert([ {
+    window.dutyDbOk(await appDB.from('settings').upsert([ {
       key: 'discord_rooms_OD',
       value: JSON.stringify(r.value)
-    } ]);
+    } ]));
     SETTINGS['discord_rooms_OD'] = JSON.stringify(r.value);
     Swal.fire({
       icon: 'success',

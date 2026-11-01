@@ -675,10 +675,10 @@ window.saveDutyAccess = async function() {
   });
   try {
     window.clearSettingCache();
-    await appDB.from('settings').upsert([ {
+    window.dutyDbOk(await appDB.from('settings').upsert([ {
       key: 'duty_access_matrix',
       value: JSON.stringify(dutyAccessMatrix)
-    } ]);
+    } ]));
     if (typeof window._dutyAccessMarkDirty === 'function') window._dutyAccessMarkDirty(false);
     Swal.fire({
       icon: 'success',
@@ -734,10 +734,11 @@ window.removeDutyRole = async function(team, idx) {
 
 window.saveCustomRolesToDB = async function() {
   window.clearSettingCache();
-  await appDB.from('settings').upsert([ {
+  const {error: _sErr} = await appDB.from('settings').upsert([ {
     key: 'duty_custom_roles',
     value: JSON.stringify(customDutyRoles)
   } ]);
+  if (_sErr) return Swal.fire('บันทึกไม่สำเร็จ', _sErr.message, 'error');
 };
 
 function _dreqEnsureStyle() {

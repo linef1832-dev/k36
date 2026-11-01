@@ -271,10 +271,10 @@ window.clearSupportForTarget = async function(entryKey) {
   try {
     delete window.currentSupportData[entryKey];
     window.clearSettingCache();
-    await appDB.from('settings').upsert([ {
+    window.dutyDbOk(await appDB.from('settings').upsert([ {
       key: window.getSupportKey(targetDate, shiftFilter),
       value: JSON.stringify(window.currentSupportData)
-    } ]);
+    } ]));
     await appDB.from('system_logs').insert([ {
       action_type: 'จัดซัพพอร์ต',
       performed_by: currentUser.username,

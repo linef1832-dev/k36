@@ -515,13 +515,14 @@ window.addImportantTask = async function() {
     didOpen: () => Swal.showLoading()
   });
   window.clearSettingCache();
-  await appDB.from('settings').upsert([ {
+  const {error: _sErr} = await appDB.from('settings').upsert([ {
     key: k.list,
     value: JSON.stringify(window.globalImportantTasks)
   }, {
     key: k.cfg,
     value: JSON.stringify(window.importantTaskCfg)
   } ]);
+  if (_sErr) return Swal.fire('บันทึกไม่สำเร็จ', _sErr.message, 'error');
   window.renderImportantTasksPanel();
   Swal.close();
 };
@@ -621,7 +622,7 @@ window.deleteImportantTask = async function(taskName) {
     didOpen: () => Swal.showLoading()
   });
   window.clearSettingCache();
-  await appDB.from('settings').upsert([ {
+  const {error: _sErr} = await appDB.from('settings').upsert([ {
     key: k.list,
     value: JSON.stringify(window.globalImportantTasks)
   }, {
@@ -634,6 +635,7 @@ window.deleteImportantTask = async function(taskName) {
     key: k.cfg,
     value: JSON.stringify(window.importantTaskCfg)
   } ]);
+  if (_sErr) return Swal.fire('บันทึกไม่สำเร็จ', _sErr.message, 'error');
   window.renderImportantTasksPanel();
   Swal.close();
 };

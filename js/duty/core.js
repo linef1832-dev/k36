@@ -335,7 +335,8 @@ window.subscribeDutyChanges = function() {
       if (now - window._dutyLastReloadTime < 800) {
         window._dutyPendingReload = true;
         setTimeout((() => {
-          if (window._dutyPendingReload && !document.getElementById('dutyApp').classList.contains('hidden')) {
+          const _app = document.getElementById('dutyApp');
+          if (window._dutyPendingReload && _app && !_app.classList.contains('hidden')) {
             window._dutyPendingReload = false;
             window._dutyLastReloadTime = Date.now();
             window.refreshDutyData();
@@ -370,7 +371,6 @@ window.subscribeDutyChanges = function() {
       return;
     }
     if (dutyApp && !dutyApp.classList.contains('hidden') && !document.hidden) {
-      if (document.hidden) return;
       if (typeof window.refreshDutyData === 'function') {
         window._dutyPollTick = true;
         window.refreshDutyData();
@@ -521,7 +521,9 @@ window.refreshDutyData = async function() {
     const backupKey = `backup_${saveKey}`;
     const taskDayStart = `${targetDate}T00:00:00+07:00`;
     const taskDayEnd = `${targetDate}T23:59:59+07:00`;
+    const _dutyRq = window._dutyReqId = (window._dutyReqId || 0) + 1;
     const [leavesRes, schedulesRes, settingsRes, swapRes] = await Promise.all([ appDB.from('leave_requests').select('user_id, reason, user_name').eq('leave_date', targetDate), appDB.from('schedules').select('staff_name, time_slot').eq('work_date', targetDate).eq('shift_name', shiftFilter), appDB.from('settings').select('value, key').in('key', [ saveKey, impListKey, impAssignKey, impLockKey, impCfgKey, stayPinKey, supportKey, mergeKey, mergeKeyOld, webGroupKey, backupKey ]), appDB.from('scheduled_tasks').select('payload, scheduled_for, status').eq('task_type', 'individual_shift_update').gte('scheduled_for', taskDayStart).lte('scheduled_for', taskDayEnd) ]);
+    if (_dutyRq !== window._dutyReqId) return;
     try {
       const _sig = JSON.stringify([ targetDate, shiftFilter, currentDutyDept, leavesRes && leavesRes.data, schedulesRes && schedulesRes.data, settingsRes && settingsRes.data, swapRes && swapRes.data ]);
       const _isPoll = window._dutyPollTick === true;
@@ -556,9 +558,12 @@ window.refreshDutyData = async function() {
     }));
     window.currentDutySchedules = schedulesRes && schedulesRes.data ? schedulesRes.data : [];
     const relevantLeaves = [];
+    const seenLeaveUser = new Set;
     if (leaves && typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST.length > 0) {
       leaves.forEach((l => {
         if (l.reason === 'XX' && swapToNightIds.has(String(l.user_id))) return;
+        if (seenLeaveUser.has(String(l.user_id))) return;
+        seenLeaveUser.add(String(l.user_id));
         let userObj = GLOBAL_USER_LIST.find((u => String(u.id) === String(l.user_id) || u.username === l.user_name));
         if (userObj) {
           let uDept = userObj.department || 'AM';
@@ -913,10 +918,10 @@ window.saveRotationGap = async function(v) {
     }
     cfg[dept] = n;
     const val = JSON.stringify(cfg);
-    await appDB.from('settings').upsert([ {
+    window.dutyDbOk(await appDB.from('settings').upsert([ {
       key: 'duty_rotation_gap',
       value: val
-    } ]);
+    } ]));
     if (typeof SETTINGS !== 'undefined') SETTINGS.duty_rotation_gap = val;
     try {
       window._ydRosterCache = null;
