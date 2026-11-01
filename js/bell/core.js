@@ -246,6 +246,15 @@ const BELL_BADGE = {
 
 if (window._bellTick) clearInterval(window._bellTick);
 
+window._bellTickNow = function() {
+  const now = Date.now();
+  const fmt = sec => sec < 60 ? sec + ' วิ' : Math.floor(sec / 60) + ' นาที';
+  document.querySelectorAll('#bellApp [data-wait-since]').forEach((el => {
+    const t = new Date(el.dataset.waitSince).getTime();
+    if (!isNaN(t)) el.textContent = (el.dataset.prefix || '') + fmt(Math.max(0, Math.round((now - t) / 1e3)));
+  }));
+};
+
 window._bellTick = setInterval((() => {
   if (document.hidden || !document.getElementById('bellList')) return;
   const now = Date.now();
@@ -269,7 +278,12 @@ function bell_avColor(name) {
 function bell_renderSide(all) {
   const ringing = all.filter((r => r.st === 'ringing')).sort(((a, b) => new Date(a.p && a.p.ring_at || 0) - new Date(b.p && b.p.ring_at || 0)));
   const box = document.getElementById('bellWaitList');
-  if (box) box.innerHTML = ringing.length ? ringing.map((r => `<div class="bl-wait"><span class="material-icons" style="font-size:16px;color:#f97316">notifications_active</span><b>${bell_esc(r.username)}</b><span data-wait-since="${bell_esc(r.p && r.p.ring_at || '')}" data-prefix="รอ "></span></div>`)).join('') : '<div class="bl-wait-empty">ยังไม่มีคนที่รอยืนยัน</div>';
+  const sideHtml = ringing.length ? ringing.map((r => `<div class="bl-wait"><span class="material-icons" style="font-size:16px;color:#f97316">notifications_active</span><b>${bell_esc(r.username)}</b><span data-wait-since="${bell_esc(r.p && r.p.ring_at || '')}" data-prefix="รอ "></span></div>`)).join('') : '<div class="bl-wait-empty">ยังไม่มีคนที่รอยืนยัน</div>';
+  if (box && box._h !== sideHtml) {
+    box._h = sideHtml;
+    box.innerHTML = sideHtml;
+    if (typeof window._bellTickNow === 'function') window._bellTickNow();
+  }
   const line = document.getElementById('bellStatLine');
   if (line) {
     const on = all.filter((r => r.online)).length;
@@ -277,6 +291,32 @@ function bell_renderSide(all) {
   }
   const bar = document.getElementById('bellSelBar');
   if (bar) bar.style.display = window._bellCanRing ? '' : 'none';
+}
+
+window.bell_scheduleRender = function() {
+  if (window._bellRenderQueued) return;
+  window._bellRenderQueued = true;
+  setTimeout((() => {
+    window._bellRenderQueued = false;
+    window.bell_render();
+  }), 250);
+};
+
+if (!window._bellPtrBound) {
+  window._bellPtrBound = true;
+  document.addEventListener('pointerdown', (e => {
+    if (e.target && e.target.closest && e.target.closest('#bellList')) window._bellPtrDown = true;
+  }), true);
+  const up = () => {
+    if (!window._bellPtrDown) return;
+    window._bellPtrDown = false;
+    if (window._bellRenderPending) {
+      window._bellRenderPending = false;
+      setTimeout((() => window.bell_render()), 60);
+    }
+  };
+  document.addEventListener('pointerup', up, true);
+  document.addEventListener('pointercancel', up, true);
 }
 
 window.bell_render = function() {
@@ -304,12 +344,22 @@ window.bell_render = function() {
   const list = document.getElementById('bellList');
   if (!list) return;
   const vis = bell_visibleRows();
+  const setList = html => {
+    if (list._bellHtml === html) return;
+    if (window._bellPtrDown) {
+      window._bellRenderPending = true;
+      return;
+    }
+    list._bellHtml = html;
+    list.innerHTML = html;
+    if (typeof window._bellTickNow === 'function') window._bellTickNow();
+  };
   if (vis.length === 0) {
-    list.innerHTML = `<div class="bl-wait-empty" style="grid-column:1/-1;padding:30px">${window._bellUsers.length ? 'ไม่พบรายชื่อที่ตรงกับการค้นหา' : 'ยังไม่มีพนักงานในระบบ'}</div>`;
+    setList(`<div class="bl-wait-empty" style="grid-column:1/-1;padding:30px">${window._bellUsers.length ? 'ไม่พบรายชื่อที่ตรงกับการค้นหา' : 'ยังไม่มีพนักงานในระบบ'}</div>`);
     return;
   }
   const relVer = window._bellRelease && window._bellRelease.version;
-  list.innerHTML = vis.map((r => {
+  setList(vis.map((r => {
     const badge = BELL_BADGE[r.st];
     const checked = window._bellSelected.has(r.id) ? 'checked' : '';
     const ver = r.p && r.p.app_version;
@@ -322,13 +372,12 @@ window.bell_render = function() {
         const sec = Math.max(0, (new Date(r.p.confirmed_at) - new Date(r.p.ring_at)) / 1e3);
         when = `${rt}<span class="bw-ok">✅ ตอบ ${bell_timeTxt(r.p.confirmed_at)}</span><span class="bw-sec">${sec < 60 ? sec.toFixed(1) + ' วิ' : Math.floor(sec / 60) + ' นาที ' + Math.round(sec % 60) + ' วิ'}</span>`;
       } else {
-        const sec = Math.max(0, Math.round((Date.now() - new Date(r.p.ring_at)) / 1e3));
-        when = `${rt}<span class="bw-wait" data-wait-since="${bell_esc(r.p.ring_at)}" data-prefix="⏳ รอ ">⏳ รอ ${sec < 60 ? sec + ' วิ' : Math.floor(sec / 60) + ' นาที'}</span>`;
+        when = `${rt}<span class="bw-wait" data-wait-since="${bell_esc(r.p.ring_at)}" data-prefix="⏳ รอ ">⏳ รอ</span>`;
       }
     }
     const ringBtn = window._bellCanRing && r.online ? `\n            <button onclick="bell_ringOne('${r.id}')" class="bell-ringbtn"><span class="material-icons" style="font-size:14px">notifications_active</span> เรียก</button>` : '';
     return `\n        <div class="bell-row ${r.online ? '' : 'offline'} ${window._bellSelected.has(r.id) ? 'sel' : ''}" ${r.online ? `onclick="if(!event.target.closest('button'))bell_toggleOne('${r.id}', !window._bellSelected.has('${r.id}'))"` : 'title="ยังไม่เปิดแอป เรียกไม่ได้"'}>\n            <span class="bell-check"></span>\n            <span class="bl-av" style="--av:${bell_avColor(r.username)}">${bell_esc(String(r.username || '?').slice(0, 2).toUpperCase())}<i class="${r.st === 'offline' ? '' : r.st === 'online' ? 'on' : r.st}"></i></span>\n            <div class="flex-1 min-w-0">\n                <div class="bell-name truncate">${bell_esc(r.username)}${bell_shiftOf(r) ? `<span class="bell-shtag">กะ${bell_shiftOf(r)}</span>` : ''} ${verBadge}</div>\n                <div class="bell-sub">${bell_esc(r.team || '-')}${r.department ? ' · ' + bell_esc(r.department) : ''}</div>\n                <div class="bell-when">${when}</div>\n            </div>\n            <span class="bell-badge ${badge.c}">${badge.t}</span>\n            ${ringBtn}\n        </div>`;
-  })).join('');
+  })).join(''));
 };
 
 window._bellShift = {};
@@ -522,10 +571,28 @@ window.bell_subscribe = function() {
     event: '*',
     schema: 'public',
     table: 'bell_presence'
-  }, (function() {
+  }, (function(payload) {
     if (window._currentPageName !== 'bell') return;
-    window.bell_refreshPresence();
-  })).subscribe();
+    const row = payload && (payload.new && payload.new.user_id != null ? payload.new : null);
+    if (payload && payload.eventType === 'DELETE' && payload.old && payload.old.user_id != null) {
+      delete window._bellPresence[String(payload.old.user_id)];
+    } else if (row) {
+      window._bellPresence[String(row.user_id)] = {
+        ...window._bellPresence[String(row.user_id)] || {},
+        ...row
+      };
+    } else {
+      clearTimeout(window._bellPresTimer);
+      window._bellPresTimer = setTimeout((() => window.bell_refreshPresence()), 1500);
+      return;
+    }
+    window.bell_scheduleRender();
+  })).subscribe((st => {
+    if (st === 'SUBSCRIBED' && window._bellRtWasDown) {
+      window._bellRtWasDown = false;
+      window.bell_refreshPresence();
+    } else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT' || st === 'CLOSED') window._bellRtWasDown = true;
+  }));
   if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(window._bellRtSub);
 };
 
@@ -862,7 +929,7 @@ window.initBell = async function() {
   window.bell_subscribe();
   if (typeof window.registerPageInterval === 'function') {
     window.registerPageInterval(setInterval((() => {
-      if (window._currentPageName === 'bell') window.bell_render();
+      if (window._currentPageName === 'bell' && !document.hidden) window.bell_render();
     }), 5e3));
   }
 };
