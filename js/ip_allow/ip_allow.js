@@ -16,16 +16,26 @@
   const toast = m => {
     if (window.showToast) window.showToast(m);
   };
+  const tfetch = (url, ms) => {
+    const ctl = typeof AbortController !== 'undefined' ? new AbortController : null;
+    const t = ctl ? setTimeout((() => ctl.abort()), ms || 5e3) : null;
+    return fetch(url, ctl ? {
+      signal: ctl.signal,
+      cache: 'no-store'
+    } : undefined).finally((() => {
+      if (t) clearTimeout(t);
+    }));
+  };
   async function fetchMyIp() {
     const probes = [ async () => {
-      const r = await fetch('https://api.ipify.org?format=json');
+      const r = await tfetch('https://api.ipify.org?format=json');
       return (await r.json()).ip;
     }, async () => {
-      const r = await fetch('https://www.cloudflare.com/cdn-cgi/trace');
+      const r = await tfetch('https://www.cloudflare.com/cdn-cgi/trace');
       const m = (await r.text()).match(/ip=([^\s]+)/);
       return m ? m[1] : null;
     }, async () => {
-      const r = await fetch('https://api64.ipify.org?format=json');
+      const r = await tfetch('https://api64.ipify.org?format=json');
       return (await r.json()).ip;
     } ];
     for (const p of probes) {
@@ -91,7 +101,7 @@
   async function fetchGeo(ip) {
     if (geoCache[ip] !== undefined) return geoCache[ip];
     try {
-      const r = await fetch(`https://ipwho.is/${encodeURIComponent(ip)}`);
+      const r = await tfetch(`https://ipwho.is/${encodeURIComponent(ip)}`, 6e3);
       const d = await r.json();
       geoCache[ip] = d && d.success ? {
         flag: d.flag && d.flag.emoji || '',
@@ -223,7 +233,18 @@
           confirmButtonColor: '#d33'
         });
         if (!ok.isConfirmed) return;
-      } else if (myIp && !myIpAllowed()) {
+      } else if (!myIp) {
+        const ok = await Swal.fire({
+          icon: 'warning',
+          title: 'ตรวจ IP ของคุณไม่ได้',
+          text: 'ระบบยังไม่รู้ว่า IP ตอนนี้ของคุณอยู่ในรายการหรือไม่ ถ้าเปิดแล้ว IP ไม่ตรง คุณจะเข้ากลับไม่ได้หลังออกจากระบบ ต้องการเปิดเลยไหม?',
+          showCancelButton: true,
+          confirmButtonText: 'เปิดเลย',
+          cancelButtonText: 'ยกเลิก',
+          confirmButtonColor: '#d33'
+        });
+        if (!ok.isConfirmed) return;
+      } else if (!myIpAllowed()) {
         const ok = await Swal.fire({
           icon: 'warning',
           title: 'IP ของคุณไม่อยู่ในรายการ',
