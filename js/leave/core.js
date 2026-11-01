@@ -446,6 +446,18 @@ async function fetchLeaveData(skipRender = false) {
   if (!skipRender) renderLeaveTable();
 }
 
+if (!window._leaveVisBound) {
+  window._leaveVisBound = true;
+  document.addEventListener('visibilitychange', (() => {
+    if (document.hidden) return;
+    const el = document.getElementById('leaveApp');
+    if (window._leaveTaskStale && el && !el.classList.contains('hidden')) {
+      window._leaveTaskStale = false;
+      if (typeof fetchLeaveData === 'function') fetchLeaveData();
+    }
+  }));
+}
+
 function subscribeLeaveChanges() {
   if (leaveSubscription) appDB.removeChannel(leaveSubscription);
   leaveSubscription = appDB.channel('leave-updates').on('postgres_changes', {
@@ -465,6 +477,10 @@ function subscribeLeaveChanges() {
         const deletedItem = allLeaveData.find((l => String(l.id) === String(payload.old.id)));
         if (deletedItem) changedUserId = deletedItem.user_id;
         allLeaveData = allLeaveData.filter((l => String(l.id) !== String(payload.old.id)));
+      } else if (payload.eventType === 'UPDATE' && payload.new) {
+        const idx = allLeaveData.findIndex((l => String(l.id) === String(payload.new.id)));
+        if (idx > -1) allLeaveData[idx] = payload.new; else allLeaveData.push(payload.new);
+        changedUserId = payload.new.user_id;
       }
       if (!changedUserId) return;
       const tUser = GLOBAL_USER_LIST.find((u => String(u.id) === String(changedUserId)));

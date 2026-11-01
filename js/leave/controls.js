@@ -61,6 +61,50 @@ window.changeAdminMonth = function(step) {
   }
 };
 
+window._leaveVerifyBooking = function(myId, uid, dateStr, reason) {
+  if (myId == null) return null;
+  const sid = String(uid);
+  const day = d => String(d || '').split('T')[0].split(' ')[0];
+  const mine = allLeaveData.filter((l => String(l.user_id) === sid && day(l.leave_date) === dateStr)).sort(((a, b) => Number(a.id) - Number(b.id)));
+  if (mine.length > 1 && String(mine[0].id) !== String(myId)) return {
+    title: 'มีรายการวันนี้อยู่แล้ว',
+    text: 'วันนี้ถูกลงไว้แล้ว (อาจกดซ้ำหรือเปิดหลายหน้า) ระบบไม่บันทึกซ้ำให้'
+  };
+  const isSelf = typeof currentUser !== 'undefined' && currentUser && String(currentUser.id) === sid;
+  const canOverride = typeof canPerm === 'function' && (canPerm('leave_manage') || canPerm(`leave_manage_${String(currentViewDept || '').toLowerCase()}`));
+  if (!isSelf || canOverride) return null;
+  const s = deptSettings[currentViewDept] || {};
+  const users = window.leaveDeptUsers();
+  const me = users.find((u => String(u.id) === sid));
+  if (!me) return null;
+  const quota = me.allowed_shift === 'กะเช้า' ? s.quotaM : me.allowed_shift === 'กะกลาง' ? s.quotaA : me.allowed_shift === 'กะดึก' ? s.quotaN : 0;
+  if (quota > 0) {
+    const sameShift = new Set(users.filter((u => u.allowed_shift === me.allowed_shift)).map((u => String(u.id))));
+    const seen = new Set;
+    const dayRows = allLeaveData.filter((l => day(l.leave_date) === dateStr && sameShift.has(String(l.user_id)))).sort(((a, b) => Number(a.id) - Number(b.id))).filter((l => {
+      const k = String(l.user_id);
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    }));
+    const pos = dayRows.findIndex((l => String(l.id) === String(myId)));
+    if (pos >= quota) return {
+      title: 'วันนี้เต็มแล้ว',
+      text: `มีคนในกะเดียวกันกดจองก่อนคุณครบ ${quota} คนแล้ว ระบบยกเลิกรายการของคุณให้ ลองเลือกวันอื่นครับ`
+    };
+  }
+  const rsn = r => r === 'Table-Booking' || !r ? 'X' : r;
+  if (rsn(reason) === 'X' && s.limit > 0) {
+    const ym = dateStr.slice(0, 7);
+    const days = new Set(allLeaveData.filter((l => String(l.user_id) === sid && day(l.leave_date).startsWith(ym) && rsn(l.reason) === 'X')).map((l => day(l.leave_date))));
+    if (days.size > s.limit) return {
+      title: 'ครบโควตาแล้ว',
+      text: `เดือนนี้คุณลงหยุดครบ ${s.limit} วันแล้ว ระบบยกเลิกรายการล่าสุดให้`
+    };
+  }
+  return null;
+};
+
 window.toggleLeaveTable = async function(dateStr, action, targetUserId, targetUserName, targetUserShift) {
   const typeToSave = window.activeLeaveType || 'X';
   if (action === 'remove') {
@@ -84,14 +128,26 @@ window.toggleLeaveTable = async function(dateStr, action, targetUserId, targetUs
   });
   try {
     if (action === 'add') {
-      const {error: error} = await appDB.from('leave_requests').insert([ {
+      const {data: insRows, error: error} = await appDB.from('leave_requests').insert([ {
         user_id: targetUserId,
         user_name: targetUserName,
         leave_date: dateStr,
         reason: typeToSave,
         status: 'approved'
-      } ]);
+      } ]).select('id');
       if (error) throw error;
+      const myId = insRows && insRows[0] && insRows[0].id;
+      await fetchLeaveData(true);
+      const verdict = window._leaveVerifyBooking(myId, targetUserId, dateStr, typeToSave);
+      if (verdict) {
+        if (myId != null) await appDB.from('leave_requests').delete().eq('id', myId);
+        await fetchLeaveData();
+        return Swal.fire({
+          icon: 'warning',
+          title: verdict.title,
+          text: verdict.text
+        });
+      }
       await logLeaveAction(`จอง [${typeToSave}]`, targetUserId, targetUserName, dateStr);
     } else if (action === 'remove') {
       const {error: error} = await appDB.from('leave_requests').delete().eq('user_id', targetUserId).eq('leave_date', dateStr);
@@ -794,10 +850,18 @@ window.subscribeScheduledTasksChanges = function() {
     schema: 'public',
     table: 'scheduled_tasks'
   }, (payload => {
+    const row = payload && (payload.new && payload.new.task_type ? payload.new : payload.old) || {};
+    if (row.task_type && row.task_type !== 'individual_shift_update') return;
     const leaveAppEl = document.getElementById('leaveApp');
-    if (leaveAppEl && !leaveAppEl.classList.contains('hidden')) {
-      if (typeof fetchLeaveData === 'function') fetchLeaveData();
+    if (!leaveAppEl || leaveAppEl.classList.contains('hidden')) return;
+    if (document.hidden) {
+      window._leaveTaskStale = true;
+      return;
     }
+    clearTimeout(window._leaveTaskTimer);
+    window._leaveTaskTimer = setTimeout((() => {
+      if (typeof fetchLeaveData === 'function') fetchLeaveData();
+    }), 1200);
   })).subscribe();
   if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(window.scheduledTasksSubscription);
 };
