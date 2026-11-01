@@ -1,6 +1,26 @@
+async function _fineReadSetting(key) {
+  const {data: data, error: error} = await appDB.from('settings').select('value').eq('key', key).maybeSingle();
+  if (error) throw error;
+  return data && data.value ? data.value : null;
+}
+
+async function _fineSaveSetting(key, arr) {
+  if (window.clearSettingCache) window.clearSettingCache();
+  const {error: error} = await appDB.from('settings').upsert([ {
+    key: key,
+    value: JSON.stringify(arr)
+  } ]);
+  if (error) {
+    Swal.fire('บันทึกไม่สำเร็จ', error.message + ' · ระบบโหลดค่าล่าสุดกลับมาให้', 'error');
+    if (key === 'fine_rules_data') loadFineRules(); else loadFineNotes();
+    return false;
+  }
+  return true;
+}
+
 async function loadFineNotes() {
   try {
-    const raw = await window.getSettingCached('fine_notes_data');
+    const raw = await _fineReadSetting('fine_notes_data');
     if (raw) {
       let parsed = JSON.parse(raw);
       if (parsed.length > 0 && typeof parsed[0] === 'string') {
@@ -8,25 +28,21 @@ async function loadFineNotes() {
           text: text,
           rule: 'ALL'
         })));
-        await appDB.from('settings').upsert([ {
-          key: 'fine_notes_data',
-          value: JSON.stringify(globalFineNotes)
-        } ]);
+        await _fineSaveSetting('fine_notes_data', globalFineNotes);
       } else {
-        globalFineNotes = parsed;
+        globalFineNotes = Array.isArray(parsed) ? parsed : [];
       }
     } else {
       globalFineNotes = defaultNotes.map((text => ({
         text: text,
         rule: 'ALL'
       })));
-      await appDB.from('settings').upsert([ {
-        key: 'fine_notes_data',
-        value: JSON.stringify(globalFineNotes)
-      } ]);
+      await _fineSaveSetting('fine_notes_data', globalFineNotes);
     }
+    window._fineNotesLoadOk = true;
     renderNotesDropdown();
   } catch (e) {
+    window._fineNotesLoadOk = false;
     globalFineNotes = defaultNotes.map((text => ({
       text: text,
       rule: 'ALL'
@@ -110,6 +126,7 @@ window.renderNotesDropdown = function(selectedRule = '') {
 };
 
 window.addFineNotePage = async function() {
+  if (window._fineNotesLoadOk === false) return Swal.fire('ยังโหลดข้อมูลไม่สำเร็จ', 'รีเฟรชหน้าแล้วลองใหม่ (กันข้อมูลเดิมถูกทับ)', 'warning');
   const ruleSelect = document.getElementById('newNoteRuleSelect');
   const input = document.getElementById('newNoteInputPage');
   if (!input || !ruleSelect) return;
@@ -125,10 +142,7 @@ window.addFineNotePage = async function() {
     rule: ruleVal
   });
   input.value = '';
-  await appDB.from('settings').upsert([ {
-    key: 'fine_notes_data',
-    value: JSON.stringify(globalFineNotes)
-  } ]);
+  if (!await _fineSaveSetting('fine_notes_data', globalFineNotes)) return;
   renderNotesDropdown();
   Swal.fire({
     icon: 'success',
@@ -139,6 +153,7 @@ window.addFineNotePage = async function() {
 };
 
 window.editFineNotePage = async function(idx) {
+  if (window._fineNotesLoadOk === false) return Swal.fire('ยังโหลดข้อมูลไม่สำเร็จ', 'รีเฟรชหน้าแล้วลองใหม่ (กันข้อมูลเดิมถูกทับ)', 'warning');
   const currentNote = globalFineNotes[idx];
   let ruleOptionsHtml = '<option value="ALL" style="color:var(--k-mute); font-weight: bold; background-color:var(--k-card);">-- ใช้ได้กับทุกกฎ (ทั่วไป) --</option>';
   globalFineRules.forEach((r => {
@@ -181,10 +196,7 @@ window.editFineNotePage = async function(idx) {
         text: parsedData.text,
         rule: parsedData.rule
       };
-      await appDB.from('settings').upsert([ {
-        key: 'fine_notes_data',
-        value: JSON.stringify(globalFineNotes)
-      } ]);
+      if (!await _fineSaveSetting('fine_notes_data', globalFineNotes)) return;
       renderNotesDropdown();
       Swal.fire({
         icon: 'success',
@@ -197,6 +209,7 @@ window.editFineNotePage = async function(idx) {
 };
 
 window.removeFineNotePage = async function(idx) {
+  if (window._fineNotesLoadOk === false) return Swal.fire('ยังโหลดข้อมูลไม่สำเร็จ', 'รีเฟรชหน้าแล้วลองใหม่ (กันข้อมูลเดิมถูกทับ)', 'warning');
   const res = await Swal.fire({
     title: 'ลบหมายเหตุข้อนี้?',
     icon: 'warning',
@@ -211,10 +224,7 @@ window.removeFineNotePage = async function(idx) {
       didOpen: () => Swal.showLoading()
     });
     globalFineNotes.splice(idx, 1);
-    await appDB.from('settings').upsert([ {
-      key: 'fine_notes_data',
-      value: JSON.stringify(globalFineNotes)
-    } ]);
+    if (!await _fineSaveSetting('fine_notes_data', globalFineNotes)) return;
     renderNotesDropdown();
     Swal.fire({
       icon: 'success',
@@ -227,27 +237,20 @@ window.removeFineNotePage = async function(idx) {
 
 async function loadFineRules() {
   try {
-    const raw = await window.getSettingCached('fine_rules_data');
+    const raw = await _fineReadSetting('fine_rules_data');
     if (raw) {
-      globalFineRules = JSON.parse(raw);
-      if (globalFineRules.length < 5) {
-        globalFineRules = okvipRules;
-        await appDB.from('settings').upsert([ {
-          key: 'fine_rules_data',
-          value: JSON.stringify(globalFineRules)
-        } ]);
-      }
+      const parsed = JSON.parse(raw);
+      globalFineRules = Array.isArray(parsed) ? parsed : [];
     } else {
-      globalFineRules = okvipRules;
-      await appDB.from('settings').upsert([ {
-        key: 'fine_rules_data',
-        value: JSON.stringify(globalFineRules)
-      } ]);
+      globalFineRules = [ ...okvipRules ];
+      await _fineSaveSetting('fine_rules_data', globalFineRules);
     }
+    window._fineRulesLoadOk = true;
     renderRulesDropdown();
     updateNewNoteRuleDropdown();
   } catch (e) {
-    globalFineRules = okvipRules;
+    window._fineRulesLoadOk = false;
+    globalFineRules = [ ...okvipRules ];
     renderRulesDropdown();
     updateNewNoteRuleDropdown();
   }
@@ -447,6 +450,7 @@ function renderRulesDropdown() {
 }
 
 window.addFineRulePage = async function() {
+  if (window._fineRulesLoadOk === false) return Swal.fire('ยังโหลดข้อมูลไม่สำเร็จ', 'รีเฟรชหน้าแล้วลองใหม่ (กันข้อมูลเดิมถูกทับ)', 'warning');
   const catInput = document.getElementById('newRuleCategory');
   const textInput = document.getElementById('newRuleInputPage');
   const typeSelect = document.getElementById('newRulePenaltyType');
@@ -474,10 +478,7 @@ window.addFineRulePage = async function() {
     typeSelect.value = 'money';
     amtInput.disabled = false;
   }
-  await appDB.from('settings').upsert([ {
-    key: 'fine_rules_data',
-    value: JSON.stringify(globalFineRules)
-  } ]);
+  if (!await _fineSaveSetting('fine_rules_data', globalFineRules)) return;
   renderRulesDropdown();
   updateNewNoteRuleDropdown();
   Swal.fire({
@@ -489,6 +490,7 @@ window.addFineRulePage = async function() {
 };
 
 window.editFineRulePage = async function(idx) {
+  if (window._fineRulesLoadOk === false) return Swal.fire('ยังโหลดข้อมูลไม่สำเร็จ', 'รีเฟรชหน้าแล้วลองใหม่ (กันข้อมูลเดิมถูกทับ)', 'warning');
   const currentRule = globalFineRules[idx];
   let currentCategory = 'อื่นๆ';
   let currentDetail = currentRule;
@@ -568,10 +570,7 @@ window.editFineRulePage = async function(idx) {
         didOpen: () => Swal.showLoading()
       });
       globalFineRules[idx] = finalRuleString;
-      await appDB.from('settings').upsert([ {
-        key: 'fine_rules_data',
-        value: JSON.stringify(globalFineRules)
-      } ]);
+      if (!await _fineSaveSetting('fine_rules_data', globalFineRules)) return;
       renderRulesDropdown();
       updateNewNoteRuleDropdown();
       Swal.fire({
@@ -585,6 +584,7 @@ window.editFineRulePage = async function(idx) {
 };
 
 window.removeFineRulePage = async function(idx) {
+  if (window._fineRulesLoadOk === false) return Swal.fire('ยังโหลดข้อมูลไม่สำเร็จ', 'รีเฟรชหน้าแล้วลองใหม่ (กันข้อมูลเดิมถูกทับ)', 'warning');
   const res = await Swal.fire({
     title: 'ลบกฎข้อนี้?',
     text: `คุณต้องการลบ "${globalFineRules[idx]}" ออกจากระบบใช่หรือไม่?`,
@@ -600,10 +600,7 @@ window.removeFineRulePage = async function(idx) {
       didOpen: () => Swal.showLoading()
     });
     globalFineRules.splice(idx, 1);
-    await appDB.from('settings').upsert([ {
-      key: 'fine_rules_data',
-      value: JSON.stringify(globalFineRules)
-    } ]);
+    if (!await _fineSaveSetting('fine_rules_data', globalFineRules)) return;
     renderRulesDropdown();
     Swal.fire({
       icon: 'success',
@@ -615,6 +612,7 @@ window.removeFineRulePage = async function(idx) {
 };
 
 window.restoreOKVIPRules = async function() {
+  if (window._fineRulesLoadOk === false) return Swal.fire('ยังโหลดข้อมูลไม่สำเร็จ', 'รีเฟรชหน้าแล้วลองใหม่ (กันข้อมูลเดิมถูกทับ)', 'warning');
   const res = await Swal.fire({
     title: 'คืนค่าเริ่มต้น?',
     text: `คุณต้องการโหลดกฎตั้งต้นของ "OKVIP" ชุดใหม่เข้ามาทับกฎเดิมใช่หรือไม่? (กฎที่คุณสร้างเองจะหายไปทั้งหมด)`,
@@ -630,10 +628,7 @@ window.restoreOKVIPRules = async function() {
       didOpen: () => Swal.showLoading()
     });
     globalFineRules = [ ...okvipRules ];
-    await appDB.from('settings').upsert([ {
-      key: 'fine_rules_data',
-      value: JSON.stringify(globalFineRules)
-    } ]);
+    if (!await _fineSaveSetting('fine_rules_data', globalFineRules)) return;
     renderRulesDropdown();
     Swal.fire({
       icon: 'success',

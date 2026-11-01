@@ -62,6 +62,10 @@ window.submitFine = async function(e) {
   }
   const fileInput = document.getElementById('fineImageInput');
   if (!empName || !ruleText) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาระบุพนักงานและหัวข้อกฎให้ครบถ้วน', 'warning');
+  if (window._fineSubmitting) return;
+  window._fineSubmitting = true;
+  const submitBtn = e && e.target && e.target.querySelector ? e.target.querySelector('button[type="submit"]') : null;
+  if (submitBtn) submitBtn.disabled = true;
   Swal.fire({
     title: 'กำลังบันทึกใบปรับ...',
     allowOutsideClick: false,
@@ -134,6 +138,9 @@ window.submitFine = async function(e) {
     }
   } catch (err) {
     Swal.fire('Error', err.message, 'error');
+  } finally {
+    window._fineSubmitting = false;
+    if (submitBtn) submitBtn.disabled = false;
   }
 };
 
@@ -151,13 +158,16 @@ window.fetchFinesData = async function() {
     if (typeof fetchUsers === 'function' && (typeof GLOBAL_USER_LIST === 'undefined' || GLOBAL_USER_LIST.length === 0)) {
       await fetchUsers(true);
     }
-    let query = appDB.from('fines').select('*').order('created_at', {
-      ascending: false
-    });
-    if (!canViewAll && !canViewStats) {
-      query = query.eq('user_name', currentUser.username);
-    }
-    const {data: data, error: error} = await query;
+    const build = () => {
+      let q = appDB.from('fines').select('*').order('created_at', {
+        ascending: false
+      }).order('id', {
+        ascending: false
+      });
+      if (!canViewAll && !canViewStats) q = q.eq('user_name', currentUser.username);
+      return q;
+    };
+    const {data: data, error: error} = typeof window.selectAllRows === 'function' ? await window.selectAllRows(build) : await build();
     if (error) throw error;
     globalFines = data || [];
     renderFineTable();
@@ -321,13 +331,14 @@ window.renderFineTable = function() {
       const dbUser = userDict[String(f.user_name).toLowerCase()];
       if (dbUser) {
         let dept = dbUser.department || 'AM';
-        let isTrainer = dbUser.role === 'trainer' || dept === 'TRAINER';
+        const isOD = /^OD/i.test(String(dept));
+        let isTrainer = dbUser.role === 'trainer' || dept === 'TRAINER' || /QL$/i.test(String(dept));
         let deptColor = 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-800/50';
         let deptName = 'AM';
         if (isTrainer) {
           deptColor = 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/50 dark:text-indigo-300 dark:border-indigo-800/50';
-          deptName = 'ผู้สอน';
-        } else if (dept === 'OD') {
+          deptName = isOD ? 'ผู้สอน OD' : 'ผู้สอน AM';
+        } else if (isOD) {
           deptColor = 'bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-900/50 dark:text-pink-300 dark:border-pink-800/50';
           deptName = 'OD';
         }
@@ -420,47 +431,6 @@ window.renderFineTable = function() {
   _applyFineCols();
 };
 
-async function _fineToStaffRecord(o) {
-  try {
-    const rule = String(o.rule || '').replace(/^\s*\[[^\]]*\]\s*/, '').trim();
-    const money = o.amount === -1 ? 'ไม่ได้ค่าแรง' : Number(o.amount) > 0 ? `ค่าปรับ ฿${Number(o.amount).toLocaleString('en-US')}` : '';
-    const note = [ o.note, money ].filter(Boolean).join(' · ') || null;
-    const d = o.date || (new Date).toISOString().slice(0, 10);
-    const by = typeof currentUser !== 'undefined' && currentUser ? currentUser.username : '';
-    const row = {
-      user_id: o.user_id != null ? String(o.user_id) : '',
-      user_name: o.user_name,
-      record_date: d,
-      topic: `ใบปรับ: ${rule}`,
-      note: note,
-      created_by: by,
-      fine_id: o.fine ? o.fine.id : null
-    };
-    let res = await appDB.from('staff_records').insert([ row ]).select();
-    if (res.error && String(res.error.message || '').includes('fine_id')) {
-      delete row.fine_id;
-      res = await appDB.from('staff_records').insert([ row ]).select();
-    }
-    if (res.error) {
-      console.warn('[fine→staff_record] ลงประวัติไม่ได้', res.error.message);
-      return;
-    }
-    const r = res.data && res.data[0] || row;
-    await appDB.from('staff_record_logs').insert([ {
-      action: 'add',
-      record_id: r.id || null,
-      user_name: r.user_name,
-      record_date: r.record_date,
-      topic: r.topic,
-      note: r.note,
-      detail: 'ลงอัตโนมัติจากการออกใบปรับ',
-      actor: by
-    } ]);
-  } catch (e) {
-    console.warn('[fine→staff_record]', e);
-  }
-}
-
 async function _fineRemoveStaffRecord(fine) {
   try {
     if (!fine) return;
@@ -496,7 +466,12 @@ window.deleteFine = async function(id) {
       title: 'กำลังลบ...',
       didOpen: () => Swal.showLoading()
     });
-    await appDB.from('fines').delete().eq('id', id);
+    const {data: delRows, error: delErr} = await appDB.from('fines').delete().eq('id', id).select('id');
+    if (delErr) return Swal.fire('ลบไม่สำเร็จ', delErr.message, 'error');
+    if (Array.isArray(delRows) && delRows.length === 0) {
+      fetchFinesData(true);
+      return Swal.fire('ลบไม่สำเร็จ', 'ฐานข้อมูลไม่ยอมลบรายการนี้ (อาจไม่มีสิทธิ์ หรือถูกลบไปแล้ว)', 'error');
+    }
     await _fineRemoveStaffRecord({
       id: id
     });
