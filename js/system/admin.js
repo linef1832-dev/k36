@@ -209,12 +209,13 @@ window.kickUserOut = async function(userId, username) {
   });
   if (!ask.isConfirmed) return;
   try {
-    await appDB.from('settings').upsert({
+    const {error: foErr} = await appDB.from('settings').upsert({
       key: `force_logout_${userId}`,
       value: String(Date.now())
     }, {
       onConflict: 'key'
     });
+    if (foErr) throw foErr;
     await _broadcastBoard('force_logout', {
       user_id: userId,
       username: username,

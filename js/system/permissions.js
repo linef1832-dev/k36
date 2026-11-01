@@ -730,17 +730,27 @@ window.saveMenuPerms = async function() {
   if (!window.sysRequireAdmin()) return;
   _permReadMenuPerms();
   const key = permUI.dept;
-  MENU_PERMS[key] = [ ...permUI.draft ];
-  SETTINGS['dept_menu_rules'] = JSON.stringify(MENU_PERMS);
-  window.safeSetItem('cached_menu_rules', JSON.stringify(MENU_PERMS));
   Swal.fire({
     title: 'กำลังบันทึกสิทธิ์...',
     didOpen: () => Swal.showLoading()
   });
-  await appDB.from('settings').upsert([ {
+  let latest = {};
+  try {
+    const {data: cur, error: curErr} = await appDB.from('settings').select('value').eq('key', 'dept_menu_rules').maybeSingle();
+    if (curErr) throw curErr;
+    latest = cur && cur.value ? JSON.parse(cur.value) : {};
+  } catch (e) {
+    return Swal.fire('บันทึกไม่สำเร็จ', 'โหลดสิทธิ์ล่าสุดไม่ได้: ' + (e.message || e), 'error');
+  }
+  latest[key] = [ ...permUI.draft ];
+  const {error: saveErr} = await appDB.from('settings').upsert([ {
     key: 'dept_menu_rules',
-    value: JSON.stringify(MENU_PERMS)
+    value: JSON.stringify(latest)
   } ]);
+  if (saveErr) return Swal.fire('บันทึกไม่สำเร็จ', saveErr.message, 'error');
+  MENU_PERMS = latest;
+  SETTINGS['dept_menu_rules'] = JSON.stringify(MENU_PERMS);
+  window.safeSetItem('cached_menu_rules', JSON.stringify(MENU_PERMS));
   window.permUI.dirty = false;
   Swal.fire({
     icon: 'success',

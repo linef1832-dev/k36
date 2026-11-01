@@ -1593,12 +1593,13 @@ window.saveHeadContacts = async function() {
     note: String(c.note || '').trim()
   }))).filter((c => c.name));
   try {
-    await appDB.from('settings').upsert({
+    const {error: hcErr} = await appDB.from('settings').upsert({
       key: 'head_contacts',
       value: JSON.stringify(list)
     }, {
       onConflict: 'key'
     });
+    if (hcErr) throw hcErr;
     window._headContacts = list;
     Swal.fire({
       toast: true,

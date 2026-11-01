@@ -521,31 +521,7 @@ window.resetBtn = function() {
   }
 };
 
-async function manualRefresh() {
-  await fetchData();
-  const Toast = Swal.mixin({
-    toast: true,
-    position: 'top-end',
-    showConfirmButton: false,
-    timer: 1500,
-    timerProgressBar: true
-  });
-  Toast.fire({
-    icon: 'success',
-    title: 'อัปเดตข้อมูลแล้ว'
-  });
-}
-
 let dashboardSearchTimer;
-
-window.debounceDashboardSearch = function() {
-  clearTimeout(dashboardSearchTimer);
-  dashboardSearchTimer = setTimeout((() => {
-    if (typeof renderTableRows === 'function' && globalScheduleData) {
-      window.resetSchedPage();
-    }
-  }), 300);
-};
 
 function filterTableBySpecificTime(time, shiftName) {
   if (currentSpecificTimeFilter && currentSpecificTimeFilter.time === time && currentSpecificTimeFilter.shift === shiftName) {
@@ -870,29 +846,6 @@ async function refreshAdminData() {
   }), 800);
 }
 
-window.updateUserRole = async function(selectEl, id, newRole) {
-  if (!window.sysRequireAdmin()) return;
-  const user = GLOBAL_USER_LIST.find((u => String(u.id) === String(id)));
-  if (user) user.role = newRole;
-  selectEl.classList.remove('text-gray-400', 'text-red-400', 'text-fuchsia-400');
-  if (newRole === 'manager' || newRole === 'admin') selectEl.classList.add('text-red-400'); else if (newRole !== 'staff') selectEl.classList.add('text-fuchsia-400'); else selectEl.classList.add('text-gray-400');
-  appDB.from('users').update({
-    role: newRole
-  }).eq('id', id).then((({error: error}) => {
-    if (error) Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
-  }));
-  const Toast = Swal.mixin({
-    toast: true,
-    position: 'top-end',
-    showConfirmButton: false,
-    timer: 1e3
-  });
-  Toast.fire({
-    icon: 'success',
-    title: `เปลี่ยนสิทธิ์เป็น ${newRole}`
-  });
-};
-
 window.updateCheckType = async function(btn, id, currentType) {
   if (!window.sysRequireAdmin()) return;
   const newType = currentType === 'shift' ? 'team' : 'shift';
@@ -941,9 +894,10 @@ window.updateUserTeam = async function(id, currentTeam) {
       title: 'กำลังย้ายทีม...',
       didOpen: () => Swal.showLoading()
     });
-    await appDB.from('users').update({
+    const {error: tmErr} = await appDB.from('users').update({
       team: team || null
     }).eq('id', id);
+    if (tmErr) return Swal.fire('ย้ายทีมไม่สำเร็จ', tmErr.message, 'error');
     fetchUsers();
     const Toast = Swal.mixin({
       toast: true,
@@ -1020,9 +974,11 @@ async function moveSelectedUsers() {
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading()
       });
-      await appDB.from('users').update({
+      const {data: shRows, error: shErr} = await appDB.from('users').update({
         allowed_shift: target
-      }).in('id', ids);
+      }).in('id', ids).select('id');
+      if (shErr) return Swal.fire('ย้ายกะไม่สำเร็จ', shErr.message, 'error');
+      if (Array.isArray(shRows) && shRows.length < ids.length) Swal.fire('ย้ายได้บางส่วน', `ย้ายสำเร็จ ${shRows.length}/${ids.length} คน (บางคนอาจไม่มีสิทธิ์แก้)`, 'warning');
       await logAction('ย้ายกะ', `ย้าย ${ids.length} คน ไป ${target}`);
       fetchUsers();
       Swal.fire({
@@ -1057,9 +1013,11 @@ async function moveSelectedUsersTeam() {
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading()
       });
-      await appDB.from('users').update({
+      const {data: tRows, error: tErr} = await appDB.from('users').update({
         team: target
-      }).in('id', ids);
+      }).in('id', ids).select('id');
+      if (tErr) return Swal.fire('ย้ายทีมไม่สำเร็จ', tErr.message, 'error');
+      if (Array.isArray(tRows) && tRows.length < ids.length) Swal.fire('ย้ายได้บางส่วน', `ย้ายสำเร็จ ${tRows.length}/${ids.length} คน (บางคนอาจไม่มีสิทธิ์แก้)`, 'warning');
       await logAction('ย้ายทีม', `ย้าย ${ids.length} คน ไปทีม ${target}`);
       fetchUsers();
       Swal.fire({
@@ -1091,10 +1049,12 @@ async function deleteSelectedUsers() {
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading()
       });
-      await appDB.from('users').delete().in('id', ids);
-      await logAction('ลบพนักงาน', `ลบพนักงาน ${ids.length} คน`);
+      const {data: dRows, error: dErr} = await appDB.from('users').delete().in('id', ids).select('id');
+      if (dErr) return Swal.fire('ลบไม่สำเร็จ', dErr.message, 'error');
+      const nDel = Array.isArray(dRows) ? dRows.length : ids.length;
+      await logAction('ลบพนักงาน', `ลบพนักงาน ${nDel} คน`);
       fetchUsers();
-      Swal.fire('ลบสำเร็จ', 'ลบรายชื่อเรียบร้อยแล้ว', 'success');
+      if (nDel < ids.length) Swal.fire('ลบได้บางส่วน', `ลบสำเร็จ ${nDel}/${ids.length} คน (บางคนอาจไม่มีสิทธิ์ลบ)`, 'warning'); else Swal.fire('ลบสำเร็จ', 'ลบรายชื่อเรียบร้อยแล้ว', 'success');
     }
   }));
 }
