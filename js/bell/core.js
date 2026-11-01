@@ -305,7 +305,7 @@ window.bell_scheduleRender = function() {
 if (!window._bellPtrBound) {
   window._bellPtrBound = true;
   document.addEventListener('pointerdown', (e => {
-    if (e.target && e.target.closest && e.target.closest('#bellList')) window._bellPtrDown = true;
+    if (e.target && e.target.closest && e.target.closest('#bellList, #bellDeptChips, #bellFilterBar, #bellRingControls, #bellSelBar')) window._bellPtrDown = true;
   }), true);
   const up = () => {
     if (!window._bellPtrDown) return;
@@ -414,6 +414,7 @@ function bell_shiftOf(r) {
 window._bellDept = window._bellDept || 'ALL';
 
 window.bell_setDept = function(d) {
+  window._bellPtrDown = false;
   window._bellDept = d;
   window._bellSelected = new Set;
   const sa = document.getElementById('bellSelectAll');
@@ -440,7 +441,14 @@ function bell_renderDept(all) {
   const keys = Object.keys(g).sort(((a, b) => a.localeCompare(b, 'th')));
   if (window._bellDept !== 'ALL' && !g[window._bellDept]) window._bellDept = 'ALL';
   const onAll = all.filter((r => r.online)).length;
-  el.innerHTML = `<button class="bell-dchip ${window._bellDept === 'ALL' ? 'active' : ''}" onclick="bell_setDept('ALL')">ทุกแผนก<span class="n">${onAll}</span></button>` + keys.map((k => `<button class="bell-dchip ${window._bellDept === k ? 'active' : ''}" onclick="bell_setDept('${bell_esc(k).replace(/'/g, "\\'")}')" title="ออนไลน์ ${g[k].on}/${g[k].t} คน">${bell_esc(k)}<span class="n">${g[k].on}</span></button>`)).join('');
+  const html = `<button type="button" class="bell-dchip ${window._bellDept === 'ALL' ? 'active' : ''}" data-d="ALL" onclick="bell_setDept(this.dataset.d)">ทุกแผนก<span class="n">${onAll}</span></button>` + keys.map((k => `<button type="button" class="bell-dchip ${window._bellDept === k ? 'active' : ''}" data-d="${bell_esc(k)}" onclick="bell_setDept(this.dataset.d)" title="ออนไลน์ ${g[k].on}/${g[k].t} คน">${bell_esc(k)}<span class="n">${g[k].on}</span></button>`)).join('');
+  if (el._h === html) return;
+  if (window._bellPtrDown) {
+    window._bellRenderPending = true;
+    return;
+  }
+  el._h = html;
+  el.innerHTML = html;
 }
 
 function bell_renderGroups(all) {
