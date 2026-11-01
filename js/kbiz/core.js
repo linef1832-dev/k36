@@ -29,6 +29,12 @@ window.kbizTab = function(tab) {
   document.querySelectorAll('#kbizApp [data-kb-sec]').forEach((el => {
     el.style.display = el.dataset.kbSec === tab ? '' : 'none';
   }));
+  const prev = window._kbizLastTab;
+  window._kbizLastTab = tab;
+  if (prev && prev !== tab) {
+    if (tab === 'chrome' && typeof fetchChromeRefreshHistory === 'function') fetchChromeRefreshHistory();
+    if (tab === 'ocr' && typeof fetchGoogleOcrStatus === 'function') fetchGoogleOcrStatus();
+  }
 };
 
 async function _kbizReadBots() {

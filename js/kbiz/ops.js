@@ -265,7 +265,9 @@ function renderVpsStatsValuesOnly(stats) {
 function startVpsStatsPolling() {
   if (_vpsStatsTimer) clearInterval(_vpsStatsTimer);
   fetchVpsStats();
-  _vpsStatsTimer = setInterval(fetchVpsStats, 5 * 60 * 1e3);
+  _vpsStatsTimer = setInterval((() => {
+    if (!document.hidden) fetchVpsStats();
+  }), 5 * 60 * 1e3);
   if (typeof window.registerPageInterval === 'function') window.registerPageInterval(_vpsStatsTimer);
 }
 
@@ -372,7 +374,12 @@ async function fetchChromeRefreshConfig() {
   renderChromeRefreshConfig();
   fetchChromeRefreshHistory();
   if (_refreshHistoryTimer) clearInterval(_refreshHistoryTimer);
-  _refreshHistoryTimer = setInterval(fetchChromeRefreshHistory, 30 * 1e3);
+  _refreshHistoryTimer = setInterval((() => {
+    if (document.hidden) return;
+    const sec = document.querySelector('#kbizApp [data-kb-sec="chrome"]');
+    if (sec && sec.style.display === 'none') return;
+    fetchChromeRefreshHistory();
+  }), 30 * 1e3);
   if (typeof window.registerPageInterval === 'function') window.registerPageInterval(_refreshHistoryTimer);
 }
 
