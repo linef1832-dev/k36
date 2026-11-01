@@ -990,10 +990,11 @@ window.saveWebLogo = async function() {
     if (typeof SETTINGS !== 'undefined') {
       SETTINGS['summary_web_logos'] = JSON.stringify(window.summaryWebLogos);
     }
-    await appDB.from('settings').upsert([ {
+    const {error: lgErr} = await appDB.from('settings').upsert([ {
       key: 'summary_web_logos',
       value: JSON.stringify(window.summaryWebLogos)
     } ]);
+    if (lgErr) throw lgErr;
     if (window.clearQueryCache) window.clearQueryCache('sum_logos');
     document.getElementById('webLogoModal').classList.add('hidden');
     if (typeof window.renderSummaryDashboard === 'function') window.renderSummaryDashboard();

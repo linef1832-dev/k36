@@ -880,7 +880,9 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
           const yesterdayDates = uniqueDates.map((d => window.getYesterdayDateStr(d)));
           let yestMap = {};
           if (typeof appDB !== 'undefined' && yesterdayDates.length > 0) {
-            const {data: yestData} = await appDB.from('transaction_daily_summary').select('date, employee_name, website, count').in('date', yesterdayDates);
+            const {data: yestData} = await window.selectAllRows((() => appDB.from('transaction_daily_summary').select('date, employee_name, website, count').in('date', yesterdayDates).order('id', {
+              ascending: true
+            })));
             if (yestData) {
               yestData.forEach((r => yestMap[`${r.date}_${window.cleanKeyStr(r.employee_name, r.website)}`] = parseInt(r.count) || 0));
             }
@@ -1525,10 +1527,11 @@ window.saveSummaryToSupabase = async function() {
       const {data: savedFilesData} = await appDB.from('settings').select('value').eq('key', 'saved_excel_files').single();
       let savedFilesList = savedFilesData && savedFilesData.value ? JSON.parse(savedFilesData.value) : [];
       savedFilesList = [ ...new Set([ ...savedFilesList, ...window.pendingFileNames ]) ];
-      await appDB.from('settings').upsert([ {
+      const {error: sfErr} = await appDB.from('settings').upsert([ {
         key: 'saved_excel_files',
         value: JSON.stringify(savedFilesList)
       } ]);
+      if (sfErr) console.warn('saved_excel_files', sfErr.message);
       window.pendingFileNames = [];
     }
     const savedDates = [ ...new Set(finalInsertData.map((r => r.date)).filter(Boolean)) ].sort();
@@ -1594,7 +1597,13 @@ window.fetchHistoricalSummary = async function(silent = false) {
     if (!_entry || !_entry.promise && _now - (_entry.ts || 0) > 2e4) {
       _entry = window._sumCache[_ck] = {
         ts: _now,
-        promise: Promise.all([ appDB.from('transaction_daily_summary').select('date, employee_name, website, count, approved_count, reject_count, total_amount').eq('date', dateVal), appDB.from('transaction_daily_summary').select('employee_name, website, count').eq('date', yesterdayStr), appDB.from('schedules').select('work_date, staff_name, shift_name').eq('work_date', dateVal) ])
+        promise: Promise.all([ window.selectAllRows((() => appDB.from('transaction_daily_summary').select('date, employee_name, website, count, approved_count, reject_count, total_amount').eq('date', dateVal).order('id', {
+          ascending: true
+        }))), window.selectAllRows((() => appDB.from('transaction_daily_summary').select('employee_name, website, count').eq('date', yesterdayStr).order('id', {
+          ascending: true
+        }))), window.selectAllRows((() => appDB.from('schedules').select('work_date, staff_name, shift_name').eq('work_date', dateVal).order('id', {
+          ascending: true
+        }))) ])
       };
       _entry.promise.then((r => {
         _entry.data = r;
