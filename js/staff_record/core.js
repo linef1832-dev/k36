@@ -1366,7 +1366,23 @@ window.srExportExcel = async function() {
       row.height = 32;
     };
     const subTxt = `เดือน ${fullM}${filterText ? ' · ตัวกรอง: ' + filterText : ''} · ส่งออกเมื่อ ${(new Date).toLocaleString('th-TH')}`;
-    const addGroup = (plist, gLabel) => {
+    const SH_ORDER = [ 'กะเช้า', 'กะกลาง', 'กะดึก' ];
+    const shiftOf = p => {
+      const u = _srUserOf(p.name);
+      return u && SH_ORDER.includes(u.allowed_shift) ? u.allowed_shift : 'ไม่ระบุกะ';
+    };
+    const SH_STYLE = {
+      'กะเช้า': [ 'FFF59E0B', '🌅' ],
+      'กะกลาง': [ 'FF0EA5E9', '☀️' ],
+      'กะดึก': [ 'FF6366F1', '🌙' ],
+      'ไม่ระบุกะ': [ 'FF64748B', '❓' ]
+    };
+    const addGroup = (plistIn, gLabel) => {
+      const shRank = p => {
+        const k = SH_ORDER.indexOf(shiftOf(p));
+        return k < 0 ? 9 : k;
+      };
+      const plist = plistIn.slice().sort(((a, b) => shRank(a) - shRank(b) || b.total - a.total || a.name.localeCompare(b.name)));
       const topicTotals = {};
       plist.forEach((p => Object.entries(p.cnt).forEach((([t, n]) => {
         topicTotals[t] = topicTotals[t] || {
@@ -1415,15 +1431,63 @@ window.srExportExcel = async function() {
     };
     kc.border = border;
     ws1.getRow(4).height = 30;
+    const shSum = [ ...SH_ORDER, 'ไม่ระบุกะ' ].map((sh => {
+      const ps = plist.filter((p => shiftOf(p) === sh));
+      return ps.length ? `${sh.replace('ไม่ระบุกะ', 'ไม่ระบุ')}: ${ps.length} คน / ผิด ${ps.reduce(((a, p) => a + p.total), 0)} ครั้ง` : '';
+    })).filter(Boolean).join('     ');
+    ws1.mergeCells(5, 1, 5, nCols);
+    const sc5 = ws1.getCell(5, 1);
+    sc5.value = shSum;
+    sc5.font = {
+      name: FONT,
+      size: 10.5,
+      bold: true,
+      color: {
+        argb: 'FF334155'
+      }
+    };
+    sc5.alignment = {
+      vertical: 'middle',
+      indent: 1
+    };
+    ws1.getRow(5).height = 22;
     const hr = ws1.getRow(6);
     hr.values = [ ...fixedCols, ...topics, ...tailCols ];
     head(hr);
+    hr.height = 46;
     topics.forEach(((t, i) => {
       const c = hr.getCell(fixedCols.length + 1 + i);
       c.fill = fill(hexArgb(_srTopicColor(t)));
     }));
     let r = 7;
-    plist.forEach(((p, i) => {
+    let curSh = null, seq = 0;
+    plist.forEach(((p, idx) => {
+      const sh = shiftOf(p);
+      if (sh !== curSh) {
+        curSh = sh;
+        seq = 0;
+        const ps = plist.filter((x => shiftOf(x) === sh));
+        const [col, ic] = SH_STYLE[sh] || SH_STYLE['ไม่ระบุกะ'];
+        ws1.mergeCells(r, 1, r, nCols);
+        const bc = ws1.getCell(r, 1);
+        bc.value = `${ic}  ${sh}   ·   ${ps.length} คน   ·   ผิดรวม ${ps.reduce(((a, x) => a + x.total), 0)} ครั้ง`;
+        bc.font = {
+          name: FONT,
+          size: 12,
+          bold: true,
+          color: {
+            argb: 'FFFFFFFF'
+          }
+        };
+        bc.fill = fill(col);
+        bc.alignment = {
+          vertical: 'middle',
+          indent: 1
+        };
+        ws1.getRow(r).height = 24;
+        r++;
+      }
+      const i = seq++;
       const u = _srUserOf(p.name) || {};
       const lim = topics.filter((t => {
         const L = _srTopicLimit(t);
@@ -1538,7 +1602,31 @@ window.srExportExcel = async function() {
     ws2.getRow(3).values = dCols;
     head(ws2.getRow(3));
     let rr = 4;
+    let curSh2 = null;
     plist.forEach(((p, pi) => {
+      const sh2 = shiftOf(p);
+      if (sh2 !== curSh2) {
+        curSh2 = sh2;
+        const [col2, ic2] = SH_STYLE[sh2] || SH_STYLE['ไม่ระบุกะ'];
+        ws2.mergeCells(rr, 1, rr, dCols.length);
+        const b2 = ws2.getCell(rr, 1);
+        b2.value = `${ic2}  ${sh2}`;
+        b2.font = {
+          name: FONT,
+          size: 12,
+          bold: true,
+          color: {
+            argb: 'FFFFFFFF'
+          }
+        };
+        b2.fill = fill(col2);
+        b2.alignment = {
+          vertical: 'middle',
+          indent: 1
+        };
+        ws2.getRow(rr).height = 24;
+        rr++;
+      }
       const u = _srUserOf(p.name) || {};
       const items = p.items.slice().sort(((a, b) => String(a.record_date).localeCompare(String(b.record_date)) || String(a.created_at || '').localeCompare(String(b.created_at || ''))));
       const seen = {};
