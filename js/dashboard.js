@@ -43,14 +43,7 @@ window.initDashboard = async function() {
   if (dInput) {
     const localDate = window.k36WorkDate();
     dInput.value = localDate;
-    if (!dInput.dataset.k36Bound) {
-      dInput.dataset.k36Bound = '1';
-      dInput.addEventListener('change', (() => {
-        if (typeof refreshTimeSlots === 'function') refreshTimeSlots();
-        if (typeof fetchData === 'function') fetchData();
-        if (typeof initQuickRebook === 'function') initQuickRebook();
-      }));
-    }
+
     const displayDate = document.getElementById('displayDate');
     if (displayDate) displayDate.innerText = new Date(localDate).toLocaleDateString('th-TH');
   }
@@ -466,6 +459,7 @@ window.refreshTimeSlots = function() {
 };
 
 async function _doRefreshTimeSlots() {
+  const myReq = window._slotReqId = (window._slotReqId || 0) + 1;
   const shiftEl = document.querySelector('input[name="shift"]:checked');
   const slotSelect = document.getElementById('tSlot');
   const dateEl = document.getElementById('wDate');
@@ -490,10 +484,13 @@ async function _doRefreshTimeSlots() {
     } else {
       try {
         const {data: rosterData} = await appDB.from('settings').select('value').eq('key', rosterKey).maybeSingle();
+        if (myReq !== window._slotReqId) return;
         if (rosterData && rosterData.value) {
           const roster = JSON.parse(rosterData.value);
           await window.loadBreakMinRemainCfg();
+          if (myReq !== window._slotReqId) return;
           await window.loadBreakWebGroups();
+          if (myReq !== window._slotReqId) return;
           coverageMap = window.buildCoverageMap(roster, myDep, shiftName);
           for (const team in roster) {
             (roster[team] || []).forEach((u => {
@@ -539,6 +536,7 @@ async function _doRefreshTimeSlots() {
       bookings = _slotCache[slotCacheKey].data;
     } else {
       const {data: data, error: slotErr} = await appDB.from('schedules').select('id, time_slot, department, team, staff_name').eq('work_date', dateVal).eq('shift_name', shiftName);
+      if (myReq !== window._slotReqId) return;
       if (slotErr) throw slotErr;
       bookings = data;
       _slotCache[slotCacheKey] = {
@@ -898,14 +896,6 @@ window.subscribeDashboardChanges = function() {
 };
 
 
-setTimeout((() => {
-  const teamInput = document.getElementById('dailyTeam');
-  if (teamInput) {
-    teamInput.addEventListener('change', (() => {
-      if (typeof refreshTimeSlots === 'function') refreshTimeSlots();
-    }));
-  }
-}), 1e3);
 
 window.openLogsPage = async function() {
   window._openingLogsPage = true;
@@ -1001,7 +991,7 @@ window.renderMissingList = function() {
     list.forEach((staff => {
       const deptColor = staff.dept === 'OD' ? 'text-pink-600 bg-pink-100 dark:bg-pink-900/30 border-pink-200' : 'text-blue-600 bg-blue-100 dark:bg-blue-900/30 border-blue-200';
       const missingBadgeHtml = `<span class="text-[9px] font-black text-red-500 bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 px-1 rounded shadow-sm">ขาด ${staff.missingAmount}</span>`;
-      htmlChunk += `<div class="text-xs font-bold text-slate-700 dark:text-gray-200 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 px-2 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm transition hover:scale-105 cursor-default hover:border-indigo-400">\n                ${staff.name}\n                ${missingBadgeHtml}\n                <span class="text-[9px] font-black ${deptColor} border px-1 rounded shadow-sm">${staff.dept}</span>\n            </div>`;
+      htmlChunk += `<div class="text-xs font-bold text-slate-700 dark:text-gray-200 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 px-2 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm transition hover:scale-105 cursor-default hover:border-indigo-400">\n                ${window.escapeHtml(staff.name)}\n                ${missingBadgeHtml}\n                <span class="text-[9px] font-black ${deptColor} border px-1 rounded shadow-sm">${window.escapeHtml(staff.dept)}</span>\n            </div>`;
     }));
     htmlChunk += `</div></div>`;
     return htmlChunk;
@@ -1425,7 +1415,7 @@ window._renderMyTodayNow = async function() {
     };
     const state = iso < dateVal ? 'past' : iso === dateVal ? 'today' : 'next';
     const dim = state === 'past';
-    return `<span style="display:inline-flex;align-items:center;gap:6px;margin:3px 8px 3px 0;padding:4px 10px 4px 6px;border-radius:9px;font-size:12.5px;background:color-mix(in srgb,var(--k-panel2) 70.0%,transparent);border:1px solid ${dim ? 'rgba(148,163,184,.25)' : t.bg + '88'};${dim ? 'opacity:.55;' : ''}${state === 'today' ? 'box-shadow:0 0 0 2px ' + t.bg + '66;' : ''}" title="${state === 'past' ? 'ผ่านมาแล้ว' : state === 'today' ? 'วันนี้' : 'ยังไม่ถึง'}">\n            <span style="background:${t.bg};color:${t.fg};font-weight:900;font-size:11px;padding:2px 7px;border-radius:6px;letter-spacing:.3px">${_mtEsc(code)}</span>\n            <span style="color:${dim ? 'var(--k-tx3)' : 'var(--k-tx)'};font-weight:700;${dim ? 'text-decoration:line-through' : ''}">${_mtFmt(iso)}</span>\n            <span style="color:${dim ? 'var(--k-mute)' : t.bg};font-size:11px;font-weight:700">${t.name}</span>${state === 'today' ? '<b style="font-size:10px;color:var(--k-tx-strong);background:' + t.bg + ';padding:1px 6px;border-radius:5px">วันนี้</b>' : ''}\n        </span>`;
+    return `<span style="display:inline-flex;align-items:center;gap:6px;margin:3px 8px 3px 0;padding:4px 10px 4px 6px;border-radius:9px;font-size:12.5px;background:color-mix(in srgb,var(--k-panel2) 70.0%,transparent);border:1px solid ${dim ? 'rgba(148,163,184,.25)' : t.bg + '88'};${dim ? 'opacity:.55;' : ''}${state === 'today' ? 'box-shadow:0 0 0 2px ' + t.bg + '66;' : ''}" title="${state === 'past' ? 'ผ่านมาแล้ว' : state === 'today' ? 'วันนี้' : 'ยังไม่ถึง'}">\n            <span style="background:${t.bg};color:${t.fg};font-weight:900;font-size:11px;padding:2px 7px;border-radius:6px;letter-spacing:.3px">${_mtEsc(code)}</span>\n            <span style="color:${dim ? 'var(--k-tx3)' : 'var(--k-tx)'};font-weight:700;${dim ? 'text-decoration:line-through' : ''}">${_mtFmt(iso)}</span>\n            <span style="color:${dim ? 'var(--k-mute)' : t.bg};font-size:11px;font-weight:700">${window.escapeHtml(t.name)}</span>${state === 'today' ? '<b style="font-size:10px;color:var(--k-tx-strong);background:' + t.bg + ';padding:1px 6px;border-radius:5px">วันนี้</b>' : ''}\n        </span>`;
   };
   const _TH_M = [ 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.' ];
   const _ymLabel = ym => {

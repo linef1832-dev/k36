@@ -574,7 +574,9 @@ async function fetchData() {
   const dateVal = dateEl.value;
   const tableTeam = teamEl.value;
   if (!dateVal) return;
+  const reqId = window._fetchDataReq = (window._fetchDataReq || 0) + 1;
   await loadAssignmentMapForDate(dateVal);
+  if (reqId !== window._fetchDataReq) return;
   updateTableSummary([]);
   const tBody = document.getElementById('dataTableBody');
   if (tBody) tBody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-gray-400"><span class="animate-spin material-icons text-3xl text-blue-500 mb-2">sync</span><br><b>กำลังดึงข้อมูล...</b></td></tr>`;
@@ -594,7 +596,12 @@ async function fetchData() {
       }
     }
   }
-  const {data: data} = await query;
+  const {data: data, error: fdErr} = await query;
+  if (reqId !== window._fetchDataReq) return;
+  if (fdErr) {
+    if (tBody) tBody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-red-400"><b>โหลดตารางไม่สำเร็จ</b><br><span class="text-xs">${window.escapeHtml(fdErr.message || '')} · กดรีเฟรชอีกครั้ง</span></td></tr>`;
+    return;
+  }
   if (data) {
     data.sort(((a, b) => {
       const pA = getPeriodForTime(a.shift_name, a.time_slot);
