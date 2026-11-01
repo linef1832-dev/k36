@@ -1096,8 +1096,6 @@ async function showPage(pageName) {
           if (typeof subscribeOdConfigChanges === 'function') subscribeOdConfigChanges();
         } else if (pageName === 'sheet') {
           if (typeof fetchSheets === 'function') await fetchSheets();
-          if (typeof renderSheetMenu === 'function') renderSheetMenu();
-          if (typeof renderRecentTabs === 'function') renderRecentTabs();
           if (canPerm('sheet_manage')) {
             if (document.getElementById('sheetAdminControls')) document.getElementById('sheetAdminControls').classList.remove('hidden');
           }

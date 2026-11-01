@@ -22,14 +22,6 @@ window.sheetCanTouch = function(sheet) {
   return window.sheetIsMgr();
 };
 
-window.initSheetApp = async function() {
-  const adminControls = document.getElementById('sheetAdminControls');
-  if (adminControls) adminControls.classList.toggle('hidden', !window.sheetIsMgr());
-  const myBtn = document.getElementById('btnMySheets');
-  if (myBtn) myBtn.classList.remove('hidden');
-  await fetchSheets();
-};
-
 window.initSheetRealtime = function() {
   if (window._sheetRtChannel || typeof appDB === 'undefined') return;
   try {
@@ -39,9 +31,14 @@ window.initSheetRealtime = function() {
       table: 'external_sheets'
     }, (() => {
       clearTimeout(window._sheetRtTimer);
-      window._sheetRtTimer = setTimeout((() => {
+      window._sheetRtTimer = setTimeout((async () => {
         if (window.dbCache) window.dbCache.bust('ext_sheets');
-        window.fetchSheets(true);
+        const sig = () => (window.GLOBAL_SHEETS || []).filter((x => !x.owner)).map((x => (x.name || x.title) + '|' + x.group_name)).sort().join(',');
+        const before = sig();
+        await _fetchSheetsCore(true);
+        const a = document.activeElement;
+        const typing = a && a.closest && a.closest('#sheetApp') && /INPUT|SELECT|TEXTAREA/.test(a.tagName);
+        if (sig() !== before && !typing && typeof initCalculator === 'function') initCalculator();
       }), 350);
     })).subscribe();
   } catch (e) {
