@@ -116,6 +116,17 @@ function getDiscordGroupMismatch(staff) {
   };
 }
 
+window.dsBotOk = async function(resOrPromise) {
+  const res = await resOrPromise;
+  if (!res || !res.ok) throw new Error('บอทตอบกลับผิดพลาด' + (res ? ' (' + res.status + ')' : ''));
+  let d = null;
+  try {
+    d = await res.clone().json();
+  } catch (e) {}
+  if (d && d.success === false) throw new Error(d.error || 'บอททำรายการไม่สำเร็จ');
+  return d;
+};
+
 window.autoFixStaffGroup = async function(staffId) {
   if (!window.dsRequire('ds_manage')) return;
   const staff = extStaffList.find((s => s.id === staffId));
@@ -145,7 +156,7 @@ window.autoFixStaffGroup = async function(staffId) {
   });
   try {
     for (const wrongG of mismatch.wrongGroups) {
-      await fetch(DISCORD_API_URL + '/api/groups/remove-member', {
+      await window.dsBotOk(fetch(DISCORD_API_URL + '/api/groups/remove-member', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -154,10 +165,10 @@ window.autoFixStaffGroup = async function(staffId) {
           groupName: wrongG,
           staffId: staff.id
         })
-      });
+      }));
       extStaffGroups[wrongG] = (extStaffGroups[wrongG] || []).filter((id => id !== staff.id));
     }
-    await fetch(DISCORD_API_URL + '/api/groups/assign', {
+    await window.dsBotOk(fetch(DISCORD_API_URL + '/api/groups/assign', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -166,7 +177,7 @@ window.autoFixStaffGroup = async function(staffId) {
         groupName: mismatch.expectedGroup,
         staffIds: [ staff.id ]
       })
-    });
+    }));
     if (!extStaffGroups[mismatch.expectedGroup]) extStaffGroups[mismatch.expectedGroup] = [];
     if (!extStaffGroups[mismatch.expectedGroup].includes(staff.id)) {
       extStaffGroups[mismatch.expectedGroup].push(staff.id);
@@ -219,7 +230,7 @@ window.autoFixAllMismatches = async function() {
         continue;
       }
       for (const wrongG of info.wrongGroups) {
-        await fetch(DISCORD_API_URL + '/api/groups/remove-member', {
+        await window.dsBotOk(fetch(DISCORD_API_URL + '/api/groups/remove-member', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -228,10 +239,10 @@ window.autoFixAllMismatches = async function() {
             groupName: wrongG,
             staffId: staff.id
           })
-        });
+        }));
         extStaffGroups[wrongG] = (extStaffGroups[wrongG] || []).filter((id => id !== staff.id));
       }
-      await fetch(DISCORD_API_URL + '/api/groups/assign', {
+      await window.dsBotOk(fetch(DISCORD_API_URL + '/api/groups/assign', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -240,7 +251,7 @@ window.autoFixAllMismatches = async function() {
           groupName: info.expectedGroup,
           staffIds: [ staff.id ]
         })
-      });
+      }));
       if (!extStaffGroups[info.expectedGroup]) extStaffGroups[info.expectedGroup] = [];
       if (!extStaffGroups[info.expectedGroup].includes(staff.id)) {
         extStaffGroups[info.expectedGroup].push(staff.id);
@@ -874,7 +885,7 @@ window.spy_moveSingleUser = async function(uid, targetId) {
   if (!window.dsRequire('ds_spy')) return;
   if (!targetId) return;
   try {
-    await fetch(`${DISCORD_API_URL}/api/move-users`, {
+    await window.dsBotOk(fetch(`${DISCORD_API_URL}/api/move-users`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -883,7 +894,7 @@ window.spy_moveSingleUser = async function(uid, targetId) {
         userIds: [ uid ],
         targetChannelId: targetId
       })
-    });
+    }));
     const Toast = Swal.mixin({
       toast: true,
       position: 'top-end',
@@ -896,7 +907,9 @@ window.spy_moveSingleUser = async function(uid, targetId) {
     });
     ds_logAction('Spy Move Single', `ย้าย 1 คนไปห้องใหม่`);
     ds_fetchSpy();
-  } catch (e) {}
+  } catch (e) {
+    Swal.fire('ย้ายไม่สำเร็จ', e.message || 'เชื่อมต่อบอทไม่ได้', 'error');
+  }
 };
 
 window.ds_fetchSpy = async function() {
@@ -1101,6 +1114,7 @@ window.scheduleTransfer = async function() {
     title: 'กำลังบันทึก...',
     didOpen: () => Swal.showLoading()
   });
+  let okN = 0, failN = 0;
   for (const staffId of ids) {
     let fromGroup = '?';
     for (let g in extStaffGroups) {
@@ -1109,7 +1123,8 @@ window.scheduleTransfer = async function() {
         break;
       }
     }
-    await fetch(DISCORD_API_URL + '/api/schedule-transfer', {
+    try {
+      await window.dsBotOk(fetch(DISCORD_API_URL + '/api/schedule-transfer', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -1120,9 +1135,13 @@ window.scheduleTransfer = async function() {
         toGroup: toGroup,
         executeAt: time
       })
-    });
+    }));
+      okN++;
+    } catch (err) {
+      failN++;
+    }
   }
-  Swal.fire('สำเร็จ', 'บันทึกการตั้งเวลาย้ายกลุ่มแล้ว', 'success');
+  if (failN && !okN) Swal.fire('บันทึกไม่สำเร็จ', 'บอทไม่รับรายการตั้งเวลา ลองใหม่อีกครั้ง', 'error'); else if (failN) Swal.fire('บันทึกได้บางส่วน', `สำเร็จ ${okN} / ล้มเหลว ${failN} คน`, 'warning'); else Swal.fire('สำเร็จ', 'บันทึกการตั้งเวลาย้ายกลุ่มแล้ว', 'success');
   selectedTransfer.clear();
   fetchTransfers();
   _doRenderTransferUserList();
@@ -1279,7 +1298,8 @@ window.filterSummaryPopup = function() {
 
 window.delTransfer = async function(id) {
   if (!window.dsRequire('ds_manage')) return;
-  await fetch(DISCORD_API_URL + '/api/delete-transfer', {
+  try {
+    await window.dsBotOk(fetch(DISCORD_API_URL + '/api/delete-transfer', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -1287,6 +1307,9 @@ window.delTransfer = async function(id) {
     body: JSON.stringify({
       id: id
     })
-  });
+  }));
+  } catch (e) {
+    Swal.fire('ลบไม่สำเร็จ', e.message, 'error');
+  }
   fetchTransfers();
 };
