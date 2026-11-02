@@ -168,9 +168,13 @@ window.initStaffRecord = async function() {
 window.srLoadTopics = async function() {
   let list = null;
   try {
-    const {data: data} = await appDB.from('settings').select('value').eq('key', 'staff_record_topics').maybeSingle();
+    const {data: data, error: error} = await appDB.from('settings').select('value').eq('key', 'staff_record_topics').maybeSingle();
+    if (error) throw error;
     if (data && data.value) list = JSON.parse(data.value);
-  } catch (e) {}
+    SR.topicsLoadOk = true;
+  } catch (e) {
+    SR.topicsLoadOk = false;
+  }
   SR.topics = Array.isArray(list) && list.length ? list : SR_DEFAULT_TOPICS.slice();
 };
 
@@ -274,6 +278,10 @@ window.srSyncForm = function() {
 };
 
 async function _srSaveTopics(list) {
+  if (SR.topicsLoadOk === false) {
+    Swal.fire('ยังโหลดหัวข้อเดิมไม่สำเร็จ', 'รีเฟรชหน้าแล้วลองใหม่ (กันหัวข้อเดิมถูกทับ)', 'warning');
+    return false;
+  }
   const {error: error} = await appDB.from('settings').upsert([ {
     key: 'staff_record_topics',
     value: JSON.stringify(list)
@@ -395,6 +403,7 @@ window.srAddTopic = async function() {
 const SR_MT_CSS = `\n.srmt-pop.swal2-popup{padding:0 !important;width:min(720px,96vw) !important;border-radius:18px !important;overflow:hidden;background:var(--k-panel) !important;border:1px solid var(--k-line) !important}\n.srmt-pop .swal2-title{display:none !important}\n.srmt-pop .swal2-html-container{margin:0 !important;padding:0 !important;text-align:left !important;overflow:visible !important}\n.srmt-pop .swal2-actions{margin:0 !important;padding:14px 20px 18px !important;width:100%;justify-content:flex-end !important;gap:8px;border-top:1px solid var(--k-line);background:var(--k-panel2)}\n.srmt-pop .swal2-confirm{background:#E8C15A !important;color:#1b1406 !important;font-weight:900 !important;border-radius:11px !important;height:42px;padding:0 20px !important;box-shadow:0 6px 16px rgba(232,193,90,.25) !important;margin:0 !important}\n.srmt-pop .swal2-cancel{background:var(--k-btn) !important;color:var(--k-tx2) !important;border:1px solid var(--k-line3) !important;font-weight:800 !important;border-radius:11px !important;height:42px;padding:0 16px !important;margin:0 !important}\n.srmt-pop .swal2-validation-message{margin:0 20px 10px !important;border-radius:10px}\n.srmt-h{display:flex;align-items:center;gap:12px;padding:18px 20px 12px}\n.srmt-h .ic{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:#E8C15A;color:#1b1406;flex:none}\n.srmt-h b{display:block;font-size:17px;font-weight:900;color:var(--k-tx-strong)}\n.srmt-h small{display:block;font-size:12px;font-weight:600;color:var(--k-mute)}\n.srmt-cols{display:grid;grid-template-columns:36px minmax(0,1fr) 168px 116px 34px;gap:8px;padding:0 20px 6px;font-size:11px;font-weight:800;color:var(--k-mute)}\n.srmt-list{max-height:52vh;overflow-y:auto;padding:2px 20px 4px;display:flex;flex-direction:column;gap:6px}\n.srmt-row{display:grid;grid-template-columns:36px minmax(0,1fr) 168px 116px 34px;gap:8px;align-items:center;padding:6px;border-radius:12px;background:var(--k-card);border:1px solid var(--k-line)}\n.srmt-row:focus-within{border-color:#E8C15A}\n.srmt-sw{position:relative;width:32px;height:32px;border-radius:9px;cursor:pointer;box-shadow:inset 0 0 0 2px rgba(255,255,255,.25)}\n.srmt-sw input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}\n.srmt-name{height:36px;width:100%;padding:0 10px;border-radius:9px;background:var(--k-field);border:1px solid var(--k-line2);color:var(--k-tx);font-size:13.5px;font-weight:800;outline:none}\n.srmt-name:focus{border-color:#E8C15A}\n.srmt-seg{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;padding:3px;border-radius:9px;background:var(--k-sunk);border:1px solid var(--k-line)}\n.srmt-seg button{height:28px;border-radius:7px;border:0;background:transparent;color:var(--k-mute);font-size:11.5px;font-weight:900;cursor:pointer}\n.srmt-seg button.on[data-g="AM"]{background:#2563eb;color:#fff}\n.srmt-seg button.on[data-g="OD"]{background:#db2777;color:#fff}\n.srmt-seg button.on[data-g="ALL"]{background:var(--k-tx2);color:var(--k-panel)}\n.srmt-lim{display:flex;align-items:center;height:36px;border-radius:9px;background:var(--k-field);border:1px solid var(--k-line2);overflow:hidden}\n.srmt-lim button{width:30px;height:100%;border:0;background:transparent;color:var(--k-tx3);font-size:16px;font-weight:900;cursor:pointer}\n.srmt-lim button:hover{background:var(--k-btn-h);color:var(--k-tx-strong)}\n.srmt-lim span{flex:1;text-align:center;font-size:12.5px;font-weight:900;color:var(--k-tx-strong);white-space:nowrap}\n.srmt-lim span.off{font-size:11px;font-weight:700;color:var(--k-mute3)}\n.srmt-del{width:34px;height:34px;border-radius:9px;border:1px solid transparent;background:transparent;color:var(--k-mute);cursor:pointer;font-size:15px;font-weight:900}\n.srmt-del:hover{background:var(--k-red-bg);border-color:var(--k-red-line);color:var(--k-red-tx)}\n.srmt-add{margin:8px 20px 4px;width:calc(100% - 40px);height:40px;border-radius:11px;border:1.5px dashed var(--k-line3);background:transparent;color:var(--k-tx3);font-size:13px;font-weight:800;cursor:pointer}\n.srmt-add:hover{border-color:#E8C15A;color:var(--k-gold-tx)}\n.srmt-foot{display:flex;flex-wrap:wrap;gap:6px 14px;padding:8px 20px 14px;font-size:11.5px;color:var(--k-mute)}\n.srmt-foot b{color:var(--k-tx2)}\n@media (max-width:640px){ .srmt-cols{display:none} .srmt-row{grid-template-columns:36px minmax(0,1fr) 34px} .srmt-seg,.srmt-lim{grid-column:1/-1} }\n`;
 
 window.srManageTopics = async function() {
+  if (SR.topicsLoadOk === false) return Swal.fire('ยังโหลดหัวข้อเดิมไม่สำเร็จ', 'รีเฟรชหน้าแล้วลองใหม่ (กันหัวข้อเดิมถูกทับ)', 'warning');
   if (!_srPerm('staff_record_topics')) return;
   if (!document.getElementById('srmt-css')) {
     const st = document.createElement('style');
@@ -792,6 +801,16 @@ window.srRankOpen = function(name) {
 };
 
 window.srSave = async function() {
+  if (SR._saving) return;
+  SR._saving = true;
+  try {
+    return await _srSaveInner();
+  } finally {
+    SR._saving = false;
+  }
+};
+
+async function _srSaveInner() {
   if (!_srPerm('staff_record_add')) return Swal.fire('ไม่มีสิทธิ์', 'บัญชีนี้ลงประวัติไม่ได้', 'warning');
   const date = document.getElementById('srDate').value;
   const note = document.getElementById('srNote').value.trim();
@@ -871,7 +890,7 @@ window.srSave = async function() {
   });
   if (date.slice(0, 7) === SR.month) await srLoad();
   srRenderTopics();
-};
+}
 
 window.srLoad = async function() {
   const [a, b] = _srMonthRange(SR.month);
