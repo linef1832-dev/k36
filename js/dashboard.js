@@ -1477,7 +1477,7 @@ window._renderMyTodayNow = async function() {
     })));
   }
   const groupOrder = [ myDep, ...[ 'AM', 'OD' ].filter((d => d !== myDep)), 'ทุกแผนก' ];
-  const groupTitle = d => d === 'ทุกแผนก' ? '⭐ ผู้จัดการ / ดูแลทุกแผนก' : `👥 หัวหน้า ${d}`;
+  const groupTitle = d => d === 'ทุกแผนก' ? '⭐ ผู้จัดการ / ดูแลทุกแผนก' : `หัวหน้า ${d}`;
   const renderOne = u => {
     const b = _mtShiftBadge(u.allowed_shift);
     const ini = _mtEsc(String(u.username || '?').substring(0, 2).toUpperCase());
