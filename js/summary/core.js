@@ -162,6 +162,17 @@ function getTpl(templateId, data = {}) {
   return html;
 }
 
+window.summaryShiftOf = function(r, empKey, realUser, schMap) {
+  const booked = schMap && schMap[`${r.date}_${empKey}`];
+  let sh = booked;
+  if (!sh && realUser && realUser.allowed_shift) {
+    const raw = String(realUser.allowed_shift).trim().toLowerCase();
+    if (raw && raw !== 'all' && raw !== 'กะอิสระ' && raw !== 'อิสระ') sh = realUser.allowed_shift;
+  }
+  if (!sh) sh = realUser && realUser.allowed_shift || (typeof getShiftFromName === 'function' ? getShiftFromName(r.employee_name) : 'UNKNOWN');
+  return window.normalizeShiftName(sh);
+};
+
 window.normalizeShiftName = function(shift) {
   let s = String(shift || '').trim().replace('กะ', '');
   if (s === 'เช้า') return 'กะเช้า';
@@ -1631,18 +1642,7 @@ window.fetchHistoricalSummary = async function(silent = false) {
         const rejCount = r.reject_count !== undefined && r.reject_count !== null ? parseInt(r.reject_count) : 0;
         let empKey = (r.employee_name || '').toLowerCase().trim();
         const realUser = typeof getRealDbUser === 'function' ? getRealDbUser(r.employee_name) : null;
-        let actualShift;
-        if (realUser && realUser.allowed_shift) {
-          const rawShift = String(realUser.allowed_shift).trim().toLowerCase();
-          if (rawShift && rawShift !== 'all' && rawShift !== 'กะอิสระ' && rawShift !== 'อิสระ') {
-            actualShift = realUser.allowed_shift;
-          } else {
-            actualShift = schMap[`${r.date}_${empKey}`] || realUser.allowed_shift;
-          }
-        } else {
-          actualShift = schMap[`${r.date}_${empKey}`] || (typeof getShiftFromName === 'function' ? getShiftFromName(r.employee_name) : 'UNKNOWN');
-        }
-        actualShift = window.normalizeShiftName(actualShift);
+        const actualShift = window.summaryShiftOf(r, empKey, realUser, schMap);
         if (window._debugSummaryShift) {
           console.log('[Shift Debug]', r.employee_name, {
             foundInUserList: !!realUser,

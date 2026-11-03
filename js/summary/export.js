@@ -841,18 +841,7 @@ window.fetchMultipleHistoricalSummary = async function() {
         const key = window.cleanKeyStr(r.employee_name, r.website);
         let empKey = (r.employee_name || '').toLowerCase().trim();
         const realUser = typeof getRealDbUser === 'function' ? getRealDbUser(r.employee_name) : null;
-        let actualShift;
-        if (realUser && realUser.allowed_shift) {
-          const rawShift = String(realUser.allowed_shift).trim().toLowerCase();
-          if (rawShift && rawShift !== 'all' && rawShift !== 'กะอิสระ' && rawShift !== 'อิสระ') {
-            actualShift = realUser.allowed_shift;
-          } else {
-            actualShift = schMap[`${r.date}_${empKey}`] || realUser.allowed_shift;
-          }
-        } else {
-          actualShift = schMap[`${r.date}_${empKey}`] || (typeof getShiftFromName === 'function' ? getShiftFromName(r.employee_name) : 'UNKNOWN');
-        }
-        actualShift = window.normalizeShiftName(actualShift);
+        const actualShift = window.summaryShiftOf(r, empKey, realUser, schMap);
         if (!groupedData[key]) {
           groupedData[key] = {
             date: combinedDateLabel,
