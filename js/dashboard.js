@@ -1,3 +1,10 @@
+window.k36DutyDepts = function(u) {
+  const raw = String(u && u.department || 'AM');
+  const n = raw === 'TRAINER' ? 'AMQL' : raw;
+  const side = /^OD/i.test(n) ? 'OD' : 'AM';
+  return [ ...new Set([ n, side, side === 'OD' ? 'ODQL' : 'AMQL' ]) ];
+};
+
 window.k36WorkDate = function() {
   const now = typeof window.serverNow === 'function' ? window.serverNow() : new Date;
   const d = new Date(now.getTime());
@@ -470,7 +477,8 @@ async function _doRefreshTimeSlots() {
     return;
   }
   const shiftName = shiftEl.value;
-  const myDep = window.currentUser?.department || 'AM';
+  const _rawDep = window.currentUser?.department || 'AM';
+  const myDep = _rawDep === 'TRAINER' ? 'AMQL' : _rawDep;
   const dateVal = dateEl.value;
   const now = Date.now();
   if (canPerm('dashboard_bypass_rules')) window._rosterMissing = false;
@@ -776,7 +784,7 @@ window.subscribeDashboardChanges = function() {
     } else if (key.startsWith('duty_roster_') || key.startsWith('duty_od_rooms_')) {
       if (typeof _rosterCache !== 'undefined') delete _rosterCache[key];
       const myDep = window.currentUser && window.currentUser.department || 'AM';
-      const relevant = key.startsWith(`duty_roster_${myDep}_`) || myDep === 'OD' && key.startsWith('duty_od_rooms_');
+      const relevant = window.k36DutyDepts(window.currentUser).some((dp => key.startsWith(`duty_roster_${dp}_`))) || /^OD/i.test(myDep) && key.startsWith('duty_od_rooms_');
       if (!relevant) return;
       window._myTodayRefresh();
       if (typeof window.refreshTimeSlots === 'function') window.refreshTimeSlots();
@@ -1270,9 +1278,10 @@ window._renderMyTodayNow = async function() {
   const _yd = new Date(dateVal + 'T00:00:00');
   _yd.setDate(_yd.getDate() - 1);
   const ydate = `${_yd.getFullYear()}-${String(_yd.getMonth() + 1).padStart(2, '0')}-${String(_yd.getDate()).padStart(2, '0')}`;
-  const shiftsToLoad = myShift ? [ myShift ] : [ 'กะเช้า', 'กะกลาง', 'กะดึก' ];
-  const rosterKeys = [ ...shiftsToLoad.map((s => `duty_roster_${myDep}_${dateVal}_${s}`)), ...shiftsToLoad.map((s => `duty_roster_${myDep}_${ydate}_${s}`)) ];
-  const roomKeys = myDep === 'OD' ? myShift ? [ `duty_od_rooms_${dateVal}_${myShift}` ] : [ 'กะเช้า', 'กะกลาง', 'กะดึก' ].map((s => `duty_od_rooms_${dateVal}_${s}`)) : [];
+  const shiftsToLoad = [ 'กะเช้า', 'กะกลาง', 'กะดึก' ];
+  const dutyDepts = window.k36DutyDepts(me);
+  const rosterKeys = dutyDepts.flatMap((dp => [ ...shiftsToLoad.map((s => `duty_roster_${dp}_${dateVal}_${s}`)), ...shiftsToLoad.map((s => `duty_roster_${dp}_${ydate}_${s}`)) ]));
+  const roomKeys = /^OD/i.test(myDep) ? [ 'กะเช้า', 'กะกลาง', 'กะดึก' ].map((s => `duty_od_rooms_${dateVal}_${s}`)) : [];
   let rosterRows = [], myBreaks = [], myLeaves = [], mySwaps = [];
   try {
     const _swEnd = new Date(dateVal + 'T00:00:00');
