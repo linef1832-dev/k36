@@ -585,7 +585,7 @@ window.renderDutyAccessTable = function() {
     let uDept = u.department || 'AM';
     if (uDept === 'TRAINER') uDept = 'AMQL';
     if (window.isTrainerDept()) return uDept === currentDutyDept;
-    return u.role === 'staff' && uDept === currentDutyDept;
+    return String(u.role || '').toLowerCase() === 'staff' && uDept === currentDutyDept;
   }));
   const shiftFilter = document.getElementById('settingShiftFilter') ? document.getElementById('settingShiftFilter').value : 'all';
   const searchFilter = document.getElementById('settingSearchInput') ? document.getElementById('settingSearchInput').value.toLowerCase() : '';

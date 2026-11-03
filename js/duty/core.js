@@ -61,13 +61,26 @@ window.normalizeUserDept = function(u) {
   return d;
 };
 
+window.getDutyRoleSkipped = function(shiftFilter) {
+  if (window.isTrainerDept()) return [];
+  return (GLOBAL_USER_LIST || []).filter((u => {
+    if (!u) return false;
+    const r = String(u.role || '').toLowerCase();
+    if (r === 'staff' || r === 'admin' || r === 'manager') return false;
+    if (window.normalizeUserDept(u) !== currentDutyDept) return false;
+    if (!window.isDutyShiftMatch(u, shiftFilter)) return false;
+    if (currentDutyLeaves && currentDutyLeaves.has(String(u.id))) return false;
+    return true;
+  }));
+};
+
 window.getDutyActiveStaff = function(shiftFilter, opts) {
   opts = opts || {};
   const trainer = window.isTrainerDept();
   return (GLOBAL_USER_LIST || []).filter((u => {
     if (!u) return false;
     if (window.normalizeUserDept(u) !== currentDutyDept) return false;
-    if (!opts.anyRole && !trainer && u.role !== 'staff') return false;
+    if (!opts.anyRole && !trainer && String(u.role || '').toLowerCase() !== 'staff') return false;
     if (!window.isDutyShiftMatch(u, shiftFilter)) return false;
     if (currentDutyLeaves && currentDutyLeaves.has(String(u.id))) return false;
     return true;
@@ -1331,7 +1344,11 @@ window.generateDutyRoster = async function() {
     window.refreshDutyData();
     return Swal.fire('ป้องกันการจัดซ้ำ!', 'กะนี้มีการจัดหน้าที่ไปแล้ว กรุณากดปุ่ม "ล้างตาราง" ก่อนสุ่มใหม่ครับ', 'warning');
   }
+  await window.refreshDutyData();
+  if (document.getElementById('dutyDate').value !== targetDate || document.getElementById('dutyShiftSelect').value !== shiftFilter) return;
   const activeStaff = window.getDutyActiveStaff(shiftFilter);
+  const roleSkipped = window.getDutyRoleSkipped(shiftFilter);
+  const roleNote = roleSkipped.length ? `<div style="margin-top:8px;text-align:left;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);border-radius:12px;padding:10px 12px;font-size:11.5px;color:var(--k-red-tx,#b91c1c)">⚠️ <b>มาทำงานแต่ไม่ถูกสุ่ม ${roleSkipped.length} คน</b> เพราะตำแหน่งในระบบไม่ใช่ "staff":<br>${roleSkipped.map((u => `${window.escapeHtml(u.username)} <span style="opacity:.75">(ตำแหน่ง: ${window.escapeHtml(u.role || 'ไม่ได้ตั้ง')})</span>`)).join(', ')}<br><span style="opacity:.8">→ แก้ตำแหน่งเป็น staff ในหน้าจัดการพนักงาน หรือกด "ดึงคนเข้างาน" เอง</span></div>` : '';
   let requiredCount = 0;
   document.querySelectorAll('.req-input').forEach((i => requiredCount += parseInt(i.value) || 0));
   if (activeStaff.length === 0) return Swal.fire('ข้อมูลไม่พอ', `ไม่มีพนักงานมาทำงานในกะนี้เลย (ลองเช็คสิทธิ์หรือรายชื่ออีกครั้ง)`, 'error');
@@ -1567,7 +1584,13 @@ window.generateDutyRoster = async function() {
       Swal.fire({
         icon: 'warning',
         title: `จัดหลักสำเร็จ! (มีคนเหลือ)`,
-        html: `เหลือพนักงานไม่ได้ลงเว็บ <b>${unassignedPool.length} คน</b>${reasonHtml}${pinSummary}`
+        html: `เหลือพนักงานไม่ได้ลงเว็บ <b>${unassignedPool.length} คน</b>${reasonHtml}${roleNote}${pinSummary}`
+      });
+    } else if (roleNote) {
+      Swal.fire({
+        icon: 'warning',
+        title: `จัดตำแหน่งหลักสำเร็จ!`,
+        html: `กรุณากดปุ่มสายฟ้า (จัดตำแหน่งรองด่วน) เพื่อจับคู่เวลาพักครับ${roleNote}${pinSummary}`
       });
     } else if (pinSummary) {
       Swal.fire({
