@@ -131,48 +131,111 @@ window.setLeaveType = function(type) {
   }
 };
 
+const LEAVE_LEGACY_PERMS = {
+  AM: [ 'leave_am', 'leave_manage_am' ],
+  OD: [ 'leave_od', 'leave_manage_od' ],
+  AMQL: [ 'leave_trainer', 'leave_manage_trainer' ],
+  ODQL: [ 'leave_trainer', 'leave_manage_trainer' ],
+  TRAINER: [ 'leave_trainer', 'leave_manage_trainer' ],
+  SPECIAL: [ 'leave_new', 'leave_manage_new' ]
+};
+
+window.leaveDeptKey = d => String(d || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+
+window.leavePermIds = function(d) {
+  return LEAVE_LEGACY_PERMS[d] || [ `leave_view_${window.leaveDeptKey(d)}`, `leave_manage_${window.leaveDeptKey(d)}` ];
+};
+
+window.leaveDeptLabel = function(d) {
+  return {
+    AMQL: 'ผู้สอน AM',
+    ODQL: 'ผู้สอน OD',
+    TRAINER: 'ผู้สอน',
+    SPECIAL: 'พนักงานใหม่'
+  }[d] || d;
+};
+
+window.leaveAllDepts = function() {
+  let sys = [];
+  try {
+    sys = typeof window.getSystemDepts === 'function' ? window.getSystemDepts() : [];
+  } catch (e) {}
+  const set = [ ...new Set([ 'AM', 'OD', 'AMQL', 'ODQL', ...sys ].map((x => String(x || '').trim().toUpperCase())).filter((x => x && x !== 'TRAINER' && x !== 'NEW' && x !== 'SPECIAL'))) ];
+  const side = x => /^OD/.test(x) ? 1 : /^AM/.test(x) ? 0 : 2;
+  set.sort(((a, b) => side(a) - side(b) || (a.length - b.length) || a.localeCompare(b)));
+  return [ ...set, 'SPECIAL' ];
+};
+
+window.leaveCanManage = function(d) {
+  if (typeof canPerm === 'function' && canPerm('leave_manage')) return true;
+  if (window.hasUserPerm('leave_manage')) return true;
+  const ids = window.leavePermIds(d);
+  if (d === 'SPECIAL' && window.hasUserPerm('leave_manage_am')) return true;
+  return window.hasUserPerm(ids[1]);
+};
+
+window.leaveCanView = function(d) {
+  if (typeof canPerm === 'function' && canPerm('leave_manage')) return true;
+  if (d === 'SPECIAL') {
+    const inGrp = (window.specialGroupUserIds || []).includes(String(currentUser && currentUser.id));
+    const isTr = [ 'AMQL', 'ODQL', 'TRAINER' ].includes(currentUser && currentUser.department);
+    return inGrp || isTr || window.hasUserPerm('leave_new') || window.leaveCanManage(d);
+  }
+  return window.hasUserPerm(window.leavePermIds(d)[0]) || window.leaveCanManage(d);
+};
+
+function _leaveEnsureDeptSettings(d) {
+  if (!deptSettings[d]) deptSettings[d] = {
+    limit: 4,
+    startM: '',
+    endM: '',
+    startA: '',
+    endA: '',
+    startN: '',
+    endN: '',
+    isOpen: false,
+    quotaM: 0,
+    quotaA: 0,
+    quotaN: 0,
+    viewMonth: '',
+    startDay: '',
+    endDay: ''
+  };
+}
+
+window.renderLeaveDeptTabs = function() {
+  const box = document.getElementById('leaveDeptTabs');
+  if (!box) return;
+  const icon = d => d === 'SPECIAL' ? 'star' : /QL$/.test(d) ? 'school' : /^OD/.test(d) ? 'groups' : 'business';
+  const esc = window.escapeHtml || (x => x);
+  box.innerHTML = window.leaveAllDepts().filter((d => window.leaveCanView(d))).map((d => `<button type="button" data-dept="${esc(d)}" onclick="switchDept(this.dataset.dept)" id="btn${esc(d)}" class="dept-segment-btn${d === currentViewDept ? ' active' : ''}"><span class="material-icons text-sm">${icon(d)}</span> ${esc(window.leaveDeptLabel(d))}</button>`)).join('');
+};
+
 window.switchDept = function(dept) {
   currentViewDept = dept;
-  [ 'AM', 'OD', 'TRAINER', 'SPECIAL', 'AMQL', 'ODQL' ].forEach((d => {
-    const btn = document.getElementById(`btn${d}`);
-    if (!btn) return;
+  _leaveEnsureDeptSettings(dept);
+  document.querySelectorAll('#leaveDeptTabs [data-dept]').forEach((btn => {
+    const d = btn.dataset.dept;
+    btn.classList.remove('active', 'text-rose-600', 'text-fuchsia-600', 'text-cyan-500', 'text-indigo-500', 'text-amber-500');
     if (d === dept) {
       btn.classList.add('active');
-      btn.classList.remove('text-rose-600', 'text-fuchsia-600', 'text-cyan-500', 'text-indigo-500', 'text-amber-500');
-      if (d === 'AM') btn.classList.add('text-rose-600');
-      if (d === 'OD') btn.classList.add('text-fuchsia-600');
-      if (d === 'TRAINER' || d === 'AMQL' || d === 'ODQL') btn.classList.add('text-indigo-500');
-      if (d === 'SPECIAL') btn.classList.add('text-amber-500');
-    } else {
-      btn.classList.remove('active', 'text-rose-600', 'text-fuchsia-600', 'text-cyan-500', 'text-indigo-500', 'text-amber-500');
+      btn.classList.add(d === 'SPECIAL' ? 'text-amber-500' : /QL$/.test(d) || d === 'TRAINER' ? 'text-indigo-500' : /^OD/.test(d) ? 'text-fuchsia-600' : 'text-rose-600');
     }
   }));
   const label = document.getElementById('currentDeptLabel');
   const targetLabel = document.getElementById('settingTargetLabel');
   const saveLabel = document.getElementById('saveBtnLabel');
-  let displayDeptName = dept;
-  if (dept === 'TRAINER') displayDeptName = 'ผู้สอน';
-  if (dept === 'SPECIAL') displayDeptName = 'จัดกลุ่มเอง';
-  if (dept === 'AMQL') displayDeptName = 'ผู้สอน AM';
-  if (dept === 'ODQL') displayDeptName = 'ผู้สอน OD';
+  let displayDeptName = dept === 'SPECIAL' ? 'จัดกลุ่มเอง' : window.leaveDeptLabel(dept);
   if (label) label.innerText = displayDeptName;
   if (targetLabel) targetLabel.innerText = displayDeptName;
   if (saveLabel) saveLabel.innerText = displayDeptName;
-  let colorClass = 'bg-rose-600';
-  if (dept === 'OD') colorClass = 'bg-fuchsia-600';
-  if (dept === 'TRAINER' || dept === 'AMQL' || dept === 'ODQL') colorClass = 'bg-indigo-600';
-  if (dept === 'SPECIAL') colorClass = 'bg-amber-500';
+  let colorClass = dept === 'SPECIAL' ? 'bg-amber-500' : /QL$/.test(dept) || dept === 'TRAINER' ? 'bg-indigo-600' : /^OD/.test(dept) ? 'bg-fuchsia-600' : 'bg-rose-600';
   if (label) label.className = `text-[10px] ${colorClass} px-2 rounded shadow transition-colors duration-300`;
   const btnManage = document.getElementById('btnManageNewStaff');
   if (btnManage) {
     btnManage.classList.remove('hidden');
   }
-  const isGlobalAdmin = canPerm('leave_manage');
-  let canManageThisDept = isGlobalAdmin;
-  if (dept === 'AM') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_am');
-  if (dept === 'OD') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_od');
-  if (dept === 'TRAINER' || dept === 'AMQL' || dept === 'ODQL') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_trainer');
-  if (dept === 'SPECIAL') canManageThisDept = isGlobalAdmin || window.hasUserPerm('leave_manage_am');
+  const canManageThisDept = window.leaveCanManage(dept);
   const controls = document.getElementById('leaveManagerControls');
   if (controls) {
     if (canManageThisDept) controls.classList.remove('hidden'); else controls.classList.add('hidden');
@@ -243,29 +306,12 @@ window.initLeaveTable = async function() {
   const canManage = isGlobalAdmin || window.hasUserPerm('leave_manage');
   const canExport = isGlobalAdmin || window.hasUserPerm('leave_export');
   const canViewHistory = isGlobalAdmin || window.hasUserPerm('leave_history');
-  const canViewAM = isGlobalAdmin || window.hasUserPerm('leave_am');
-  const canViewOD = isGlobalAdmin || window.hasUserPerm('leave_od');
-  const canViewTRAINER = isGlobalAdmin || window.hasUserPerm('leave_trainer');
-  const btnAM = document.getElementById('btnAM');
-  if (btnAM) {
-    if (canViewAM) btnAM.classList.remove('hidden'); else btnAM.classList.add('hidden');
-  }
-  const btnOD = document.getElementById('btnOD');
-  if (btnOD) {
-    if (canViewOD) btnOD.classList.remove('hidden'); else btnOD.classList.add('hidden');
-  }
-  const btnNEW = document.getElementById('btnNEW');
-  if (btnNEW) btnNEW.classList.add('hidden');
-  const btnTRAINER = document.getElementById('btnTRAINER');
-  if (btnTRAINER) {
-    if (canViewTRAINER) btnTRAINER.classList.remove('hidden'); else btnTRAINER.classList.add('hidden');
-  }
   const controls = document.getElementById('leaveManagerControls');
   if (controls) {
     if (canManage) controls.classList.remove('hidden'); else controls.classList.add('hidden');
   }
   const _dept = currentViewDept || 'AM';
-  const canManageThisDept = isGlobalAdmin || _dept === 'AM' && window.hasUserPerm('leave_manage_am') || _dept === 'OD' && window.hasUserPerm('leave_manage_od') || [ 'TRAINER', 'AMQL', 'ODQL' ].includes(_dept) && window.hasUserPerm('leave_manage_trainer') || _dept === 'SPECIAL' && window.hasUserPerm('leave_manage_am');
+  const canManageThisDept = window.leaveCanManage(_dept);
   const typeToolbar = document.getElementById('leaveTypeToolbar');
   if (typeToolbar) {
     if (canManageThisDept) typeToolbar.classList.remove('hidden'); else typeToolbar.classList.add('hidden');
@@ -283,17 +329,7 @@ window.initLeaveTable = async function() {
     fetchTasks.push(fetchUsers());
   }
   await Promise.all(fetchTasks);
-  const btnSPECIAL = document.getElementById('btnSPECIAL');
-  if (btnSPECIAL) {
-    window.specialGroupUserIds = window.specialGroupUserIds || [];
-    const isInSpecialGroup = window.specialGroupUserIds.includes(String(currentUser.id));
-    const isTrainerUser = [ 'AMQL', 'ODQL', 'TRAINER' ].includes(currentUser.department);
-    if (isGlobalAdmin || isInSpecialGroup || isTrainerUser) {
-      btnSPECIAL.classList.remove('hidden');
-    } else {
-      btnSPECIAL.classList.add('hidden');
-    }
-  }
+  window.renderLeaveDeptTabs();
   if (typeof window.bindLeaveSettingInputs === 'function') window.bindLeaveSettingInputs();
   if (typeof updateAdminInputs === 'function') updateAdminInputs(true);
   renderLeaveTable();
@@ -302,10 +338,10 @@ window.initLeaveTable = async function() {
   subscribeLeaveChanges();
   subscribeSettingsChanges();
   subscribeScheduledTasksChanges();
-  const allowedDepts = [ 'AM', 'OD', 'TRAINER' ];
-  let myDept = currentUser.department || 'AM';
-  if (!allowedDepts.includes(myDept)) myDept = 'AM';
-  if (myDept === 'AM' && !canViewAM) myDept = canViewOD ? 'OD' : canViewTRAINER ? 'TRAINER' : 'AM'; else if (myDept === 'OD' && !canViewOD) myDept = canViewAM ? 'AM' : canViewTRAINER ? 'TRAINER' : 'AM'; else if (myDept === 'TRAINER' && !canViewTRAINER) myDept = canViewAM ? 'AM' : canViewOD ? 'OD' : 'AM';
+  const visibleDepts = window.leaveAllDepts().filter((d => window.leaveCanView(d)));
+  let myDept = String(currentUser.department || 'AM').toUpperCase();
+  if (myDept === 'TRAINER') myDept = 'AMQL';
+  if (!visibleDepts.includes(myDept)) myDept = visibleDepts[0] || 'AM';
   switchDept(myDept);
   if (window.leaveCheckInterval) {
     clearInterval(window.leaveCheckInterval);
@@ -321,10 +357,14 @@ window.initLeaveTable = async function() {
 async function loadLeaveSettings(skipRender = false) {
   const suffixes = [ 'limit', 'startM', 'endM', 'startA', 'endA', 'startN', 'endN', 'is_open', 'quota_m', 'quota_a', 'quota_n', 'view_month', 'lock_start', 'lock_end' ];
   const wantKeys = [ 'leave_special_users' ];
-  [ 'AM', 'OD', 'TRAINER', 'SPECIAL', 'AMQL', 'ODQL' ].forEach((d => suffixes.forEach((x => wantKeys.push(`${d}_${x}`)))));
+  const _lvDepts = [ ...new Set([ ...window.leaveAllDepts(), 'TRAINER' ]) ];
+  _lvDepts.forEach((d => {
+    _leaveEnsureDeptSettings(d);
+    suffixes.forEach((x => wantKeys.push(`${d}_${x}`)));
+  }));
   const {data: data, error: error} = await appDB.from('settings').select('key, value').in('key', wantKeys);
   if (data) {
-    [ 'AM', 'OD', 'TRAINER', 'SPECIAL', 'AMQL', 'ODQL' ].forEach((dept => {
+    _lvDepts.forEach((dept => {
       const getDbValue = (keySuffix, defaultVal) => {
         const row = data.find((d => d.key === `${dept}_${keySuffix}`));
         return row ? row.value : defaultVal;

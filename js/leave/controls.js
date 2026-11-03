@@ -71,7 +71,7 @@ window._leaveVerifyBooking = function(myId, uid, dateStr, reason) {
     text: 'วันนี้ถูกลงไว้แล้ว (อาจกดซ้ำหรือเปิดหลายหน้า) ระบบไม่บันทึกซ้ำให้'
   };
   const isSelf = typeof currentUser !== 'undefined' && currentUser && String(currentUser.id) === sid;
-  const canOverride = typeof canPerm === 'function' && (canPerm('leave_manage') || canPerm(`leave_manage_${String(currentViewDept || '').toLowerCase()}`));
+  const canOverride = typeof window.leaveCanManage === 'function' && window.leaveCanManage(currentViewDept);
   if (!isSelf || canOverride) return null;
   const s = deptSettings[currentViewDept] || {};
   const users = window.leaveDeptUsers();

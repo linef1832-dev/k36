@@ -41,7 +41,7 @@ window.renderLeaveTable = function() {
   const isTrainerAM = currentUser.department === 'AMQL' || isTrainerRole && currentUser.department === 'AM';
   const isTrainerOD = currentUser.department === 'ODQL' || isTrainerRole && currentUser.department === 'OD';
   const isTrainerInThisPage = _d === 'AMQL' && isTrainerAM || _d === 'ODQL' && isTrainerOD || _d === 'TRAINER' && isTrainerRole;
-  const isAdmin = isGlobalAdmin || window.hasUserPerm('leave_manage') || _d === 'AM' && window.hasUserPerm('leave_manage_am') || _d === 'OD' && window.hasUserPerm('leave_manage_od') || _d === 'SPECIAL' && window.hasUserPerm('leave_manage_am') || [ 'AMQL', 'ODQL', 'TRAINER' ].includes(_d) && window.hasUserPerm('leave_manage_trainer');
+  const isAdmin = isGlobalAdmin || window.leaveCanManage(_d);
   const canViewAnyMonth = isAdmin || window.hasUserPerm('leave_view_any_month');
   const canRequest = isGlobalAdmin || window.hasUserPerm('leave_request') || currentViewDept === 'SPECIAL' || isTrainerInThisPage;
   const picker = document.getElementById('viewMonthPicker');

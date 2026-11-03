@@ -63,7 +63,6 @@ window.normalizeUserDept = function(u) {
 
 window.getDutyActiveStaff = function(shiftFilter, opts) {
   opts = opts || {};
-  const trainer = window.isTrainerDept();
   return (GLOBAL_USER_LIST || []).filter((u => {
     if (!u) return false;
     if (window.normalizeUserDept(u) !== currentDutyDept) return false;

@@ -693,7 +693,40 @@ function _permRenderGroups() {
   grid.innerHTML = html;
 }
 
+window.syncLeaveDeptPermItems = function() {
+  const g = PERM_GROUPS.find((x => x.items.some((i => i.id === 'leave_am'))));
+  if (!g) return;
+  let depts = [];
+  try {
+    depts = typeof window.getSystemDepts === 'function' ? window.getSystemDepts() : [];
+  } catch (e) {}
+  const legacy = [ 'AM', 'OD', 'AMQL', 'ODQL', 'TRAINER', 'NEW', 'SPECIAL' ];
+  const key = d => String(d || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  g.items = g.items.filter((i => !/^leave_(view|manage)_dyn_/.test(i.id) && !(i._dyn)));
+  const viewAt = g.items.findIndex((i => i.id === 'leave_trainer')) + 1;
+  const extra = depts.map((d => String(d || '').trim().toUpperCase())).filter((d => d && !legacy.includes(d)));
+  const viewItems = extra.map((d => ({
+    id: `leave_view_${key(d)}`,
+    name: `[ดูหน้า] แท็บ ${d}`,
+    isSub: true,
+    _dyn: true
+  })));
+  g.items.splice(viewAt, 0, ...viewItems);
+  const manageItems = extra.map((d => ({
+    id: `leave_manage_${key(d)}`,
+    name: `⚙️ จัดการ ${d}`,
+    isSub: true,
+    _dyn: true
+  })));
+  g.items.push(...manageItems);
+  const tr = g.items.find((i => i.id === 'leave_trainer'));
+  if (tr) tr.name = '[ดูหน้า] ผู้สอน AM / OD';
+  const mt = g.items.find((i => i.id === 'leave_manage_trainer'));
+  if (mt) mt.name = '⚙️ จัดการ ผู้สอน AM / OD';
+};
+
 window.renderPermsTable = function() {
+  window.syncLeaveDeptPermItems();
   _permReadMenuPerms();
   const root = document.getElementById('permBuilderRoot');
   if (!root) return;
