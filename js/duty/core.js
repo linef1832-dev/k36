@@ -970,6 +970,32 @@ window.addStaffToRoster = async function() {
       if (u && u.id) alreadyAssignedIds.add(String(u.id));
     }));
   }
+  const pulledNames = new Set;
+  try {
+    const {data: logs} = await appDB.from('system_logs').select('target_details').eq('action_type', 'ย้ายหน้าที่').ilike('target_details', `%(${currentDutyDept}, ${shiftFilter}, ${targetDate})%`).limit(500);
+    (logs || []).forEach((l => {
+      const m = String(l.target_details || '').match(/^ดึง (.+?) เข้างาน/);
+      if (m) pulledNames.add(m[1].trim().toLowerCase());
+    }));
+  } catch (e) {}
+  const pulledNow = [];
+  for (const team in currentRosterData) {
+    (currentRosterData[team] || []).forEach((u => {
+      if (!u || !u.id || !u.username) return;
+      if (u.pulled_in || pulledNames.has(String(u.username).toLowerCase())) {
+        if (!pulledNow.some((x => String(x.id) === String(u.id)))) pulledNow.push({
+          id: u.id,
+          username: u.username,
+          team: team,
+          sub: u.secondary_team || ''
+        });
+      }
+    }));
+  }
+  const pulledBoxHtml = pulledNow.length ? `<div class="text-left mb-3 p-2.5 rounded-xl border border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-900/15">
+      <div class="text-xs font-black text-amber-600 dark:text-amber-400 mb-1.5">ดึงเข้ามาแล้ว ${pulledNow.length} คน <span class="font-bold text-gray-500 dark:text-gray-400">· เอาติ๊กออก = เอาออกจากหน้างาน</span></div>
+      <div style="display:flex;flex-direction:column;gap:4px;max-height:160px;overflow-y:auto">${pulledNow.map((x => `<label class="flex items-center gap-2 cursor-pointer text-sm font-bold text-slate-800 dark:text-white select-none"><input type="checkbox" class="swal-pulled-chk w-4 h-4 accent-emerald-500 cursor-pointer" data-id="${window.escapeHtml(String(x.id))}" checked> ${window.escapeHtml(x.username)} <span class="text-[11px] font-bold text-gray-500 dark:text-gray-400">· ${window.escapeHtml(x.team)}${x.sub ? ' + รอง ' + window.escapeHtml(x.sub) : ''}</span></label>`)).join('')}</div>
+    </div>` : '';
   const candidates = GLOBAL_USER_LIST.filter((u => {
     if (!u || !u.username) return false;
     if (alreadyAssignedIds.has(String(u.id))) return false;
@@ -993,7 +1019,7 @@ window.addStaffToRoster = async function() {
     if (uDept !== currentDutyDept) return false;
     return true;
   })).sort(((a, b) => a.username.localeCompare(b.username, 'th')));
-  if (candidates.length === 0 && candidatesAll.length === 0) {
+  if (candidates.length === 0 && candidatesAll.length === 0 && pulledNow.length === 0) {
     return Swal.fire({
       icon: 'info',
       title: 'ไม่มีพนักงานให้เพิ่ม',
@@ -1029,7 +1055,7 @@ window.addStaffToRoster = async function() {
   }));
   const result = await Swal.fire({
     title: `<div class="text-xl font-black text-emerald-500 mt-2">🫳 ดึงคนเข้างาน</div>`,
-    html: `\n            <div class="text-left text-xs text-gray-500 dark:text-gray-400 mb-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 p-2.5 rounded-lg">\n                <span class="material-icons text-[14px] align-middle text-emerald-500">info</span>\n                <span class="align-middle">วันที่: <b class="text-slate-800 dark:text-white">${targetDate}</b> | กะ: <b class="text-slate-800 dark:text-white">${shiftFilter}</b> | แผนก: <b class="text-slate-800 dark:text-white">${currentDutyDept}</b></span>\n            </div>\n            <div class="text-left mb-1 flex items-center justify-between">\n                <label class="text-xs font-bold text-gray-600 dark:text-gray-300">พนักงาน (ที่ยังไม่อยู่ในตาราง):</label>\n                <label class="flex items-center gap-1.5 cursor-pointer text-[11px] font-bold text-amber-500 select-none">\n                    <input type="checkbox" id="swal-add-allshift" class="w-3.5 h-3.5 accent-amber-500 cursor-pointer"\n                        onchange="document.getElementById('swal-add-user').innerHTML = this.checked ? window._pullStaffOpts.all : window._pullStaffOpts.match">\n                    รวมทุกกะ (โยกกลางคัน)\n                </label>\n            </div>\n            <select id="swal-add-user" class="w-full p-3 rounded-xl border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer text-sm mb-3">\n                ${userOptionsHtml}\n            </select>\n            <div class="text-left mb-2"><label class="text-xs font-bold text-gray-600 dark:text-gray-300">เว็บหลัก:</label></div>\n            <select id="swal-add-team" class="w-full p-3 rounded-xl border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer text-sm mb-3">\n                ${teamOptionsHtml}\n            </select>\n            <div class="text-left mb-2"><label class="text-xs font-bold text-gray-600 dark:text-gray-300">เว็บรอง <span class="text-gray-400 font-normal">(ไม่บังคับ)</span>:</label></div>\n            <select id="swal-add-subteam" class="w-full p-3 rounded-xl border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer text-sm">\n                ${subOptionsHtml}\n            </select>\n        `,
+    html: `\n            <div class="text-left text-xs text-gray-500 dark:text-gray-400 mb-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 p-2.5 rounded-lg">\n                <span class="material-icons text-[14px] align-middle text-emerald-500">info</span>\n                <span class="align-middle">วันที่: <b class="text-slate-800 dark:text-white">${targetDate}</b> | กะ: <b class="text-slate-800 dark:text-white">${shiftFilter}</b> | แผนก: <b class="text-slate-800 dark:text-white">${currentDutyDept}</b></span>\n            </div>\n            ${pulledBoxHtml}\n            <div class="text-left mb-1 flex items-center justify-between">\n                <label class="text-xs font-bold text-gray-600 dark:text-gray-300">พนักงาน (ที่ยังไม่อยู่ในตาราง):</label>\n                <label class="flex items-center gap-1.5 cursor-pointer text-[11px] font-bold text-amber-500 select-none">\n                    <input type="checkbox" id="swal-add-allshift" class="w-3.5 h-3.5 accent-amber-500 cursor-pointer"\n                        onchange="document.getElementById('swal-add-user').innerHTML = this.checked ? window._pullStaffOpts.all : window._pullStaffOpts.match">\n                    รวมทุกกะ (โยกกลางคัน)\n                </label>\n            </div>\n            <select id="swal-add-user" class="w-full p-3 rounded-xl border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer text-sm mb-3">\n                ${userOptionsHtml}\n            </select>\n            <div class="text-left mb-2"><label class="text-xs font-bold text-gray-600 dark:text-gray-300">เว็บหลัก:</label></div>\n            <select id="swal-add-team" class="w-full p-3 rounded-xl border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer text-sm mb-3">\n                ${teamOptionsHtml}\n            </select>\n            <div class="text-left mb-2"><label class="text-xs font-bold text-gray-600 dark:text-gray-300">เว็บรอง <span class="text-gray-400 font-normal">(ไม่บังคับ)</span>:</label></div>\n            <select id="swal-add-subteam" class="w-full p-3 rounded-xl border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer text-sm">\n                ${subOptionsHtml}\n            </select>\n        `,
     showCancelButton: true,
     confirmButtonColor: '#10b981',
     cancelButtonColor: '#64748b',
@@ -1042,8 +1068,15 @@ window.addStaffToRoster = async function() {
       const userId = document.getElementById('swal-add-user').value;
       const team = document.getElementById('swal-add-team').value;
       const subTeam = document.getElementById('swal-add-subteam').value || '';
+      const removeIds = [ ...document.querySelectorAll('.swal-pulled-chk') ].filter((c => !c.checked)).map((c => c.dataset.id));
+      if (!userId && removeIds.length) return {
+        userId: '',
+        team: '',
+        subTeam: '',
+        removeIds: removeIds
+      };
       if (!userId) {
-        Swal.showValidationMessage('กรุณาเลือกพนักงาน');
+        Swal.showValidationMessage('กรุณาเลือกพนักงาน หรือเอาติ๊กคนที่ต้องการเอาออก');
         return false;
       }
       if (!team) {
@@ -1057,12 +1090,58 @@ window.addStaffToRoster = async function() {
       return {
         userId: userId,
         team: team,
-        subTeam: subTeam
+        subTeam: subTeam,
+        removeIds: removeIds
       };
     }
   });
   if (!result.isConfirmed || !result.value) return;
-  const {userId: userId, team: team, subTeam: subTeam} = result.value;
+  const {userId: userId, team: team, subTeam: subTeam, removeIds: removeIds} = result.value;
+  if (removeIds && removeIds.length) {
+    Swal.fire({
+      title: 'กำลังเอาออก...',
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading()
+    });
+    try {
+      const rmSet = new Set(removeIds.map(String));
+      const removedNames = [];
+      for (const t in currentRosterData) {
+        currentRosterData[t] = (currentRosterData[t] || []).filter((u => {
+          if (u && rmSet.has(String(u.id))) {
+            if (!removedNames.includes(u.username)) removedNames.push(u.username);
+            return false;
+          }
+          return true;
+        }));
+      }
+      window.clearSettingCache();
+      window.dutyDbOk(await appDB.from('settings').upsert([ {
+        key: getDutySaveKey(targetDate, shiftFilter),
+        value: JSON.stringify(currentRosterData)
+      } ]));
+      await appDB.from('system_logs').insert([ {
+        action_type: 'ย้ายหน้าที่',
+        performed_by: currentUser.username,
+        target_details: `เอาออกจากหน้างาน: ${removedNames.join(', ')} (${currentDutyDept}, ${shiftFilter}, ${targetDate})`
+      } ]);
+      try {
+        window.debouncedBroadcast('duty-updates', 'force_reload');
+      } catch (e) {}
+      if (!userId) {
+        await window.refreshDutyData();
+        return Swal.fire({
+          icon: 'success',
+          title: 'เอาออกแล้ว',
+          text: removedNames.join(', '),
+          timer: 1500,
+          showConfirmButton: false
+        });
+      }
+    } catch (err) {
+      return Swal.fire('เอาออกไม่สำเร็จ', err.message, 'error');
+    }
+  }
   Swal.fire({
     title: 'กำลังเพิ่ม...',
     allowOutsideClick: false,
@@ -1081,7 +1160,8 @@ window.addStaffToRoster = async function() {
       ...fullUserObj,
       secondary_team: subTeam || null,
       assigned_by: currentUser.username,
-      assigned_at: (new Date).toISOString()
+      assigned_at: (new Date).toISOString(),
+      pulled_in: true
     });
     const saveKey = getDutySaveKey(targetDate, shiftFilter);
     if (typeof window.dutyDedupeRoster === "function") window.dutyDedupeRoster(currentRosterData);
