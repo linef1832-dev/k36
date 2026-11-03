@@ -139,6 +139,42 @@ window.compressImageFile = async function(file, opts) {
   }
 };
 
+window.k36RosterShiftMap = async function(dateStr) {
+  if (!dateStr || typeof appDB === 'undefined') return {};
+  const c = window._k36RsmCache;
+  if (c && c.date === dateStr && Date.now() - c.at < 6e4) return c.map;
+  const map = {};
+  try {
+    const {data: data, error: error} = await appDB.from('settings').select('key, value').like('key', `duty_roster_%_${dateStr}_%`);
+    if (error) throw error;
+    (data || []).forEach((row => {
+      const shift = String(row.key || '').split('_').slice(4).join('_');
+      if (![ 'กะเช้า', 'กะกลาง', 'กะดึก' ].includes(shift) || !row.value) return;
+      let rd = {};
+      try {
+        rd = typeof row.value === 'string' ? JSON.parse(row.value) : row.value;
+      } catch (e) {}
+      Object.values(rd || {}).forEach((arr => (Array.isArray(arr) ? arr : []).forEach((u => {
+        if (u && u.username) map[String(u.username).toLowerCase().trim()] = shift;
+      }))));
+    }));
+  } catch (e) {
+    return {};
+  }
+  window._k36RsmCache = {
+    date: dateStr,
+    at: Date.now(),
+    map: map
+  };
+  return map;
+};
+
+window.k36EffShift = function(u, rosterMap) {
+  if (!u) return '';
+  const r = rosterMap && rosterMap[String(u.username || '').toLowerCase().trim()];
+  return r || u.allowed_shift || '';
+};
+
 window.selectAllRows = async function(buildQuery, pageSize) {
   const size = pageSize || 1e3;
   let from = 0;

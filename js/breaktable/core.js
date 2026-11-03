@@ -219,6 +219,8 @@
   async function btMissingCompute() {
     const users = typeof window.getUsersCached === 'function' ? await window.getUsersCached() : window.GLOBAL_USER_LIST || [];
     const onLeave = await loadLeaveNames(dateVal());
+    const rsm = typeof window.k36RosterShiftMap === 'function' ? await window.k36RosterShiftMap(dateVal()) : {};
+    const effSh = u => typeof window.k36EffShift === 'function' ? window.k36EffShift(u, rsm) : u.allowed_shift;
     const dept = $('btDept').value, team = $('btTeam').value, shift = $('btShift').value, q = ($('btSearch').value || '').trim().toLowerCase();
     const loggedNames = new Set(_rows.map((r => String(r.staff_name || '').toLowerCase())));
     const act = currentSlotNow() !== null ? activeShiftsNow() : null;
@@ -227,10 +229,10 @@
       if (!u || !u.username) return false;
       if ([ 'AMQL', 'ODQL' ].includes(String(u.department || '').toUpperCase())) return false;
       if (onLeave.has(String(u.username).toLowerCase())) return false;
-      if (act && u.allowed_shift && !act.includes(u.allowed_shift)) return false;
+      if (act && effSh(u) && !act.includes(effSh(u))) return false;
       if (dept !== 'all' && (u.department || 'AM') !== dept) return false;
       if (team !== 'all' && u.team !== team) return false;
-      if (shift !== 'all' && u.allowed_shift && u.allowed_shift !== shift) return false;
+      if (shift !== 'all' && effSh(u) && effSh(u) !== shift) return false;
       if (q && !String(u.username).toLowerCase().includes(q)) return false;
       return !loggedNames.has(String(u.username).toLowerCase());
     })).sort(((a, b) => String(a.department || '').localeCompare(String(b.department || '')) || String(a.username).localeCompare(String(b.username), 'th')));

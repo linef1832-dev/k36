@@ -1005,7 +1005,7 @@ window.renderManualTimeSlots = function() {
       border: 'rgba(192,132,252,.4)'
     }
   };
-  const depColor = dep === 'AM' ? 'text-emerald-300 border-emerald-500/40 bg-emerald-500/10' : 'text-pink-300 border-pink-500/40 bg-pink-500/10';
+  const depColor = !/^OD/i.test(String(dep || '')) ? 'text-emerald-300 border-emerald-500/40 bg-emerald-500/10' : 'text-pink-300 border-pink-500/40 bg-pink-500/10';
   let html = `<div class="text-[10px] font-black ${depColor} border rounded-lg px-2 py-1 mb-2 inline-block">กำลังดู: แผนก ${dep}</div>`;
   let count = 0;
   const shifts = Object.keys(groups).sort(((a, b) => (SHIFT_ORDER.indexOf(a) + 1 || 99) - (SHIFT_ORDER.indexOf(b) + 1 || 99)));

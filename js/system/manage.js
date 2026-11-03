@@ -608,7 +608,7 @@ window.renderUserTableDirectly = function() {
     const displayIndex = startIndex + index + 1;
     let currentDep = u.department || 'AM';
     if (currentDep === 'TRAINER') currentDep = 'AM';
-    let depColor = currentDep === 'OD' ? 'text-pink-400' : currentDep === 'AM' ? 'text-blue-400' : currentDep === 'NEW' ? 'text-emerald-400' : 'text-teal-400';
+    let depColor = /^OD/i.test(String(currentDep || '')) ? 'text-pink-400' : currentDep === 'AM' ? 'text-blue-400' : currentDep === 'NEW' ? 'text-emerald-400' : 'text-teal-400';
     let depBadge = `<select onchange="updateUserDepartment(${u.id}, this.value)" class="bg-slate-900 ${depColor} text-[10px] p-1.5 rounded-md border border-slate-700 font-bold outline-none cursor-pointer hover:bg-slate-950 shadow-inner text-center w-[60px]">`;
     if (currentDep === 'NEW') {
       depBadge += `<option value="NEW" selected class="text-white">NEW</option>`;
@@ -707,7 +707,7 @@ function fastRecalculateStats() {
   GLOBAL_USER_LIST.forEach((u => {
     if (stats[u.allowed_shift]) {
       stats[u.allowed_shift].total++;
-      if (u.department === 'OD') stats[u.allowed_shift].OD++; else stats[u.allowed_shift].AM++;
+      if (/^OD/i.test(String(u.department || ''))) stats[u.allowed_shift].OD++; else stats[u.allowed_shift].AM++;
     }
   }));
   const updateBox = (elId, st) => {

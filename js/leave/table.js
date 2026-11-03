@@ -37,10 +37,8 @@ window.renderLeaveTable = function() {
   };
   const isGlobalAdmin = canPerm('leave_manage');
   const _d = currentViewDept || 'AM';
-  const isTrainerRole = [ 'AMQL', 'ODQL', 'TRAINER' ].includes(currentUser.department);
-  const isTrainerAM = currentUser.department === 'AMQL' || isTrainerRole && currentUser.department === 'AM';
-  const isTrainerOD = currentUser.department === 'ODQL' || isTrainerRole && currentUser.department === 'OD';
-  const isTrainerInThisPage = _d === 'AMQL' && isTrainerAM || _d === 'ODQL' && isTrainerOD || _d === 'TRAINER' && isTrainerRole;
+  const myDeptU = String(currentUser.department || '').toUpperCase();
+  const isTrainerInThisPage = [ 'AMQL', 'ODQL' ].includes(_d) && myDeptU === _d || _d === 'TRAINER' && [ 'AMQL', 'ODQL', 'TRAINER' ].includes(myDeptU);
   const isAdmin = isGlobalAdmin || window.leaveCanManage(_d);
   const canViewAnyMonth = isAdmin || window.hasUserPerm('leave_view_any_month');
   const canRequest = isGlobalAdmin || window.hasUserPerm('leave_request') || currentViewDept === 'SPECIAL' || isTrainerInThisPage;
