@@ -992,9 +992,9 @@ window.addStaffToRoster = async function() {
       }
     }));
   }
-  const pulledBoxHtml = pulledNow.length ? `<div class="text-left mb-3 p-2.5 rounded-xl border border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-900/15">
-      <div class="text-xs font-black text-amber-600 dark:text-amber-400 mb-1.5">ดึงเข้ามาแล้ว ${pulledNow.length} คน <span class="font-bold text-gray-500 dark:text-gray-400">· เอาติ๊กออก = เอาออกจากหน้างาน</span></div>
-      <div style="display:flex;flex-direction:column;gap:4px;max-height:160px;overflow-y:auto">${pulledNow.map((x => `<label class="flex items-center gap-2 cursor-pointer text-sm font-bold text-slate-800 dark:text-white select-none"><input type="checkbox" class="swal-pulled-chk w-4 h-4 accent-emerald-500 cursor-pointer" data-id="${window.escapeHtml(String(x.id))}" checked> ${window.escapeHtml(x.username)} <span class="text-[11px] font-bold text-gray-500 dark:text-gray-400">· ${window.escapeHtml(x.team)}${x.sub ? ' + รอง ' + window.escapeHtml(x.sub) : ''}</span></label>`)).join('')}</div>
+  const pulledBoxHtml = pulledNow.length ? `<div style="text-align:left;margin-bottom:12px;padding:10px 12px;border-radius:12px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.45)">
+      <div style="font-size:12px;font-weight:900;color:var(--k-amber-tx,#d97706);margin-bottom:6px">ดึงเข้ามาแล้ว ${pulledNow.length} คน <span style="font-weight:700;color:var(--k-mute,#64748b)">· เอาติ๊กออก = เอาออกจากหน้างาน</span></div>
+      <div style="display:flex;flex-direction:column;gap:4px;max-height:160px;overflow-y:auto">${pulledNow.map((x => `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;font-weight:800;color:var(--k-tx-strong,#0f172a);user-select:none"><input type="checkbox" class="swal-pulled-chk" style="width:16px;height:16px;accent-color:#10b981;cursor:pointer" data-id="${window.escapeHtml(String(x.id))}" checked> ${window.escapeHtml(x.username)} <span style="font-size:11px;font-weight:700;color:var(--k-mute,#64748b)">· ${window.escapeHtml(x.team)}${x.sub ? ' + รอง ' + window.escapeHtml(x.sub) : ''}</span></label>`)).join('')}</div>
     </div>` : '';
   const candidates = GLOBAL_USER_LIST.filter((u => {
     if (!u || !u.username) return false;
