@@ -92,7 +92,6 @@ window.searchExcludeStaff = function(shiftType) {
   }
   const availableUsers = GLOBAL_USER_LIST.filter((u => {
     const uDept = u.department || 'AM';
-    if (u.role !== 'staff' && u.role !== 'trainer' && uDept !== 'TRAINER') return false;
     if (u.allowed_shift !== shiftType) return false;
     if (targetDept !== 'ALL' && uDept !== targetDept) return false;
     if (!u.username.toLowerCase().includes(searchText)) return false;

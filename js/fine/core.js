@@ -238,7 +238,7 @@ window.renderFineStats = function() {
       let dbUser = userDict[String(f.user_name).toLowerCase()];
       if (!dbUser) return false;
       let uDept = dbUser.department || 'AM';
-      let isTrainer = dbUser.role === 'trainer' || uDept === 'TRAINER';
+      let isTrainer = uDept === 'TRAINER' || /QL$/i.test(uDept);
       if (isTrainer) uDept = 'TRAINER';
       if (deptFilter !== 'ALL' && uDept !== deptFilter) return false;
       if (shiftFilter !== 'ALL' && dbUser.allowed_shift !== shiftFilter) return false;

@@ -1088,7 +1088,7 @@ window.checkMissingLunch = async function() {
     let missingCount = 0;
     const dailyQuota = typeof SETTINGS !== 'undefined' && SETTINGS.daily_limit ? parseInt(SETTINGS.daily_limit) : 2;
     GLOBAL_USER_LIST.forEach((u => {
-      if (u.role === 'admin' || u.role === 'manager' || u.role === 'trainer') return;
+      if (/QL$/i.test(String(u.department || ''))) return;
       if (u.department === 'TRAINER' || u.department === 'NEW') return;
       if (![ 'กะเช้า', 'กะกลาง', 'กะดึก' ].includes(u.allowed_shift)) return;
       if (onLeaveNames.includes(u.username)) return;
@@ -1516,7 +1516,6 @@ window._renderMyTodayNow = async function() {
     heads = configured.map((c => ({
       username: c.name,
       department: c.dept || 'AM',
-      role: null,
       label: c.label || 'หัวหน้า',
       allowed_shift: c.shift || '',
       telegram_id: c.telegram,
@@ -1524,11 +1523,7 @@ window._renderMyTodayNow = async function() {
       note: c.note
     })));
   } else {
-    const all = window.GLOBAL_USER_LIST || [];
-    heads = all.filter((u => [ 'manager', 'admin' ].includes(u.role))).map((u => ({
-      ...u,
-      department: u.role === 'admin' ? 'ทุกแผนก' : u.department || 'AM'
-    })));
+    heads = [];
   }
   const groupOrder = [ myDep, ...[ 'AM', 'OD' ].filter((d => d !== myDep)), 'ทุกแผนก' ];
   const groupTitle = d => d === 'ทุกแผนก' ? '⭐ ผู้จัดการ / ดูแลทุกแผนก' : `หัวหน้า ${d}`;
@@ -1536,7 +1531,7 @@ window._renderMyTodayNow = async function() {
     const b = _mtShiftBadge(u.allowed_shift);
     const ini = _mtEsc(String(u.username || '?').substring(0, 2).toUpperCase());
     const tg = window._tgLink(u.telegram_id);
-    const label = u.label || (u.role === 'admin' ? 'ADMIN' : 'หัวหน้า');
+    const label = u.label || 'หัวหน้า';
     return `\n        <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 4px;border-bottom:1px solid rgba(148,163,184,.1)">\n            <div style="width:40px;height:40px;border-radius:50%;background:var(--k-card);border:1px solid var(--k-line2);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px;color:var(--k-tx2);flex-shrink:0">${ini}</div>\n            <div style="min-width:0;flex:1">\n                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">\n                    <span style="font-weight:800;color:var(--k-tx);font-size:14px">${_mtEsc(u.username)}</span>\n                    <span style="font-size:10px;color:var(--k-tx3);background:rgba(148,163,184,.12);padding:1px 7px;border-radius:5px">${_mtEsc(u.department || '-')}</span>\n                    <span style="font-size:10px;color:light-dark(#5704a9,#c084fc);background:rgba(192,132,252,.12);padding:1px 7px;border-radius:5px">${_mtEsc(label)}</span>\n                </div>\n                <div style="display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap">\n                    ${[ 'กะเช้า', 'กะกลาง', 'กะดึก' ].includes(u.allowed_shift) ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:800;color:${b[1]};background:${b[1]}1f;border:1px solid ${b[1]}55;padding:2px 9px;border-radius:999px">${_mtEsc(u.allowed_shift.replace('กะ', ''))}</span>` : `<span style="font-size:11px;color:var(--k-mute)">ทุกกะ</span>`}\n                </div>\n                ${u.note ? `<div style="font-size:11.5px;color:var(--k-tx3);margin-top:5px">${_mtEsc(u.note)}</div>` : ''}\n                <div style="display:flex;gap:12px;margin-top:6px;flex-wrap:wrap;font-size:12px">\n                    ${tg ? `<a href="${_mtEsc(tg)}" target="_blank" style="color:light-dark(#0676a8,#38bdf8);text-decoration:none;display:inline-flex;align-items:center;gap:4px"><span class="material-icons" style="font-size:14px">send</span>${_mtEsc(String(u.telegram_id).startsWith('@') ? u.telegram_id : 'Telegram')}</a>` : `<span style="color:var(--k-mute3)">ไม่มี Telegram</span>`}\n                    ${u.discord_id ? `<span style="color:light-dark(#2f07a6,#a78bfa);display:inline-flex;align-items:center;gap:4px;cursor:pointer" title="กดเพื่อก็อป Discord" onclick="navigator.clipboard&&navigator.clipboard.writeText('${_mtEsc(u.discord_id)}');Swal.fire({toast:true,position:'top-end',icon:'success',title:'ก็อป Discord แล้ว',showConfirmButton:false,timer:1500})"><span class="material-icons" style="font-size:14px">content_copy</span>${_mtEsc(u.discord_id)}</span>` : ''}\n                </div>\n            </div>\n        </div>`;
   };
   const groups = groupOrder.map((d => ({

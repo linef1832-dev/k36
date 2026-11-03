@@ -726,7 +726,7 @@ window.onLeaveSearch = function() {
 };
 
 window.openManageSpecialModal = async function() {
-  const users = GLOBAL_USER_LIST.filter((u => u.role === 'staff' || u.role === 'manager' || u.role === 'admin')).sort(((a, b) => a.username.localeCompare(b.username)));
+  const users = GLOBAL_USER_LIST.filter((u => u && u.username)).sort(((a, b) => a.username.localeCompare(b.username)));
   window.specialGroupUserIds = window.specialGroupUserIds || [];
   let html = `\n        <div class="flex flex-col h-full text-left">\n            <div class="sticky top-0 bg-white dark:bg-slate-800 z-10 pb-2 border-b border-gray-200 dark:border-gray-600 mb-2">\n                <input type="text" id="specialSearchInput" onkeyup="filterSpecialList()" placeholder="🔍 พิมพ์ชื่อเพื่อค้นหา..." \n                    class="w-full p-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-amber-500 transition font-bold text-sm">\n            </div>\n            <div id="specialListContainer" class="max-h-[50vh] overflow-y-auto custom-scrollbar pr-1">\n    `;
   users.forEach((u => {

@@ -603,12 +603,6 @@ window.renderUserTableDirectly = function() {
   } catch (e) {}
   let availableDepts = new Set([ 'AM', 'OD', 'AMQL', ...dbDepts ]);
   const deptListArray = window.getSystemDepts();
-  let dbRoles = [];
-  try {
-    dbRoles = JSON.parse(SETTINGS['custom_roles'] || '[]');
-  } catch (e) {}
-  let rawRoles = [ 'staff', 'trainer', 'manager', ...dbRoles ];
-  const uniqueRoles = [ ...new Set(rawRoles) ];
   let html = '';
   paginatedUsers.forEach(((u, index) => {
     const displayIndex = startIndex + index + 1;

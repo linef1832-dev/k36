@@ -16,18 +16,6 @@ window.getCurrentUserName = () => {
   return localStorage.getItem('username') || localStorage.getItem('name') || 'แอดมิน';
 };
 
-window.getCurrentUserRole = () => {
-  if (typeof currentUser !== 'undefined' && currentUser && currentUser.role) return currentUser.role;
-  const savedUser = sessionStorage.getItem('user_platinum_plus');
-  if (savedUser) {
-    try {
-      const user = JSON.parse(savedUser);
-      if (user.role) return user.role;
-    } catch (e) {}
-  }
-  return localStorage.getItem('role') || localStorage.getItem('userRole') || 'manager';
-};
-
 window.syncChannel = null;
 
 window.fetchSlipHistoryDB = async function() {

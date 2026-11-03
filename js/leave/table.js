@@ -2,18 +2,17 @@ window.leaveDeptUsers = function(dept) {
   const view = dept || currentViewDept;
   return GLOBAL_USER_LIST.filter((u => {
     const uDept = u.department || 'AM';
-    const uRole = u.role ? u.role.toLowerCase() : 'staff';
     const isInSpecial = window.specialGroupUserIds && window.specialGroupUserIds.includes(String(u.id));
     if (view === 'SPECIAL') {
       return isInSpecial;
     } else if (view === 'TRAINER') {
-      return (uDept.startsWith('TRAINER') || uRole === 'trainer') && !isInSpecial;
+      return uDept.startsWith('TRAINER') && !isInSpecial;
     } else if (view === 'AMQL' || view === 'TRAINER_AM') {
-      return (uDept === 'AM' && uRole === 'trainer' || uDept === 'AMQL' || uDept === 'TRAINER_AM') && !isInSpecial;
+      return (uDept === 'AMQL' || uDept === 'TRAINER_AM') && !isInSpecial;
     } else if (view === 'ODQL' || view === 'TRAINER_OD') {
-      return (uDept === 'OD' && uRole === 'trainer' || uDept === 'ODQL' || uDept === 'TRAINER_OD') && !isInSpecial;
+      return (uDept === 'ODQL' || uDept === 'TRAINER_OD') && !isInSpecial;
     } else {
-      return uRole === 'staff' && uDept === view && !isInSpecial;
+      return uDept === view && !isInSpecial;
     }
   }));
 };

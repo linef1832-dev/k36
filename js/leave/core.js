@@ -485,17 +485,16 @@ function subscribeLeaveChanges() {
       if (!changedUserId) return;
       const tUser = GLOBAL_USER_LIST.find((u => String(u.id) === String(changedUserId)));
       const tDept = tUser ? tUser.department || 'AM' : 'AM';
-      const tRole = tUser ? (tUser.role || 'staff').toLowerCase() : 'staff';
       let shouldRenderTable = false;
       if (currentViewDept === 'SPECIAL' && window.specialGroupUserIds && window.specialGroupUserIds.includes(String(changedUserId))) {
         shouldRenderTable = true;
-      } else if (currentViewDept === 'TRAINER' && (tDept.startsWith('TRAINER') || tRole === 'trainer')) {
+      } else if (currentViewDept === 'TRAINER' && tDept.startsWith('TRAINER')) {
         shouldRenderTable = true;
       } else if (currentViewDept === 'AMQL' || currentViewDept === 'TRAINER_AM') {
-        if (tDept === 'AMQL' || tDept === 'TRAINER_AM' || tDept === 'AM' && tRole === 'trainer') shouldRenderTable = true;
+        if (tDept === 'AMQL' || tDept === 'TRAINER_AM') shouldRenderTable = true;
       } else if (currentViewDept === 'ODQL' || currentViewDept === 'TRAINER_OD') {
-        if (tDept === 'ODQL' || tDept === 'TRAINER_OD' || tDept === 'OD' && tRole === 'trainer') shouldRenderTable = true;
-      } else if (tRole === 'staff' && tDept === currentViewDept) {
+        if (tDept === 'ODQL' || tDept === 'TRAINER_OD') shouldRenderTable = true;
+      } else if (tDept === currentViewDept) {
         shouldRenderTable = true;
       }
       if (shouldRenderTable) {

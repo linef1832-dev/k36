@@ -119,7 +119,6 @@ window.applyCurrentUserUpdate = function(fresh, notify) {
     allowed_shift: 'กะ',
     department: 'แผนก',
     team: 'ทีม',
-    role: 'ตำแหน่ง',
     check_type: 'รูปแบบเช็ค'
   };
   Object.keys(fields).forEach((f => {

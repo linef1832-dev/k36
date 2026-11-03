@@ -220,7 +220,7 @@ window.renderFineTable = function() {
       const dbUser = userDict[String(f.user_name).toLowerCase()];
       if (dbUser) {
         let uDept = dbUser.department || 'AM';
-        if (dbUser.role === 'trainer' || uDept === 'TRAINER') uDept = 'TRAINER';
+        if (uDept === 'TRAINER' || /QL$/i.test(uDept)) uDept = 'TRAINER';
         let uShift = dbUser.allowed_shift || 'UNKNOWN';
         if (deptFilter !== 'ALL' && uDept !== deptFilter) matchDept = false;
         if (shiftFilter !== 'ALL' && uShift !== shiftFilter) matchShift = false;
@@ -332,7 +332,7 @@ window.renderFineTable = function() {
       if (dbUser) {
         let dept = dbUser.department || 'AM';
         const isOD = /^OD/i.test(String(dept));
-        let isTrainer = dbUser.role === 'trainer' || dept === 'TRAINER' || /QL$/i.test(String(dept));
+        let isTrainer = dept === 'TRAINER' || /QL$/i.test(String(dept));
         let deptColor = 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-800/50';
         let deptName = 'AM';
         if (isTrainer) {

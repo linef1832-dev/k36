@@ -193,7 +193,6 @@ function bell_rows() {
       username: u.username,
       team: u.team || '',
       department: u.department || '',
-      role: u.role || '',
       online: online,
       st: st,
       p: p || null

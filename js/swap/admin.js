@@ -134,7 +134,6 @@ window.openAddMissingSwap = async function() {
   const eligibleUsers = GLOBAL_USER_LIST.filter((u => {
     if (existingUserIds.has(String(u.id))) return false;
     if (![ 'กะเช้า', 'กะดึก' ].includes(u.allowed_shift)) return false;
-    if (u.role !== 'staff' && u.role !== 'trainer') return false;
     const uDept = u.department || 'AM';
     if (activeSwapDeptFilter === 'TRAINER') return uDept !== 'AM' && uDept !== 'OD';
     if (activeSwapDeptFilter !== 'ALL') return uDept === activeSwapDeptFilter;

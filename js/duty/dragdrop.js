@@ -584,8 +584,7 @@ window.renderDutyAccessTable = function() {
   let staff = GLOBAL_USER_LIST.filter((u => {
     let uDept = u.department || 'AM';
     if (uDept === 'TRAINER') uDept = 'AMQL';
-    if (window.isTrainerDept()) return uDept === currentDutyDept;
-    return String(u.role || '').toLowerCase() === 'staff' && uDept === currentDutyDept;
+    return uDept === currentDutyDept;
   }));
   const shiftFilter = document.getElementById('settingShiftFilter') ? document.getElementById('settingShiftFilter').value : 'all';
   const searchFilter = document.getElementById('settingSearchInput') ? document.getElementById('settingSearchInput').value.toLowerCase() : '';
@@ -617,9 +616,8 @@ window.renderDutyAccessTable = function() {
     const sc = shift === 'กะเช้า' ? 'm' : shift === 'กะกลาง' ? 'd' : 'n';
     const on = sortedTeams.filter((t => has(uid, t))).length;
     const tri = on === sortedTeams.length ? 'all' : on ? 'some' : 'none';
-    const mgr = u.role === 'manager' || u.role === 'admin' ? `<span class="ds-mgr">หัวหน้า</span>` : '';
     const warn = on === 0 ? `<span class="ds-warn" title="คนนี้จะถูกข้ามตอนสุ่ม เพราะไม่มีสิทธิ์เว็บไหนเลย">ไม่มีสิทธิ์</span>` : '';
-    let row = `<tr class="${on === 0 ? 'noaccess' : ''}">\n            <td class="ds-namecol"><div class="ds-name">\n                <span class="ds-uname">${window.escapeHtml(u.username)}</span>\n                ${shift ? `<span class="ds-shift ${sc}">${window.escapeHtml(shift.replace('กะ', ''))}</span>` : ''}\n                ${mgr}${warn}\n                <label class="ds-rowctl" title="ติก/เอาออก ทุกเว็บของ ${window.escapeHtml(u.username)}" style="cursor:pointer">\n                    <span class="ds-rowcnt ${tri === 'all' ? 'full' : ''}">${on}/${sortedTeams.length}</span>\n                    <input type="checkbox" class="ds-ck sm" data-tri="${tri}" onchange="dutyAccessSetRow('${uid}', this.checked)">\n                </label>\n            </div></td>`;
+    let row = `<tr class="${on === 0 ? 'noaccess' : ''}">\n            <td class="ds-namecol"><div class="ds-name">\n                <span class="ds-uname">${window.escapeHtml(u.username)}</span>\n                ${shift ? `<span class="ds-shift ${sc}">${window.escapeHtml(shift.replace('กะ', ''))}</span>` : ''}\n                ${warn}\n                <label class="ds-rowctl" title="ติก/เอาออก ทุกเว็บของ ${window.escapeHtml(u.username)}" style="cursor:pointer">\n                    <span class="ds-rowcnt ${tri === 'all' ? 'full' : ''}">${on}/${sortedTeams.length}</span>\n                    <input type="checkbox" class="ds-ck sm" data-tri="${tri}" onchange="dutyAccessSetRow('${uid}', this.checked)">\n                </label>\n            </div></td>`;
     sortedTeams.forEach((team => {
       row += `<td><input type="checkbox" class="ds-ck duty-check" aria-label="${window.escapeHtml(u.username)} ดูแล ${team}" onchange="updateLocalDutyAccess('${uid}', '${team}', this.checked); renderDutyAccessTable();" ${has(uid, team) ? 'checked' : ''}></td>`;
     }));
@@ -1043,7 +1041,6 @@ window.renderTrainerOdMatrix = async function(rosterData) {
   const staffList = GLOBAL_USER_LIST.filter((u => {
     let isOdTrainer = false;
     if (u.department === 'ODQL' || u.department === 'TRAINER_OD') isOdTrainer = true;
-    if (u.department === 'OD' && (u.role === 'trainer' || u.role === 'TRAINER')) isOdTrainer = true;
     if (!isOdTrainer) return false;
     if (shiftFilter !== 'all') {
       if (u.allowed_shift !== shiftFilter && u.allowed_shift !== 'all') return false;

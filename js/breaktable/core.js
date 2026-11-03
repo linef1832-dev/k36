@@ -225,7 +225,6 @@
     window._btActiveShifts = act;
     return (users || []).filter((u => {
       if (!u || !u.username) return false;
-      if ([ 'admin', 'manager' ].includes(u.role)) return false;
       if ([ 'AMQL', 'ODQL' ].includes(String(u.department || '').toUpperCase())) return false;
       if (onLeave.has(String(u.username).toLowerCase())) return false;
       if (act && u.allowed_shift && !act.includes(u.allowed_shift)) return false;
