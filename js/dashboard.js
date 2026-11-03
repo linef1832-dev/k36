@@ -104,7 +104,30 @@ window.populateTeamSelects = function() {
   if (dt && window.currentUser && window.currentUser.team) dt.value = window.currentUser.team;
 };
 
+window.k36ApplyDutyShift = function(jobs, dateVal) {
+  const me = window.currentUser;
+  const dEl = document.getElementById('wDate');
+  if (!me || !dEl || dEl.value !== dateVal) return;
+  const own = me.allowed_shift || '';
+  const shifts = [ ...new Set((jobs || []).map((j => j.shift)).filter(Boolean)) ];
+  const duty = shifts.includes(own) ? '' : shifts[0] || '';
+  const key = dateVal + '|' + duty;
+  if (window._k36DutyShiftKey === key) return;
+  window._k36DutyShiftKey = key;
+  window._k36DutyShift = duty ? {
+    date: dateVal,
+    shift: duty
+  } : null;
+  if (typeof window.renderShiftButtons === 'function') {
+    window.renderShiftButtons(own);
+    if (typeof refreshTimeSlots === 'function') refreshTimeSlots();
+  }
+};
+
 window.renderShiftButtons = function(allowedShift) {
+  const _dsx = window._k36DutyShift;
+  const _dEl = document.getElementById('wDate');
+  const dutyExtra = _dsx && _dEl && _dsx.date === _dEl.value ? _dsx.shift : '';
   const container = document.getElementById('shiftContainer');
   if (!container) return;
   container.innerHTML = '';
@@ -114,14 +137,19 @@ window.renderShiftButtons = function(allowedShift) {
   const isAdmin = window.hasUserPerm('ds_manage') || window.hasUserPerm('admin');
   const canViewAllShifts = isAdmin || window.hasUserPerm('dashboard_view_all_shifts');
   shifts.forEach(((s, index) => {
-    if (!canViewAllShifts && shiftRight !== 'all' && shiftRight !== s) {
+    if (!canViewAllShifts && shiftRight !== 'all' && shiftRight !== s && dutyExtra !== s) {
       return;
     }
     let bgClass = 'bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 cursor-pointer';
     let textClass = 'text-gray-700 dark:text-gray-300';
     let borderClass = 'border-gray-200 dark:border-slate-600';
     let isChecked = false;
-    if (!hasChecked) {
+    if (!hasChecked && dutyExtra && !canViewAllShifts) {
+      if (s === dutyExtra) {
+        isChecked = true;
+        hasChecked = true;
+      }
+    } else if (!hasChecked) {
       if (shiftRight === 'all' || isAdmin) {
         if (index === 0) {
           isChecked = true;
@@ -1357,6 +1385,7 @@ window._renderMyTodayNow = async function() {
       });
     }));
   }));
+  window.k36ApplyDutyShift(jobs, dateVal);
   const dailyLimit = parseInt(typeof SETTINGS !== 'undefined' && SETTINGS.daily_limit || 2);
   const remain = Math.max(0, dailyLimit - myBreaks.length);
   const sb = _mtShiftBadge(myShift);
