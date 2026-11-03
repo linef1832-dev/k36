@@ -244,7 +244,8 @@ async function oa_fetchSites(f, t) {
 async function oa_fetchUsers() {
   const o = window._oa;
   try {
-    const {data: data} = await window.appDB.from('users').select('id, username, name, department');
+    const {data: data, error: error} = await window.appDB.from('users').select('id, username, department');
+    if (error) throw error;
     if (data) {
       data.forEach((u => {
         o.users[String(u.id)] = u;
@@ -315,7 +316,9 @@ const oa_nowHM = () => (new Date).toLocaleTimeString('th-TH', {
 
 window.oa_load = async function(opts = {}) {
   const o = window._oa;
-  const vf = document.getElementById('oaFrom').value, vt = document.getElementById('oaTo').value;
+  const fEl = document.getElementById('oaFrom'), tEl = document.getElementById('oaTo');
+  if (!fEl || !tEl) return;
+  const vf = fEl.value, vt = tEl.value;
   if (!vf || !vt) return;
   o._viewFrom = vf;
   o._viewTo = vt;
