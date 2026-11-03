@@ -264,7 +264,7 @@ window.saveData = async function(e) {
   const isStaff = !canPerm('dashboard_bypass_rules');
   const NIGHT_START_HOUR = 20;
   const NIGHT_END_HOUR = 8;
-  const isNightShiftStaff = sName === 'กะดึก' || currentUser.allowed_shift === 'กะดึก';
+  const isNightShiftStaff = sName === 'กะดึก';
   if (isStaff && dateVal > realTodayStr) {
     window.resetBtn();
     let blockTitle = 'ไม่ได้ห้ามลงล่วงหน้านะจ๊ะ';

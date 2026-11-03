@@ -10,8 +10,13 @@ window.k36WorkDate = function() {
   const d = new Date(now.getTime());
   const sh = window.currentUser && window.currentUser.allowed_shift || '';
   const dayShift = sh === 'กะเช้า' || sh === 'กะกลาง';
-  if (!dayShift && d.getHours() < 8) d.setDate(d.getDate() - 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const fmt = x => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+  if (d.getHours() < 8) {
+    const y = new Date(d.getTime());
+    y.setDate(y.getDate() - 1);
+    if (!dayShift || window._k36NightDutyOn === fmt(y)) return fmt(y);
+  }
+  return fmt(d);
 };
 
 function _mtTaskDateTH(ts) {
@@ -104,11 +109,21 @@ window.populateTeamSelects = function() {
   if (dt && window.currentUser && window.currentUser.team) dt.value = window.currentUser.team;
 };
 
-window.k36ApplyDutyShift = function(jobs, dateVal) {
+window.k36ApplyDutyShift = function(jobs, dateVal, jobsY, ydate) {
   const me = window.currentUser;
   const dEl = document.getElementById('wDate');
   if (!me || !dEl || dEl.value !== dateVal) return;
   const own = me.allowed_shift || '';
+  const nowH = (typeof window.serverNow === 'function' ? window.serverNow() : new Date).getHours();
+  const yNight = (jobsY || []).some((j => j.shift === 'กะดึก'));
+  if (nowH < 8 && yNight && own !== 'กะดึก' && ydate && !window._myTodayDate && window._k36NightJump !== dateVal) {
+    window._k36NightJump = dateVal;
+    window._k36NightDutyOn = ydate;
+    dEl.value = ydate;
+    if (typeof handleDateChange === 'function') handleDateChange();
+    if (typeof window._myTodayRefresh === 'function') window._myTodayRefresh();
+    return;
+  }
   const shifts = [ ...new Set((jobs || []).map((j => j.shift)).filter(Boolean)) ];
   const duty = shifts.includes(own) ? '' : shifts[0] || '';
   const key = dateVal + '|' + duty;
@@ -766,7 +781,8 @@ window._dashPatchSlotCache = function(payload, date, shift) {
 };
 
 window._dashResync = function(jitter) {
-  const run = () => {
+  const run = async () => {
+    if (typeof window.refreshCurrentUserFromDB === 'function') await window.refreshCurrentUserFromDB();
     for (const k in _slotCache) delete _slotCache[k];
     if (typeof fetchData === 'function') fetchData();
     if (typeof refreshTimeSlots === 'function') refreshTimeSlots();
@@ -1385,7 +1401,7 @@ window._renderMyTodayNow = async function() {
       });
     }));
   }));
-  window.k36ApplyDutyShift(jobs, dateVal);
+  window.k36ApplyDutyShift(jobs, dateVal, jobsY, ydate);
   const dailyLimit = parseInt(typeof SETTINGS !== 'undefined' && SETTINGS.daily_limit || 2);
   const remain = Math.max(0, dailyLimit - myBreaks.length);
   const sb = _mtShiftBadge(myShift);
