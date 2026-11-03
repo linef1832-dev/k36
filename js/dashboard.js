@@ -1459,18 +1459,7 @@ window._renderMyTodayNow = async function() {
       fg: '#fff'
     }
   };
-  const _lvChip = l => {
-    const iso = String(l.leave_date || '').slice(0, 10);
-    const code = String(l.reason || 'X').toUpperCase();
-    const t = LV_TYPES[code] || {
-      name: code,
-      bg: '#64748b',
-      fg: '#fff'
-    };
-    const state = iso < dateVal ? 'past' : iso === dateVal ? 'today' : 'next';
-    const dim = state === 'past';
-    return `<span style="display:inline-flex;align-items:center;gap:6px;margin:3px 8px 3px 0;padding:4px 10px 4px 6px;border-radius:9px;font-size:12.5px;background:color-mix(in srgb,var(--k-panel2) 70.0%,transparent);border:1px solid ${dim ? 'rgba(148,163,184,.25)' : t.bg + '88'};${dim ? 'opacity:.55;' : ''}${state === 'today' ? 'box-shadow:0 0 0 2px ' + t.bg + '66;' : ''}" title="${state === 'past' ? 'ผ่านมาแล้ว' : state === 'today' ? 'วันนี้' : 'ยังไม่ถึง'}">\n            <span style="background:${t.bg};color:${t.fg};font-weight:900;font-size:11px;padding:2px 7px;border-radius:6px;letter-spacing:.3px">${_mtEsc(code)}</span>\n            <span style="color:${dim ? 'var(--k-tx3)' : 'var(--k-tx)'};font-weight:700;${dim ? 'text-decoration:line-through' : ''}">${_mtFmt(iso)}</span>\n            <span style="color:${dim ? 'var(--k-mute)' : t.bg};font-size:11px;font-weight:700">${window.escapeHtml(t.name)}</span>${state === 'today' ? '<b style="font-size:10px;color:var(--k-tx-strong);background:' + t.bg + ';padding:1px 6px;border-radius:5px">วันนี้</b>' : ''}\n        </span>`;
-  };
+
   const _TH_M = [ 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.' ];
   const _ymLabel = ym => {
     const [y, m] = ym.split('-').map(Number);
@@ -1491,14 +1480,62 @@ window._renderMyTodayNow = async function() {
     if (lvByMonth[ym]) lvByMonth[ym].push(l);
   }));
   const lvTotal = lvByMonth[thisYM].length + lvByMonth[nextYM].length;
+  const _lvLimit = (() => {
+    const dk = String(me.department || 'AM').toUpperCase();
+    const v = typeof SETTINGS !== 'undefined' && (SETTINGS[`${dk}_limit`] || SETTINGS[`${/^OD/.test(dk) ? 'OD' : 'AM'}_limit`]);
+    return parseInt(v) || 0;
+  })();
   const _lvMonthBlock = (ym, tag, accent) => {
     const rows = lvByMonth[ym];
-    const past = rows.filter((l => String(l.leave_date).slice(0, 10) < dateVal)).length;
-    const next = rows.length - past;
-    const stat = rows.length ? `${rows.length} วัน${past ? ` · <span style="color:var(--k-tx3)">ผ่านแล้ว ${past}</span>` : ''}${next ? ` · <span style="color:${accent}">ยังไม่ถึง ${next}</span>` : ''}` : '<span style="color:var(--k-mute)">ยังไม่ได้จอง</span>';
-    return `<div style="margin:2px 0 8px;padding:9px 11px 6px;border-radius:12px;background:linear-gradient(90deg,${accent}12,color-mix(in srgb,var(--k-panel2) 0%,transparent));border:1px solid ${accent}40;border-left:3px solid ${accent}">\n            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">\n                <span style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:900;color:var(--k-tx);letter-spacing:.2px"><span class="material-icons" style="font-size:15px;color:${accent}">calendar_month</span>${_ymLabel(ym)}</span>\n                <span style="font-size:10.5px;font-weight:800;color:${accent};background:${accent}22;border:1px solid ${accent}55;padding:1px 8px;border-radius:999px;letter-spacing:.3px">${tag}</span>\n                <span style="margin-left:auto;font-size:11.5px;font-weight:700;color:var(--k-tx2)">${stat}</span>\n            </div>\n            <div style="display:flex;flex-wrap:wrap">${rows.length ? rows.map(_lvChip).join('') : `<span style="font-size:12px;color:var(--k-mute);padding:2px 0 4px">— ยังไม่มีวันหยุดในเดือนนี้ —</span>`}</div>\n        </div>`;
+    const [yy, mm] = ym.split('-').map(Number);
+    const first = new Date(yy, mm - 1, 1).getDay();
+    const days = new Date(yy, mm, 0).getDate();
+    const byDay = {};
+    rows.forEach((l => {
+      const d = Number(String(l.leave_date).slice(8, 10));
+      const c = String(l.reason || 'X').toUpperCase();
+      if (d) byDay[d] = c === 'TABLE-BOOKING' ? 'X' : c;
+    }));
+    const xCount = rows.filter((l => [ 'X', 'TABLE-BOOKING' ].includes(String(l.reason || 'X').toUpperCase()))).length;
+    const used = _lvLimit ? `${xCount} / ${_lvLimit} วัน` : `${rows.length} วัน`;
+    const full = _lvLimit && xCount >= _lvLimit;
+    const heads = [ 'อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส' ].map((h => `<span style="font-size:10.5px;font-weight:800;color:var(--k-mute);padding:2px 0">${h}</span>`)).join('');
+    let cells = '';
+    for (let i = 0; i < first; i++) cells += '<span></span>';
+    for (let d = 1; d <= days; d++) {
+      const iso = `${ym}-${String(d).padStart(2, '0')}`;
+      const code = byDay[d];
+      const t = code ? LV_TYPES[code] || {
+        name: code,
+        bg: '#64748b',
+        fg: '#fff'
+      } : null;
+      const isT = iso === dateVal;
+      const past = iso < dateVal;
+      const st = t ? `background:${t.bg};color:${t.fg};font-weight:900;${past ? 'opacity:.45;' : ''}` : `color:${past ? 'var(--k-mute3,var(--k-mute))' : 'var(--k-tx2)'};font-weight:700;`;
+      cells += `<span title="${t ? _mtEsc(_mtFmt(iso) + ' · ' + t.name) : _mtEsc(_mtFmt(iso))}" style="display:flex;align-items:center;justify-content:center;height:28px;border-radius:8px;font-size:12px;${st}${isT ? `box-shadow:0 0 0 2px ${accent};` : ''}">${d}</span>`;
+    }
+    const usedCodes = [ ...new Set(Object.values(byDay)) ];
+    const legend = usedCodes.map((c => {
+      const t = LV_TYPES[c] || {
+        name: c,
+        bg: '#64748b',
+        fg: '#fff'
+      };
+      return `<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:var(--k-tx3)"><span style="background:${t.bg};color:${t.fg};font-weight:900;font-size:10px;padding:1px 6px;border-radius:5px">${_mtEsc(c)}</span>${_mtEsc(t.name)}</span>`;
+    })).join('');
+    return `<div style="flex:1 1 250px;min-width:0;padding:10px 12px 10px;border-radius:14px;background:color-mix(in srgb,var(--k-panel2) 70%,transparent);border:1px solid ${accent}40">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                <span class="material-icons" style="font-size:16px;color:${accent}">calendar_month</span>
+                <span style="font-size:13px;font-weight:900;color:var(--k-tx)">${_ymLabel(ym)}</span>
+                <span style="font-size:10.5px;font-weight:800;color:${full ? '#fff' : accent};background:${full ? '#ef4444' : accent + '22'};border:1px solid ${full ? '#ef4444' : accent + '55'};padding:1px 8px;border-radius:999px">${rows.length ? used : 'ยังไม่ได้จอง'}</span>
+                <span style="margin-left:auto;font-size:11px;font-weight:700;color:var(--k-mute)">${tag}</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;text-align:center">${heads}${cells}</div>
+            ${legend ? `<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px">${legend}</div>` : ''}
+        </div>`;
   };
-  const lvVal = _lvMonthBlock(thisYM, 'เดือนนี้', '#f472b6') + _lvMonthBlock(nextYM, 'เดือนหน้า', '#60a5fa');
+  const lvVal = `<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:4px">${_lvMonthBlock(thisYM, 'เดือนนี้', '#f472b6')}${_lvMonthBlock(nextYM, 'เดือนหน้า', '#60a5fa')}</div>`;
   const lvSub = `<a href="javascript:void(0)" onclick="showPage('leave')" style="color:light-dark(#054ea8,#60a5fa);font-weight:700;text-decoration:underline">ดู/จองเพิ่ม</a>` + (lvTotal ? ` · รวม ${lvTotal} วัน (2 เดือน)` : ' · ยังไม่ได้จองวันหยุด');
   const swapChip = t => {
     const d = _mtTaskDateTH(t.scheduled_for);
