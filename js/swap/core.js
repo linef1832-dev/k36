@@ -298,23 +298,27 @@ window.generateSwapPlan = async function() {
       await fetchUsers();
     }
     let userLeaves = {};
-    try {
+    {
       const bufferStart = getSafeDateStr(startDateVal, -7);
       const bufferEnd = getSafeDateStr(endDateVal, 7);
-      const {data: leaveData} = await appDB.from('leave_requests').select('user_id, leave_date').gte('leave_date', bufferStart).lte('leave_date', bufferEnd);
-      if (leaveData) {
-        leaveData.forEach((l => {
-          if (!userLeaves[l.user_id]) userLeaves[l.user_id] = new Set;
-          userLeaves[l.user_id].add(l.leave_date);
-        }));
-      }
-    } catch (dbError) {}
+      const {data: leaveData, error: leaveErr} = await window.selectAllRows((() => appDB.from('leave_requests').select('user_id, leave_date').gte('leave_date', bufferStart).lte('leave_date', bufferEnd).order('id', {
+        ascending: true
+      })));
+      if (leaveErr) return Swal.fire('โหลดวันหยุดไม่สำเร็จ', 'ระบบต้องใช้ข้อมูลวันหยุดเพื่อไม่ให้สลับกะติดวันหยุด กรุณาลองใหม่ (' + leaveErr.message + ')', 'error');
+      (leaveData || []).forEach((l => {
+        const d = String(l.leave_date || '').split('T')[0];
+        if (!userLeaves[l.user_id]) userLeaves[l.user_id] = new Set;
+        userLeaves[l.user_id].add(d);
+      }));
+    }
     const hasLeave = (userId, dateStr) => userLeaves[userId] && userLeaves[userId].has(dateStr);
     const normName = n => String(n || '').trim().toLowerCase();
     const alreadyIds = new Set;
     const alreadyNames = new Set;
     try {
-      const {data: existingTasks, error: existErr} = await appDB.from('scheduled_tasks').select('payload, scheduled_for, status').eq('task_type', 'individual_shift_update').in('status', [ 'pending', 'info_only' ]);
+      const {data: existingTasks, error: existErr} = await window.selectAllRows((() => appDB.from('scheduled_tasks').select('payload, scheduled_for, status').eq('task_type', 'individual_shift_update').in('status', [ 'pending', 'info_only' ]).order('id', {
+        ascending: true
+      })));
       if (existErr) throw existErr;
       (existingTasks || []).forEach((t => {
         let p = {};
@@ -375,46 +379,75 @@ window.generateSwapPlan = async function() {
     }, (() => []));
     let failedMStaff = [];
     let failedNStaff = [];
-    for (let u of mStaff) {
-      let bestDayIndex = -1;
-      let minCount = Infinity;
-      let validDaysStrict = [];
-      for (let i = 0; i < daysToDistribute; i++) {
-        const targetDate = getSafeDateStr(startDateVal, i);
-        if (!hasSwapLeaveConflict(targetDate, 'MtoN', (d => hasLeave(u.id, d)))) {
-          validDaysStrict.push(i);
-        }
-      }
-      if (validDaysStrict.length > 0) {
-        for (let idx of validDaysStrict) {
-          if (mBuckets[idx].length < minCount) {
-            minCount = mBuckets[idx].length;
-            bestDayIndex = idx;
-          }
-        }
-      }
-      if (bestDayIndex !== -1) mBuckets[bestDayIndex].push(u); else failedMStaff.push(u);
+    const prevDay = {};
+    try {
+      const histFrom = getSafeDateStr(startDateVal, -45);
+      const {data: hist, error: histErr} = await window.selectAllRows((() => appDB.from('scheduled_tasks').select('payload, scheduled_for, status').eq('task_type', 'individual_shift_update').gte('scheduled_for', `${histFrom}T00:00:00+07:00`).lt('scheduled_for', `${startDateVal}T00:00:00+07:00`).order('scheduled_for', {
+        ascending: true
+      }).order('id', {
+        ascending: true
+      })));
+      if (histErr) throw histErr;
+      (hist || []).forEach((t => {
+        if (t.status === 'info_only') return;
+        let pl = {};
+        try {
+          pl = typeof t.payload === 'string' ? JSON.parse(t.payload) : t.payload || {};
+        } catch (e) {}
+        if (pl.user_id == null || !t.scheduled_for || pl.target_shift === 'คงเดิม') return;
+        const thDate = new Date(new Date(t.scheduled_for).getTime() + 7 * 36e5).toISOString().slice(0, 10);
+        const swapDay = pl.target_shift === pair.to || pl.target_shift === 'กะดึก' ? thDate : getSafeDateStr(thDate, -1);
+        prevDay[String(pl.user_id)] = Number(swapDay.slice(8, 10));
+      }));
+    } catch (e) {
+      console.warn('[generateSwapPlan] โหลดประวัติสลับกะเดือนก่อนไม่ได้:', e);
     }
-    for (let u of nStaff) {
-      let bestDayIndex = -1;
-      let minCount = Infinity;
-      let validDaysStrict = [];
+    const dayIndexOf = dom => {
+      let last = -1;
       for (let i = 0; i < daysToDistribute; i++) {
-        const gapDate = getSafeDateStr(startDateVal, i);
-        if (!hasSwapLeaveConflict(gapDate, 'NtoM', (d => hasLeave(u.id, d)))) {
-          validDaysStrict.push(i);
-        }
+        const d = Number(getSafeDateStr(startDateVal, i).slice(8, 10));
+        if (d === dom) return i;
+        if (d < dom) last = i;
       }
-      if (validDaysStrict.length > 0) {
-        for (let idx of validDaysStrict) {
-          if (nBuckets[idx].length < minCount) {
-            minCount = nBuckets[idx].length;
-            bestDayIndex = idx;
-          }
+      return last;
+    };
+    const keptSameDay = [], movedNear = [];
+    const placeStaff = (list, dir, buckets, failed) => {
+      const withPref = list.filter((u => prevDay[String(u.id)] != null));
+      const noPref = list.filter((u => prevDay[String(u.id)] == null));
+      const okOn = (u, i) => i >= 0 && i < daysToDistribute && !hasSwapLeaveConflict(getSafeDateStr(startDateVal, i), dir, (d => hasLeave(u.id, d)));
+      const leastLoaded = idxs => idxs.reduce(((best, i) => best === -1 || buckets[i].length < buckets[best].length ? i : best), -1);
+      withPref.forEach((u => {
+        const p = dayIndexOf(prevDay[String(u.id)]);
+        if (p >= 0 && okOn(u, p)) {
+          buckets[p].push(u);
+          keptSameDay.push(u.username);
+          return;
         }
-      }
-      if (bestDayIndex !== -1) nBuckets[bestDayIndex].push(u); else failedNStaff.push(u);
-    }
+        const near = p >= 0 ? [ p - 1, p + 1, p - 2, p + 2 ].filter((i => okOn(u, i))) : [];
+        const n1 = near.filter((i => Math.abs(i - p) === 1));
+        const pick = leastLoaded(n1.length ? n1 : near);
+        if (pick !== -1) {
+          buckets[pick].push(u);
+          movedNear.push(`${u.username} (${pick > p ? '+' : ''}${pick - p} วัน)`);
+          return;
+        }
+        noPref.push(u);
+      }));
+      noPref.forEach((u => {
+        const valid = [];
+        for (let i = 0; i < daysToDistribute; i++) if (okOn(u, i)) valid.push(i);
+        const pick = leastLoaded(valid);
+        if (pick !== -1) buckets[pick].push(u); else failed.push(u);
+      }));
+    };
+    placeStaff(mStaff, 'MtoN', mBuckets, failedMStaff);
+    placeStaff(nStaff, 'NtoM', nBuckets, failedNStaff);
+    window._swapPlanNote = {
+      kept: keptSameDay,
+      moved: movedNear,
+      hasHistory: Object.keys(prevDay).length > 0
+    };
     if (failedMStaff.length > 0 || failedNStaff.length > 0) {
       const allFailed = [ ...failedMStaff, ...failedNStaff ];
       const nameList = allFailed.map((u => u.username)).join(', ');
@@ -535,7 +568,16 @@ window.renderSwapPlanPreviewUI = function() {
       nNamesHtml: nNames || '<span class="text-gray-400 text-xs pointer-events-none mt-1">ลากมาวางที่นี่...</span>'
     });
   })).join('');
-  container.innerHTML = html;
+  const note = window._swapPlanNote;
+  let banner = '';
+  if (note && note.hasHistory) {
+    const esc = window.escapeHtml || (x => x);
+    banner = `<div style="grid-column:1/-1;margin-bottom:10px;padding:10px 14px;border-radius:12px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.3);font-size:12.5px;font-weight:700;color:var(--k-tx2)">
+      <div><b style="color:var(--k-green-tx)">ใช้วันที่เดียวกับเดือนที่แล้ว ${note.kept.length} คน</b>${note.moved.length ? ` · <b style="color:var(--k-amber-tx)">เลื่อน 1–2 วันเพราะติดวันหยุด ${note.moved.length} คน</b>` : ''}</div>
+      ${note.moved.length ? `<div style="margin-top:4px;font-size:11.5px;color:var(--k-mute)">${note.moved.map(esc).join(', ')}</div>` : ''}
+    </div>`;
+  }
+  container.innerHTML = banner + html;
 };
 
 window.confirmAndSaveSwapPlan = async function() {

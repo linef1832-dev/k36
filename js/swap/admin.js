@@ -334,6 +334,13 @@ window.openSavedSwapMenu = async function(taskId) {
   if (action === 'change_date') await window.changeSavedSwapDate(taskId); else if (action === 'to_stay') await window.changeSavedSwapToStay(taskId); else if (action === 'reactivate') await window.reactivateSavedSwap(taskId);
 };
 
+window._swRealLeaveOn = async function(userId, dateStr) {
+  if (!userId) return [];
+  const {data: data, error: error} = await appDB.from('leave_requests').select('reason').eq('user_id', userId).eq('leave_date', dateStr);
+  if (error) return [];
+  return (data || []).map((r => r.reason || 'X')).filter((r => r !== 'XX'));
+};
+
 window.changeSavedSwapDate = async function(taskId) {
   const task = window._swapScheduleTasks[taskId];
   if (!task) return;
@@ -359,6 +366,20 @@ window.changeSavedSwapDate = async function(taskId) {
   if (!result.isConfirmed) return;
   const newDate = result.value;
   if (!newDate || newDate === currentDate) return;
+  const chkDate = getSafeDateStr(newDate, p.target_shift === 'กะเช้า' ? -1 : 0);
+  const realLv = await window._swRealLeaveOn(p.user_id, chkDate);
+  if (realLv.length) {
+    const go = await Swal.fire({
+      icon: 'warning',
+      title: 'วันนั้นพนักงานมีวันหยุดอยู่แล้ว',
+      text: `${p.user_name || ''} ลงวันหยุด (${realLv.join(', ')}) ไว้วันที่ ${chkDate} ถ้าย้ายมาวันนี้ วันหยุดนั้นจะถูกแทนด้วย XX ต้องการย้ายต่อไหม?`,
+      showCancelButton: true,
+      confirmButtonText: 'ย้ายต่อ',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#d33'
+    });
+    if (!go.isConfirmed) return;
+  }
   Swal.fire({
     title: 'กำลังบันทึก...',
     didOpen: () => Swal.showLoading()
@@ -516,6 +537,20 @@ window.reactivateSavedSwap = async function(taskId) {
   });
   if (!result.isConfirmed || !result.value) return;
   const swapDate = result.value;
+  const chkDate2 = getSafeDateStr(swapDate, newTargetShift === 'กะเช้า' ? -1 : 0);
+  const realLv2 = await window._swRealLeaveOn(p.user_id, chkDate2);
+  if (realLv2.length) {
+    const go2 = await Swal.fire({
+      icon: 'warning',
+      title: 'วันนั้นพนักงานมีวันหยุดอยู่แล้ว',
+      text: `${p.user_name || ''} ลงวันหยุด (${realLv2.join(', ')}) ไว้วันที่ ${chkDate2} ถ้าสลับวันนี้ วันหยุดนั้นจะถูกแทนด้วย XX ต้องการทำต่อไหม?`,
+      showCancelButton: true,
+      confirmButtonText: 'ทำต่อ',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#d33'
+    });
+    if (!go2.isConfirmed) return;
+  }
   Swal.fire({
     title: 'กำลังบันทึก...',
     didOpen: () => Swal.showLoading()
