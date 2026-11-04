@@ -738,6 +738,12 @@ const _slotCache = {};
 
 const _SLOT_TTL = 90 * 1e3;
 
+window._dashInvalidateSlots = function(date) {
+  for (const k in _slotCache) {
+    if (!date || k.startsWith(date + '|')) delete _slotCache[k];
+  }
+};
+
 window._dashPatchSlotCache = function(payload, date, shift) {
   const ev = payload.eventType;
   const row = payload.new || {};

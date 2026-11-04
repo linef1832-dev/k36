@@ -497,6 +497,8 @@ window.saveData = async function(e) {
       showConfirmButton: false
     });
     window.resetBtn();
+    if (typeof window._dashInvalidateSlots === 'function') window._dashInvalidateSlots(dateVal);
+    if (!window._qrbSilent) window._pickedSlots = [];
     if (typeof logAction === 'function') {
       const _p = isOffRoster ? logAction('ลงผิดเว็บ', `⚠️ ${currentUser.username} ลง "${activeTeam}" แต่หน้าที่จริง = "${assignedTeamsStr}" (${sName} ${timeVal}) [${myDep}]`) : logAction('ลงเวลา', `ลงเวลา ${sName} ${timeVal} (${activeTeam}) [${myDep}]`);
       if (_p && _p.catch) _p.catch((() => {}));
@@ -814,6 +816,7 @@ async function delSch(id, shiftName) {
       }
       if (item) await logAction('ลบรายการ', `ลบรายการของ ${item.staff_name} (${item.shift_name} ${item.time_slot})`);
       Swal.fire('ลบสำเร็จ!', '', 'success');
+      if (typeof window._dashInvalidateSlots === 'function') window._dashInvalidateSlots(item && item.work_date);
       await refreshTimeSlots();
       await fetchData();
       if (typeof initQuickRebook === 'function') initQuickRebook();
