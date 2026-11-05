@@ -497,6 +497,48 @@ function getDutySaveKey(date, shift) {
 
 window.currentDutyLeaveData = [];
 
+window.dutyApplyPoolState = function(targetDate, leavesData, tasksData) {
+  window.currentDutyShiftToday = {};
+  const swapToNightIds = new Set;
+  (tasksData || []).forEach((t => {
+    let pl = t.payload;
+    if (typeof pl === 'string') {
+      try {
+        pl = JSON.parse(pl);
+      } catch (e) {
+        pl = {};
+      }
+    }
+    if (!pl || !pl.user_id) return;
+    const thDate = new Date(new Date(t.scheduled_for).getTime() + 7 * 36e5).toISOString().slice(0, 10);
+    if (thDate !== targetDate) return;
+    const uid = String(pl.user_id);
+    if (pl.target_shift && pl.target_shift !== 'คงเดิม') {
+      window.currentDutyShiftToday[uid] = pl.target_shift;
+      if (pl.target_shift === 'กะดึก') swapToNightIds.add(uid);
+    }
+  }));
+  currentDutyLeaves = new Set;
+  (leavesData || []).forEach((l => {
+    if (String(l.leave_date || targetDate).slice(0, 10) !== targetDate) return;
+    const uid = String(l.user_id);
+    if (l.reason === 'XX' && swapToNightIds.has(uid)) return;
+    currentDutyLeaves.add(uid);
+  }));
+  window._dutyPoolStateFor = targetDate;
+  return swapToNightIds;
+};
+
+window.dutyLoadPoolState = async function(targetDate) {
+  const taskDayStart = `${targetDate}T00:00:00+07:00`;
+  const taskDayEnd = `${targetDate}T23:59:59+07:00`;
+  const [lv, tk] = await Promise.all([ appDB.from('leave_requests').select('user_id, reason, user_name, leave_date').eq('leave_date', targetDate), appDB.from('scheduled_tasks').select('payload, scheduled_for, status').eq('task_type', 'individual_shift_update').gte('scheduled_for', taskDayStart).lte('scheduled_for', taskDayEnd) ]);
+  if (lv.error) throw lv.error;
+  if (tk.error) throw tk.error;
+  window.dutyApplyPoolState(targetDate, lv.data || [], tk.data || []);
+  return true;
+};
+
 window.refreshDutyData = async function() {
   try {
     window.ensureImportantTasksContainer();
@@ -529,31 +571,8 @@ window.refreshDutyData = async function() {
       if (_isPoll && window._dutyLastSig === _sig) return;
       window._dutyLastSig = _sig;
     } catch (e) {}
-    window.currentDutyShiftToday = {};
-    const swapToNightIds = new Set;
-    (swapRes && swapRes.data ? swapRes.data : []).forEach((t => {
-      let pl = t.payload;
-      if (typeof pl === 'string') {
-        try {
-          pl = JSON.parse(pl);
-        } catch (e) {
-          pl = {};
-        }
-      }
-      if (!pl || !pl.user_id) return;
-      const uid = String(pl.user_id);
-      if (pl.target_shift && pl.target_shift !== 'คงเดิม') {
-        window.currentDutyShiftToday[uid] = pl.target_shift;
-        if (pl.target_shift === 'กะดึก') swapToNightIds.add(uid);
-      }
-    }));
     const leaves = leavesRes && leavesRes.data;
-    currentDutyLeaves = new Set;
-    if (leaves) leaves.forEach((l => {
-      const uid = String(l.user_id);
-      if (l.reason === 'XX' && swapToNightIds.has(uid)) return;
-      currentDutyLeaves.add(uid);
-    }));
+    const swapToNightIds = window.dutyApplyPoolState(targetDate, leaves || [], swapRes && swapRes.data ? swapRes.data : []);
     window.currentDutySchedules = schedulesRes && schedulesRes.data ? schedulesRes.data : [];
     const relevantLeaves = [];
     const seenLeaveUser = new Set;
@@ -962,6 +981,9 @@ window.addStaffToRoster = async function() {
   if (typeof GLOBAL_USER_LIST === 'undefined' || !GLOBAL_USER_LIST || GLOBAL_USER_LIST.length === 0) {
     return Swal.fire('!', 'ยังโหลดรายชื่อพนักงานไม่เสร็จ กรุณารอสักครู่แล้วลองใหม่', 'warning');
   }
+  try {
+    if (window._dutyPoolStateFor !== targetDate) await window.dutyLoadPoolState(targetDate);
+  } catch (e) {}
   const alreadyAssignedIds = new Set;
   for (const team in currentRosterData) {
     (currentRosterData[team] || []).forEach((u => {
@@ -1327,6 +1349,11 @@ window.generateDutyRoster = async function() {
   }
   await window.refreshDutyData();
   if (document.getElementById('dutyDate').value !== targetDate || document.getElementById('dutyShiftSelect').value !== shiftFilter) return;
+  try {
+    await window.dutyLoadPoolState(targetDate);
+  } catch (e) {
+    return Swal.fire('โหลดข้อมูลวันนี้ไม่สำเร็จ', 'ดึงรายชื่อคนลา/คนสลับกะของวันที่เลือกไม่ได้ กรุณาลองใหม่ (' + (e.message || e) + ')', 'error');
+  }
   const activeStaff = window.getDutyActiveStaff(shiftFilter);
   let requiredCount = 0;
   document.querySelectorAll('.req-input').forEach((i => requiredCount += parseInt(i.value) || 0));
