@@ -23,7 +23,7 @@ window.ds_subscribeVoiceLogs = function() {
       const todayStr = new Date(today.getTime() - today.getTimezoneOffset() * 6e4).toISOString().split('T')[0];
       if (dateInput && dateInput.value && dateInput.value !== todayStr) return;
       clearTimeout(window._dsVoiceLogTimer);
-      window._dsVoiceLogTimer = setTimeout((() => window.ds_fetchVoiceLogs(false, 1)), 800);
+      window._dsVoiceLogTimer = setTimeout((() => window.ds_fetchVoiceLogs(false, window.dsCurrentPage || 1)), 800);
     })).subscribe();
     if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(window._dsVoiceLogSub);
     const orig = window._dsVoiceLogSub.unsubscribe && window._dsVoiceLogSub.unsubscribe.bind(window._dsVoiceLogSub);
@@ -49,7 +49,9 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false, page = window.ds
   const searchInput = document.getElementById('dsLogSearch');
   const searchText = searchInput ? searchInput.value.trim() : '';
   const tbody = document.getElementById('ds_voiceLogBody');
-  if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-10 text-gray-400"><span class="material-icons animate-spin text-4xl mb-2 text-fuchsia-500">sync</span><br>กำลังดึงข้อมูลหน้า ${page}...</td></tr>`;
+  const quiet = forceRefresh !== true && Array.isArray(window.dsGlobalVoiceLogs) && window.dsGlobalVoiceLogs.length > 0 && window._dsLogSig && window._dsLogSigKey === `${targetDate}|${searchText}|${page}`;
+  if (tbody && !quiet) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-10 text-gray-400"><span class="material-icons animate-spin text-4xl mb-2 text-fuchsia-500">sync</span><br>กำลังดึงข้อมูลหน้า ${page}...</td></tr>`;
+  const reqId = window._dsLogReq = (window._dsLogReq || 0) + 1;
   try {
     const startOfDay = `${targetDate}T00:00:00+07:00`;
     const endOfDay = `${targetDate}T23:59:59.999+07:00`;
@@ -66,11 +68,17 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false, page = window.ds
     query = query.range(from, to);
     const {data: data, count: count, error: error} = await query;
     if (error) throw error;
+    if (reqId !== window._dsLogReq) return;
     window.dsTotalPages = Math.ceil((count || 0) / window.dsRowsPerPage) || 1;
     if (window.dsCurrentPage > window.dsTotalPages) {
       window.dsCurrentPage = 1;
       return ds_fetchVoiceLogs(forceRefresh, 1);
     }
+    const sig = JSON.stringify((data || []).map((r => [ r.id, r.action_type, r.room_name ]))) + '|' + count;
+    const sigKey = `${targetDate}|${searchText}|${page}`;
+    const unchanged = quiet && window._dsLogSig === sig;
+    window._dsLogSig = sig;
+    window._dsLogSigKey = sigKey;
     window.dsGlobalVoiceLogs = data.map((row => ({
       id: row.id,
       name: row.user_name,
@@ -78,8 +86,13 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false, page = window.ds
       room: row.room_name,
       time: row.created_at
     })));
-    if (typeof ds_renderVoiceLogs === 'function') ds_renderVoiceLogs();
-    ds_renderPaginationControls(count);
+    if (!unchanged) {
+      const wrap = tbody && tbody.closest('.overflow-y-auto, .overflow-auto, [style*="overflow"]');
+      const keepTop = wrap ? wrap.scrollTop : 0;
+      if (typeof ds_renderVoiceLogs === 'function') ds_renderVoiceLogs();
+      ds_renderPaginationControls(count);
+      if (wrap && quiet) wrap.scrollTop = keepTop;
+    }
     if (forceRefresh === true && !searchText && !(window.Swal && Swal.isVisible())) {
       const Toast = Swal.mixin({
         toast: true,
@@ -94,7 +107,8 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false, page = window.ds
     }
   } catch (e) {
     console.error("Fetch Voice Logs Error:", e);
-    if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-red-500 font-bold">ไม่สามารถดึงข้อมูลได้: ${e.message}</td></tr>`;
+    if (reqId !== window._dsLogReq) return;
+    if (tbody && !quiet) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-red-500 font-bold">ไม่สามารถดึงข้อมูลได้: ${e.message}</td></tr>`;
   }
 };
 
