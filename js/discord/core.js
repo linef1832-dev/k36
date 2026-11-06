@@ -936,18 +936,7 @@ window.ds_fetchSpy = async function() {
 };
 
 window.ds_fetchChannelsSilently = async function() {
-  try {
-    if (typeof appDB !== 'undefined') {
-      const {data: data} = await appDB.from('settings').select('value').eq('key', 'discord_channels').single();
-      if (data && data.value) {
-        dsRoomList = JSON.parse(data.value);
-        let dropHtml = '<option value="">-- เลือกห้องปลายทาง --</option>';
-        dsRoomList.forEach((c => dropHtml += `<option value="${c.id}">${dsEsc(c.name)}</option>`));
-        const targetSelect = document.getElementById('bulkMoveTarget');
-        if (targetSelect) targetSelect.innerHTML = dropHtml;
-      }
-    }
-  } catch (e) {}
+  return window.ds_fetchChannels(true);
 };
 
 window.filterSourceRooms = function() {
@@ -958,27 +947,39 @@ window.filterSourceRooms = function() {
   }));
 };
 
-window.ds_fetchChannels = async function() {
+window.ds_fetchChannels = async function(silent) {
   try {
-    if (typeof appDB !== 'undefined') {
-      const {data: data} = await appDB.from('settings').select('value').eq('key', 'discord_channels').single();
-      if (data && data.value) {
-        dsRoomList = JSON.parse(data.value);
-        let srcHtml = '';
-        let targetHtml = '<option value="">-- เลือกห้องที่ต้องการย้ายไป --</option>';
-        dsRoomList.forEach((c => {
-          srcHtml += window.renderTemplate('tpl-ds-source-room', {
-            id: c.id,
-            name: c.name
-          });
-          targetHtml += `<option value="${c.id}">${dsEsc(c.name)}</option>`;
-        }));
-        document.getElementById('ds_sourceRooms').innerHTML = srcHtml;
-        document.getElementById('ds_targetRoom').innerHTML = targetHtml;
-      }
+    if (typeof appDB === 'undefined') return;
+    const {data: data, error: error} = await appDB.from('settings').select('value').eq('key', 'discord_channels').maybeSingle();
+    if (error) throw error;
+    if (!data || !data.value) return;
+    dsRoomList = JSON.parse(data.value) || [];
+    const optHtml = label => `<option value="">${label}</option>` + dsRoomList.map((c => `<option value="${dsEsc(String(c.id))}">${dsEsc(c.name)}</option>`)).join('');
+    const bulk = document.getElementById('bulkMoveTarget');
+    if (bulk) {
+      const keep = bulk.value;
+      bulk.innerHTML = optHtml('-- เลือกห้องปลายทาง --');
+      if (keep && dsRoomList.some((c => String(c.id) === keep))) bulk.value = keep;
+    }
+    const src = document.getElementById('ds_sourceRooms');
+    const tgt = document.getElementById('ds_targetRoom');
+    if (src && tgt && !silent) {
+      const checked = new Set(Array.from(src.querySelectorAll('input[name="ds_src"]:checked')).map((cb => cb.value)));
+      const keepT = tgt.value;
+      src.innerHTML = dsRoomList.map((c => window.renderTemplate('tpl-ds-source-room', {
+        id: c.id,
+        name: c.name
+      }))).join('') || '<div class="text-center text-gray-500 py-10">ยังไม่มีห้องในระบบ (ตั้งค่าห้องได้ที่ฐานข้อมูล DS)</div>';
+      src.querySelectorAll('input[name="ds_src"]').forEach((cb => {
+        if (checked.has(cb.value)) cb.checked = true;
+      }));
+      tgt.innerHTML = optHtml('-- เลือกห้องที่ต้องการย้ายไป --');
+      if (keepT && dsRoomList.some((c => String(c.id) === keepT))) tgt.value = keepT;
+      if (typeof window.filterSourceRooms === 'function' && document.getElementById('searchSourceRoom')) window.filterSourceRooms();
     }
   } catch (e) {
-    document.getElementById('ds_sourceRooms').innerHTML = '<div class="text-center text-gray-500 py-10">รอโหลดข้อมูล...</div>';
+    const src = document.getElementById('ds_sourceRooms');
+    if (src && !silent) src.innerHTML = `<div class="text-center text-red-400 py-10 font-bold">โหลดรายชื่อห้องไม่สำเร็จ: ${dsEsc(e.message || e)}</div>`;
   }
 };
 
@@ -987,48 +988,70 @@ window.ds_startMove = async function() {
   const srcIds = Array.from(document.querySelectorAll('input[name="ds_src"]:checked')).map((cb => cb.value));
   const target = document.getElementById('ds_targetRoom').value;
   if (!target || srcIds.length === 0) return Swal.fire('เตือน', 'เลือกห้องต้นทางและปลายทางก่อน', 'warning');
+  const realSrc = srcIds.filter((id => id !== target));
+  if (realSrc.length === 0) return Swal.fire('เตือน', 'ห้องต้นทางกับห้องปลายทางเป็นห้องเดียวกัน', 'warning');
+  const nameOf = id => (dsRoomList.find((c => String(c.id) === String(id))) || {}).name || id;
+  const ok = await Swal.fire({
+    title: 'ยืนยันย้ายห้อง?',
+    html: `ย้ายทุกคนจาก <b>${realSrc.map((id => dsEsc(nameOf(id)))).join(', ')}</b><br>ไปที่ <b>${dsEsc(nameOf(target))}</b>`,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'ย้ายเลย',
+    cancelButtonText: 'ยกเลิก'
+  });
+  if (!ok.isConfirmed) return;
   Swal.fire({
     title: 'กำลังย้าย...',
+    allowOutsideClick: false,
     didOpen: () => Swal.showLoading()
   });
   try {
-    const res = await fetch(`${DISCORD_API_URL}/api/mass-move-rooms`, {
+    const r = await window.dsBotOk(fetch(`${DISCORD_API_URL}/api/mass-move-rooms`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        sourceChannelIds: srcIds,
+        sourceChannelIds: realSrc,
         targetChannelId: target
       })
-    });
-    const r = await res.json();
-    if (r.success) {
-      Swal.fire('สำเร็จ', `ย้ายพนักงาน ${r.count} คนแล้ว`, 'success');
-      ds_logAction('Mass Move', `ย้ายพนักงาน ${r.count} คนไปห้องเป้าหมาย`);
-    } else Swal.fire('Error', r.error, 'error');
+    }));
+    const n = r && r.count != null ? r.count : 0;
+    Swal.fire('สำเร็จ', `ย้ายพนักงาน ${n} คนไป ${dsEsc(nameOf(target))} แล้ว`, 'success');
+    ds_logAction('Mass Move', `ย้ายพนักงาน ${n} คนจาก ${realSrc.map(nameOf).join(', ')} → ${nameOf(target)}`);
+    document.querySelectorAll('input[name="ds_src"]:checked').forEach((cb => cb.checked = false));
+    if (typeof ds_fetchSpy === 'function') ds_fetchSpy();
   } catch (e) {
-    Swal.fire('Error', 'เชื่อมต่อบอทไม่ได้', 'error');
+    Swal.fire('ย้ายไม่สำเร็จ', e.message || 'เชื่อมต่อบอทไม่ได้', 'error');
   }
 };
 
 window.ds_returnMove = async function() {
   if (!window.dsRequire('ds_move')) return;
+  const ok = await Swal.fire({
+    title: 'ย้ายทุกคนกลับห้องเดิม?',
+    text: 'ทุกคนที่ถูกย้ายด้วยปุ่ม "ดึงคนย้ายห้องทันที" จะถูกส่งกลับห้องที่อยู่ก่อนหน้า',
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'ย้ายกลับ',
+    cancelButtonText: 'ยกเลิก'
+  });
+  if (!ok.isConfirmed) return;
   Swal.fire({
     title: 'กำลังย้ายกลับ...',
+    allowOutsideClick: false,
     didOpen: () => Swal.showLoading()
   });
   try {
-    const res = await fetch(`${DISCORD_API_URL}/api/mass-return`, {
+    const r = await window.dsBotOk(fetch(`${DISCORD_API_URL}/api/mass-return`, {
       method: 'POST'
-    });
-    const r = await res.json();
-    if (r.success) {
-      Swal.fire('สำเร็จ', `ย้ายกลับ ${r.count} คนแล้ว`, 'success');
-      ds_logAction('Return Move', `ดึงพนักงาน ${r.count} คนกลับห้องเดิม`);
-    } else Swal.fire('Error', r.error, 'error');
+    }));
+    const n = r && r.count != null ? r.count : 0;
+    Swal.fire('สำเร็จ', `ย้ายกลับ ${n} คนแล้ว`, 'success');
+    ds_logAction('Return Move', `ดึงพนักงาน ${n} คนกลับห้องเดิม`);
+    if (typeof ds_fetchSpy === 'function') ds_fetchSpy();
   } catch (e) {
-    Swal.fire('Error', 'เชื่อมต่อบอทไม่ได้', 'error');
+    Swal.fire('ย้ายกลับไม่สำเร็จ', e.message || 'เชื่อมต่อบอทไม่ได้', 'error');
   }
 };
 
