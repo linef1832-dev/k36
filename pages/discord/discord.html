@@ -143,6 +143,60 @@
         #dsApp .vl-row-new{animation:vlNew 2.4s ease-out}
         @keyframes vlNew{0%{background:rgba(217,70,239,.35)}70%{background:rgba(217,70,239,.12)}100%{background:transparent}}
         @media (prefers-reduced-motion:reduce){ #dsApp .vl-row-new{animation:none} }
+        #dsApp .mv-wrap{max-width:1180px;margin:0 auto}
+        #dsApp .mv-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:16px;align-items:start}
+        #dsApp .mv-card{background:var(--k-panel);border:1px solid var(--k-line);border-radius:20px;padding:16px;box-shadow:var(--k-shadow);display:flex;flex-direction:column;gap:12px;min-height:560px}
+        #dsApp .mv-ch{display:flex;align-items:center;gap:12px}
+        #dsApp .mv-ic{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--c) 18%,transparent);color:var(--c);flex:none}
+        #dsApp .mv-t{font-size:15px;font-weight:900;color:var(--k-tx-strong)}
+        #dsApp .mv-s{font-size:11.5px;font-weight:700;color:var(--k-mute)}
+        #dsApp .mv-mini{margin-left:auto;width:34px;height:34px;border-radius:10px;border:1px solid var(--k-line3);background:var(--k-btn);color:var(--k-tx2);display:flex;align-items:center;justify-content:center}
+        #dsApp .mv-mini:hover{background:var(--k-btn-h)}
+        #dsApp .mv-tools{display:flex;align-items:center;gap:10px}
+        #dsApp .mv-search{flex:1;display:flex;align-items:center;gap:6px;height:38px;padding:0 10px;border-radius:11px;background:var(--k-field);border:1px solid var(--k-line3)}
+        #dsApp .mv-search:focus-within{border-color:#f43f5e}
+        #dsApp .mv-search input{flex:1;min-width:0;background:transparent;border:0;outline:none;color:var(--k-tx-strong);font-size:13px;font-weight:600;padding:0 !important;min-height:0}
+        #dsApp .mv-search .material-icons{color:var(--k-mute2);font-size:18px}
+        #dsApp .mv-chk{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:800;color:var(--k-mute);white-space:nowrap;cursor:pointer}
+        #dsApp .mv-chk input{accent-color:#f43f5e;width:15px;height:15px}
+        #dsApp .mv-list{flex:1;overflow-y:auto;background:var(--k-sunk);border:1px solid var(--k-line);border-radius:14px;padding:8px;display:flex;flex-direction:column;gap:6px;max-height:420px}
+        #dsApp .mv-room{border-radius:12px;border:1px solid var(--k-line);background:var(--k-panel);transition:border-color .15s}
+        #dsApp .mv-room.on{border-color:#f43f5e;box-shadow:inset 0 0 0 1px #f43f5e55}
+        #dsApp .mv-room.partial{border-color:#f59e0b;box-shadow:inset 0 0 0 1px #f59e0b55}
+        #dsApp .mv-room.empty{opacity:.45}
+        #dsApp .mv-rh{display:flex;align-items:center;gap:10px;padding:9px 10px;cursor:pointer}
+        #dsApp .mv-rh input[type=checkbox]{width:18px;height:18px;accent-color:#f43f5e;flex:none;cursor:pointer}
+        #dsApp .mv-rn{flex:1;min-width:0;font-weight:800;color:var(--k-tx-strong);font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        #dsApp .mv-cnt{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:900;padding:2px 9px;border-radius:999px;background:rgba(16,185,129,.12);color:#10b981;border:1px solid rgba(16,185,129,.35);flex:none}
+        #dsApp .mv-cnt.zero{background:var(--k-sunk);color:var(--k-mute2);border-color:var(--k-line)}
+        #dsApp .mv-cnt.part{background:rgba(245,158,11,.14);color:#f59e0b;border-color:rgba(245,158,11,.4)}
+        #dsApp .mv-exp{width:28px;height:28px;border-radius:8px;border:0;background:transparent;color:var(--k-mute);display:flex;align-items:center;justify-content:center;flex:none}
+        #dsApp .mv-exp:hover{background:var(--k-btn-h);color:var(--k-tx-strong)}
+        #dsApp .mv-exp .material-icons{transition:transform .18s}
+        #dsApp .mv-room.open .mv-exp .material-icons{transform:rotate(180deg)}
+        #dsApp .mv-members{display:none;padding:4px 10px 10px 38px;gap:6px;flex-wrap:wrap}
+        #dsApp .mv-room.open .mv-members{display:flex}
+        #dsApp .mv-m{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;border:1px solid var(--k-line3);background:var(--k-sunk);font-size:12px;font-weight:800;color:var(--k-tx2);cursor:pointer;user-select:none}
+        #dsApp .mv-m input{accent-color:#f43f5e;width:14px;height:14px}
+        #dsApp .mv-m.on{border-color:#f43f5e;background:rgba(244,63,94,.12);color:var(--k-tx-strong)}
+        #dsApp .mv-foot{font-size:12.5px;font-weight:800;color:var(--k-mute);padding:2px 4px}
+        #dsApp .mv-foot b{color:#f43f5e}
+        #dsApp .mv-sel{width:100%;height:48px;padding:0 14px;border-radius:12px;background:var(--k-field);border:1px solid var(--k-line3);color:var(--k-tx-strong);font-weight:800;font-size:14px;outline:none}
+        #dsApp .mv-sel:focus{border-color:#10b981}
+        #dsApp .mv-sum{flex:1;background:var(--k-sunk);border:1px solid var(--k-line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px;min-height:220px}
+        #dsApp .mv-sum .row{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;color:var(--k-tx2)}
+        #dsApp .mv-sum .row .material-icons{font-size:18px}
+        #dsApp .mv-sum .big{font-size:32px;font-weight:900;color:var(--k-tx-strong);line-height:1}
+        #dsApp .mv-sum .names{display:flex;flex-wrap:wrap;gap:5px}
+        #dsApp .mv-sum .names span{font-size:11.5px;font-weight:800;padding:3px 8px;border-radius:999px;background:var(--k-panel);border:1px solid var(--k-line);color:var(--k-tx2)}
+        #dsApp .mv-actions{display:flex;flex-direction:column;gap:8px}
+        #dsApp .mv-go{height:52px;border-radius:14px;border:0;background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;font-size:15px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 10px 24px -10px #4f46e5}
+        #dsApp .mv-go:disabled{opacity:.4;box-shadow:none;cursor:not-allowed}
+        #dsApp .mv-go:not(:disabled):hover{filter:brightness(1.08)}
+        #dsApp .mv-back{height:42px;border-radius:12px;border:1px solid var(--k-line3);background:var(--k-btn);color:var(--k-tx2);font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px}
+        #dsApp .mv-back:hover{background:var(--k-btn-h)}
+        #dsApp .mv-empty{color:var(--k-mute2);font-size:12.5px;font-weight:700;text-align:center;padding:24px 8px}
+        @media (max-width:900px){ #dsApp .mv-grid{grid-template-columns:1fr} #dsApp .mv-card{min-height:0} }
 </style>
     <aside class="dsn-side">
         <div class="dsn-brand">
@@ -202,32 +256,35 @@
             </div>
         </div>
 
-        <div id="dsContent_move" class="max-w-6xl mx-auto hidden fade-in pb-10">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-lg flex flex-col h-[600px]">
-                    <h3 class="text-red-400 font-black mb-3 flex items-center gap-2 text-lg"><span class="material-icons">group_remove</span> 1. เลือกห้องต้นทาง (ย้ายจาก)</h3>
-                    <div class="relative mb-3 shrink-0">
-                        <span class="material-icons absolute left-3 top-2.5 text-gray-400 text-sm">search</span>
-                        <input type="text" id="searchSourceRoom" onkeyup="filterSourceRooms()" placeholder="ค้นหาชื่อห้อง..." class="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-600 text-white rounded-xl text-sm outline-none focus:border-red-500">
+        <div id="dsContent_move" class="hidden fade-in pb-10 mv-wrap">
+            <div class="mv-grid">
+                <section class="mv-card">
+                    <div class="mv-ch">
+                        <div class="mv-ic" style="--c:#f43f5e"><span class="material-icons">group_remove</span></div>
+                        <div><div class="mv-t">1. ห้องต้นทาง</div><div class="mv-s">ติ๊กทั้งห้อง หรือกดลูกศรเพื่อเลือกเฉพาะบางคน</div></div>
+                        <button type="button" class="mv-mini" onclick="ds_refreshMoveRooms(true)" title="โหลดใหม่"><span class="material-icons">refresh</span></button>
                     </div>
-                    <div id="ds_sourceRooms" class="flex-1 overflow-y-auto custom-scrollbar bg-slate-900 rounded-xl p-2 border border-slate-700 space-y-1.5">
-                        <div class="text-center text-gray-500 py-10">กำลังโหลดรายชื่อห้อง...</div>
+                    <div class="mv-tools">
+                        <label class="mv-search"><span class="material-icons">search</span><input type="text" id="searchSourceRoom" onkeyup="filterSourceRooms()" placeholder="ค้นหาชื่อห้อง..."></label>
+                        <label class="mv-chk"><input type="checkbox" id="mvHideEmpty" checked onchange="ds_renderMoveRooms()"> ซ่อนห้องว่าง</label>
                     </div>
-                </div>
-                <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-lg flex flex-col h-[600px]">
-                    <h3 class="text-green-400 font-black mb-4 flex items-center gap-2 text-lg"><span class="material-icons">login</span> 2. เลือกห้องปลายทาง (ย้ายไป)</h3>
-                    <select id="ds_targetRoom" class="w-full p-4 rounded-xl border border-slate-600 bg-slate-900 text-white font-bold mb-6 outline-none focus:border-green-500 transition text-base">
-                        <option value="">-- กำลังโหลดห้อง --</option>
-                    </select>
-                    <div class="mt-auto space-y-4 shrink-0">
-                        <button onclick="ds_startMove()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-4 rounded-xl font-extrabold shadow transition active:scale-95 flex items-center justify-center gap-2 text-lg">
-                            <span class="material-icons">flight_takeoff</span> 🚀 ดึงคนย้ายห้องทันที
-                        </button>
-                        <button onclick="ds_returnMove()" class="w-full bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl font-bold shadow transition active:scale-95 flex items-center justify-center gap-2 border border-slate-600">
-                            <span class="material-icons">keyboard_return</span> ↩️ ย้ายทุกคนกลับห้องเดิม
-                        </button>
+                    <div id="ds_sourceRooms" class="mv-list"><div class="mv-empty">กำลังโหลดรายชื่อห้อง...</div></div>
+                    <div class="mv-foot" id="mvSrcFoot">ยังไม่ได้เลือก</div>
+                </section>
+                <section class="mv-card">
+                    <div class="mv-ch">
+                        <div class="mv-ic" style="--c:#10b981"><span class="material-icons">login</span></div>
+                        <div><div class="mv-t">2. ห้องปลายทาง</div><div class="mv-s">เลือกห้องที่จะย้ายไป</div></div>
                     </div>
-                </div>
+                    <select id="ds_targetRoom" class="mv-sel" onchange="ds_updateMoveSummary()"><option value="">-- กำลังโหลดห้อง --</option></select>
+                    <div id="mvSummary" class="mv-sum">
+                        <div class="mv-empty">เลือกห้องต้นทางและปลายทาง แล้วสรุปจะขึ้นตรงนี้</div>
+                    </div>
+                    <div class="mv-actions">
+                        <button type="button" id="mvGoBtn" onclick="ds_startMove()" class="mv-go" disabled><span class="material-icons">flight_takeoff</span> ย้ายทันที</button>
+                        <button type="button" onclick="ds_returnMove()" class="mv-back"><span class="material-icons">keyboard_return</span> ย้ายทุกคนกลับห้องเดิม</button>
+                    </div>
+                </section>
             </div>
         </div>
 

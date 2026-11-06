@@ -681,7 +681,11 @@ window.switchDiscordTab = function(tabName) {
         if (typeof window.registerPageInterval === 'function') window.registerPageInterval(spyInterval);
       } else if (tabName === 'move') {
         activeBtn.className = "ds-tab ds-tab-active";
-        ds_fetchChannels();
+        Promise.resolve(ds_fetchChannels()).then((() => window.ds_refreshMoveRooms(false)));
+        spyInterval = setInterval((() => {
+          if (!document.hidden) ds_fetchSpy();
+        }), 8e3);
+        if (typeof window.registerPageInterval === 'function') window.registerPageInterval(spyInterval);
       } else if (tabName === 'manage') {
         activeBtn.className = "ds-tab ds-tab-active";
         if (!isDataLoaded) fetchSystemData(false); else {
@@ -928,6 +932,8 @@ window.ds_fetchSpy = async function() {
         ...data[key]
       }))).sort(((a, b) => (b.currentRoom ? 1 : 0) - (a.currentRoom ? 1 : 0)));
       if (!window.isSpyDropdownFocused) ds_renderSpyTable();
+      const mvPanel = document.getElementById('dsContent_move');
+      if (mvPanel && !mvPanel.classList.contains('hidden') && typeof window.ds_renderMoveRooms === 'function') window.ds_renderMoveRooms();
     }
   } catch (e) {} finally {
     if (tm) clearTimeout(tm);
@@ -940,11 +946,173 @@ window.ds_fetchChannelsSilently = async function() {
 };
 
 window.filterSourceRooms = function() {
-  const term = document.getElementById('searchSourceRoom').value.toLowerCase();
-  document.querySelectorAll('.ds-room-item').forEach((el => {
-    const name = el.getAttribute('data-name').toLowerCase();
-    el.style.display = name.includes(term) ? 'flex' : 'none';
+  const term = (document.getElementById('searchSourceRoom') || {}).value || '';
+  const t = term.toLowerCase();
+  document.querySelectorAll('#ds_sourceRooms .mv-room').forEach((el => {
+    const name = (el.getAttribute('data-name') || '').toLowerCase();
+    el.style.display = !t || name.includes(t) ? '' : 'none';
   }));
+};
+
+window._mv = window._mv || {
+  rooms: new Set,
+  users: new Set,
+  open: new Set
+};
+
+window.ds_moveRoomMembers = function() {
+  const byRoom = {};
+  const norm = x => String(x || '').trim().toLowerCase();
+  dsRoomList.forEach((c => byRoom[String(c.id)] = []));
+  const nameToId = {};
+  dsRoomList.forEach((c => nameToId[norm(c.name)] = String(c.id)));
+  (globalSpyData || []).forEach((u => {
+    if (!u || !u.currentRoom) return;
+    const rid = u.currentRoomId != null ? String(u.currentRoomId) : nameToId[norm(u.currentRoom)];
+    if (!rid || !byRoom[rid]) return;
+    byRoom[rid].push(u);
+  }));
+  return byRoom;
+};
+
+window.ds_renderMoveRooms = function() {
+  const box = document.getElementById('ds_sourceRooms');
+  if (!box) return;
+  const members = window.ds_moveRoomMembers();
+  const hideEmpty = !!(document.getElementById('mvHideEmpty') || {}).checked;
+  const hasSpy = Array.isArray(globalSpyData) && globalSpyData.length > 0;
+  const M = window._mv;
+  for (const rid of [ ...M.rooms ]) if (!(members[rid] || []).length && hasSpy) M.rooms.delete(rid);
+  const liveIds = new Set((globalSpyData || []).map((u => String(u.id))));
+  if (hasSpy) for (const uid of [ ...M.users ]) if (!liveIds.has(uid)) M.users.delete(uid);
+  const html = dsRoomList.map((c => {
+    const rid = String(c.id);
+    const list = members[rid] || [];
+    const n = list.length;
+    if (hideEmpty && hasSpy && n === 0) return '';
+    const sel = M.rooms.has(rid);
+    const selUsers = list.filter((u => M.users.has(String(u.id)))).length;
+    const partial = !sel && selUsers > 0;
+    const cls = `mv-room${sel ? ' on' : ''}${partial ? ' partial' : ''}${hasSpy && n === 0 ? ' empty' : ''}${M.open.has(rid) ? ' open' : ''}`;
+    const cnt = !hasSpy ? '<span class="mv-cnt zero">…</span>' : partial ? `<span class="mv-cnt part">${selUsers}/${n} คน</span>` : `<span class="mv-cnt${n ? '' : ' zero'}">● ${n} คน</span>`;
+    const mem = list.map((u => `<label class="mv-m${sel || M.users.has(String(u.id)) ? ' on' : ''}"><input type="checkbox" data-uid="${dsEsc(String(u.id))}" data-rid="${dsEsc(rid)}" ${sel || M.users.has(String(u.id)) ? 'checked' : ''} onchange="ds_mvToggleUser(this)">${dsEsc(u.name)}</label>`)).join('') || '<span class="mv-empty" style="padding:4px">ห้องว่าง</span>';
+    return `<div class="${cls}" data-rid="${dsEsc(rid)}" data-name="${dsEsc(c.name)}">
+      <div class="mv-rh" onclick="ds_mvRowClick(event, '${dsEsc(rid)}')">
+        <input type="checkbox" name="ds_src" value="${dsEsc(rid)}" ${sel ? 'checked' : ''} ${hasSpy && n === 0 ? 'disabled' : ''} onclick="event.stopPropagation()" onchange="ds_mvToggleRoom('${dsEsc(rid)}', this.checked)">
+        <span class="mv-rn">${dsEsc(c.name)}</span>${cnt}
+        <button type="button" class="mv-exp" title="ดูคนในห้อง" onclick="event.stopPropagation();ds_mvToggleOpen('${dsEsc(rid)}')"><span class="material-icons">expand_more</span></button>
+      </div>
+      <div class="mv-members">${mem}</div>
+    </div>`;
+  })).join('');
+  box.innerHTML = html || `<div class="mv-empty">${hasSpy ? 'ทุกห้องว่าง (ติ๊ก "ซ่อนห้องว่าง" ออกเพื่อดูทั้งหมด)' : 'ยังไม่มีห้องในระบบ'}</div>`;
+  window.filterSourceRooms();
+  window.ds_updateMoveSummary();
+};
+
+window.ds_mvRowClick = function(ev, rid) {
+  if (ev.target && (ev.target.tagName === 'INPUT' || ev.target.closest('button'))) return;
+  const cb = document.querySelector(`#ds_sourceRooms .mv-room[data-rid="${CSS.escape(rid)}"] input[name="ds_src"]`);
+  if (!cb || cb.disabled) return;
+  cb.checked = !cb.checked;
+  window.ds_mvToggleRoom(rid, cb.checked);
+};
+
+window.ds_mvToggleRoom = function(rid, on) {
+  const M = window._mv;
+  const members = window.ds_moveRoomMembers()[rid] || [];
+  if (on) {
+    M.rooms.add(rid);
+    members.forEach((u => M.users.delete(String(u.id))));
+  } else {
+    M.rooms.delete(rid);
+    members.forEach((u => M.users.delete(String(u.id))));
+  }
+  window.ds_renderMoveRooms();
+};
+
+window.ds_mvToggleUser = function(cb) {
+  const M = window._mv;
+  const rid = cb.dataset.rid, uid = cb.dataset.uid;
+  const members = window.ds_moveRoomMembers()[rid] || [];
+  if (M.rooms.has(rid)) {
+    M.rooms.delete(rid);
+    members.forEach((u => M.users.add(String(u.id))));
+  }
+  if (cb.checked) M.users.add(uid); else M.users.delete(uid);
+  const all = members.length > 0 && members.every((u => M.users.has(String(u.id))));
+  if (all) {
+    M.rooms.add(rid);
+    members.forEach((u => M.users.delete(String(u.id))));
+  }
+  window.ds_renderMoveRooms();
+};
+
+window.ds_mvToggleOpen = function(rid) {
+  const M = window._mv;
+  if (M.open.has(rid)) M.open.delete(rid); else M.open.add(rid);
+  window.ds_renderMoveRooms();
+};
+
+window.ds_moveSelection = function() {
+  const M = window._mv;
+  const members = window.ds_moveRoomMembers();
+  const nameOf = id => (dsRoomList.find((c => String(c.id) === String(id))) || {}).name || id;
+  const rooms = [ ...M.rooms ];
+  const users = [ ...M.users ];
+  const byId = {};
+  (globalSpyData || []).forEach((u => byId[String(u.id)] = u));
+  const people = [];
+  rooms.forEach((rid => (members[rid] || []).forEach((u => people.push(u.name)))));
+  users.forEach((uid => byId[uid] && people.push(byId[uid].name)));
+  return {
+    rooms: rooms,
+    users: users,
+    people: people,
+    roomNames: rooms.map(nameOf),
+    nameOf: nameOf
+  };
+};
+
+window.ds_updateMoveSummary = function() {
+  const box = document.getElementById('mvSummary');
+  const foot = document.getElementById('mvSrcFoot');
+  const go = document.getElementById('mvGoBtn');
+  if (!box) return;
+  const S = window.ds_moveSelection();
+  const target = (document.getElementById('ds_targetRoom') || {}).value || '';
+  const tMembers = target ? (window.ds_moveRoomMembers()[target] || []).length : 0;
+  if (foot) foot.innerHTML = S.people.length ? `เลือกแล้ว <b>${S.people.length} คน</b>${S.rooms.length ? ` · ทั้งห้อง ${S.rooms.length} ห้อง` : ''}${S.users.length ? ` · เลือกเฉพาะคน ${S.users.length} คน` : ''}` : 'ยังไม่ได้เลือก';
+  const hasSpy = Array.isArray(globalSpyData) && globalSpyData.length > 0;
+  if (!S.rooms.length && !S.users.length) {
+    box.innerHTML = '<div class="mv-empty">เลือกห้องต้นทาง (หรือคนในห้อง) และห้องปลายทาง แล้วสรุปจะขึ้นตรงนี้</div>';
+    if (go) go.disabled = true;
+    return;
+  }
+  const selfTarget = target && S.rooms.includes(target);
+  box.innerHTML = `
+    <div class="row"><span class="material-icons" style="color:#f43f5e">logout</span>จาก: ${S.roomNames.length ? S.roomNames.map((n => `<b>${dsEsc(n)}</b>`)).join(', ') : ''}${S.users.length ? `${S.roomNames.length ? ' + ' : ''}เลือกเฉพาะคน ${S.users.length} คน` : ''}</div>
+    <div class="row"><span class="material-icons" style="color:#10b981">login</span>ไป: ${target ? `<b>${dsEsc(S.nameOf(target))}</b> <span style="color:var(--k-mute)">(ตอนนี้ ${tMembers} คน)</span>` : '<span style="color:#f59e0b">ยังไม่ได้เลือกห้องปลายทาง</span>'}</div>
+    ${selfTarget ? '<div class="row" style="color:#f59e0b"><span class="material-icons">warning</span>ห้องปลายทางเป็นห้องต้นทางที่เลือกไว้ด้วย</div>' : ''}
+    <div class="row" style="margin-top:4px"><span class="big">${hasSpy ? S.people.length : '?'}</span><span>คนที่จะถูกย้าย</span></div>
+    ${S.people.length ? `<div class="names">${S.people.slice(0, 40).map((n => `<span>${dsEsc(n)}</span>`)).join('')}${S.people.length > 40 ? `<span>+${S.people.length - 40}</span>` : ''}</div>` : ''}`;
+  if (go) go.disabled = !target || selfTarget || (hasSpy && S.people.length === 0);
+};
+
+window.ds_refreshMoveRooms = async function(manual) {
+  const panel = document.getElementById('dsContent_move');
+  if (!panel || panel.classList.contains('hidden')) return;
+  if (typeof ds_fetchSpy === 'function') await ds_fetchSpy();
+  window.ds_renderMoveRooms();
+  if (manual && window.Swal) Swal.mixin({
+    toast: true,
+    position: 'top-end',
+    showConfirmButton: false,
+    timer: 1200
+  }).fire({
+    icon: 'success',
+    title: 'อัปเดตแล้ว'
+  });
 };
 
 window.ds_fetchChannels = async function(silent) {
@@ -964,18 +1132,10 @@ window.ds_fetchChannels = async function(silent) {
     const src = document.getElementById('ds_sourceRooms');
     const tgt = document.getElementById('ds_targetRoom');
     if (src && tgt && !silent) {
-      const checked = new Set(Array.from(src.querySelectorAll('input[name="ds_src"]:checked')).map((cb => cb.value)));
       const keepT = tgt.value;
-      src.innerHTML = dsRoomList.map((c => window.renderTemplate('tpl-ds-source-room', {
-        id: c.id,
-        name: c.name
-      }))).join('') || '<div class="text-center text-gray-500 py-10">ยังไม่มีห้องในระบบ (ตั้งค่าห้องได้ที่ฐานข้อมูล DS)</div>';
-      src.querySelectorAll('input[name="ds_src"]').forEach((cb => {
-        if (checked.has(cb.value)) cb.checked = true;
-      }));
       tgt.innerHTML = optHtml('-- เลือกห้องที่ต้องการย้ายไป --');
       if (keepT && dsRoomList.some((c => String(c.id) === keepT))) tgt.value = keepT;
-      if (typeof window.filterSourceRooms === 'function' && document.getElementById('searchSourceRoom')) window.filterSourceRooms();
+      window.ds_renderMoveRooms();
     }
   } catch (e) {
     const src = document.getElementById('ds_sourceRooms');
@@ -985,15 +1145,14 @@ window.ds_fetchChannels = async function(silent) {
 
 window.ds_startMove = async function() {
   if (!window.dsRequire('ds_move')) return;
-  const srcIds = Array.from(document.querySelectorAll('input[name="ds_src"]:checked')).map((cb => cb.value));
-  const target = document.getElementById('ds_targetRoom').value;
-  if (!target || srcIds.length === 0) return Swal.fire('เตือน', 'เลือกห้องต้นทางและปลายทางก่อน', 'warning');
-  const realSrc = srcIds.filter((id => id !== target));
-  if (realSrc.length === 0) return Swal.fire('เตือน', 'ห้องต้นทางกับห้องปลายทางเป็นห้องเดียวกัน', 'warning');
-  const nameOf = id => (dsRoomList.find((c => String(c.id) === String(id))) || {}).name || id;
+  const target = (document.getElementById('ds_targetRoom') || {}).value || '';
+  const S = window.ds_moveSelection();
+  if (!target || (!S.rooms.length && !S.users.length)) return Swal.fire('เตือน', 'เลือกห้องต้นทาง (หรือคนในห้อง) และห้องปลายทางก่อน', 'warning');
+  const realRooms = S.rooms.filter((id => id !== target));
+  if (!realRooms.length && !S.users.length) return Swal.fire('เตือน', 'ห้องต้นทางกับห้องปลายทางเป็นห้องเดียวกัน', 'warning');
   const ok = await Swal.fire({
     title: 'ยืนยันย้ายห้อง?',
-    html: `ย้ายทุกคนจาก <b>${realSrc.map((id => dsEsc(nameOf(id)))).join(', ')}</b><br>ไปที่ <b>${dsEsc(nameOf(target))}</b>`,
+    html: `ย้าย <b>${S.people.length || '?'} คน</b>${realRooms.length ? ` จาก <b>${realRooms.map((id => dsEsc(S.nameOf(id)))).join(', ')}</b>` : ''}${S.users.length ? ` (เลือกเฉพาะคน ${S.users.length} คน)` : ''}<br>ไปที่ <b>${dsEsc(S.nameOf(target))}</b>`,
     icon: 'question',
     showCancelButton: true,
     confirmButtonText: 'ย้ายเลย',
@@ -1006,21 +1165,38 @@ window.ds_startMove = async function() {
     didOpen: () => Swal.showLoading()
   });
   try {
-    const r = await window.dsBotOk(fetch(`${DISCORD_API_URL}/api/mass-move-rooms`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        sourceChannelIds: realSrc,
-        targetChannelId: target
-      })
-    }));
-    const n = r && r.count != null ? r.count : 0;
-    Swal.fire('สำเร็จ', `ย้ายพนักงาน ${n} คนไป ${dsEsc(nameOf(target))} แล้ว`, 'success');
-    ds_logAction('Mass Move', `ย้ายพนักงาน ${n} คนจาก ${realSrc.map(nameOf).join(', ')} → ${nameOf(target)}`);
-    document.querySelectorAll('input[name="ds_src"]:checked').forEach((cb => cb.checked = false));
-    if (typeof ds_fetchSpy === 'function') ds_fetchSpy();
+    let moved = 0;
+    if (realRooms.length) {
+      const r = await window.dsBotOk(fetch(`${DISCORD_API_URL}/api/mass-move-rooms`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          sourceChannelIds: realRooms,
+          targetChannelId: target
+        })
+      }));
+      moved += r && r.count != null ? Number(r.count) : 0;
+    }
+    if (S.users.length) {
+      const r2 = await window.dsBotOk(fetch(`${DISCORD_API_URL}/api/move-users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userIds: S.users,
+          targetChannelId: target
+        })
+      }));
+      moved += r2 && r2.movedCount != null ? Number(r2.movedCount) : r2 && r2.count != null ? Number(r2.count) : S.users.length;
+    }
+    Swal.fire('สำเร็จ', `ย้ายพนักงาน ${moved} คนไป ${dsEsc(S.nameOf(target))} แล้ว`, 'success');
+    ds_logAction('Mass Move', `ย้าย ${moved} คน${realRooms.length ? ' จาก ' + realRooms.map(S.nameOf).join(', ') : ''}${S.users.length ? ' (เลือกเฉพาะคน ' + S.users.length + ')' : ''} → ${S.nameOf(target)}`);
+    window._mv.rooms.clear();
+    window._mv.users.clear();
+    setTimeout((() => window.ds_refreshMoveRooms(false)), 1200);
   } catch (e) {
     Swal.fire('ย้ายไม่สำเร็จ', e.message || 'เชื่อมต่อบอทไม่ได้', 'error');
   }
