@@ -48,8 +48,17 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false, page = window.ds
   }
   const searchInput = document.getElementById('dsLogSearch');
   const searchText = searchInput ? searchInput.value.trim() : '';
+  const lateSel = document.getElementById('voiceLogLateFilter');
+  const shiftSel = document.getElementById('voiceLogShiftFilter');
+  const clientFilter = (lateSel && lateSel.value !== 'ALL') || (shiftSel && shiftSel.value !== 'ALL');
+  if (clientFilter && forceRefresh !== true && window._dsLogClientMode && page !== (window._dsLogPageShown || 0) && window._dsLogSigKey && window._dsLogSigKey.startsWith(`${targetDate}|${searchText}|`)) {
+    window.dsCurrentPage = page;
+    window._dsLogPageShown = page;
+    if (typeof ds_renderVoiceLogs === 'function') ds_renderVoiceLogs();
+    return;
+  }
   const tbody = document.getElementById('ds_voiceLogBody');
-  const quiet = forceRefresh !== true && Array.isArray(window.dsGlobalVoiceLogs) && window.dsGlobalVoiceLogs.length > 0 && window._dsLogSig && window._dsLogSigKey === `${targetDate}|${searchText}|${page}`;
+  const quiet = forceRefresh !== true && Array.isArray(window.dsGlobalVoiceLogs) && window.dsGlobalVoiceLogs.length > 0 && window._dsLogSig && window._dsLogSigKey === `${targetDate}|${searchText}|${page}|${clientFilter ? 'F' : ''}`;
   if (tbody && !quiet) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-10 text-gray-400"><span class="material-icons animate-spin text-4xl mb-2 text-fuchsia-500">sync</span><br>กำลังดึงข้อมูลหน้า ${page}...</td></tr>`;
   const reqId = window._dsLogReq = (window._dsLogReq || 0) + 1;
   try {
@@ -63,19 +72,38 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false, page = window.ds
     if (searchText) {
       query = query.ilike('user_name', `%${searchText}%`);
     }
-    const from = (window.dsCurrentPage - 1) * window.dsRowsPerPage;
-    const to = from + window.dsRowsPerPage - 1;
-    query = query.range(from, to);
-    const {data: data, count: count, error: error} = await query;
-    if (error) throw error;
+    let data, count;
+    if (clientFilter) {
+      data = [];
+      for (let off = 0; off < 2e4; off += 1e3) {
+        const r = await query.range(off, off + 999);
+        if (r.error) throw r.error;
+        data = data.concat(r.data || []);
+        if (!r.data || r.data.length < 1e3) break;
+      }
+      count = data.length;
+    } else {
+      const from = (window.dsCurrentPage - 1) * window.dsRowsPerPage;
+      const to = from + window.dsRowsPerPage - 1;
+      const r = await query.range(from, to);
+      if (r.error) throw r.error;
+      data = r.data || [];
+      count = r.count || 0;
+    }
     if (reqId !== window._dsLogReq) return;
-    window.dsTotalPages = Math.ceil((count || 0) / window.dsRowsPerPage) || 1;
-    if (window.dsCurrentPage > window.dsTotalPages) {
-      window.dsCurrentPage = 1;
-      return ds_fetchVoiceLogs(forceRefresh, 1);
+    window._dsRosterShift = typeof window.k36RosterShiftMap === 'function' ? await window.k36RosterShiftMap(targetDate) : {};
+    if (reqId !== window._dsLogReq) return;
+    window._dsLogClientMode = clientFilter;
+    window._dsLogPageShown = window.dsCurrentPage;
+    if (!clientFilter) {
+      window.dsTotalPages = Math.ceil((count || 0) / window.dsRowsPerPage) || 1;
+      if (window.dsCurrentPage > window.dsTotalPages) {
+        window.dsCurrentPage = 1;
+        return ds_fetchVoiceLogs(forceRefresh, 1);
+      }
     }
     const sig = JSON.stringify((data || []).map((r => [ r.id, r.action_type, r.room_name ]))) + '|' + count;
-    const sigKey = `${targetDate}|${searchText}|${page}`;
+    const sigKey = `${targetDate}|${searchText}|${page}|${clientFilter ? 'F' : ''}`;
     const unchanged = quiet && window._dsLogSig === sig;
     window._dsLogSig = sig;
     window._dsLogSigKey = sigKey;
@@ -90,7 +118,7 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false, page = window.ds
       const wrap = tbody && tbody.closest('.overflow-y-auto, .overflow-auto, [style*="overflow"]');
       const keepTop = wrap ? wrap.scrollTop : 0;
       if (typeof ds_renderVoiceLogs === 'function') ds_renderVoiceLogs();
-      ds_renderPaginationControls(count);
+      if (!clientFilter) ds_renderPaginationControls(count);
       if (wrap && quiet) wrap.scrollTop = keepTop;
     }
     if (forceRefresh === true && !searchText && !(window.Swal && Swal.isVisible())) {
@@ -112,21 +140,36 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false, page = window.ds
   }
 };
 
+window.ds_logShiftOf = function(dbUser, name) {
+  const rm = window._dsRosterShift || {};
+  if (dbUser && dbUser.username) {
+    const r = rm[String(dbUser.username).toLowerCase().trim()];
+    if (r) return r;
+  }
+  let sh = dbUser ? dbUser.allowed_shift : '';
+  if (!sh) {
+    if (String(name).includes('กะเช้า')) sh = 'กะเช้า'; else if (String(name).includes('กะกลาง')) sh = 'กะกลาง'; else if (String(name).includes('กะดึก')) sh = 'กะดึก';
+  }
+  return sh || '';
+};
+
 window.ds_renderVoiceLogs = function() {
-  const term = document.getElementById('dsLogSearch') ? document.getElementById('dsLogSearch').value.toLowerCase() : '';
-  const dateFilter = document.getElementById('voiceLogDate').value;
   const lateFilter = document.getElementById('voiceLogLateFilter').value;
   const shiftFilter = document.getElementById('voiceLogShiftFilter') ? document.getElementById('voiceLogShiftFilter').value : 'ALL';
   const tbody = document.getElementById('ds_voiceLogBody');
+  const wantFilter = lateFilter !== 'ALL' || shiftFilter !== 'ALL';
+  if (wantFilter !== !!window._dsLogClientMode && !window._dsLogSwitching) {
+    window._dsLogSwitching = true;
+    Promise.resolve(window.ds_fetchVoiceLogs(true, 1)).finally((() => {
+      window._dsLogSwitching = false;
+    }));
+    return;
+  }
   let filtered = window.dsGlobalVoiceLogs || [];
   if (shiftFilter !== 'ALL') {
-    filtered = filtered.filter((log => {
-      const dbUser = getDbUserFromDiscordName(log.name);
-      if (dbUser && dbUser.allowed_shift === shiftFilter) return true;
-      if (log.name.includes(shiftFilter)) return true;
-      return false;
-    }));
+    filtered = filtered.filter((log => window.ds_logShiftOf(getDbUserFromDiscordName(log.name), log.name) === shiftFilter));
   }
+  const rows = [];
   let finalHtml = '';
   filtered.forEach((log => {
     const d = new Date(log.time);
@@ -151,12 +194,10 @@ window.ds_renderVoiceLogs = function() {
     let rowClass = 'hover:bg-slate-700/50';
     let isLate = false;
     const dbUser = getDbUserFromDiscordName(log.name);
+    const effShift = window.ds_logShiftOf(dbUser, log.name);
     if (log.action === 'เข้าห้อง') {
       badge = '<span class="bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-md text-[11px] font-bold border border-emerald-500/50 whitespace-nowrap shadow-sm">เข้าห้อง</span>';
-      let targetShift = dbUser ? dbUser.allowed_shift : null;
-      if (!targetShift) {
-        if (log.name.includes('กะเช้า')) targetShift = 'กะเช้า'; else if (log.name.includes('กะกลาง')) targetShift = 'กะกลาง'; else if (log.name.includes('กะดึก')) targetShift = 'กะดึก';
-      }
+      let targetShift = effShift || null;
       if (targetShift && targetShift !== 'all') {
         const shiftPrefix = targetShift.replace('กะ', '');
         let expectedStart = null;
@@ -188,12 +229,9 @@ window.ds_renderVoiceLogs = function() {
     }
     if (lateFilter === 'late' && !isLate) return;
     if (lateFilter === 'leave' && !log.action.includes('ออกดิส') && !log.action.includes('ออกห้อง')) return;
-    let displayShift = dbUser ? dbUser.allowed_shift : '';
-    if (!displayShift) {
-      if (log.name.includes('กะเช้า')) displayShift = 'กะเช้า'; else if (log.name.includes('กะกลาง')) displayShift = 'กะกลาง'; else if (log.name.includes('กะดึก')) displayShift = 'กะดึก';
-    }
+    const displayShift = effShift;
     const shiftTag = displayShift ? `<span class="text-[9px] text-gray-500 ml-1 whitespace-nowrap">(${displayShift})</span>` : '';
-    finalHtml += window.renderTemplate('tpl-ds-voice-log-row', {
+    rows.push(window.renderTemplate('tpl-ds-voice-log-row', {
       rowClass: rowClass,
       timeStr: timeStr,
       name: log.name,
@@ -201,8 +239,18 @@ window.ds_renderVoiceLogs = function() {
       lateBadge: lateBadge,
       badge: badge,
       room: log.room
-    });
+    }));
   }));
+  if (window._dsLogClientMode) {
+    const total = rows.length;
+    window.dsTotalPages = Math.ceil(total / window.dsRowsPerPage) || 1;
+    if (window.dsCurrentPage > window.dsTotalPages) window.dsCurrentPage = 1;
+    const st = (window.dsCurrentPage - 1) * window.dsRowsPerPage;
+    finalHtml = rows.slice(st, st + window.dsRowsPerPage).join('');
+    ds_renderPaginationControls(total);
+  } else {
+    finalHtml = rows.join('');
+  }
   if (finalHtml === '') {
     tbody.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-gray-500 font-bold">ไม่พบประวัติในหน้านี้</td></tr>';
   } else {
