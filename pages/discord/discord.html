@@ -129,6 +129,20 @@
         #dsApp [id^="dsContent_"] .text-\[9px\]{font-size:10.5px !important}
 
         #dsApp #breaktrackModal > div{background:var(--k-panel) !important;border-color:var(--k-line) !important;border-radius:16px !important}
+        #dsApp .vl-sum{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+        #dsApp .vl-sum:empty{display:none}
+        #dsApp .vl-chip{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:12px;border:1px solid var(--k-line);background:var(--k-panel);font-size:12px;font-weight:800;color:var(--k-tx2)}
+        #dsApp .vl-chip b{font-size:18px;font-weight:900;color:var(--c,var(--k-tx-strong));line-height:1}
+        #dsApp .vl-chip i{width:8px;height:8px;border-radius:50%;background:var(--c,#94a3b8)}
+        #dsApp .vl-chip.btn{cursor:pointer}
+        #dsApp .vl-chip.btn:hover{border-color:var(--c,#94a3b8)}
+        #dsApp .vl-row-in{background:rgba(16,185,129,.07)}
+        #dsApp .vl-row-in:hover{background:rgba(16,185,129,.14)}
+        #dsApp .vl-row-out{background:rgba(239,68,68,.08)}
+        #dsApp .vl-row-out:hover{background:rgba(239,68,68,.16)}
+        #dsApp .vl-row-new{animation:vlNew 2.4s ease-out}
+        @keyframes vlNew{0%{background:rgba(217,70,239,.35)}70%{background:rgba(217,70,239,.12)}100%{background:transparent}}
+        @media (prefers-reduced-motion:reduce){ #dsApp .vl-row-new{animation:none} }
 </style>
     <aside class="dsn-side">
         <div class="dsn-brand">
@@ -368,6 +382,7 @@
                     </div>
                 </div>
 
+                <div id="dsLogSummary" class="vl-sum"></div>
                 <div class="bg-slate-900 rounded-2xl border border-slate-700 overflow-hidden shadow-inner">
                     <div class="max-h-[60vh] overflow-y-auto custom-scrollbar">
                         <table class="w-full text-left border-collapse">

@@ -114,6 +114,12 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false, page = window.ds
       room: row.room_name,
       time: row.created_at
     })));
+    const sumKey = `${targetDate}|${document.getElementById('voiceLogShiftFilter') ? document.getElementById('voiceLogShiftFilter').value : ''}`;
+    if (forceRefresh === true || window._dsSumKey !== sumKey || !window._dsSumAt || Date.now() - window._dsSumAt > 6e4 || (clientFilter && !unchanged)) {
+      window._dsSumKey = sumKey;
+      window._dsSumAt = Date.now();
+      window.ds_renderLogSummary(targetDate, clientFilter ? data : null);
+    }
     if (!unchanged) {
       const wrap = tbody && tbody.closest('.overflow-y-auto, .overflow-auto, [style*="overflow"]');
       const keepTop = wrap ? wrap.scrollTop : 0;
@@ -151,6 +157,98 @@ window.ds_logShiftOf = function(dbUser, name) {
     if (String(name).includes('กะเช้า')) sh = 'กะเช้า'; else if (String(name).includes('กะกลาง')) sh = 'กะกลาง'; else if (String(name).includes('กะดึก')) sh = 'กะดึก';
   }
   return sh || '';
+};
+
+window.ds_logLateMins = function(log, effShift) {
+  if (log.action !== 'เข้าห้อง' || !effShift || effShift === 'all') return 0;
+  const shiftPrefix = String(effShift).replace('กะ', '');
+  let expectedStart = shiftPrefix === 'เช้า' ? '08:00' : shiftPrefix === 'กลาง' ? '11:00' : shiftPrefix === 'ดึก' ? '20:00' : null;
+  if (typeof SETTINGS !== 'undefined' && SETTINGS['open_time_' + shiftPrefix]) expectedStart = SETTINGS['open_time_' + shiftPrefix];
+  if (!expectedStart) return 0;
+  const bkk = new Date(new Date(log.time).toLocaleString('en-US', {
+    timeZone: 'Asia/Bangkok'
+  }));
+  const [h, m] = expectedStart.split(':').map(Number);
+  const expectedTime = new Date(bkk);
+  expectedTime.setHours(h, m, 0, 0);
+  if (h >= 18 && bkk.getHours() < 12) expectedTime.setDate(expectedTime.getDate() - 1);
+  if (bkk > expectedTime && bkk - expectedTime > 6e4) {
+    const diff = Math.floor((bkk - expectedTime) / 6e4);
+    return diff <= 720 ? diff : 0;
+  }
+  return 0;
+};
+
+window.ds_renderLogSummary = async function(targetDate, dayRows) {
+  const box = document.getElementById('dsLogSummary');
+  if (!box) return;
+  try {
+    let rows = dayRows;
+    if (!rows) {
+      rows = [];
+      for (let off = 0; off < 2e4; off += 1e3) {
+        const r = await appDB.from('discord_voice_logs').select('user_name, action_type, created_at').gte('created_at', `${targetDate}T00:00:00+07:00`).lte('created_at', `${targetDate}T23:59:59.999+07:00`).order('created_at', {
+          ascending: true
+        }).range(off, off + 999);
+        if (r.error) throw r.error;
+        rows = rows.concat(r.data || []);
+        if (!r.data || r.data.length < 1e3) break;
+      }
+    }
+    const shiftSel = document.getElementById('voiceLogShiftFilter');
+    const shiftFilter = shiftSel ? shiftSel.value : 'ALL';
+    const rm = window._dsRosterShift || {};
+    const entered = new Map, lateMap = new Map;
+    let outCount = 0;
+    rows.forEach((r => {
+      const name = r.user_name || r.name || '';
+      const action = r.action_type || r.action || '';
+      const time = r.created_at || r.time;
+      const dbUser = getDbUserFromDiscordName(name);
+      const eff = window.ds_logShiftOf(dbUser, name);
+      if (shiftFilter !== 'ALL' && eff !== shiftFilter) return;
+      const key = dbUser && dbUser.username ? String(dbUser.username).toLowerCase() : name.toLowerCase();
+      if (action === 'เข้าห้อง' || action.includes('ย้าย')) entered.set(key, name);
+      if (action.includes('ออกดิส') || action.includes('ออกห้อง')) outCount++;
+      const late = window.ds_logLateMins({
+        action: action,
+        time: time
+      }, eff);
+      if (late) {
+        const prev = lateMap.get(key);
+        if (!prev || late < prev.mins) lateMap.set(key, {
+          name: name,
+          mins: late,
+          shift: eff
+        });
+      }
+    }));
+    const notIn = Object.keys(rm).filter((u => (shiftFilter === 'ALL' || rm[u] === shiftFilter) && !entered.has(u))).map((u => ({
+      name: u.toUpperCase(),
+      shift: rm[u]
+    })));
+    window._dsLogSumData = {
+      late: [ ...lateMap.values() ].sort(((a, b) => b.mins - a.mins)),
+      notIn: notIn.sort(((a, b) => a.shift.localeCompare(b.shift) || a.name.localeCompare(b.name)))
+    };
+    const esc = window.escapeHtml || (x => x);
+    const chip = (c, label, n, btn, key) => `<span class="vl-chip${btn ? ' btn' : ''}" style="--c:${c}"${btn ? ` onclick="ds_showLogSumList('${key}')" title="กดดูรายชื่อ"` : ''}><i></i>${esc(label)} <b>${n}</b></span>`;
+    box.innerHTML = chip('#10b981', 'เข้าห้องแล้ว', entered.size, false) + chip('#ef4444', 'ออกดิส (ครั้ง)', outCount, false) + chip('#f59e0b', 'มาสาย', lateMap.size, lateMap.size > 0, 'late') + (Object.keys(rm).length ? chip('#a855f7', 'ยังไม่เข้าห้อง', notIn.length, notIn.length > 0, 'notIn') : '');
+  } catch (e) {
+    box.innerHTML = '';
+  }
+};
+
+window.ds_showLogSumList = function(key) {
+  const d = window._dsLogSumData || {};
+  const list = d[key] || [];
+  const esc = window.escapeHtml || (x => x);
+  const html = list.length ? `<div style="text-align:left;max-height:50vh;overflow:auto;font-size:13px">${list.map((x => `<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 4px;border-bottom:1px solid rgba(148,163,184,.15)"><b>${esc(x.name)}</b><span style="color:#94a3b8">${key === 'late' ? 'สาย ' + x.mins + ' นาที' : ''} ${esc(x.shift || '')}</span></div>`)).join('')}</div>` : 'ไม่มีรายชื่อ';
+  Swal.fire({
+    title: key === 'late' ? `มาสาย ${list.length} คน` : `ยังไม่เข้าห้อง ${list.length} คน`,
+    html: html,
+    confirmButtonText: 'ปิด'
+  });
 };
 
 window.ds_renderVoiceLogs = function() {
@@ -196,6 +294,7 @@ window.ds_renderVoiceLogs = function() {
     const dbUser = getDbUserFromDiscordName(log.name);
     const effShift = window.ds_logShiftOf(dbUser, log.name);
     if (log.action === 'เข้าห้อง') {
+      rowClass = 'vl-row-in';
       badge = '<span class="bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-md text-[11px] font-bold border border-emerald-500/50 whitespace-nowrap shadow-sm">เข้าห้อง</span>';
       let targetShift = effShift || null;
       if (targetShift && targetShift !== 'all') {
@@ -206,24 +305,16 @@ window.ds_renderVoiceLogs = function() {
           expectedStart = SETTINGS['open_time_' + shiftPrefix];
         }
         if (expectedStart) {
-          const [h, m] = expectedStart.split(':').map(Number);
-          let expectedTime = new Date(bkk);
-          expectedTime.setHours(h, m, 0, 0);
-          if (h >= 18 && bkk.getHours() < 12) {
-            expectedTime.setDate(expectedTime.getDate() - 1);
-          }
-          if (bkk > expectedTime && bkk - expectedTime > 6e4) {
-            const diffMins = Math.floor((bkk - expectedTime) / 6e4);
-            if (diffMins <= 720) {
-              lateBadge = `<span class="bg-amber-600 text-white text-[10px] px-1.5 py-0.5 rounded ml-2 font-bold shadow-md whitespace-nowrap">มาสาย ${diffMins} นาที</span>`;
-              isLate = true;
-            }
+          const diffMins = window.ds_logLateMins(log, targetShift);
+          if (diffMins > 0) {
+            lateBadge = `<span class="bg-amber-600 text-white text-[10px] px-1.5 py-0.5 rounded ml-2 font-bold shadow-md whitespace-nowrap">มาสาย ${diffMins} นาที</span>`;
+            isLate = true;
           }
         }
       }
     } else if (log.action.includes('ออกดิส') || log.action.includes('ออกห้อง')) {
       badge = '<span class="bg-red-500/20 text-red-400 px-2.5 py-1 rounded-md text-[11px] font-bold border border-red-500/50 whitespace-nowrap shadow-sm">ออกดิสคอร์ด</span>';
-      rowClass = 'bg-red-900/10 hover:bg-red-900/30';
+      rowClass = 'vl-row-out';
     } else {
       badge = '<span class="bg-blue-500/20 text-blue-400 px-2.5 py-1 rounded-md text-[11px] font-bold border border-blue-500/50 whitespace-nowrap shadow-sm">ย้ายไป</span>';
     }
@@ -231,8 +322,9 @@ window.ds_renderVoiceLogs = function() {
     if (lateFilter === 'leave' && !log.action.includes('ออกดิส') && !log.action.includes('ออกห้อง')) return;
     const displayShift = effShift;
     const shiftTag = displayShift ? `<span class="text-[9px] text-gray-500 ml-1 whitespace-nowrap">(${displayShift})</span>` : '';
+    const isNew = window._dsSeenLogIds && !window._dsSeenLogIds.has(String(log.id));
     rows.push(window.renderTemplate('tpl-ds-voice-log-row', {
-      rowClass: rowClass,
+      rowClass: rowClass + (isNew ? ' vl-row-new' : ''),
       timeStr: timeStr,
       name: log.name,
       shiftTag: shiftTag,
@@ -256,6 +348,7 @@ window.ds_renderVoiceLogs = function() {
   } else {
     tbody.innerHTML = finalHtml;
   }
+  window._dsSeenLogIds = new Set((window.dsGlobalVoiceLogs || []).map((l => String(l.id))));
 };
 
 window.ds_renderPaginationControls = function(totalItems) {
