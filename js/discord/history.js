@@ -187,7 +187,7 @@ window.ds_renderLogSummary = async function(targetDate, dayRows) {
     if (!rows) {
       rows = [];
       for (let off = 0; off < 2e4; off += 1e3) {
-        const r = await appDB.from('discord_voice_logs').select('user_name, action_type, created_at').gte('created_at', `${targetDate}T00:00:00+07:00`).lte('created_at', `${targetDate}T23:59:59.999+07:00`).order('created_at', {
+        const r = await appDB.from('discord_voice_logs').select('user_name, action_type, room_name, created_at').gte('created_at', `${targetDate}T00:00:00+07:00`).lte('created_at', `${targetDate}T23:59:59.999+07:00`).order('created_at', {
           ascending: true
         }).range(off, off + 999);
         if (r.error) throw r.error;
@@ -198,11 +198,12 @@ window.ds_renderLogSummary = async function(targetDate, dayRows) {
     const shiftSel = document.getElementById('voiceLogShiftFilter');
     const shiftFilter = shiftSel ? shiftSel.value : 'ALL';
     const rm = window._dsRosterShift || {};
-    const entered = new Map, lateMap = new Map;
+    const entered = new Map, lateMap = new Map, lastMap = new Map;
     let outCount = 0;
-    rows.forEach((r => {
+    rows.slice().sort(((a, b) => new Date(a.created_at || a.time) - new Date(b.created_at || b.time))).forEach((r => {
       const name = r.user_name || r.name || '';
       const action = r.action_type || r.action || '';
+      const room = r.room_name || r.room || '';
       const time = r.created_at || r.time;
       const dbUser = getDbUserFromDiscordName(name);
       const eff = window.ds_logShiftOf(dbUser, name);
@@ -210,6 +211,13 @@ window.ds_renderLogSummary = async function(targetDate, dayRows) {
       const key = dbUser && dbUser.username ? String(dbUser.username).toLowerCase() : name.toLowerCase();
       if (action === 'เข้าห้อง' || action.includes('ย้าย')) entered.set(key, name);
       if (action.includes('ออกดิส') || action.includes('ออกห้อง')) outCount++;
+      lastMap.set(key, {
+        name: name,
+        online: !(action.includes('ออกดิส') || action.includes('ออกห้อง')),
+        room: room,
+        shift: eff,
+        time: time
+      });
       const late = window.ds_logLateMins({
         action: action,
         time: time
@@ -223,17 +231,16 @@ window.ds_renderLogSummary = async function(targetDate, dayRows) {
         });
       }
     }));
-    const notIn = Object.keys(rm).filter((u => (shiftFilter === 'ALL' || rm[u] === shiftFilter) && !entered.has(u))).map((u => ({
-      name: u.toUpperCase(),
-      shift: rm[u]
-    })));
+    const online = [ ...lastMap.values() ].filter((x => x.online)).sort(((a, b) => String(a.room).localeCompare(String(b.room)) || a.name.localeCompare(b.name)));
+    const thToday = new Date(Date.now() + 7 * 36e5).toISOString().slice(0, 10);
     window._dsLogSumData = {
       late: [ ...lateMap.values() ].sort(((a, b) => b.mins - a.mins)),
-      notIn: notIn.sort(((a, b) => a.shift.localeCompare(b.shift) || a.name.localeCompare(b.name)))
+      online: online,
+      onlineLabel: targetDate === thToday ? 'ออนไลน์ตอนนี้' : 'อยู่ในห้องล่าสุดของวัน'
     };
     const esc = window.escapeHtml || (x => x);
     const chip = (c, label, n, btn, key) => `<span class="vl-chip${btn ? ' btn' : ''}" style="--c:${c}"${btn ? ` onclick="ds_showLogSumList('${key}')" title="กดดูรายชื่อ"` : ''}><i></i>${esc(label)} <b>${n}</b></span>`;
-    box.innerHTML = chip('#10b981', 'เข้าห้องแล้ว', entered.size, false) + chip('#ef4444', 'ออกดิส (ครั้ง)', outCount, false) + chip('#f59e0b', 'มาสาย', lateMap.size, lateMap.size > 0, 'late') + (Object.keys(rm).length ? chip('#a855f7', 'ยังไม่เข้าห้อง', notIn.length, notIn.length > 0, 'notIn') : '');
+    box.innerHTML = chip('#10b981', 'เข้าห้องแล้ว', entered.size, false) + chip('#ef4444', 'ออกดิส (ครั้ง)', outCount, false) + chip('#f59e0b', 'มาสาย', lateMap.size, lateMap.size > 0, 'late') + chip('#38bdf8', window._dsLogSumData.onlineLabel, online.length, online.length > 0, 'online');
   } catch (e) {
     box.innerHTML = '';
   }
@@ -243,9 +250,9 @@ window.ds_showLogSumList = function(key) {
   const d = window._dsLogSumData || {};
   const list = d[key] || [];
   const esc = window.escapeHtml || (x => x);
-  const html = list.length ? `<div style="text-align:left;max-height:50vh;overflow:auto;font-size:13px">${list.map((x => `<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 4px;border-bottom:1px solid rgba(148,163,184,.15)"><b>${esc(x.name)}</b><span style="color:#94a3b8">${key === 'late' ? 'สาย ' + x.mins + ' นาที' : ''} ${esc(x.shift || '')}</span></div>`)).join('')}</div>` : 'ไม่มีรายชื่อ';
+  const html = list.length ? `<div style="text-align:left;max-height:50vh;overflow:auto;font-size:13px">${list.map((x => `<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 4px;border-bottom:1px solid rgba(148,163,184,.15)"><b>${esc(x.name)}</b><span style="color:#94a3b8">${key === 'late' ? 'สาย ' + x.mins + ' นาที' : esc(x.room || '')} ${esc(x.shift || '')}</span></div>`)).join('')}</div>` : 'ไม่มีรายชื่อ';
   Swal.fire({
-    title: key === 'late' ? `มาสาย ${list.length} คน` : `ยังไม่เข้าห้อง ${list.length} คน`,
+    title: key === 'late' ? `มาสาย ${list.length} คน` : `${d.onlineLabel || 'ออนไลน์ตอนนี้'} ${list.length} คน`,
     html: html,
     confirmButtonText: 'ปิด'
   });
