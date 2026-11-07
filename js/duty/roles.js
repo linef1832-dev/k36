@@ -107,7 +107,9 @@ window.renderImportantTasksPanel = function() {
     }));
   }
   html += `</div></div>`;
-  panel.innerHTML = isStaffViewDept ? mergeHtml : html + mergeHtml;
+  const showMerge = !/^OD/i.test(String(currentDutyDept || ''));
+  const mergePart = showMerge ? mergeHtml : '';
+  panel.innerHTML = isStaffViewDept ? mergePart : html + mergePart;
   window.impRefreshRosterTags();
   if (isAMDept) window.renderHelpCalcPanel();
 };
