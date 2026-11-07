@@ -112,6 +112,7 @@ window.renderImportantTasksPanel = function() {
   panel.innerHTML = isStaffViewDept ? mergePart : html + mergePart;
   window.impRefreshRosterTags();
   if (isAMDept) window.renderHelpCalcPanel();
+  if (!panel.innerHTML.trim()) panel.classList.add('hidden');
 };
 
 window.impRefreshRosterTags = function() {
