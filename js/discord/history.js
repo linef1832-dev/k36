@@ -172,11 +172,45 @@ window.ds_logLateMins = function(log, effShift) {
   const expectedTime = new Date(bkk);
   expectedTime.setHours(h, m, 0, 0);
   if (h >= 18 && bkk.getHours() < 12) expectedTime.setDate(expectedTime.getDate() - 1);
-  if (bkk > expectedTime && bkk - expectedTime > 6e4) {
+  if (window._dsFirstEntryIds && log.id != null && !window._dsFirstEntryIds.has(String(log.id))) return 0;
+  const graceMin = parseInt(typeof SETTINGS !== 'undefined' && SETTINGS['late_grace_min'] || 0) || 0;
+  const maxLateMin = parseInt(typeof SETTINGS !== 'undefined' && SETTINGS['late_max_min'] || 0) || 240;
+  if (bkk > expectedTime && bkk - expectedTime > (graceMin + 1) * 6e4) {
     const diff = Math.floor((bkk - expectedTime) / 6e4);
-    return diff <= 720 ? diff : 0;
+    return diff <= maxLateMin ? diff : 0;
   }
   return 0;
+};
+
+window.ds_shiftWindowStart = function(effShift, atTime) {
+  const shiftPrefix = String(effShift || '').replace('กะ', '');
+  let expectedStart = shiftPrefix === 'เช้า' ? '08:00' : shiftPrefix === 'กลาง' ? '11:00' : shiftPrefix === 'ดึก' ? '20:00' : null;
+  if (typeof SETTINGS !== 'undefined' && SETTINGS['open_time_' + shiftPrefix]) expectedStart = SETTINGS['open_time_' + shiftPrefix];
+  if (!expectedStart) return null;
+  const bkk = new Date(new Date(atTime).toLocaleString('en-US', {
+    timeZone: 'Asia/Bangkok'
+  }));
+  const [h, m] = expectedStart.split(':').map(Number);
+  const t = new Date(bkk);
+  t.setHours(h, m, 0, 0);
+  if (h >= 18 && bkk.getHours() < 12) t.setDate(t.getDate() - 1);
+  return t.getTime();
+};
+
+window.ds_computeFirstEntries = function(rows) {
+  const first = new Map;
+  rows.slice().sort(((a, b) => new Date(a.created_at || a.time) - new Date(b.created_at || b.time))).forEach((r => {
+    const action = r.action_type || r.action || '';
+    if (action !== 'เข้าห้อง') return;
+    const name = r.user_name || r.name || '';
+    const dbUser = getDbUserFromDiscordName(name);
+    const eff = window.ds_logShiftOf(dbUser, name);
+    const ws = window.ds_shiftWindowStart(eff, r.created_at || r.time);
+    if (ws == null) return;
+    const key = (dbUser && dbUser.username ? String(dbUser.username).toLowerCase() : name.toLowerCase()) + '|' + ws;
+    if (!first.has(key)) first.set(key, String(r.id));
+  }));
+  return new Set(first.values());
 };
 
 window.ds_renderLogSummary = async function(targetDate, dayRows) {
@@ -187,7 +221,7 @@ window.ds_renderLogSummary = async function(targetDate, dayRows) {
     if (!rows) {
       rows = [];
       for (let off = 0; off < 2e4; off += 1e3) {
-        const r = await appDB.from('discord_voice_logs').select('user_name, action_type, room_name, created_at').gte('created_at', `${targetDate}T00:00:00+07:00`).lte('created_at', `${targetDate}T23:59:59.999+07:00`).order('created_at', {
+        const r = await appDB.from('discord_voice_logs').select('id, user_name, action_type, room_name, created_at').gte('created_at', `${targetDate}T00:00:00+07:00`).lte('created_at', `${targetDate}T23:59:59.999+07:00`).order('created_at', {
           ascending: true
         }).range(off, off + 999);
         if (r.error) throw r.error;
@@ -198,6 +232,10 @@ window.ds_renderLogSummary = async function(targetDate, dayRows) {
     const shiftSel = document.getElementById('voiceLogShiftFilter');
     const shiftFilter = shiftSel ? shiftSel.value : 'ALL';
     const rm = window._dsRosterShift || {};
+    const prevSig = window._dsFirstEntrySig || '';
+    window._dsFirstEntryIds = window.ds_computeFirstEntries(rows);
+    window._dsFirstEntrySig = [ ...window._dsFirstEntryIds ].sort().join(',');
+    if (window._dsFirstEntrySig !== prevSig && typeof ds_renderVoiceLogs === 'function' && document.getElementById('ds_voiceLogBody')) ds_renderVoiceLogs();
     const entered = new Map, lateMap = new Map, lastMap = new Map;
     let outCount = 0;
     rows.slice().sort(((a, b) => new Date(a.created_at || a.time) - new Date(b.created_at || b.time))).forEach((r => {
@@ -219,6 +257,7 @@ window.ds_renderLogSummary = async function(targetDate, dayRows) {
         time: time
       });
       const late = window.ds_logLateMins({
+        id: r.id,
         action: action,
         time: time
       }, eff);
