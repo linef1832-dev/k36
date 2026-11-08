@@ -139,6 +139,82 @@ window.compressImageFile = async function(file, opts) {
   }
 };
 
+window.k36SyncOdTagsByShift = function(cfg, users) {
+  if (!cfg || !cfg.tags || cfg.tags.auto_sync === false) return null;
+  const map = Array.isArray(cfg.tags.map) ? cfg.tags.map : [];
+  if (!map.length) return null;
+  const list = users || window.GLOBAL_USER_LIST || [];
+  const byId = {}, byName = {};
+  list.forEach((u => {
+    if (!u) return;
+    byId[String(u.id)] = u;
+    byName[String(u.username || '').toLowerCase()] = u;
+  }));
+  const split = s => String(s || '').split(/[\s,]+/).map((x => x.trim())).filter(Boolean);
+  const norm = h => h.startsWith('@') ? h : '@' + h;
+  let day = split(cfg.tags.day).map(norm), night = split(cfg.tags.night).map(norm);
+  const moved = [];
+  map.forEach((r => {
+    if (!r || !r.handle) return;
+    const h = norm(String(r.handle).trim());
+    const u = byId[String(r.user_id)] || byName[String(r.name || '').toLowerCase()];
+    if (!u) return;
+    const sh = String(u.allowed_shift || '');
+    const want = sh === 'กะดึก' ? 'night' : sh === 'กะเช้า' || sh === 'กะกลาง' ? 'day' : null;
+    if (!want) return;
+    const inDay = day.includes(h), inNight = night.includes(h);
+    if (want === 'day' && !inDay) {
+      day.push(h);
+      night = night.filter((x => x !== h));
+      moved.push(`${h} → กะเช้า`);
+    } else if (want === 'night' && !inNight) {
+      night.push(h);
+      day = day.filter((x => x !== h));
+      moved.push(`${h} → กะดึก`);
+    } else if (want === 'day' && inNight) {
+      night = night.filter((x => x !== h));
+      moved.push(`${h} เอาออกจากกะดึก`);
+    } else if (want === 'night' && inDay) {
+      day = day.filter((x => x !== h));
+      moved.push(`${h} เอาออกจากกะเช้า`);
+    }
+  }));
+  if (!moved.length) return null;
+  return {
+    day: [ ...new Set(day) ].join(' '),
+    night: [ ...new Set(night) ].join(' '),
+    moved: moved
+  };
+};
+
+window.k36AutoSyncOdTags = async function() {
+  try {
+    if (typeof appDB === 'undefined') return;
+    const {data: row, error: error} = await appDB.from('settings').select('value').eq('key', 'od_form_config').maybeSingle();
+    if (error || !row || !row.value) return;
+    const cfg = JSON.parse(row.value);
+    const r = window.k36SyncOdTagsByShift(cfg);
+    if (!r) return;
+    cfg.tags.day = r.day;
+    cfg.tags.night = r.night;
+    const {error: sErr} = await appDB.from('settings').upsert([ {
+      key: 'od_form_config',
+      value: JSON.stringify(cfg)
+    } ]);
+    if (sErr) throw sErr;
+    try {
+      await appDB.from('system_logs').insert([ {
+        action_type: 'OD Form Bot',
+        performed_by: window.currentUser && window.currentUser.username || 'system',
+        target_details: 'ซิงค์ @ ตามกะอัตโนมัติ: ' + r.moved.join(', ')
+      } ]);
+    } catch (e) {}
+    return r;
+  } catch (e) {
+    console.warn('[k36AutoSyncOdTags]', e.message || e);
+  }
+};
+
 window.k36RosterShiftMap = async function(dateStr) {
   if (!dateStr || typeof appDB === 'undefined') return {};
   const c = window._k36RsmCache;

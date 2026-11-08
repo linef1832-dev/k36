@@ -518,6 +518,9 @@ window.odCfg_save = async function() {
       night: document.getElementById('odCfgTagNight').value.trim(),
       day_start: document.getElementById('odCfgTagDayStart').value.trim() || '08:00',
       night_start: document.getElementById('odCfgTagNightStart').value.trim() || '20:00',
+      auto_sync: !!(document.getElementById('odCfgTagAutoSync') || {
+        checked: true
+      }).checked,
       map: odCfg_readTagMap()
     };
     odCfgData.audit = {
@@ -609,6 +612,8 @@ function odCfg_renderAll() {
   if (tgn) tgn.value = odCfgData.tags?.night || '';
   if (tgds) tgds.value = odCfgData.tags?.day_start || '08:00';
   if (tgns) tgns.value = odCfgData.tags?.night_start || '20:00';
+  const tas = document.getElementById('odCfgTagAutoSync');
+  if (tas) tas.checked = odCfgData.tags?.auto_sync !== false;
   if (typeof odCfg_updateShiftLabels === 'function') odCfg_updateShiftLabels();
   if (typeof odCfg_renderTagMap === 'function') odCfg_renderTagMap();
   const ac = document.getElementById('odCfgAuditChatId');
@@ -1364,4 +1369,32 @@ window.subscribeOdConfigChanges = function() {
     });
   })).subscribe();
   if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(window._odCfgRtSub);
+};
+
+window.odCfg_syncTagsNow = function() {
+  const cfg = {
+    tags: {
+      day: (document.getElementById('odCfgTagDay') || {}).value || '',
+      night: (document.getElementById('odCfgTagNight') || {}).value || '',
+      map: odCfg_readTagMap(),
+      auto_sync: true
+    }
+  };
+  const r = window.k36SyncOdTagsByShift(cfg);
+  if (!r) return Swal.fire({
+    icon: 'info',
+    title: 'ตรงกับกะปัจจุบันอยู่แล้ว',
+    text: 'ทุก @ ที่ผูกไว้อยู่ในช่องกะที่ถูกต้องแล้ว',
+    timer: 1800,
+    showConfirmButton: false
+  });
+  document.getElementById('odCfgTagDay').value = r.day;
+  document.getElementById('odCfgTagNight').value = r.night;
+  window._odCfgDirty = true;
+  if (typeof odCfg_syncSaveBar === 'function') odCfg_syncSaveBar();
+  Swal.fire({
+    icon: 'success',
+    title: `ย้าย @ แล้ว ${r.moved.length} รายการ`,
+    html: `<div style="text-align:left;font-size:13px">${r.moved.map((x => window.escapeHtml(x))).join('<br>')}</div><div style="margin-top:8px;font-size:12px;color:var(--k-mute)">อย่าลืมกด "บันทึกทั้งหมด"</div>`
+  });
 };

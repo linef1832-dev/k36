@@ -305,6 +305,7 @@ window.processPendingTasks = async function() {
       if (typeof fetchTasks === 'function') fetchTasks();
       if (typeof fetchIndividualTasks === 'function') fetchIndividualTasks();
       if (typeof fetchUsers === 'function') await fetchUsers();
+      if (updateCount && typeof window.k36AutoSyncOdTags === 'function') await window.k36AutoSyncOdTags();
       if (updateCount) {
         const Toast = Swal.mixin({
           toast: true,

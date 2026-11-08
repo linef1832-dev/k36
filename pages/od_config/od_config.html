@@ -121,6 +121,10 @@
 @keyframes ocIn{from{opacity:.4;transform:translateY(4px)}to{opacity:1;transform:none}}
 @media (max-width:900px){ #odConfigApp .oc-nav{display:flex!important;flex-direction:row;position:static;flex:none;overflow-x:auto;width:100%;scrollbar-width:none} #odConfigApp .oc-nav button{flex:none;white-space:nowrap} #odConfigApp .oc-body{flex-direction:column} }
 @media (prefers-reduced-motion:reduce){ #odConfigApp .oc-sec{animation:none} }
+#odConfigApp .oc-sync{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 12px;padding:10px 12px;border-radius:12px;background:rgba(14,165,233,.08);border:1px solid rgba(14,165,233,.3)}
+#odConfigApp .oc-sync-l{display:flex;align-items:flex-start;gap:8px;flex:1;min-width:240px;cursor:pointer;font-size:12.5px;color:var(--k-tx-strong)}
+#odConfigApp .oc-sync-l input{margin-top:3px;accent-color:#0ea5e9;width:15px;height:15px}
+#odConfigApp .oc-sync-l small{display:block;font-size:11px;color:var(--k-mute);font-weight:600;margin-top:2px}
 </style>
     
     <div class="oc-head">
@@ -360,6 +364,10 @@
                     </div>
                     <div class="oc-box">
                         <div class="oc-box-h"><span class="oc-label">ผูก @username กับพนักงาน (ไม่แท็กคนที่ลา/หยุดวันนั้น)</span><button type="button" onclick="odCfg_addTagMapRow()" class="oc-btn sm primary"><span class="material-icons">add</span>เพิ่มแถว</button></div>
+                        <div class="oc-sync">
+                            <label class="oc-sync-l"><input type="checkbox" id="odCfgTagAutoSync" checked> <b>ซิงค์ @ ตามกะอัตโนมัติ</b><small>เมื่อพนักงานสลับกะ (ตารางสลับกะ) ระบบจะย้าย @ ของคนนั้นไปช่องกะเช้า/กะดึกให้เอง ตามแถวที่ผูกไว้ด้านล่าง</small></label>
+                            <button type="button" onclick="odCfg_syncTagsNow()" class="oc-btn sm"><span class="material-icons">sync</span>ซิงค์ตอนนี้</button>
+                        </div>
                         <div id="odCfgTagMapList"></div>
                     </div>
                 </div>
