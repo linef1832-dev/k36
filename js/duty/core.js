@@ -1946,7 +1946,7 @@ window.renderRosterGrid = async function(rosterData) {
   const _canSec = typeof window.isDutyAdmin === 'function' && window.isDutyAdmin() || typeof window.hasUserPerm === 'function' && window.hasUserPerm('duty_secondary');
   const _ovRows = _dmItems.map((it => {
     const st = it.missing ? [ 'bad', 'ขาดคน' ] : it.warn ? [ 'warn', 'พักชนกัน' ] : [ 'ok', 'พร้อม' ];
-    const chips = it.people.map((p => p.miss ? `<span class="ov-p miss"><b>ขาดคน</b></span>` : `<span class="ov-p duty-user-card ${p.drag ? 'can' : ''} ${p.me ? 'me' : ''}" data-name="${window.escapeHtml(p.name.toLowerCase())}" ${p.drag ? `draggable="true" ondragstart="handleDragStart(event, '${p.id}', '${window.escapeJsAttr(p.name)}', '${it.team}')"` : ''} title="${window.escapeHtml(p.name)}${p.sec ? ' · งานรอง ' + p.sec : ''}${p.hist ? '\nย้อนหลัง: ' + window.escapeHtml(p.hist) : ''}">\n                <span class="ov-top">\n                <b>${window.escapeHtml(p.name)}</b>${p.me ? '<span class="dc-me">ฉัน</span>' : ''}\n                <small class="${p.slots.length ? '' : 'none'}">${p.slots.length ? p.slots.map((x => x.split('-')[0])).join(' · ') : 'ยังไม่ลงพัก'}</small>\n                ${p.sec ? _canSec ? `<button type="button" class="ov-sec" onclick="event.stopPropagation(); changeSecondaryTeam('${it.team}', '${p.id}', '${window.escapeJsAttr(p.name)}')" title="กดเพื่อเปลี่ยนงานรองของ ${window.escapeHtml(p.name)}">รอง ${p.sec}<span class="material-icons">edit</span></button>` : `<i>รอง ${p.sec}</i>` : _canSec && p.id ? `<button type="button" class="ov-sec add" onclick="event.stopPropagation(); changeSecondaryTeam('${it.team}', '${p.id}', '${window.escapeJsAttr(p.name)}')" title="แจกงานรองให้ ${window.escapeHtml(p.name)}">+ รอง</button>` : ''}\n                ${p.sup.map((t => `<i class="ov-sup">🛟 ${window.escapeHtml(t)}</i>`)).join('')}\n                ${p.pin ? `<span class="ov-pin">${p.pin}</span>` : ''}\n                </span>\n                <span class="ov-imp" data-imp-name="${window.escapeHtml(p.name)}"></span>\n                ${p.histHtml ? `<span class="ov-hist"><span class="material-icons">history</span>${p.histHtml}</span>` : ''}\n            </span>`)).join('') || '<span class="ov-empty">ยังไม่มีคน · ลากชื่อมาวางได้</span>';
+    const chips = it.people.map((p => p.miss ? `<span class="ov-p miss"><b>ขาดคน</b></span>` : `<span class="ov-p duty-user-card ${p.drag ? 'can' : ''} ${p.me ? 'me' : ''}" data-name="${window.escapeHtml(p.name.toLowerCase())}" ${p.drag ? `draggable="true" ondragstart="handleDragStart(event, '${p.id}', '${window.escapeJsAttr(p.name)}', '${it.team}')"` : ''} title="${window.escapeHtml(p.name)}${p.sec ? ' · งานรอง ' + p.sec : ''}${p.hist ? '\nย้อนหลัง: ' + window.escapeHtml(p.hist) : ''}">\n                <span class="ov-top">\n                <b>${window.escapeHtml(p.name)}</b>${p.me ? '<span class="dc-me">ฉัน</span>' : ''}\n                <small class="${p.slots.length ? '' : 'none'}">${p.slots.length ? p.slots.map((x => x.split('-')[0])).join(' · ') : 'ยังไม่ลงพัก'}</small>\n                ${p.sec ? _canSec ? `<button type="button" class="ov-sec" onclick="event.stopPropagation(); changeSecondaryTeam('${it.team}', '${p.id}', '${window.escapeJsAttr(p.name)}')" title="กดเพื่อเปลี่ยนงานรองของ ${window.escapeHtml(p.name)}">รอง ${p.sec}<span class="material-icons">edit</span></button>` : `<i>รอง ${p.sec}</i>` : _canSec && p.id ? `<button type="button" class="ov-sec add" onclick="event.stopPropagation(); changeSecondaryTeam('${it.team}', '${p.id}', '${window.escapeJsAttr(p.name)}')" title="แจกงานรองให้ ${window.escapeHtml(p.name)}">+ รอง</button>` : ''}\n                ${p.sup.map((t => `<i class="ov-sup">🛟 ${window.escapeHtml(t)}</i>`)).join('')}\n                ${p.pin ? `<span class="ov-pin">${p.pin}</span>` : ''}${p.drag && p.id ? `<button type="button" class="ov-del" onclick="event.stopPropagation(); dutyRemoveFromRoster('${it.team}', '${p.id}', '${window.escapeJsAttr(p.name)}')" title="เอา ${window.escapeHtml(p.name)} ออกจากตารางนี้ (ไม่ใช่ลาหยุด)"><span class="material-icons">delete_outline</span></button>` : ''}\n                </span>\n                <span class="ov-imp" data-imp-name="${window.escapeHtml(p.name)}"></span>\n                ${p.histHtml ? `<span class="ov-hist"><span class="material-icons">history</span>${p.histHtml}</span>` : ''}\n            </span>`)).join('') || '<span class="ov-empty">ยังไม่มีคน · ลากชื่อมาวางได้</span>';
     return `<div class="ov-row" data-team="${it.team}" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${it.team}')">\n            <span class="ov-tint ${it.color.bg}" aria-hidden="true"></span>\n            <div class="ov-team">\n                <span class="ov-bar ${it.color.bg}"></span>\n                <span><b>${it.title}</b><small>${it.count} คน</small>${it.room ? `<span class="ov-room" title="เข้าห้อง Discord: ${window.escapeHtml(it.room)}"><span class="material-icons">headset_mic</span>${window.escapeHtml(it.room)}</span>` : ''}\n                    <span class="ov-narrow"><span class="ov-stp ${st[0]}">${st[1]}</span>${it.standbyNames.length ? `<span class="ov-sbn" title="สแตนด์บายช่วยเว็บนี้">รอง: ${it.standbyNames.map((n => window.escapeHtml(n))).join(', ')}</span>` : ''}</span>\n                    ${it.trainerBtn || ''}</span>\n            </div>\n            <div class="ov-people">${chips}</div>\n            <div class="ov-sb">${it.standbyNames.length ? it.standbyNames.map((n => window.escapeHtml(n))).join(', ') : '—'}</div>\n            <div class="ov-st"><span class="${st[0]}">${st[1]}</span></div>\n        </div>`;
   })).join('');
   const _okN = _dmItems.filter((x => !x.missing)).length, _missN = _dmItems.filter((x => x.missing)).length;
@@ -2186,5 +2186,60 @@ window.searchDutyMyself = function() {
   if (currentUser && currentUser.username) {
     searchInput.value = currentUser.username;
     window.filterDutyResult();
+  }
+};
+
+window.dutyRemoveFromRoster = async function(team, userId, username) {
+  if (typeof window.isDutyAdmin === 'function' && !window.isDutyAdmin()) return;
+  const ok = await Swal.fire({
+    icon: 'question',
+    title: `เอา ${username} ออกจากเว็บ ${team}?`,
+    text: 'เอาออกจากตารางหน้าที่เฉย ๆ ไม่ได้ลงเป็นวันหยุด ดึงกลับเข้ามาใหม่ได้ด้วย "ดึงคนเข้างาน"',
+    showCancelButton: true,
+    confirmButtonText: 'เอาออก',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: '#ef4444'
+  });
+  if (!ok.isConfirmed) return;
+  Swal.fire({
+    title: 'กำลังเอาออก...',
+    allowOutsideClick: false,
+    didOpen: () => Swal.showLoading()
+  });
+  try {
+    const targetDate = document.getElementById('dutyDate').value;
+    const shiftFilter = document.getElementById('dutyShiftSelect').value;
+    let found = false;
+    for (const t in currentRosterData) {
+      const before = (currentRosterData[t] || []).length;
+      currentRosterData[t] = (currentRosterData[t] || []).filter((u => !(u && String(u.id) === String(userId))));
+      if (currentRosterData[t].length !== before) found = true;
+    }
+    if (!found) throw new Error('ไม่พบชื่อในตารางแล้ว (อาจมีคนอื่นเอาออกไปก่อน)');
+    window.clearSettingCache();
+    window.dutyDbOk(await appDB.from('settings').upsert([ {
+      key: getDutySaveKey(targetDate, shiftFilter),
+      value: JSON.stringify(currentRosterData)
+    } ]));
+    try {
+      await appDB.from('system_logs').insert([ {
+        action_type: 'ย้ายหน้าที่',
+        performed_by: currentUser.username,
+        target_details: `เอาออกจากหน้างาน: ${username} (จากเว็บ ${team}) (${currentDutyDept}, ${shiftFilter}, ${targetDate})`
+      } ]);
+    } catch (e) {}
+    try {
+      window.debouncedBroadcast('duty-updates', 'force_reload');
+    } catch (e) {}
+    await window.refreshDutyData();
+    Swal.fire({
+      icon: 'success',
+      title: 'เอาออกแล้ว',
+      text: `${username} ไม่อยู่ในตารางนี้แล้ว`,
+      timer: 1400,
+      showConfirmButton: false
+    });
+  } catch (err) {
+    Swal.fire('เอาออกไม่สำเร็จ', err.message, 'error');
   }
 };
