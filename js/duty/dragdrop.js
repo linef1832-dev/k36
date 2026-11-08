@@ -132,6 +132,8 @@ window.handleDrop = async function(event, toTeam) {
           value: JSON.stringify(currentRosterData)
         } ]));
       }
+      const {error: oldErr} = await appDB.from('leave_requests').delete().eq('user_id', id).eq('leave_date', targetDate);
+      if (oldErr) throw oldErr;
       const {error: leaveErr} = await appDB.from('leave_requests').insert([ {
         user_id: id,
         user_name: username,

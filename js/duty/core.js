@@ -562,7 +562,9 @@ window.refreshDutyData = async function() {
     const taskDayStart = `${targetDate}T00:00:00+07:00`;
     const taskDayEnd = `${targetDate}T23:59:59+07:00`;
     const _dutyRq = window._dutyReqId = (window._dutyReqId || 0) + 1;
-    const [leavesRes, schedulesRes, settingsRes, swapRes] = await Promise.all([ appDB.from('leave_requests').select('user_id, reason, user_name').eq('leave_date', targetDate), appDB.from('schedules').select('staff_name, time_slot').eq('work_date', targetDate).eq('shift_name', shiftFilter), appDB.from('settings').select('value, key').in('key', [ saveKey, impListKey, impAssignKey, impLockKey, impCfgKey, stayPinKey, supportKey, mergeKey, mergeKeyOld, webGroupKey, backupKey ]), appDB.from('scheduled_tasks').select('payload, scheduled_for, status').eq('task_type', 'individual_shift_update').gte('scheduled_for', taskDayStart).lte('scheduled_for', taskDayEnd) ]);
+    const [leavesRes, schedulesRes, settingsRes, swapRes] = await Promise.all([ appDB.from('leave_requests').select('id, user_id, reason, user_name').eq('leave_date', targetDate).order('id', {
+      ascending: false
+    }), appDB.from('schedules').select('staff_name, time_slot').eq('work_date', targetDate).eq('shift_name', shiftFilter), appDB.from('settings').select('value, key').in('key', [ saveKey, impListKey, impAssignKey, impLockKey, impCfgKey, stayPinKey, supportKey, mergeKey, mergeKeyOld, webGroupKey, backupKey ]), appDB.from('scheduled_tasks').select('payload, scheduled_for, status').eq('task_type', 'individual_shift_update').gte('scheduled_for', taskDayStart).lte('scheduled_for', taskDayEnd) ]);
     if (_dutyRq !== window._dutyReqId) return;
     try {
       const _sig = JSON.stringify([ targetDate, shiftFilter, currentDutyDept, leavesRes && leavesRes.data, schedulesRes && schedulesRes.data, settingsRes && settingsRes.data, swapRes && swapRes.data ]);
