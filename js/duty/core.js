@@ -993,19 +993,11 @@ window.addStaffToRoster = async function() {
       if (u && u.id) alreadyAssignedIds.add(String(u.id));
     }));
   }
-  const pulledNames = new Set;
-  try {
-    const {data: logs} = await appDB.from('system_logs').select('target_details').eq('action_type', 'ย้ายหน้าที่').ilike('target_details', `%(${currentDutyDept}, ${shiftFilter}, ${targetDate})%`).limit(500);
-    (logs || []).forEach((l => {
-      const m = String(l.target_details || '').match(/^ดึง (.+?) เข้างาน/);
-      if (m) pulledNames.add(m[1].trim().toLowerCase());
-    }));
-  } catch (e) {}
   const pulledNow = [];
   for (const team in currentRosterData) {
     (currentRosterData[team] || []).forEach((u => {
       if (!u || !u.id || !u.username) return;
-      if (u.pulled_in || pulledNames.has(String(u.username).toLowerCase())) {
+      if (u.pulled_in) {
         if (!pulledNow.some((x => String(x.id) === String(u.id)))) pulledNow.push({
           id: u.id,
           username: u.username,
