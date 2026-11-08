@@ -232,9 +232,7 @@ window.switchDept = function(dept) {
   let colorClass = dept === 'SPECIAL' ? 'bg-amber-500' : /QL$/.test(dept) || dept === 'TRAINER' ? 'bg-indigo-600' : /^OD/.test(dept) ? 'bg-fuchsia-600' : 'bg-rose-600';
   if (label) label.className = `text-[10px] ${colorClass} px-2 rounded shadow transition-colors duration-300`;
   const btnManage = document.getElementById('btnManageNewStaff');
-  if (btnManage) {
-    btnManage.classList.remove('hidden');
-  }
+  if (btnManage) btnManage.classList.toggle('hidden', dept !== 'SPECIAL');
   const canManageThisDept = window.leaveCanManage(dept);
   const controls = document.getElementById('leaveManagerControls');
   if (controls) {
@@ -357,7 +355,7 @@ window.initLeaveTable = async function() {
 async function loadLeaveSettings(skipRender = false) {
   const suffixes = [ 'limit', 'startM', 'endM', 'startA', 'endA', 'startN', 'endN', 'is_open', 'quota_m', 'quota_a', 'quota_n', 'view_month', 'lock_start', 'lock_end' ];
   const wantKeys = [ 'leave_special_users' ];
-  const _lvDepts = [ ...new Set([ ...window.leaveAllDepts(), 'TRAINER' ]) ];
+  const _lvDepts = [ ...new Set(window.leaveAllDepts()) ];
   _lvDepts.forEach((d => {
     _leaveEnsureDeptSettings(d);
     suffixes.forEach((x => wantKeys.push(`${d}_${x}`)));
@@ -527,8 +525,6 @@ function subscribeLeaveChanges() {
       const tDept = tUser ? tUser.department || 'AM' : 'AM';
       let shouldRenderTable = false;
       if (currentViewDept === 'SPECIAL' && window.specialGroupUserIds && window.specialGroupUserIds.includes(String(changedUserId))) {
-        shouldRenderTable = true;
-      } else if (currentViewDept === 'TRAINER' && tDept.startsWith('TRAINER')) {
         shouldRenderTable = true;
       } else if (currentViewDept === 'AMQL' || currentViewDept === 'TRAINER_AM') {
         if (tDept === 'AMQL' || tDept === 'TRAINER_AM') shouldRenderTable = true;

@@ -662,43 +662,6 @@ window.toggleLeaveStatus = async function(isChecked) {
   }
 };
 
-window.removeFromNewDept = async function(id, username) {
-  Swal.fire({
-    title: 'ยืนยันการนำออก?',
-    text: `ต้องการย้าย ${username} กลับไปอยู่แผนก AM ใช่หรือไม่?`,
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonColor: '#0891b2',
-    cancelButtonColor: '#64748b',
-    confirmButtonText: 'ใช่, ย้ายกลับเลย',
-    cancelButtonText: 'ยกเลิก'
-  }).then((async result => {
-    if (result.isConfirmed) {
-      Swal.fire({
-        title: 'กำลังย้าย...',
-        allowOutsideClick: false,
-        didOpen: () => Swal.showLoading()
-      });
-      const userIndex = GLOBAL_USER_LIST.findIndex((u => String(u.id) === String(id)));
-      if (userIndex !== -1) GLOBAL_USER_LIST[userIndex].department = 'AM';
-      const {error: error} = await appDB.from('users').update({
-        department: 'AM'
-      }).eq('id', id);
-      if (error) {
-        Swal.fire('Error', error.message, 'error');
-      } else {
-        window.renderLeaveTable();
-        Swal.fire({
-          icon: 'success',
-          title: 'ย้ายสำเร็จ',
-          timer: 1500,
-          showConfirmButton: false
-        });
-      }
-    }
-  }));
-};
-
 window.logLeaveAction = async function(action, userId, username, dateStr) {
   try {
     if (typeof appDB !== 'undefined') {

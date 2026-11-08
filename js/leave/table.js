@@ -5,8 +5,6 @@ window.leaveDeptUsers = function(dept) {
     const isInSpecial = window.specialGroupUserIds && window.specialGroupUserIds.includes(String(u.id));
     if (view === 'SPECIAL') {
       return isInSpecial;
-    } else if (view === 'TRAINER') {
-      return uDept.startsWith('TRAINER') && !isInSpecial;
     } else if (view === 'AMQL' || view === 'TRAINER_AM') {
       return (uDept === 'AMQL' || uDept === 'TRAINER_AM') && !isInSpecial;
     } else if (view === 'ODQL' || view === 'TRAINER_OD') {
@@ -187,11 +185,7 @@ window.renderLeaveTable = function() {
     let targetQuota = s.quotaM || 2;
     if (u.allowed_shift === 'กะเช้า') targetQuota = s.quotaM; else if (u.allowed_shift === 'กะกลาง') targetQuota = s.quotaA; else if (u.allowed_shift === 'กะดึก') targetQuota = s.quotaN;
     let removeBtn = '';
-    if (isAdmin && currentViewDept === 'TRAINER') {
-      if (typeof removeFromNewDept === 'function') {
-        removeBtn = `<button onclick="removeFromNewDept(${u.id}, '${window.escapeJsAttr(u.username)}')" class="ml-1 text-gray-400 hover:text-red-500 transition"><span class="material-icons text-[10px]">close</span></button>`;
-      }
-    } else if (isAdmin && currentViewDept === 'SPECIAL') {
+    if (isAdmin && currentViewDept === 'SPECIAL') {
       removeBtn = `<button onclick="removeFromSpecialDept(${u.id}, '${window.escapeJsAttr(u.username)}')" class="ml-1 text-gray-400 hover:text-red-500 transition"><span class="material-icons text-[10px]">close</span></button>`;
     }
     let breakdownHtml = '';
@@ -331,6 +325,11 @@ window.renderLeaveTable = function() {
     rowHtml += `</tr>`;
     bodyHtml += rowHtml;
   }));
-  if (staffListToRender.length === 0) bodyHtml = `<tr><td colspan="${daysInMonth + 2}" class="p-10 text-center text-gray-400">ไม่พบรายชื่อในแผนก ${displayDeptText}</td></tr>`;
+  if (staffListToRender.length === 0) {
+    const isSp = currentViewDept === 'SPECIAL';
+    const canMg = typeof window.leaveCanManage === 'function' && window.leaveCanManage(currentViewDept);
+    const hint = isSp ? canMg ? `<div style="margin-top:8px;font-size:12px;color:var(--k-mute)">กลุ่มนี้เป็นกลุ่มที่จัดเอง — เพิ่มชื่อได้ที่ <b>ตั้งค่า → จัดการรายชื่อ</b></div><button type="button" onclick="openManageSpecialModal()" class="lv2-btn" style="margin:10px auto 0;display:inline-flex"><span class="material-icons">group_add</span>จัดการรายชื่อ</button>` : `<div style="margin-top:8px;font-size:12px;color:var(--k-mute)">ยังไม่มีใครถูกจัดเข้ากลุ่มนี้</div>` : '';
+    bodyHtml = `<tr><td colspan="${daysInMonth + 2}" class="p-10 text-center text-gray-400">ไม่พบรายชื่อในแผนก ${displayDeptText}${hint}</td></tr>`;
+  }
   tbody.innerHTML = bodyHtml;
 };
