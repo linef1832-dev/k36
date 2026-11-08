@@ -878,9 +878,10 @@ window.restoreFromLeave = async function(userId, username) {
       const shiftFilter = document.getElementById('dutyShiftSelect').value;
       window.dutyDbOk(await appDB.from('leave_requests').delete().eq('user_id', userId).eq('leave_date', targetDate));
       const fullUserObj = GLOBAL_USER_LIST.find((u => String(u.id) === String(userId)));
+      let movedFrom = [];
       if (fullUserObj) {
         if (!currentRosterData[selectedTeam]) currentRosterData[selectedTeam] = [];
-        const movedFrom = window.dutyRemoveFromOtherTeams(currentRosterData, userId, selectedTeam);
+        movedFrom = window.dutyRemoveFromOtherTeams(currentRosterData, userId, selectedTeam) || [];
         const isExist = currentRosterData[selectedTeam].some((u => String(u.id) === String(userId)));
         if (!isExist) currentRosterData[selectedTeam].push({
           ...fullUserObj,
