@@ -216,58 +216,17 @@
             <div><div class="dsn-bt">บอท Discord</div><div class="dsn-bs">ระบบจัดการห้องเสียง</div></div>
         </div>
         <nav class="ds-tabs-rail dsn-nav" aria-label="เมนู Discord">
-            <div class="dsn-grp">ติดตาม</div><button onclick="switchDiscordTab('spy')" id="tabDsSpy" class="ds-tab ds-tab-active" style="--acc:#ef4444"><span class="tab-chip"><span class="material-icons">visibility</span></span><span class="dsn-l"><b>Spy Monitor</b><small>ใครอยู่ห้องไหน แบบสด</small></span></button><button onclick="switchDiscordTab('voicelog')" id="tabDsVoicelog" class="ds-tab" style="--acc:#f59e0b"><span class="tab-chip"><span class="material-icons">history</span></span><span class="dsn-l"><b>เข้า / ออกดิส</b><small>ประวัติรายวัน</small></span></button><button onclick="switchDiscordTab('chatcount')" id="tabDsChatcount" class="ds-tab" style="--acc:#0ea5e9;display:none"><span class="tab-chip"><span class="material-icons">forum</span></span><span class="dsn-l"><b>นับแชท</b><small>จำนวนแชทในห้อง</small></span></button><div class="dsn-grp">จัดการ</div><button onclick="switchDiscordTab('move')" id="tabDsMove" class="ds-tab" style="--acc:#6366f1"><span class="tab-chip"><span class="material-icons">move_up</span></span><span class="dsn-l"><b>ย้ายห้อง</b><small>ย้ายพนักงานระหว่างห้อง</small></span></button><button onclick="switchDiscordTab('manage')" id="tabDsManage" class="ds-tab" style="--acc:#8b5cf6"><span class="tab-chip"><span class="material-icons">manage_accounts</span></span><span class="dsn-l"><b>ฐานข้อมูล</b><small>จับคู่บัญชี · กลุ่ม</small></span></button><button onclick="switchDiscordTab('breaktrack')" id="tabDsBreaktrack" class="ds-tab" style="--acc:#10b981"><span class="tab-chip"><span class="material-icons">coffee</span></span><span class="dsn-l"><b>เช็คอิน</b><small>พัก / กลับจากพัก</small></span></button><div class="dsn-grp">เสียงแจ้งเตือน</div><button onclick="switchDiscordTab('ttsvoice')" id="tabDsTtsvoice" class="ds-tab" style="--acc:#0ea5e9"><span class="tab-chip"><span class="material-icons">campaign</span></span><span class="dsn-l"><b>ศูนย์เสียง</b><small>บอทพูดแจ้งเตือน</small></span></button>
+            <div class="dsn-grp">ติดตาม</div><button onclick="switchDiscordTab('voicelog')" id="tabDsVoicelog" class="ds-tab" style="--acc:#f59e0b"><span class="tab-chip"><span class="material-icons">history</span></span><span class="dsn-l"><b>เข้า / ออกดิส</b><small>ประวัติรายวัน</small></span></button><button onclick="switchDiscordTab('chatcount')" id="tabDsChatcount" class="ds-tab" style="--acc:#0ea5e9;display:none"><span class="tab-chip"><span class="material-icons">forum</span></span><span class="dsn-l"><b>นับแชท</b><small>จำนวนแชทในห้อง</small></span></button><div class="dsn-grp">จัดการ</div><button onclick="switchDiscordTab('move')" id="tabDsMove" class="ds-tab" style="--acc:#6366f1"><span class="tab-chip"><span class="material-icons">move_up</span></span><span class="dsn-l"><b>ย้ายห้อง</b><small>ย้ายพนักงานระหว่างห้อง</small></span></button><button onclick="switchDiscordTab('manage')" id="tabDsManage" class="ds-tab" style="--acc:#8b5cf6"><span class="tab-chip"><span class="material-icons">manage_accounts</span></span><span class="dsn-l"><b>ฐานข้อมูล</b><small>จับคู่บัญชี · กลุ่ม</small></span></button><button onclick="switchDiscordTab('breaktrack')" id="tabDsBreaktrack" class="ds-tab" style="--acc:#10b981"><span class="tab-chip"><span class="material-icons">coffee</span></span><span class="dsn-l"><b>เช็คอิน</b><small>พัก / กลับจากพัก</small></span></button><div class="dsn-grp">เสียงแจ้งเตือน</div><button onclick="switchDiscordTab('ttsvoice')" id="tabDsTtsvoice" class="ds-tab" style="--acc:#0ea5e9"><span class="tab-chip"><span class="material-icons">campaign</span></span><span class="dsn-l"><b>ศูนย์เสียง</b><small>บอทพูดแจ้งเตือน</small></span></button>
         </nav>
     </aside>
 <div class="ds-body flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar">
         <div class="dsn-head">
             <div>
-                <h1 class="dsn-title" id="dsPageTitle">Spy Monitor</h1>
-                <div class="dsn-desc" id="dsTabDesc">ดูว่าใครอยู่ห้องไหน ไมค์ / หูฟัง แบบเรียลไทม์</div>
+                <h1 class="dsn-title" id="dsPageTitle">ย้ายห้อง</h1>
+                <div class="dsn-desc" id="dsTabDesc">ย้ายพนักงานระหว่างห้องเสียง</div>
             </div>
         </div>
         
-        <div id="dsContent_spy" class="max-w-[1400px] mx-auto block fade-in pb-10">
-            <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden">
-                <div class="p-4 bg-slate-900 border-b border-slate-700 flex flex-wrap justify-between items-center gap-4">
-                    <h2 class="text-white font-bold flex items-center gap-2 text-lg"><span class="material-icons text-red-500">policy</span> ระบบดักจับการทำงาน (Spy Monitor)</h2>
-                    <input type="text" id="spySearchInput" placeholder="🔍 ค้นหาชื่อพนักงาน..." onkeyup="ds_renderSpyTable()" class="bg-slate-800 border border-slate-600 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-red-500 w-full sm:w-64">
-                </div>
-                <div class="p-3 bg-slate-800 border-b border-slate-700 flex flex-wrap items-center gap-3">
-                    <span class="text-sky-400 font-bold text-sm flex items-center gap-1"><span class="material-icons text-[16px]">flight_takeoff</span> ย้ายคนที่เลือกไปที่:</span>
-                    <select id="bulkMoveTarget" class="bg-slate-900 text-white p-2 rounded-lg border border-slate-600 outline-none focus:border-sky-500 text-sm w-48">
-                        <option value="">-- เลือกห้องปลายทาง --</option>
-                    </select>
-                    <button onclick="spy_moveSelectedUsers()" class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-lg font-bold text-sm transition shadow-md">
-                        🚀 ย้ายทันที (<span id="spySelectedCount">0</span>)
-                    </button>
-                    <button onclick="spy_returnMove()" class="bg-amber-500 hover:bg-amber-400 text-slate-900 px-4 py-2 rounded-lg font-bold text-sm transition border border-amber-600 flex items-center gap-1 shadow-md">
-                        <span class="material-icons text-[16px]">keyboard_return</span> ดึงพนักงานกลับห้องเดิม
-                    </button>
-                </div>
-                
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm whitespace-nowrap border-collapse">
-                        <thead class="bg-slate-900 text-gray-400 font-bold border-b border-slate-700">
-                            <tr>
-                                <th class="p-3 w-10 text-center"><input type="checkbox" id="spySelectAll" onchange="spy_toggleSelectAll()" class="w-4 h-4 rounded cursor-pointer bg-slate-800 border-slate-600"></th>
-                                <th class="p-3">ชื่อพนักงาน</th>
-                                <th class="p-3">ห้องปัจจุบัน</th>
-                                <th class="p-3">อุปกรณ์ที่ใช้</th>
-                                <th class="p-3">สถานะขณะนี้</th>
-                                <th class="p-3 text-amber-400">ปิดไมค์</th>
-                                <th class="p-3 text-red-400">ปิดหูฟัง</th>
-                                <th class="p-3 text-center">จัดการ</th>
-                            </tr>
-                        </thead>
-                        <tbody id="ds_spyBody" class="divide-y divide-slate-700 text-gray-200 bg-slate-800">
-                            <tr><td colspan="8" class="text-center p-10 text-gray-500 flex flex-col items-center"><span class="material-icons animate-spin text-4xl mb-2">sync</span>กำลังดึงข้อมูลจากดิสคอร์ด...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
         <div id="dsContent_move" class="hidden fade-in pb-10 mv-wrap">
             <div class="mv-grid">
                 <section class="mv-card">
@@ -703,25 +662,7 @@
         </div>
 
 <div id="discordTemplates" class="hidden">
-    <template id="tpl-ds-spy-row">
-        <tr class="hover:bg-slate-800 transition border-b border-slate-700/50">
-            <td class="p-3 text-center"><input type="checkbox" value="{{id}}" class="spy-user-cb w-4 h-4 rounded cursor-pointer bg-slate-800 border-slate-600" onchange="spy_toggleSelectUser('{{id}}')" {{isChecked}}></td>
-            <td class="p-3 font-bold {{nameColor}}">{{name}}</td>
-            <td class="p-3">{{roomBadge}}</td>
-            <td class="p-3 flex items-center gap-1">{{devicesHTML}}</td>
-            <td class="p-3">{{statusBadges}}</td>
-            <td class="p-3 text-amber-400 font-mono font-bold">{{mStr}}</td>
-            <td class="p-3 text-red-400 font-mono font-bold">{{dStr}}</td>
-            <td class="p-3 text-center flex items-center justify-center gap-1">
-    <select onfocus="window.isSpyDropdownFocused=true;" onblur="window.isSpyDropdownFocused=false;" onchange="window.isSpyDropdownFocused=false; spy_moveSingleUser('{{id}}', this.value)" class="bg-slate-900 text-white p-1.5 rounded border border-slate-600 outline-none text-xs w-28 cursor-pointer focus:ring-2 focus:ring-indigo-500 transition">
-        {{roomOptionsHtml}}
-    </select>
-    <button onclick="spy_kickUser('{{id}}', '{{name}}')" class="bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white p-1.5 rounded border border-red-500/30 transition shadow-sm ml-1" title="เตะออกจากเซิร์ฟเวอร์">
-        <span class="material-icons text-[16px]">person_remove</span>
-    </button>
-</td>
-        </tr>
-    </template>
+    
     
     <template id="tpl-ds-source-room">
         <label class="ds-room-item flex items-center gap-3 p-3 bg-slate-900 border border-slate-700 rounded-xl cursor-pointer hover:border-indigo-500 transition group" data-name="{{name}}">

@@ -54,13 +54,9 @@ let transferHistory = [];
 
 let selectedTransfer = new Set;
 
-let spySelectedUsers = new Set;
-
 let dsTimers = {};
 
 window.customDiscordNames = window.customDiscordNames || {};
-
-window.isSpyDropdownFocused = false;
 
 function dsDebounce(key, func, delay = 200) {
   clearTimeout(dsTimers[key]);
@@ -622,10 +618,6 @@ window.confirmDeleteDuplicate = async function(staffId, staffName) {
 
 window.applyDiscordPermissions = function() {
   const tabs = [ {
-    btnId: 'tabDsSpy',
-    viewId: 'spy',
-    reqPerm: 'ds_spy'
-  }, {
     btnId: 'tabDsMove',
     viewId: 'move',
     reqPerm: 'ds_move'
@@ -657,7 +649,7 @@ window.applyDiscordPermissions = function() {
   }));
   if (firstAllowedTab) {
     document.getElementById('discordNoAccessMessage')?.remove();
-    const activeTabs = [ 'spy', 'move', 'manage', 'voicelog', 'breaktrack' ];
+    const activeTabs = [ 'move', 'manage', 'voicelog', 'breaktrack' ];
     let isCurrentTabValid = false;
     activeTabs.forEach((t => {
       const contentBox = document.getElementById('dsContent_' + t);
@@ -669,7 +661,7 @@ window.applyDiscordPermissions = function() {
     if (!isCurrentTabValid) {
       switchDiscordTab(firstAllowedTab);
     } else {
-      let visibleTab = 'spy';
+      let visibleTab = 'move';
       activeTabs.forEach((t => {
         const contentBox = document.getElementById('dsContent_' + t);
         if (contentBox && !contentBox.classList.contains('hidden')) visibleTab = t;
@@ -694,7 +686,7 @@ window.applyDiscordPermissions = function() {
 
 window.switchDiscordTab = function(tabName) {
   try {
-    const allViews = [ 'spy', 'move', 'manage', 'voicelog', 'breaktrack' ];
+    const allViews = [ 'move', 'manage', 'voicelog', 'breaktrack' ];
     allViews.forEach((view => {
       const el = document.getElementById('dsContent_' + view);
       if (el) el.classList.add('hidden');
@@ -707,15 +699,7 @@ window.switchDiscordTab = function(tabName) {
     if (logInterval) clearInterval(logInterval);
     const activeBtn = document.getElementById('tabDs' + tabName.charAt(0).toUpperCase() + tabName.slice(1));
     if (activeBtn) {
-      if (tabName === 'spy') {
-        activeBtn.className = "ds-tab ds-tab-active";
-        ds_fetchSpy();
-        ds_fetchChannelsSilently();
-        spyInterval = setInterval((() => {
-          if (!document.hidden) ds_fetchSpy();
-        }), 3e3);
-        if (typeof window.registerPageInterval === 'function') window.registerPageInterval(spyInterval);
-      } else if (tabName === 'move') {
+      if (tabName === 'move') {
         activeBtn.className = "ds-tab ds-tab-active";
         Promise.resolve(ds_fetchChannels()).then((() => window.ds_refreshMoveRooms(false)));
         spyInterval = setInterval((() => {
@@ -853,106 +837,6 @@ window.syncDiscord = async function() {
   }
 };
 
-window.spy_toggleSelectUser = function(uid) {
-  if (spySelectedUsers.has(uid)) spySelectedUsers.delete(uid); else spySelectedUsers.add(uid);
-  document.getElementById('spySelectedCount').innerText = spySelectedUsers.size;
-};
-
-window.spy_toggleSelectAll = function() {
-  const isChecked = document.getElementById('spySelectAll').checked;
-  document.querySelectorAll('.spy-user-cb').forEach((cb => {
-    cb.checked = isChecked;
-    if (isChecked) spySelectedUsers.add(cb.value); else spySelectedUsers.delete(cb.value);
-  }));
-  document.getElementById('spySelectedCount').innerText = spySelectedUsers.size;
-};
-
-window.spy_moveSelectedUsers = async function() {
-  if (!window.dsRequire('ds_spy')) return;
-  const targetId = document.getElementById('bulkMoveTarget').value;
-  const ids = Array.from(spySelectedUsers);
-  if (ids.length === 0) return Swal.fire('เตือน', 'กรุณาติ๊กเลือกคนที่จะย้ายก่อน', 'warning');
-  if (!targetId) return Swal.fire('เตือน', 'กรุณาเลือกห้องปลายทาง', 'warning');
-  Swal.fire({
-    title: 'กำลังย้าย...',
-    didOpen: () => Swal.showLoading()
-  });
-  try {
-    const res = await window.dsFetch(`${DISCORD_API_URL}/api/move-users`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        userIds: ids,
-        targetChannelId: targetId
-      })
-    });
-    const r = await res.json();
-    if (r.success) {
-      Swal.fire('สำเร็จ', `ย้ายพนักงาน ${r.movedCount} คนแล้ว`, 'success');
-      ds_logAction('Spy Move', `ดึงคนย้ายห้อง ${ids.length} คน ไปยังเป้าหมาย`);
-      spySelectedUsers.clear();
-      document.getElementById('spySelectAll').checked = false;
-      document.getElementById('spySelectedCount').innerText = 0;
-      ds_fetchSpy();
-    } else Swal.fire('Error', r.error, 'error');
-  } catch (e) {
-    Swal.fire('Error', e.message, 'error');
-  }
-};
-
-window.spy_returnMove = async function() {
-  if (!window.dsRequire('ds_spy')) return;
-  Swal.fire({
-    title: 'กำลังย้ายกลับ...',
-    didOpen: () => Swal.showLoading()
-  });
-  try {
-    const res = await window.dsFetch(`${DISCORD_API_URL}/api/spy-return`, {
-      method: 'POST'
-    });
-    const r = await res.json();
-    if (r.success) {
-      Swal.fire('สำเร็จ', `ย้ายกลับ ${r.count} คนแล้ว`, 'success');
-      ds_logAction('Spy Return', `ดึงพนักงาน ${r.count} คนกลับห้องเดิม`);
-    } else Swal.fire('Error', r.error, 'error');
-  } catch (e) {
-    Swal.fire('Error', 'เชื่อมต่อบอทไม่ได้', 'error');
-  }
-};
-
-window.spy_moveSingleUser = async function(uid, targetId) {
-  if (!window.dsRequire('ds_spy')) return;
-  if (!targetId) return;
-  try {
-    await window.dsBotOk(window.dsFetch(`${DISCORD_API_URL}/api/move-users`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        userIds: [ uid ],
-        targetChannelId: targetId
-      })
-    }));
-    const Toast = Swal.mixin({
-      toast: true,
-      position: 'top-end',
-      showConfirmButton: false,
-      timer: 1500
-    });
-    Toast.fire({
-      icon: 'success',
-      title: 'ย้ายเรียบร้อย'
-    });
-    ds_logAction('Spy Move Single', `ย้าย 1 คนไปห้องใหม่`);
-    ds_fetchSpy();
-  } catch (e) {
-    Swal.fire('ย้ายไม่สำเร็จ', e.message || 'เชื่อมต่อบอทไม่ได้', 'error');
-  }
-};
-
 window.ds_fetchSpy = async function() {
   if (window._dsSpyBusy) return;
   window._dsSpyBusy = true;
@@ -968,7 +852,6 @@ window.ds_fetchSpy = async function() {
         id: key,
         ...data[key]
       }))).sort(((a, b) => (b.currentRoom ? 1 : 0) - (a.currentRoom ? 1 : 0)));
-      if (!window.isSpyDropdownFocused) ds_renderSpyTable();
       const mvPanel = document.getElementById('dsContent_move');
       if (mvPanel && !mvPanel.classList.contains('hidden') && typeof window.ds_renderMoveRooms === 'function') window.ds_renderMoveRooms();
     }
@@ -1160,12 +1043,6 @@ window.ds_fetchChannels = async function(silent) {
     if (!data || !data.value) return;
     dsRoomList = JSON.parse(data.value) || [];
     const optHtml = label => `<option value="">${label}</option>` + dsRoomList.map((c => `<option value="${dsEsc(String(c.id))}">${dsEsc(c.name)}</option>`)).join('');
-    const bulk = document.getElementById('bulkMoveTarget');
-    if (bulk) {
-      const keep = bulk.value;
-      bulk.innerHTML = optHtml('-- เลือกห้องปลายทาง --');
-      if (keep && dsRoomList.some((c => String(c.id) === keep))) bulk.value = keep;
-    }
     const src = document.getElementById('ds_sourceRooms');
     const tgt = document.getElementById('ds_targetRoom');
     if (src && tgt && !silent) {

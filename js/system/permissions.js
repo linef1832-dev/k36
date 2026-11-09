@@ -444,10 +444,6 @@ const PERM_GROUPS = [ {
     name: 'เข้าหน้าต่างระบบ DISCORD',
     isSub: false
   }, {
-    id: 'ds_spy',
-    name: 'Spy Monitor',
-    isSub: true
-  }, {
     id: 'ds_move',
     name: 'ย้ายห้อง',
     isSub: true
