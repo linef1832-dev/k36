@@ -489,11 +489,23 @@ window._impReadCounts = function() {
   };
 };
 
+window._impShiftPickHtml = function(cur) {
+  const opts = [ [ 'กะเช้า', '☀️ กะเช้า' ], [ 'กะดึก', '🌙 กะดึก' ], [ 'both', '☀️🌙 ทั้งสองกะ' ] ];
+  if (cur === 'กะกลาง') opts.unshift([ 'กะกลาง', '🌤️ กะกลาง' ]);
+  const def = cur === 'กะดึก' ? 'กะดึก' : cur === 'กะกลาง' ? 'กะกลาง' : 'กะเช้า';
+  const btns = opts.map((([v, l]) => `<label style="flex:1;min-width:0;cursor:pointer"><input type="radio" name="impShiftPick" value="${v}" ${v === def ? 'checked' : ''} style="display:none"><span class="imp-shift-opt" style="display:block;padding:9px 6px;border-radius:10px;border:1px solid rgba(148,163,184,.35);font-size:12.5px;font-weight:800;text-align:center;white-space:nowrap">${l}</span></label>`)).join('');
+  return `<style>input[name=impShiftPick]:checked+.imp-shift-opt{background:rgba(245,158,11,.18);border-color:#f59e0b!important;color:#fbbf24}</style>
+        <div style="margin-top:12px;text-align:left"><label style="display:block;font-size:12px;font-weight:700;margin-bottom:6px;color:#fbbf24">🕒 ใช้กับกะ</label>
+        <div style="display:flex;gap:8px">${btns}</div>
+        <div style="font-size:11px;opacity:.6;margin-top:6px">งานจะขึ้นเฉพาะกะที่เลือก</div></div>`;
+};
+
 window.addImportantTask = async function() {
   if (window._impDenied()) return;
+  const k = window.impKeys();
   const {value: form} = await Swal.fire({
     title: 'เพิ่มหน้าที่สำคัญ / พิเศษ',
-    html: `<input id="impNewName" class="swal2-input" style="margin:6px 0 0;width:100%;box-sizing:border-box" placeholder="เช่น ดูแลระบบฝากถอน, เช็คแชท VIP...">` + window._impCountFieldsHtml(1, 0),
+    html: `<input id="impNewName" class="swal2-input" style="margin:6px 0 0;width:100%;box-sizing:border-box" placeholder="เช่น ดูแลระบบฝากถอน, เช็คแชท VIP...">` + window._impShiftPickHtml(k.shift) + window._impCountFieldsHtml(1, 0),
     showCancelButton: true,
     confirmButtonText: 'บันทึก',
     cancelButtonText: 'ยกเลิก',
@@ -511,35 +523,99 @@ window.addImportantTask = async function() {
         Swal.showValidationMessage('กรุณาใส่ชื่อหน้าที่');
         return false;
       }
+      const pick = (document.querySelector('input[name=impShiftPick]:checked') || {}).value;
+      if (!pick) {
+        Swal.showValidationMessage('กรุณาเลือกกะ');
+        return false;
+      }
       const counts = window._impReadCounts();
       if (!counts) return false;
       return {
         name: name,
-        counts: counts
+        counts: counts,
+        shifts: pick === 'both' ? [ 'กะเช้า', 'กะดึก' ] : [ pick ]
       };
     }
   });
   if (!form) return;
-  if (window.globalImportantTasks.includes(form.name)) return Swal.fire('เตือน', 'มีหน้าที่นี้อยู่ในระบบแล้วครับ', 'warning');
-  const k = window.impKeys();
-  window.globalImportantTasks.push(form.name);
-  window.importantTaskCfg = window.importantTaskCfg || {};
-  window.importantTaskCfg[form.name] = form.counts;
   Swal.fire({
     title: 'กำลังบันทึก...',
+    allowOutsideClick: false,
     didOpen: () => Swal.showLoading()
   });
+  const dept = currentDutyDept;
+  const listKeys = form.shifts.map((sh => `duty_important_tasks_list_${dept}_${sh}`));
+  const cfgKeys = form.shifts.map((sh => `duty_important_task_cfg_${dept}_${sh}`));
+  let rows = [];
+  try {
+    const {data: data, error: error} = await appDB.from('settings').select('key, value').in('key', [ ...listKeys, ...cfgKeys ]);
+    if (error) throw error;
+    rows = data || [];
+  } catch (e) {
+    return Swal.fire('โหลดข้อมูลไม่สำเร็จ', e.message || String(e), 'error');
+  }
+  const valOf = key => {
+    const r = rows.find((x => x.key === key));
+    try {
+      return r && r.value ? JSON.parse(r.value) : null;
+    } catch (e) {
+      return null;
+    }
+  };
+  const upserts = [];
+  const added = [];
+  const skipped = [];
+  let curList = null, curCfg = null;
+  form.shifts.forEach(((sh, i) => {
+    let list = valOf(listKeys[i]);
+    let cfg = valOf(cfgKeys[i]);
+    if (sh === k.shift) {
+      list = Array.isArray(window.globalImportantTasks) ? window.globalImportantTasks.slice() : list;
+      cfg = window.importantTaskCfg ? {
+        ...window.importantTaskCfg
+      } : cfg;
+    }
+    if (!Array.isArray(list)) list = [];
+    if (!cfg || typeof cfg !== 'object') cfg = {};
+    if (list.includes(form.name)) {
+      skipped.push(sh);
+      return;
+    }
+    list.push(form.name);
+    cfg[form.name] = form.counts;
+    upserts.push({
+      key: listKeys[i],
+      value: JSON.stringify(list)
+    }, {
+      key: cfgKeys[i],
+      value: JSON.stringify(cfg)
+    });
+    added.push(sh);
+    if (sh === k.shift) {
+      curList = list;
+      curCfg = cfg;
+    }
+  }));
+  if (!added.length) return Swal.fire('เตือน', `มีหน้าที่ "${window.escapeHtml(form.name)}" อยู่ใน${skipped.join(' และ ')}แล้วครับ`, 'warning');
   window.clearSettingCache();
-  const {error: _sErr} = await appDB.from('settings').upsert([ {
-    key: k.list,
-    value: JSON.stringify(window.globalImportantTasks)
-  }, {
-    key: k.cfg,
-    value: JSON.stringify(window.importantTaskCfg)
-  } ]);
+  const {error: _sErr} = await appDB.from('settings').upsert(upserts);
   if (_sErr) return Swal.fire('บันทึกไม่สำเร็จ', _sErr.message, 'error');
+  if (curList) {
+    window.globalImportantTasks = curList;
+    window.importantTaskCfg = curCfg;
+  }
   window.renderImportantTasksPanel();
-  Swal.close();
+  try {
+    window.debouncedBroadcast('duty-updates', 'force_reload');
+  } catch (e) {}
+  const notHere = !added.includes(k.shift);
+  Swal.fire({
+    icon: 'success',
+    title: 'เพิ่มงานแล้ว',
+    html: `เพิ่มใน <b>${added.join(' และ ')}</b>` + (skipped.length ? `<br><span style="font-size:12px;opacity:.8">${skipped.join(' และ ')} มีงานนี้อยู่แล้ว</span>` : '') + (notHere ? `<br><span style="font-size:12px;opacity:.8">ตอนนี้กำลังดู${k.shift} งานนี้จึงยังไม่ขึ้นในหน้านี้</span>` : ''),
+    timer: notHere ? undefined : 1500,
+    showConfirmButton: notHere
+  });
 };
 
 window.configImportantTask = async function(taskName) {
