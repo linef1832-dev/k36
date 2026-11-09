@@ -1397,7 +1397,7 @@ window.generateDutyRoster = async function() {
       requirements[team] = count;
       reqsToSave[input.id] = count;
     }));
-    window.safeSetItem(`duty_reqs_${currentDutyDept}`, JSON.stringify(reqsToSave));
+    window.dutySaveReqs(reqsToSave);
     let unassignedPool = [ ...activeStaff ];
     const rosterResult = {};
     sortedTeams.forEach((t => rosterResult[t] = []));
@@ -1669,6 +1669,7 @@ window.renderRosterGrid = async function(rosterData) {
     }
     window._odqlSups = null;
     window._odqlSupKey = null;
+    if (typeof window.dutyLoadSharedReqs === 'function') window.dutyLoadSharedReqs();
     currentRosterData = rosterData || {};
     cardGrid.classList.add('hidden');
     if (matrixGrid) matrixGrid.classList.remove('hidden');

@@ -800,12 +800,96 @@ function _dreqEnsureStyle() {
   document.head.appendChild(s);
 }
 
+window.dutyReqsShared = function() {
+  return currentDutyDept === 'ODQL' || currentDutyDept === 'TRAINER_OD';
+};
+
+window._dreqSaveTimer = null;
+
+window.dutySaveReqs = function(obj) {
+  window.safeSetItem(`duty_reqs_${currentDutyDept}`, JSON.stringify(obj || {}));
+  if (!window.dutyReqsShared()) return;
+  const dept = currentDutyDept;
+  const val = JSON.stringify(obj || {});
+  window._dreqDirty = true;
+  clearTimeout(window._dreqSaveTimer);
+  window._dreqSaveTimer = setTimeout((async () => {
+    try {
+      window.clearSettingCache();
+      const {error: error} = await appDB.from('settings').upsert([ {
+        key: `duty_reqs_${dept}`,
+        value: val
+      } ]);
+      if (error) throw error;
+      window._dreqDirty = false;
+      try {
+        window.debouncedBroadcast('duty-updates', 'force_reload', 150);
+      } catch (e) {}
+    } catch (e) {
+      window._dreqDirty = false;
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'error',
+        showConfirmButton: false,
+        timer: 3500,
+        title: 'บันทึกจำนวนคนต่อเว็บไม่สำเร็จ: ' + (e && e.message || e)
+      });
+    }
+  }), 400);
+};
+
+window.dutyLoadSharedReqs = async function() {
+  if (!window.dutyReqsShared() || window._dreqDirty) return;
+  const dept = currentDutyDept;
+  window._dreqLoading = true;
+  try {
+    const {data: data, error: error} = await appDB.from('settings').select('value').eq('key', `duty_reqs_${dept}`).maybeSingle();
+    if (error || dept !== currentDutyDept || window._dreqDirty) return;
+    if (!data || !data.value) {
+      const local = window.safeGetItem(`duty_reqs_${dept}`, '');
+      let lo = {};
+      try {
+        lo = JSON.parse(local || '{}') || {};
+      } catch (e) {}
+      if (Object.values(lo).some((v => parseInt(v) > 0))) window.dutySaveReqs(lo);
+      return;
+    }
+    let remote = {};
+    try {
+      remote = JSON.parse(data.value) || {};
+    } catch (e) {
+      return;
+    }
+    window.safeSetItem(`duty_reqs_${dept}`, JSON.stringify(remote));
+    let changed = false;
+    sortedTeams.forEach((team => {
+      const el = document.getElementById(`req_${team}`);
+      if (!el) return;
+      const v = parseInt(remote[`req_${team}`]) || 0;
+      if ((parseInt(el.value) || 0) !== v) {
+        el.value = v;
+        changed = true;
+      }
+      const card = document.getElementById(`dreqCard_${team}`);
+      if (card) card.classList.toggle('zero', !v);
+    }));
+    if (changed) {
+      if (typeof window.updateReqTotal === 'function') window.updateReqTotal();
+      if (typeof window.updateDutyStats === 'function') window.updateDutyStats();
+    }
+  } catch (e) {} finally {
+    window._dreqLoading = false;
+  }
+};
+
 window.renderDutyRequirements = function() {
   const container = document.getElementById('dutyRequirements');
   if (!container) return;
   _dreqEnsureStyle();
   container.innerHTML = '';
   const savedReqs = JSON.parse(window.safeGetItem(`duty_reqs_${currentDutyDept}`, '{}') || '{}');
+  if (window.dutyReqsShared() && !window._dreqLoading) window.dutyLoadSharedReqs();
   let html = '';
   sortedTeams.forEach(((team, index) => {
     const reqKey = `req_${team}`;
@@ -939,7 +1023,7 @@ window.manualAdjustReq = function(changedTeam, delta) {
   sortedTeams.forEach((team => {
     reqsToSave[`req_${team}`] = parseInt(document.getElementById(`req_${team}`)?.value) || 0;
   }));
-  window.safeSetItem(`duty_reqs_${currentDutyDept}`, JSON.stringify(reqsToSave));
+  window.dutySaveReqs(reqsToSave);
   if (typeof _dreqFlash === 'function') {
     if (delta > 0) {
       _dreqFlash(changedTeam, 'up', +delta);
@@ -986,7 +1070,7 @@ window.autoSuggestRequirements = function() {
   }));
   const reqsToSave = {};
   sortedTeams.forEach((team => reqsToSave[`req_${team}`] = suggestedReqs[team]));
-  window.safeSetItem(`duty_reqs_${currentDutyDept}`, JSON.stringify(reqsToSave));
+  window.dutySaveReqs(reqsToSave);
   window.updateDutyStats();
   if (unassignedUsers.length > 0) {
     Swal.fire({
