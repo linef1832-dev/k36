@@ -1644,6 +1644,12 @@ window.renderRosterGrid = async function(rosterData) {
   const matrixGrid = document.getElementById('dutyMatrixGrid');
   if (!cardGrid) return;
   if (currentDutyDept === 'ODQL' || currentDutyDept === 'TRAINER_OD') {
+    if (typeof window.odqlPending === 'function' && window.odqlPending()) {
+      window._odqlQ.needRefresh = true;
+      return;
+    }
+    window._odqlSups = null;
+    window._odqlSupKey = null;
     currentRosterData = rosterData || {};
     cardGrid.classList.add('hidden');
     if (matrixGrid) matrixGrid.classList.remove('hidden');

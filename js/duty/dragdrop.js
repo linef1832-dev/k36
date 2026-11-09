@@ -1117,7 +1117,8 @@ window.renderTrainerOdMatrix = async function(rosterData) {
   const rows = trainers.map((u => {
     const sh = window.getDutyShiftForToday(u);
     const onLeave = leaveIds.has(String(u.id));
-    let r = `<tr class="oq-r${onLeave ? ' lv' : ''}"><td class="oq-n oq-fix1" title="${esc(u.username)}">${esc(u.username)}${onLeave ? ' <small>(ลา)</small>' : ''}</td><td class="oq-s oq-fix2 ${sh === 'กะดึก' ? 'n' : sh === 'กะกลาง' ? 'm' : 'd'}">${shLabel(sh)}</td>`;
+    const isMe = typeof currentUser !== 'undefined' && currentUser && String(currentUser.id) === String(u.id);
+    let r = `<tr class="oq-r${onLeave ? ' lv' : ''}${isMe ? ' me' : ''}"><td class="oq-n oq-fix1" title="${esc(u.username)}">${esc(u.username)}${isMe ? ' <em>คุณ</em>' : ''}${onLeave ? ' <small>(ลา)</small>' : ''}</td><td class="oq-s oq-fix2 ${sh === 'กะดึก' ? 'n' : sh === 'กะกลาง' ? 'm' : 'd'}">${shLabel(sh)}</td>`;
     r += webs.map((w => cell(window.odqlCellOf(u, w, rosterData), u.id, 'web', w))).join('');
     r += tasks.map((t => cell(window.odqlTaskCellOf(u, t), u.id, 'task', t))).join('');
     return r + '</tr>';
@@ -1141,56 +1142,79 @@ window.renderTrainerOdMatrix = async function(rosterData) {
     <div class="oq-wrap"><table class="oq-t"><thead><tr>${head1}</tr><tr>${head2}</tr></thead><tbody>${rows || `<tr><td colspan="${2 + webs.length + tasks.length}" class="oq-empty">ไม่มีผู้สอน OD ในกะนี้</td></tr>`}</tbody><tfoot>${foot}</tfoot></table></div>`;
 };
 
+window._odqlQ = window._odqlQ || {
+  timer: null,
+  saving: false,
+  dirty: false,
+  logs: [],
+  needRefresh: false
+};
+
+window.odqlPending = function() {
+  const q = window._odqlQ;
+  return !!(q.timer || q.saving || q.dirty);
+};
+
+window.odqlFlush = async function() {
+  const q = window._odqlQ;
+  q.timer = null;
+  if (q.saving) {
+    q.dirty = true;
+    return;
+  }
+  q.dirty = false;
+  q.saving = true;
+  const targetDate = document.getElementById('dutyDate').value;
+  const shiftFilter = document.getElementById('dutyShiftSelect').value;
+  const logs = q.logs.splice(0);
+  try {
+    window.clearSettingCache();
+    window.dutyDbOk(await appDB.from('settings').upsert([ {
+      key: getDutySaveKey(targetDate, shiftFilter),
+      value: JSON.stringify(currentRosterData || {})
+    }, {
+      key: window.odqlSupKey(),
+      value: JSON.stringify(window._odqlSups || {})
+    } ]));
+    if (logs.length) appDB.from('system_logs').insert(logs.map((t => ({
+      action_type: 'จัดหน้าที่',
+      performed_by: currentUser.username,
+      target_details: t
+    })))).then((() => {}), (() => {}));
+    try {
+      window.debouncedBroadcast('duty-updates', 'force_reload', 150);
+    } catch (e) {}
+  } catch (err) {
+    q.dirty = false;
+    q.needRefresh = true;
+    Swal.fire('บันทึกไม่สำเร็จ', (err && err.message || String(err)) + '<br><span style="font-size:12px;opacity:.8">ระบบจะโหลดข้อมูลล่าสุดกลับมาให้</span>', 'error');
+  } finally {
+    q.saving = false;
+    if (q.dirty) {
+      if (!q.timer) window.odqlFlush();
+    } else if (q.needRefresh) {
+      q.needRefresh = false;
+      window._odqlSups = null;
+      window._odqlSupKey = null;
+      if (typeof window.refreshDutyData === 'function') window.refreshDutyData();
+    }
+  }
+};
+
 window.odqlCycle = async function(td) {
-  if (window._odqlBusy) return;
   const uid = td.dataset.uid, kind = td.dataset.kind, key = td.dataset.key;
   const cur = td.classList.contains('job') ? 'job' : td.classList.contains('sup') ? 'sup' : 'not';
   const next = cur === 'not' ? 'sup' : cur === 'sup' ? 'job' : 'not';
   const u = (GLOBAL_USER_LIST || []).find((x => String(x.id) === String(uid)));
   if (!u) return;
-  window._odqlBusy = true;
-  td.classList.add('busy');
-  try {
-    const targetDate = document.getElementById('dutyDate').value;
-    const shiftFilter = document.getElementById('dutyShiftSelect').value;
-    if (kind === 'web') {
-      const sups = window._odqlSups || (window._odqlSups = {});
-      const mine = (sups[String(uid)] || []).filter((w => w !== key));
-      const myEntries = [];
-      for (const t in currentRosterData) (currentRosterData[t] || []).forEach((x => {
-        if (x && String(x.id) === String(uid)) myEntries.push(x);
-      }));
-      const inThis = (currentRosterData[key] || []).find((x => x && String(x.id) === String(uid)));
-      if (next === 'job') {
-        if (!currentRosterData[key]) currentRosterData[key] = [];
-        if (!inThis) currentRosterData[key].push({
-          ...u,
-          secondary_team: mine[0] || null,
-          assigned_by: currentUser.username,
-          assigned_at: (new Date).toISOString()
-        });
-        sups[String(uid)] = mine;
-      } else if (next === 'sup') {
-        if (inThis) currentRosterData[key] = currentRosterData[key].filter((x => x !== inThis));
-        sups[String(uid)] = [ ...mine, key ];
-      } else {
-        if (inThis) currentRosterData[key] = currentRosterData[key].filter((x => x !== inThis));
-        sups[String(uid)] = mine;
-        if (!mine.length) delete sups[String(uid)];
-      }
-      const firstSup = (sups[String(uid)] || [])[0] || null;
-      for (const t in currentRosterData) (currentRosterData[t] || []).forEach((x => {
-        if (x && String(x.id) === String(uid)) x.secondary_team = firstSup;
-      }));
-      window.clearSettingCache();
-      window.dutyDbOk(await appDB.from('settings').upsert([ {
-        key: getDutySaveKey(targetDate, shiftFilter),
-        value: JSON.stringify(currentRosterData)
-      }, {
-        key: window.odqlSupKey(),
-        value: JSON.stringify(sups)
-      } ]));
-    } else {
+  const targetDate = document.getElementById('dutyDate').value;
+  const shiftFilter = document.getElementById('dutyShiftSelect').value;
+  const logText = `ผู้สอน OD: ${u.username} ${kind === 'web' ? 'เว็บ' : 'งาน'} [${key}] → ${next === 'job' ? 'Job' : next === 'sup' ? 'S' : 'Not'} (${currentDutyDept}, ${shiftFilter}, ${targetDate})`;
+  if (kind !== 'web') {
+    if (window._odqlBusy) return;
+    window._odqlBusy = true;
+    td.classList.add('busy');
+    try {
       const team = window.impTeamOf(key);
       team.main = team.main.filter((n => n !== u.username));
       team.support = team.support.filter((n => n !== u.username));
@@ -1202,25 +1226,53 @@ window.odqlCycle = async function(td) {
         key: `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`,
         value: JSON.stringify(window.currentImportantAssigns)
       } ]));
-    }
-    try {
-      await appDB.from('system_logs').insert([ {
+      appDB.from('system_logs').insert([ {
         action_type: 'จัดหน้าที่',
         performed_by: currentUser.username,
-        target_details: `ผู้สอน OD: ${u.username} ${kind === 'web' ? 'เว็บ' : 'งาน'} [${key}] → ${next === 'job' ? 'Job' : next === 'sup' ? 'S' : 'Not'} (${currentDutyDept}, ${shiftFilter}, ${targetDate})`
-      } ]);
-    } catch (e) {}
-    try {
-      window.debouncedBroadcast('duty-updates', 'force_reload');
-    } catch (e) {}
-    window.renderTrainerOdMatrix(currentRosterData);
-    if (typeof window.renderImportantTasksPanel === 'function') window.renderImportantTasksPanel();
-  } catch (err) {
-    Swal.fire('บันทึกไม่สำเร็จ', err.message, 'error');
-  } finally {
-    window._odqlBusy = false;
-    td.classList.remove('busy');
+        target_details: logText
+      } ]).then((() => {}), (() => {}));
+      window.debouncedBroadcast('duty-updates', 'force_reload', 150);
+      window.renderTrainerOdMatrix(currentRosterData);
+      if (typeof window.renderImportantTasksPanel === 'function') window.renderImportantTasksPanel();
+    } catch (err) {
+      Swal.fire('บันทึกไม่สำเร็จ', err.message, 'error');
+    } finally {
+      window._odqlBusy = false;
+      td.classList.remove('busy');
+    }
+    return;
   }
+  if (!currentRosterData) currentRosterData = {};
+  const sups = window._odqlSups || (window._odqlSups = {});
+  const mine = (sups[String(uid)] || []).filter((w => w !== key));
+  const inThis = (currentRosterData[key] || []).find((x => x && String(x.id) === String(uid)));
+  if (next === 'job') {
+    if (!currentRosterData[key]) currentRosterData[key] = [];
+    if (!inThis) currentRosterData[key].push({
+      ...u,
+      secondary_team: mine[0] || null,
+      assigned_by: currentUser.username,
+      assigned_at: (new Date).toISOString()
+    });
+    sups[String(uid)] = mine;
+  } else if (next === 'sup') {
+    if (inThis) currentRosterData[key] = currentRosterData[key].filter((x => x !== inThis));
+    sups[String(uid)] = [ ...mine, key ];
+  } else {
+    if (inThis) currentRosterData[key] = currentRosterData[key].filter((x => x !== inThis));
+    sups[String(uid)] = mine;
+  }
+  if (!(sups[String(uid)] || []).length) delete sups[String(uid)];
+  const firstSup = (sups[String(uid)] || [])[0] || null;
+  for (const t in currentRosterData) (currentRosterData[t] || []).forEach((x => {
+    if (x && String(x.id) === String(uid)) x.secondary_team = firstSup;
+  }));
+  const q = window._odqlQ;
+  q.logs.push(logText);
+  q.dirty = true;
+  if (q.timer) clearTimeout(q.timer);
+  q.timer = setTimeout(window.odqlFlush, 350);
+  window.renderTrainerOdMatrix(currentRosterData);
 };
 
 window.odqlCopySheet = async function() {
