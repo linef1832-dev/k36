@@ -1178,7 +1178,10 @@ window.odqlLoadSups = async function(rosterData) {
     if (data && data.value) sups = JSON.parse(data.value) || {};
   } catch (e) {}
   Object.values(rosterData || {}).forEach((arr => (arr || []).forEach((x => {
-    if (x && x.id && x.secondary_team && !sups[String(x.id)]) sups[String(x.id)] = [ x.secondary_team ];
+    if (!x || !x.id || !x.secondary_team) return;
+    const k = String(x.id);
+    if (!Array.isArray(sups[k])) sups[k] = [];
+    if (!sups[k].includes(x.secondary_team) && !(rosterData[x.secondary_team] || []).some((y => y && String(y.id) === k))) sups[k].push(x.secondary_team);
   }))));
   window._odqlSupKey = key;
   window._odqlSups = sups;

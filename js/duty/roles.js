@@ -252,12 +252,19 @@ window.impApplyLocks = function() {
   const assigns = window.currentImportantAssigns = window.impNormMap(window.currentImportantAssigns);
   const locks = window.lockedImportantTasks = window.impNormMap(window.lockedImportantTasks);
   let changed = false;
+  const away = new Set;
+  try {
+    if (typeof currentDutyLeaves !== 'undefined' && currentDutyLeaves && currentDutyLeaves.size) (GLOBAL_USER_LIST || []).forEach((u => {
+      if (u && currentDutyLeaves.has(String(u.id))) away.add(u.username);
+    }));
+  } catch (e) {}
   for (const task in locks) {
     if (!window.globalImportantTasks.includes(task)) continue;
     const team = window.impTeamOf(task);
     [ 'main', 'support' ].forEach((role => {
       const other = role === 'main' ? 'support' : 'main';
       locks[task][role].forEach((n => {
+        if (away.has(n)) return;
         if (team[role].includes(n)) return;
         team[other] = team[other].filter((x => x !== n));
         team[role].push(n);
@@ -1120,6 +1127,17 @@ window.clearSecondaryDuties = async function() {
       if (u && u.secondary_team && !u.username.includes('ขาดคน')) countHasSecondary++;
     }));
   }
+  if (currentDutyDept === 'ODQL') {
+    try {
+      const {data: sr} = await appDB.from('settings').select('value').eq('key', `duty_odql_sup_${targetDate}_${shiftFilter}`).maybeSingle();
+      const sm = sr && sr.value ? JSON.parse(sr.value) || {} : {};
+      const ids = new Set(Object.keys(sm).filter((k => (sm[k] || []).length)));
+      for (const team in roster) (roster[team] || []).forEach((u => {
+        if (u && u.secondary_team) ids.add(String(u.id));
+      }));
+      countHasSecondary = ids.size;
+    } catch (e) {}
+  }
   if (countHasSecondary === 0) {
     return Swal.fire('ไม่มีงานรอง', 'ยังไม่มีใครได้รับงานรองในวัน/กะนี้ครับ', 'info');
   }
@@ -1157,6 +1175,11 @@ window.clearSecondaryDuties = async function() {
       key: saveKey,
       value: JSON.stringify(roster)
     } ]));
+    if (currentDutyDept === 'ODQL') {
+      window.dutyDbOk(await appDB.from('settings').delete().eq('key', `duty_odql_sup_${targetDate}_${shiftFilter}`));
+      window._odqlSups = null;
+      window._odqlSupKey = null;
+    }
     try {
       await appDB.from('system_logs').insert([ {
         action_type: 'ล้างงานรอง',

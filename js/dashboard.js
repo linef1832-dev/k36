@@ -551,6 +551,16 @@ async function _doRefreshTimeSlots() {
               }
             }));
           }
+          if (myDep === 'ODQL') {
+            try {
+              const {data: supRow} = await appDB.from('settings').select('value').eq('key', `duty_odql_sup_${dateVal}_${shiftName}`).maybeSingle();
+              const sm = supRow && supRow.value ? JSON.parse(supRow.value) || {} : {};
+              (sm[String(currentUser.id)] || []).forEach((t => {
+                if (t && !assignedTeams.includes(t)) assignedTeams.push(t);
+              }));
+            } catch (e) {}
+            if (myReq !== window._slotReqId) return;
+          }
         }
         _rosterCache[rosterKey] = {
           data: assignedTeams,
