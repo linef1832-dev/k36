@@ -91,7 +91,13 @@ window.handleDrop = async function(event, toTeam) {
   }
   const targetDate = document.getElementById('dutyDate').value;
   const shiftFilter = document.getElementById('dutyShiftSelect').value;
-  if (toTeam === 'leaveList' || event.target.closest('#dutyLeaveList')) {
+  const odqlMove = fromTeam === '__odql__';
+  const toLeave = toTeam === 'leaveList' || event.target && event.target.closest && event.target.closest('#dutyLeaveList');
+  if (odqlMove && !toLeave) {
+    draggedUser = null;
+    return;
+  }
+  if (toLeave) {
     const {value: leaveReason} = await Swal.fire({
       title: '<div class="text-red-500 font-black">ระบุสถานะการหยุด</div>',
       html: `\n                <div class="text-sm font-bold text-gray-500 dark:text-gray-400 mb-4">\n                    พนักงาน: <span class="text-xl text-slate-800 dark:text-white uppercase tracking-wider">${username}</span>\n                </div>\n                <select id="leaveReasonSelect" class="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold text-sm outline-none focus:ring-2 focus:ring-red-500 shadow-inner cursor-pointer appearance-none transition">\n                    <option value="" disabled selected>-- เลือกสาเหตุการหยุด --</option>\n                    <option value="X">❌ วันหยุดปกติ (X)</option>\n                    <option value="KL">📝 ลากิจ (KL)</option>\n                    <option value="PN">🏖️ พักร้อน (PN)</option>\n                    <option value="XX">⏳ เปลี่ยนกะ / รอเข้ากะ (XX)</option>\n                    <option value="TL">🔄 สลับวันหยุด (TL / TX)</option>\n                    <option value="X4">⏱️ ลาครึ่งวัน (X4)</option>\n                    <option value="ขาดงาน">🚫 ขาดงาน (ไม่แจ้งล่วงหน้า)</option>\n                </select>\n            `,
@@ -122,7 +128,51 @@ window.handleDrop = async function(event, toTeam) {
       didOpen: () => Swal.showLoading()
     });
     try {
-      if (currentRosterData[fromTeam]) {
+      let odqlWebsOut = [];
+      if (odqlMove) {
+        if (typeof window.odqlPending === 'function' && window.odqlPending()) await window.odqlFlush();
+        const rows = [];
+        Object.keys(currentRosterData || {}).forEach((t => {
+          const before = (currentRosterData[t] || []).length;
+          currentRosterData[t] = (currentRosterData[t] || []).filter((u => !u || String(u.id) !== String(id)));
+          if (currentRosterData[t].length < before) odqlWebsOut.push(t);
+        }));
+        rows.push({
+          key: getDutySaveKey(targetDate, shiftFilter),
+          value: JSON.stringify(currentRosterData || {})
+        });
+        const sups = window._odqlSups || {};
+        if (sups[String(id)]) {
+          odqlWebsOut.push(...sups[String(id)].map((w => w + ' (S)')));
+          delete sups[String(id)];
+        }
+        rows.push({
+          key: window.odqlSupKey(),
+          value: JSON.stringify(sups)
+        });
+        const assigns = window.currentImportantAssigns || {};
+        let taskOut = false;
+        Object.keys(assigns).forEach((t => {
+          const tm = window.impNormTeam ? window.impNormTeam(assigns[t]) : null;
+          if (!tm) return;
+          const nt = {
+            main: tm.main.filter((n => n !== username)),
+            support: tm.support.filter((n => n !== username))
+          };
+          if (nt.main.length !== tm.main.length || nt.support.length !== tm.support.length) {
+            taskOut = true;
+            odqlWebsOut.push('งาน: ' + t);
+            const norm = window.impNormTeam(nt);
+            if (norm) assigns[t] = norm; else delete assigns[t];
+          }
+        }));
+        if (taskOut) rows.push({
+          key: `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`,
+          value: JSON.stringify(assigns)
+        });
+        window.clearSettingCache();
+        window.dutyDbOk(await appDB.from('settings').upsert(rows));
+      } else if (currentRosterData[fromTeam]) {
         currentRosterData[fromTeam] = currentRosterData[fromTeam].filter((u => String(u.id) !== String(id)));
         const saveKey = getDutySaveKey(targetDate, shiftFilter);
         if (typeof window.dutyDedupeRoster === "function") window.dutyDedupeRoster(currentRosterData);
@@ -145,14 +195,14 @@ window.handleDrop = async function(event, toTeam) {
       await appDB.from('system_logs').insert([ {
         action_type: 'ย้ายหน้าที่',
         performed_by: currentUser.username,
-        target_details: `ย้าย ${username} จากเว็บ ${fromTeam} ไปอยู่โซนลาหยุด (${leaveReason}) วันที่: ${targetDate}`
+        target_details: odqlMove ? `ย้ายผู้สอน OD ${username} ไปอยู่โซนลาหยุด (${leaveReason}) ${shiftFilter} วันที่: ${targetDate}${odqlWebsOut.length ? ' — เอาออกจาก ' + odqlWebsOut.join(', ') : ''}` : `ย้าย ${username} จากเว็บ ${fromTeam} ไปอยู่โซนลาหยุด (${leaveReason}) วันที่: ${targetDate}`
       } ]);
       window.debouncedBroadcast('duty-updates', 'force_reload');
       await window.refreshDutyData();
       Swal.fire({
         icon: 'success',
         title: 'อัปเดตสถานะสำเร็จ!',
-        html: `<b>${window.escapeHtml(username)}</b> ออกจากเว็บ <b>${window.escapeHtml(fromTeam)}</b> → ลาหยุด (<b>${window.escapeHtml(leaveReason)}</b>)`,
+        html: odqlMove ? `<b>${window.escapeHtml(username)}</b> → ลาหยุด (<b>${window.escapeHtml(leaveReason)}</b>)` + (odqlWebsOut.length ? `<br><span style="font-size:12px;opacity:.8">เอาออกจาก ${window.escapeHtml(odqlWebsOut.join(', '))}</span>` : '') : `<b>${window.escapeHtml(username)}</b> ออกจากเว็บ <b>${window.escapeHtml(fromTeam)}</b> → ลาหยุด (<b>${window.escapeHtml(leaveReason)}</b>)`,
         timer: 2600,
         showConfirmButton: false
       });
@@ -1118,7 +1168,8 @@ window.renderTrainerOdMatrix = async function(rosterData) {
     const sh = window.getDutyShiftForToday(u);
     const onLeave = leaveIds.has(String(u.id));
     const isMe = typeof currentUser !== 'undefined' && currentUser && String(currentUser.id) === String(u.id);
-    let r = `<tr class="oq-r${onLeave ? ' lv' : ''}${isMe ? ' me' : ''}"><td class="oq-n oq-fix1" title="${esc(u.username)}">${esc(u.username)}${isMe ? ' <em>คุณ</em>' : ''}${onLeave ? ' <small>(ลา)</small>' : ''}</td><td class="oq-s oq-fix2 ${sh === 'กะดึก' ? 'n' : sh === 'กะกลาง' ? 'm' : 'd'}">${shLabel(sh)}</td>`;
+    const nameAttrs = canEdit && !onLeave ? ` duty-user-card can" draggable="true" ondragstart="handleDragStart(event, '${window.escapeJsAttr(String(u.id))}', '${window.escapeJsAttr(u.username)}', '__odql__')" ondragend="if(typeof cleanupDragEffects==='function')cleanupDragEffects();this.classList.remove('opacity-50','scale-95')" onclick="odqlToLeave('${window.escapeJsAttr(String(u.id))}', '${window.escapeJsAttr(u.username)}')" title="${esc(u.username)} — กดหรือลากไปช่องลาหยุด เพื่อย้ายไปลา"` : `" title="${esc(u.username)}"`;
+    let r = `<tr class="oq-r${onLeave ? ' lv' : ''}${isMe ? ' me' : ''}"><td class="oq-n oq-fix1${nameAttrs}>${esc(u.username)}${isMe ? ' <em>คุณ</em>' : ''}${onLeave ? ' <small>(ลา)</small>' : ''}</td><td class="oq-s oq-fix2 ${sh === 'กะดึก' ? 'n' : sh === 'กะกลาง' ? 'm' : 'd'}">${shLabel(sh)}</td>`;
     r += webs.map((w => cell(window.odqlCellOf(u, w, rosterData), u.id, 'web', w))).join('');
     r += tasks.map((t => cell(window.odqlTaskCellOf(u, t), u.id, 'task', t))).join('');
     return r + '</tr>';
@@ -1273,6 +1324,19 @@ window.odqlCycle = async function(td) {
   if (q.timer) clearTimeout(q.timer);
   q.timer = setTimeout(window.odqlFlush, 350);
   window.renderTrainerOdMatrix(currentRosterData);
+};
+
+window.odqlToLeave = function(userId, username) {
+  if (!window.isDutyAdmin()) return;
+  draggedUser = {
+    id: userId,
+    username: username,
+    fromTeam: '__odql__'
+  };
+  window.handleDrop({
+    preventDefault: () => {},
+    target: null
+  }, 'leaveList');
 };
 
 window.odqlCopySheet = async function() {
