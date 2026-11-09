@@ -1207,7 +1207,7 @@ window.addStaffToRoster = async function() {
 };
 
 window.dutyDedupeRoster = function(rosterData) {
-  if (!rosterData || typeof rosterData !== "object") return {
+  if (!rosterData || typeof rosterData !== "object" || currentDutyDept === 'ODQL') return {
     data: rosterData,
     removed: []
   };
@@ -1375,7 +1375,8 @@ window.generateDutyRoster = async function() {
     document.querySelectorAll('.req-input').forEach((i => requiredCount += parseInt(i.value) || 0));
     if (requiredCount === 0) return;
   }
-  if (requiredCount > activeStaff.length) return Swal.fire('ขาดคน!', `คุณจัดงาน ${requiredCount} คน แต่มีคนว่างแค่ ${activeStaff.length} คน (กรุณาลดจำนวน)`, 'error');
+  const odqlMulti = currentDutyDept === 'ODQL';
+  if (!odqlMulti && requiredCount > activeStaff.length) return Swal.fire('ขาดคน!', `คุณจัดงาน ${requiredCount} คน แต่มีคนว่างแค่ ${activeStaff.length} คน (กรุณาลดจำนวน)`, 'error');
   Swal.fire({
     title: 'กำลังจัดตารางหลัก...',
     text: 'ระบบกำลังจัดหน้าที่หลัก โดยจะยังไม่แจกงานรอง...',
@@ -1502,6 +1503,30 @@ window.generateDutyRoster = async function() {
       rosterResult[teamToFill].push(pickedUser);
       remainingReqs[teamToFill]--;
       unassignedPool = unassignedPool.filter((u => u.id !== pickedUser.id));
+    }
+    if (odqlMulti && activeStaff.length) {
+      let rr = 0;
+      sortedTeams.forEach((t => {
+        const need = (requirements[t] || 0) - (rosterResult[t] || []).filter((x => x && x.id)).length;
+        for (let k = 0; k < need; k++) {
+          let placed = false;
+          for (let tries = 0; tries < activeStaff.length && !placed; tries++) {
+            const u = activeStaff[(rr++) % activeStaff.length];
+            const acc = dutyAccessMatrix[String(u.id)];
+            if (acc && acc.length && !acc.includes(t)) continue;
+            if ((rosterResult[t] || []).some((x => x && String(x.id) === String(u.id)))) continue;
+            rosterResult[t] = (rosterResult[t] || []).filter((x => !(x && !x.id && String(x.username || '').includes('ขาดคน'))));
+            rosterResult[t].push({
+              ...u,
+              secondary_team: null,
+              assigned_by: currentUser.username,
+              assigned_at: (new Date).toISOString()
+            });
+            placed = true;
+          }
+        }
+      }));
+      unassignedPool = [];
     }
     const lockedIds = pinnedIds;
     const repairSwaps = window.repairRosterRotation(rosterResult, rotation, lockedIds);

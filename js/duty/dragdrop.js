@@ -953,7 +953,10 @@ window.updateDutyStats = function() {
   }));
   let statusHTML = '';
   let statusClass = 'p-2 text-center text-xs font-bold transition-colors duration-300 border-b shadow-sm ';
-  if (requiredCount === 0) {
+  if (currentDutyDept === 'ODQL' && requiredCount > 0) {
+    statusClass += 'bg-indigo-600 text-white border-indigo-700';
+    statusHTML = `👩‍🏫 ผู้สอน OD: ตั้งรวม ${requiredCount} ตำแหน่ง · มีผู้สอน ${availableCount} คน (1 คนรับได้หลายเว็บ ระบบจะวนให้ครบ)`;
+  } else if (requiredCount === 0) {
     statusClass += 'bg-gray-200 text-gray-600 border-gray-300 dark:bg-slate-800 dark:border-slate-700';
     statusHTML = `ℹ️ กรุณาใส่จำนวนคนให้แต่ละเว็บ (คนมาทำงานกะนี้: ${availableCount} คน)`;
   } else if (availableCount === requiredCount) {
@@ -1038,7 +1041,7 @@ window.odqlPrimaryOf = function(uid, rosterData) {
 
 window.odqlCellOf = function(u, web, rosterData) {
   const uid = String(u.id);
-  if (window.odqlPrimaryOf(uid, rosterData) === web) return 'job';
+  if ((rosterData[web] || []).some((x => x && String(x.id) === uid))) return 'job';
   const sups = (window._odqlSups || {})[uid] || [];
   return sups.includes(web) ? 'sup' : 'not';
 };
@@ -1137,37 +1140,32 @@ window.odqlCycle = async function(td) {
     if (kind === 'web') {
       const sups = window._odqlSups || (window._odqlSups = {});
       const mine = (sups[String(uid)] || []).filter((w => w !== key));
-      let entry = null, entryTeam = null;
-      for (const t in currentRosterData) {
-        const hit = (currentRosterData[t] || []).find((x => x && String(x.id) === String(uid)));
-        if (hit) {
-          entry = hit;
-          entryTeam = t;
-        }
-      }
+      const myEntries = [];
+      for (const t in currentRosterData) (currentRosterData[t] || []).forEach((x => {
+        if (x && String(x.id) === String(uid)) myEntries.push(x);
+      }));
+      const inThis = (currentRosterData[key] || []).find((x => x && String(x.id) === String(uid)));
       if (next === 'job') {
-        if (entry && entryTeam) currentRosterData[entryTeam] = currentRosterData[entryTeam].filter((x => x !== entry));
-        if (!entry) entry = {
+        if (!currentRosterData[key]) currentRosterData[key] = [];
+        if (!inThis) currentRosterData[key].push({
           ...u,
+          secondary_team: mine[0] || null,
           assigned_by: currentUser.username,
           assigned_at: (new Date).toISOString()
-        };
-        if (!currentRosterData[key]) currentRosterData[key] = [];
-        entry.secondary_team = mine[0] || null;
-        currentRosterData[key].push(entry);
+        });
         sups[String(uid)] = mine;
       } else if (next === 'sup') {
-        if (entryTeam === key) {
-          currentRosterData[key] = currentRosterData[key].filter((x => x !== entry));
-          entry = null;
-        }
+        if (inThis) currentRosterData[key] = currentRosterData[key].filter((x => x !== inThis));
         sups[String(uid)] = [ ...mine, key ];
-        if (entry) entry.secondary_team = sups[String(uid)][0] || null;
       } else {
+        if (inThis) currentRosterData[key] = currentRosterData[key].filter((x => x !== inThis));
         sups[String(uid)] = mine;
         if (!mine.length) delete sups[String(uid)];
-        if (entry) entry.secondary_team = mine[0] || null;
       }
+      const firstSup = (sups[String(uid)] || [])[0] || null;
+      for (const t in currentRosterData) (currentRosterData[t] || []).forEach((x => {
+        if (x && String(x.id) === String(uid)) x.secondary_team = firstSup;
+      }));
       window.clearSettingCache();
       window.dutyDbOk(await appDB.from('settings').upsert([ {
         key: getDutySaveKey(targetDate, shiftFilter),
