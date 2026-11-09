@@ -1081,7 +1081,7 @@ window.renderTrainerOdMatrix = async function(rosterData) {
   const canEdit = window.isDutyAdmin() && (!window.isTrainerDept() || canPerm('duty_manage_odql') || canPerm('duty_manage_amql') || canPerm('duty_manage'));
   const shiftFilter = document.getElementById('dutyShiftSelect') ? document.getElementById('dutyShiftSelect').value : 'all';
   const webs = window.odqlWebs();
-  const tasks = window.odqlTaskList();
+  const tasks = [];
   const leaveIds = new Set((window.currentDutyLeaveData || []).map((l => String(l.user_id))));
   const inRoster = new Set;
   Object.values(rosterData).forEach((arr => (arr || []).forEach((x => x && x.id && inRoster.add(String(x.id))))));
@@ -1136,7 +1136,6 @@ window.renderTrainerOdMatrix = async function(rosterData) {
       <div class="oq-legend"><span class="job">✓ Job</span> ดูแลหลัก <span class="sup">S</span> ซัพพอร์ต/เว็บรอง <span class="not">Not</span> ไม่ดูแล${canEdit ? ' · กดช่อง: Not → S → Job → Not บันทึกทันที' : ''}</div>
       <div class="oq-tools">
         <button type="button" class="oq-btn" onclick="odqlCopySheet()" title="คัดลอกเป็นตารางไปวางในชีต/Excel"><span class="material-icons">content_copy</span>คัดลอกไปวางชีต</button>
-        ${!tasks.length && canEdit ? '<span class="oq-hint">ยังไม่มีงานประจำวัน — เพิ่มได้ที่กล่อง "หน้าที่ประจำ / พิเศษ" ด้านซ้าย</span>' : ''}
       </div>
     </div>
     <div class="oq-wrap"><table class="oq-t"><thead><tr>${head1}</tr><tr>${head2}</tr></thead><tbody>${rows || `<tr><td colspan="${2 + webs.length + tasks.length}" class="oq-empty">ไม่มีผู้สอน OD ในกะนี้</td></tr>`}</tbody><tfoot>${foot}</tfoot></table></div>`;
