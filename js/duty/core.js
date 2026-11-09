@@ -1305,6 +1305,11 @@ window.clearDutyRoster = async function() {
           value: JSON.stringify(newAssigns)
         } ]));
         if (window.isTrainerDept()) await appDB.from('settings').delete().eq('key', reportKey);
+        if (currentDutyDept === 'ODQL') {
+          await appDB.from('settings').delete().eq('key', `duty_odql_sup_${targetDate}_${shiftFilter}`);
+          window._odqlSupKey = null;
+          window._odqlSups = null;
+        }
         await appDB.from('system_logs').insert([ {
           action_type: 'ล้างตารางงาน',
           performed_by: currentUser.username,

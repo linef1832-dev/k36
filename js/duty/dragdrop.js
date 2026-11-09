@@ -1076,7 +1076,7 @@ window.renderTrainerOdMatrix = async function(rosterData) {
   const shLabel = s => s === 'กะเช้า' ? 'เช้า' : s === 'กะกลาง' ? 'กลาง' : s === 'กะดึก' ? 'ดึก' : '-';
   trainers.sort(((a, b) => shOrder.indexOf(window.getDutyShiftForToday(a)) - shOrder.indexOf(window.getDutyShiftForToday(b)) || a.username.localeCompare(b.username)));
   const esc = window.escapeHtml;
-  const cell = (val, uid, kind, key) => `<td class="oq-c ${val}${canEdit ? ' ed' : ''}" data-uid="${esc(String(uid))}" data-kind="${kind}" data-key="${esc(key)}" ${canEdit ? `onclick="odqlCycle(this)" title="กดเพื่อสลับ: Job → S → Not"` : ''}><span>${val === 'job' ? '✓ Job' : val === 'sup' ? 'S' : 'Not'}</span></td>`;
+  const cell = (val, uid, kind, key) => `<td class="oq-c ${val}${canEdit ? ' ed' : ''}" data-uid="${esc(String(uid))}" data-kind="${kind}" data-key="${esc(key)}" ${canEdit ? `onclick="odqlCycle(this)" title="กดเพื่อสลับ: Not → S → Job → Not"` : ''}><span>${val === 'job' ? '✓ Job' : val === 'sup' ? 'S' : 'Not'}</span></td>`;
   let head1 = `<th rowspan="2" class="oq-h oq-fix1">รายชื่อผู้ดูแล</th><th rowspan="2" class="oq-h oq-fix2">กะ</th>`;
   head1 += `<th colspan="${webs.length}" class="oq-h oq-grp">เว็บที่ดูแล (Job = หลัก · S = รอง)</th>`;
   if (tasks.length) head1 += `<th colspan="${tasks.length}" class="oq-h oq-grp oq-grp-t">งานประจำวัน</th>`;
@@ -1113,7 +1113,7 @@ window.renderTrainerOdMatrix = async function(rosterData) {
   })).join('')}</tr>`;
   matrixGrid.innerHTML = `
     <div class="oq-top">
-      <div class="oq-legend"><span class="job">✓ Job</span> ดูแลหลัก <span class="sup">S</span> ซัพพอร์ต/เว็บรอง <span class="not">Not</span> ไม่ดูแล${canEdit ? ' · กดช่องเพื่อสลับ บันทึกทันที' : ''}</div>
+      <div class="oq-legend"><span class="job">✓ Job</span> ดูแลหลัก <span class="sup">S</span> ซัพพอร์ต/เว็บรอง <span class="not">Not</span> ไม่ดูแล${canEdit ? ' · กดช่อง: Not → S → Job → Not บันทึกทันที' : ''}</div>
       <div class="oq-tools">
         <button type="button" class="oq-btn" onclick="odqlCopySheet()" title="คัดลอกเป็นตารางไปวางในชีต/Excel"><span class="material-icons">content_copy</span>คัดลอกไปวางชีต</button>
         ${!tasks.length && canEdit ? '<span class="oq-hint">ยังไม่มีงานประจำวัน — เพิ่มได้ที่กล่อง "หน้าที่ประจำ / พิเศษ" ด้านซ้าย</span>' : ''}
@@ -1126,7 +1126,7 @@ window.odqlCycle = async function(td) {
   if (window._odqlBusy) return;
   const uid = td.dataset.uid, kind = td.dataset.kind, key = td.dataset.key;
   const cur = td.classList.contains('job') ? 'job' : td.classList.contains('sup') ? 'sup' : 'not';
-  const next = cur === 'not' ? 'job' : cur === 'job' ? 'sup' : 'not';
+  const next = cur === 'not' ? 'sup' : cur === 'sup' ? 'job' : 'not';
   const u = (GLOBAL_USER_LIST || []).find((x => String(x.id) === String(uid)));
   if (!u) return;
   window._odqlBusy = true;
@@ -1137,26 +1137,36 @@ window.odqlCycle = async function(td) {
     if (kind === 'web') {
       const sups = window._odqlSups || (window._odqlSups = {});
       const mine = (sups[String(uid)] || []).filter((w => w !== key));
-      let entry = null;
+      let entry = null, entryTeam = null;
       for (const t in currentRosterData) {
-        const idx = (currentRosterData[t] || []).findIndex((x => x && String(x.id) === String(uid)));
-        if (idx > -1) entry = currentRosterData[t].splice(idx, 1)[0];
+        const hit = (currentRosterData[t] || []).find((x => x && String(x.id) === String(uid)));
+        if (hit) {
+          entry = hit;
+          entryTeam = t;
+        }
       }
-      if (!entry) entry = {
-        ...u,
-        assigned_by: currentUser.username,
-        assigned_at: (new Date).toISOString()
-      };
       if (next === 'job') {
+        if (entry && entryTeam) currentRosterData[entryTeam] = currentRosterData[entryTeam].filter((x => x !== entry));
+        if (!entry) entry = {
+          ...u,
+          assigned_by: currentUser.username,
+          assigned_at: (new Date).toISOString()
+        };
         if (!currentRosterData[key]) currentRosterData[key] = [];
         entry.secondary_team = mine[0] || null;
         currentRosterData[key].push(entry);
         sups[String(uid)] = mine;
       } else if (next === 'sup') {
+        if (entryTeam === key) {
+          currentRosterData[key] = currentRosterData[key].filter((x => x !== entry));
+          entry = null;
+        }
         sups[String(uid)] = [ ...mine, key ];
+        if (entry) entry.secondary_team = sups[String(uid)][0] || null;
       } else {
         sups[String(uid)] = mine;
         if (!mine.length) delete sups[String(uid)];
+        if (entry) entry.secondary_team = mine[0] || null;
       }
       window.clearSettingCache();
       window.dutyDbOk(await appDB.from('settings').upsert([ {
