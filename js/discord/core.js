@@ -150,12 +150,16 @@ function getDiscordGroupMismatch(staff) {
 
 window.dsBotOk = async function(resOrPromise) {
   const res = await resOrPromise;
-  if (!res || !res.ok) throw new Error('บอทตอบกลับผิดพลาด' + (res ? ' (' + res.status + ')' : ''));
+  if (!res) throw new Error('บอทตอบกลับผิดพลาด');
   let d = null;
   try {
     d = await res.clone().json();
   } catch (e) {}
-  if (d && d.success === false) throw new Error(d.error || 'บอททำรายการไม่สำเร็จ');
+  if (!res.ok || d && d.success === false) {
+    const err = new Error(d && d.error || 'บอทตอบกลับผิดพลาด (' + res.status + ')');
+    err.data = d;
+    throw err;
+  }
   return d;
 };
 
@@ -1235,11 +1239,22 @@ window.ds_startMove = async function() {
   }
 };
 
+window.ds_returnReportHtml = function(r) {
+  const failed = r && Array.isArray(r.failed) ? r.failed : [];
+  const skipped = r && Array.isArray(r.skipped) ? r.skipped : [];
+  const row = x => typeof x === 'string' ? `<li>${dsEsc(x)}</li>` : `<li><b>${dsEsc(x.name || '')}</b> — ${dsEsc(x.reason || '')}</li>`;
+  let h = '';
+  if (failed.length) h += `<div style="text-align:left;margin-top:12px"><div style="font-weight:800;color:#f87171;font-size:13px">ย้ายกลับไม่สำเร็จ ${failed.length} คน</div><ul style="font-size:12px;margin:4px 0 0 18px;list-style:disc;max-height:140px;overflow:auto">${failed.map(row).join('')}</ul></div>`;
+  if (skipped.length) h += `<div style="text-align:left;margin-top:12px"><div style="font-weight:800;color:#f59e0b;font-size:13px">ข้ามไป ${skipped.length} คน</div><ul style="font-size:12px;margin:4px 0 0 18px;list-style:disc;max-height:140px;overflow:auto">${skipped.map(row).join('')}</ul></div>`;
+  if (r && r.remaining) h += `<div style="font-size:11.5px;opacity:.75;margin-top:10px">ยังจำห้องเดิมไว้อีก ${r.remaining} คน กดส่งกลับอีกครั้งได้เมื่อพร้อม</div>`;
+  return h;
+};
+
 window.ds_returnMove = async function() {
   if (!window.dsRequire('ds_move')) return;
   const ok = await Swal.fire({
     title: 'ย้ายทุกคนกลับห้องเดิม?',
-    text: 'ทุกคนที่ถูกย้ายด้วยปุ่ม "ดึงคนย้ายห้องทันที" จะถูกส่งกลับห้องที่อยู่ก่อนหน้า',
+    text: 'ทุกคนที่ถูกย้ายด้วยปุ่ม "ย้ายทันที" จะถูกส่งกลับห้องที่อยู่ก่อนถูกย้าย',
     icon: 'question',
     showCancelButton: true,
     confirmButtonText: 'ย้ายกลับ',
@@ -1256,11 +1271,23 @@ window.ds_returnMove = async function() {
       method: 'POST'
     }));
     const n = r && r.count != null ? r.count : 0;
-    Swal.fire('สำเร็จ', `ย้ายกลับ ${n} คนแล้ว`, 'success');
-    ds_logAction('Return Move', `ดึงพนักงาน ${n} คนกลับห้องเดิม`);
+    const extra = window.ds_returnReportHtml(r);
+    const nf = r && Array.isArray(r.failed) ? r.failed.length : 0, ns = r && Array.isArray(r.skipped) ? r.skipped.length : 0;
+    Swal.fire({
+      icon: nf || ns ? 'warning' : 'success',
+      title: nf || ns ? 'ย้ายกลับได้บางส่วน' : 'สำเร็จ',
+      html: `ย้ายกลับ <b>${n}</b> คนแล้ว` + extra,
+      width: extra ? 520 : undefined
+    });
+    ds_logAction('Return Move', `ดึงพนักงาน ${n} คนกลับห้องเดิม` + (nf ? ` · ไม่สำเร็จ ${nf} คน: ${r.failed.map((x => x.name || x)).join(', ')}` : '') + (ns ? ` · ข้าม ${ns} คน: ${r.skipped.map((x => x.name || x)).join(', ')}` : ''));
     if (typeof ds_fetchSpy === 'function') ds_fetchSpy();
+    setTimeout((() => window.ds_refreshMoveRooms && window.ds_refreshMoveRooms(false)), 1200);
   } catch (e) {
-    Swal.fire('ย้ายกลับไม่สำเร็จ', e.message || 'เชื่อมต่อบอทไม่ได้', 'error');
+    Swal.fire({
+      icon: 'error',
+      title: 'ย้ายกลับไม่สำเร็จ',
+      html: dsEsc(e.message || 'เชื่อมต่อบอทไม่ได้') + window.ds_returnReportHtml(e.data)
+    });
   }
 };
 
