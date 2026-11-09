@@ -950,7 +950,7 @@ window.applySidebarPermissions = async function() {
         }
         el = el.nextElementSibling;
       }
-      h.style.display = hasVisible ? '' : 'none';
+      h.style.display = hasVisible ? 'flex' : 'none';
     }));
   };
   const cachedRules = localStorage.getItem('cached_menu_rules');

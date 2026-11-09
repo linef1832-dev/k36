@@ -23,7 +23,7 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     
     <script>
-window._APP_VERSION = "158";
+window._APP_VERSION = "159";
 </script>
     <script>
 (function(v) {
@@ -67,7 +67,9 @@ function toggleSubMenu(menuId, iconId) {
 
         .sidebar-collapse-row{ display:none; border-top:1px solid rgba(255,255,255,0.06); padding-top:10px; margin-top:8px; }
         #sidebarNav{ transition:width .24s cubic-bezier(.4,0,.2,1) !important; overflow-x:hidden !important; will-change:width; }
-        #sidebarNav .menu-section-header{ flex-wrap:nowrap !important; overflow:hidden; }
+        #sidebarNav .menu-section-header{ display:flex; align-items:center; flex-wrap:nowrap !important; overflow:hidden; }
+        #sidebarNav .sec-chip, #sidebarNav .footer-chip{ transition:width .2s ease, height .2s ease, margin .2s ease, background .16s ease !important; }
+        #sidebarNav .sec-chip .material-icons, #sidebarNav .footer-chip .material-icons{ transition:font-size .2s ease, color .16s ease !important; }
         #sidebarNav .sec-label, #sidebarNav .sidebar-footer-label{ white-space:nowrap !important; overflow:hidden; text-overflow:clip; transition:opacity .14s ease; }
         #sidebarNav .sec-chev{ transition:opacity .14s ease, transform .28s cubic-bezier(.2,.8,.2,1) !important; }
         #sidebarNav #menu-list > button, #sidebarNav #menu-list > button > div{ white-space:nowrap !important; overflow:hidden; }
@@ -674,13 +676,10 @@ document.addEventListener('keydown', (function(e) {
       window._sbT1 = setTimeout((() => {
         nav.classList.add('sb-narrow');
         waitWidth((() => {
-          nav.classList.add('sb-instant');
           nav.classList.add('sidebar-mini');
           finish();
-          void nav.offsetWidth;
-          requestAnimationFrame((() => nav.classList.remove('sb-instant')));
         }));
-      }), 140);
+      }), 110);
     } else {
       nav.classList.add('sb-instant', 'sb-anim', 'sb-narrow');
       nav.classList.remove('sidebar-mini');
