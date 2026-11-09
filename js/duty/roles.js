@@ -70,7 +70,7 @@ window.renderImportantTasksPanel = function() {
   let html = `\n        <div class="bg-[#151f32] border border-slate-700/80 rounded-2xl shadow-lg flex flex-col max-h-[750px] overflow-hidden">\n            <div class="bg-gradient-to-r from-amber-600 to-yellow-500 text-white p-3 flex justify-between items-center shadow-md shrink-0">\n                <div class="flex items-center gap-2">\n                    <span class="material-icons">star</span>\n                    <h4 class="font-black text-sm tracking-wide">หน้าที่ประจำ / พิเศษ</h4>\n                </div>\n                <div class="flex gap-1">\n                    ${isAdmin ? `<button onclick="window.randomizeImportantTasks()" class="bg-indigo-600 hover:bg-indigo-500 px-2 py-1 rounded text-[10px] font-bold shadow-inner transition flex items-center gap-1 border border-indigo-400 active:scale-95"><span class="material-icons text-[12px]">casino</span> สุ่มลงงาน</button>` : ''}\n                    ${isAdmin ? `<button onclick="window.addImportantTask()" class="bg-black/20 hover:bg-black/30 px-2 py-1 rounded text-[10px] font-bold shadow-inner transition flex items-center gap-1 border border-white/20"><span class="material-icons text-[12px]">add</span> เพิ่ม</button>` : ''}\n                </div>\n            </div>\n            <div class="p-3 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-3">\n    `;
   const allTasksToShow = [ ...new Set([ ...window.globalImportantTasks, ...Object.keys(assigns) ]) ];
   if (allTasksToShow.length === 0) {
-    html += `<div class="text-center py-10 text-gray-500 text-xs font-bold border border-dashed border-slate-700 rounded-xl bg-slate-900/50">แอดมินยังไม่ได้ตั้งค่างานพิเศษ</div>`;
+    html += isAdmin ? `<div class="text-center py-7 px-3 text-gray-400 text-xs font-bold border border-dashed border-slate-700 rounded-xl bg-slate-900/50 flex flex-col items-center gap-2"><span>ยังไม่มีงานประจำของแผนกนี้ในกะนี้</span><span class="text-[10.5px] font-semibold text-gray-500">เพิ่มงานก่อน แล้วค่อยกด "สุ่มลงงาน"</span><button onclick="window.addImportantTask()" class="mt-1 bg-amber-500 hover:bg-amber-400 text-white px-3 py-1.5 rounded-lg text-[11px] font-black flex items-center gap-1 active:scale-95 transition"><span class="material-icons text-[14px]">add</span> เพิ่มงานแรก</button></div>` : `<div class="text-center py-10 text-gray-500 text-xs font-bold border border-dashed border-slate-700 rounded-xl bg-slate-900/50">แอดมินยังไม่ได้ตั้งค่างานพิเศษ</div>`;
   } else {
     allTasksToShow.forEach((task => {
       const team = window.impTeamOf(task);
@@ -359,7 +359,19 @@ window.toggleLockImportantPerson = async function(taskName, role, name) {
 
 window.randomizeImportantTasks = async function() {
   if (window._impDenied()) return;
-  if (window.globalImportantTasks.length === 0) return Swal.fire('ไม่มีงาน', 'กรุณาเพิ่มหน้าที่สำคัญก่อนทำการสุ่มครับ', 'warning');
+  if (window.globalImportantTasks.length === 0) {
+    const ask = await Swal.fire({
+      icon: 'info',
+      title: 'ยังไม่มีงานให้สุ่ม',
+      html: 'กะนี้ยังไม่ได้เพิ่มงานประจำ / พิเศษเลยครับ<br><span style="font-size:12px;opacity:.8">รายการงานแยกตามแผนกและกะ ต้องเพิ่มของกะนี้ก่อน</span>',
+      showCancelButton: true,
+      confirmButtonText: '+ เพิ่มงานเลย',
+      cancelButtonText: 'ปิด',
+      confirmButtonColor: '#f59e0b'
+    });
+    if (ask.isConfirmed) await window.addImportantTask();
+    return;
+  }
   const k = window.impKeys();
   const available = window.getDutyActiveStaff(k.shift, {
     anyRole: true

@@ -773,7 +773,7 @@ window.renderDutyRequirements = function() {
 window.dutyReqStep = function(team, delta) {
   const input = document.getElementById(`req_${team}`);
   if (!input) return;
-  if (delta > 0 && window._dreqPoolCount() <= 0) {
+  if (delta > 0 && currentDutyDept !== 'ODQL' && window._dreqPoolCount() <= 0) {
     const pill = document.getElementById('dreqTotal');
     if (pill) {
       pill.classList.add('dreq-shake');
@@ -811,12 +811,29 @@ window.updateReqTotal = function() {
     avail = window.getDutyActiveStaff(document.getElementById('dutyShiftSelect').value).length;
   } catch (e) {}
   const pool = avail - total;
-  num.textContent = pool === 0 ? '0 ✓' : pool;
-  sub.textContent = `แจกแล้ว ${total}/${avail}`;
+  const lb = card.querySelector('.dreq-pool-lb');
+  const unit = card.querySelector('.dreq-pool-unit');
   card.classList.remove('ok', 'bad');
-  if (pool === 0) card.classList.add('ok'); else if (pool < 0) card.classList.add('bad');
   const bar = document.getElementById('dreqPoolBar');
-  if (bar) bar.style.width = (avail > 0 ? Math.min(100, Math.round(total / avail * 100)) : 0) + '%';
+  if (currentDutyDept === 'ODQL') {
+    if (lb) lb.textContent = 'ตั้งรวม';
+    if (unit) unit.textContent = 'ตำแหน่ง';
+    num.textContent = total;
+    sub.textContent = `ผู้สอน ${avail} คน` + (total > avail ? ' · ออกงานซ้ำได้' : '');
+    card.title = 'ผู้สอน OD 1 คนรับได้หลายเว็บ ตั้งเกินจำนวนคนได้ ระบบจะวนแจกให้ครบ';
+    if (total >= avail && total > 0) card.classList.add('ok');
+    if (bar) bar.style.width = (avail > 0 ? Math.min(100, Math.round(total / avail * 100)) : 0) + '%';
+  } else {
+    if (lb) lb.textContent = 'ส่วนกลางเหลือ';
+    if (unit) unit.textContent = 'คน';
+    card.title = 'คนที่ยังไม่ได้แจกลงเว็บไหน — เหลือ 0 แปลว่าแจกครบพอดี';
+    num.textContent = pool === 0 ? '0 ✓' : pool;
+    sub.textContent = `แจกแล้ว ${total}/${avail}`;
+    if (pool === 0) card.classList.add('ok'); else if (pool < 0) card.classList.add('bad');
+    if (bar) bar.style.width = (avail > 0 ? Math.min(100, Math.round(total / avail * 100)) : 0) + '%';
+  }
+  const hint = document.querySelector('#dutyApp .dq-hint');
+  if (hint) hint.textContent = currentDutyDept === 'ODQL' ? 'ผู้สอน OD กด + เพิ่มได้เกินจำนวนคน 1 คนออกงานซ้ำได้หลายเว็บ ชี้ที่การ์ดเพื่อสลับลำดับเว็บ' : 'กด − ย้ายคนกลับส่วนกลาง กด + แจกคนจากส่วนกลาง ชี้ที่การ์ดเพื่อสลับลำดับเว็บ';
   sortedTeams.forEach((t => {
     const c = document.getElementById(`dreqCard_${t}`);
     if (c) c.classList.toggle('zero', !(parseInt(document.getElementById(`req_${t}`)?.value) || 0));
@@ -859,7 +876,7 @@ window.manualAdjustReq = function(changedTeam, delta) {
     if (t !== changedTeam) othersTotal += parseInt(document.getElementById(`req_${t}`)?.value) || 0;
   }));
   const maxAllowed = Math.max(0, availableCount - othersTotal);
-  if (v > maxAllowed) {
+  if (currentDutyDept !== 'ODQL' && v > maxAllowed) {
     v = maxAllowed;
     const pill = document.getElementById('dreqTotal');
     if (pill) {
