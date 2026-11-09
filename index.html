@@ -23,7 +23,7 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     
     <script>
-window._APP_VERSION = "157";
+window._APP_VERSION = "158";
 </script>
     <script>
 (function(v) {
@@ -66,6 +66,15 @@ function toggleSubMenu(menuId, iconId) {
         html.dark #menu-list .nm-menu-title.active .material-icons{ color:#E8C15A !important; }
 
         .sidebar-collapse-row{ display:none; border-top:1px solid rgba(255,255,255,0.06); padding-top:10px; margin-top:8px; }
+        #sidebarNav{ transition:width .24s cubic-bezier(.4,0,.2,1) !important; overflow-x:hidden !important; will-change:width; }
+        #sidebarNav .menu-section-header{ flex-wrap:nowrap !important; overflow:hidden; }
+        #sidebarNav .sec-label, #sidebarNav .sidebar-footer-label{ white-space:nowrap !important; overflow:hidden; text-overflow:clip; transition:opacity .14s ease; }
+        #sidebarNav .sec-chev{ transition:opacity .14s ease, transform .28s cubic-bezier(.2,.8,.2,1) !important; }
+        #sidebarNav #menu-list > button, #sidebarNav #menu-list > button > div{ white-space:nowrap !important; overflow:hidden; }
+        #sidebarNav #menu-list > button{ transition:opacity .14s ease; }
+        #sidebarNav.sb-anim .sec-label, #sidebarNav.sb-anim .sec-chev, #sidebarNav.sb-anim .sidebar-footer-label, #sidebarNav.sb-anim #menu-list > button{ opacity:0 !important; pointer-events:none; }
+        #sidebarNav.sb-narrow:not(.sb-x){ width:64px !important; }
+        #sidebarNav.sb-instant, #sidebarNav.sb-instant *{ transition:none !important; }
         @media (min-width:480px){
             .sidebar-collapse-row{ display:flex; justify-content:center; }
 
@@ -605,8 +614,9 @@ document.addEventListener('keydown', (function(e) {
     const nav = document.getElementById('sidebarNav');
     if (!nav) return;
     const narrow = window.innerWidth < 1e3 && window.innerWidth >= 480;
+    if (nav.dataset.sbAnim === '1') return;
     if (narrow && !nav.classList.contains('sidebar-mini')) {
-      nav.classList.add('sidebar-mini');
+      window._sbSetMini(true, true);
       nav.dataset.autoMini = '1';
     } else if (!narrow && nav.dataset.autoMini === '1') {
       delete nav.dataset.autoMini;
@@ -614,7 +624,7 @@ document.addEventListener('keydown', (function(e) {
       try {
         pref = localStorage.getItem('sidebarMini') || '0';
       } catch (e) {}
-      if (pref !== '1') nav.classList.remove('sidebar-mini');
+      if (pref !== '1') window._sbSetMini(false, true);
     }
   };
   window.addEventListener('resize', (function() {
@@ -624,22 +634,81 @@ document.addEventListener('keydown', (function(e) {
   document.addEventListener('DOMContentLoaded', (function() {
     setTimeout(window._autoMiniRail, 0);
   }));
-  window.toggleSidebarMini = function() {
+  window._sbSetMini = function(mini, instant) {
     const nav = document.getElementById('sidebarNav');
     if (!nav) return;
-    delete nav.dataset.autoMini;
-    const mini = !nav.classList.contains('sidebar-mini');
-    nav.classList.toggle('sidebar-mini', mini);
     const ic = document.getElementById('sidebarCollapseIcon');
     if (ic) ic.textContent = mini ? 'chevron_right' : 'chevron_left';
     if (!mini && flyEl) flyEl.style.display = 'none';
+    if (mini && flyEl) flyEl.style.display = 'none';
+    clearTimeout(window._sbT1);
+    clearTimeout(window._sbT2);
+    const finish = () => {
+      nav.classList.remove('sb-anim', 'sb-narrow');
+      nav.dataset.sbAnim = '';
+    };
+    if (instant || window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      nav.classList.add('sb-instant');
+      nav.classList.remove('sb-anim', 'sb-narrow');
+      nav.classList.toggle('sidebar-mini', mini);
+      nav.dataset.sbAnim = '';
+      void nav.offsetWidth;
+      requestAnimationFrame((() => nav.classList.remove('sb-instant')));
+      return;
+    }
+    nav.dataset.sbAnim = '1';
+    const waitWidth = cb => {
+      let done = false;
+      const end = e => {
+        if (e && (e.target !== nav || e.propertyName !== 'width')) return;
+        if (done) return;
+        done = true;
+        nav.removeEventListener('transitionend', end);
+        cb();
+      };
+      nav.addEventListener('transitionend', end);
+      window._sbT2 = setTimeout(end, 420);
+    };
+    if (mini) {
+      nav.classList.add('sb-anim');
+      window._sbT1 = setTimeout((() => {
+        nav.classList.add('sb-narrow');
+        waitWidth((() => {
+          nav.classList.add('sb-instant');
+          nav.classList.add('sidebar-mini');
+          finish();
+          void nav.offsetWidth;
+          requestAnimationFrame((() => nav.classList.remove('sb-instant')));
+        }));
+      }), 140);
+    } else {
+      nav.classList.add('sb-instant', 'sb-anim', 'sb-narrow');
+      nav.classList.remove('sidebar-mini');
+      void nav.offsetWidth;
+      nav.classList.remove('sb-instant');
+      requestAnimationFrame((() => {
+        nav.classList.remove('sb-narrow');
+        waitWidth((() => {
+          nav.classList.remove('sb-anim');
+          nav.dataset.sbAnim = '';
+        }));
+      }));
+    }
+  };
+  window.toggleSidebarMini = function() {
+    const nav = document.getElementById('sidebarNav');
+    if (!nav) return;
+    if (nav.dataset.sbAnim === '1') return;
+    delete nav.dataset.autoMini;
+    const mini = !nav.classList.contains('sidebar-mini');
+    window._sbSetMini(mini, false);
     try {
       localStorage.setItem('sidebarMini', mini ? '1' : '0');
     } catch (e) {}
   };
   document.addEventListener('DOMContentLoaded', (function() {
     try {
-      if (localStorage.getItem('sidebarMini') === '1') window.toggleSidebarMini();
+      if (localStorage.getItem('sidebarMini') === '1') window._sbSetMini(true, true);
       document.querySelectorAll('#menu-list .menu-section-header').forEach((function(h) {
         if (localStorage.getItem('menuSec_' + h.dataset.sec) === '1') {
           h.classList.add('collapsed');
