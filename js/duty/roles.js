@@ -101,9 +101,9 @@ window.renderImportantTasksPanel = function() {
         const addBtn = canEdit ? `<button onclick="window.assignImportantTask('${escJ(task)}','${role}')" class="w-full flex items-center justify-center gap-1 px-2 py-1 rounded-lg border border-dashed ${role === 'main' ? 'border-emerald-500/50 text-emerald-400' : 'border-sky-500/40 text-sky-400'} text-[11px] font-bold hover:bg-white/10 transition"><span class="material-icons text-[13px]">person_add</span> เลือกคน (ขาด ${miss})</button>` : `<div class="text-[11px] font-bold text-red-400 flex items-center gap-1"><span class="material-icons text-[13px]">warning</span> ยังขาด ${miss} คน</div>`;
         return `\n                    <div class="mt-2">\n                        <div class="flex items-center justify-between text-[10px] font-black tracking-wide mb-1">\n                            <span class="${role === 'main' ? 'text-emerald-400' : 'text-sky-400'}">${label}${role === 'support' && team.main.length === 0 && list.length ? ' · ดูแลแทนหลัก' : ''}</span>\n                            <span class="${cntCls}">${list.length}/${need}</span>\n                        </div>\n                        <div class="flex flex-col gap-1">\n                            ${list.map((n => chip(n, role))).join('')}\n                            ${miss > 0 ? addBtn : ''}\n                        </div>\n                    </div>`;
       };
-      const cfgBtn = canEdit ? `<button onclick="window.configImportantTask('${escJ(task)}')" class="text-gray-400 hover:text-white bg-slate-800 rounded px-1.5 py-0.5 border border-slate-700 transition" title="ตั้งจำนวนคน หลัก / ซัพพอร์ต"><span class="material-icons text-[14px] block">tune</span></button>` : '';
+      const cfgBtn = canEdit ? `<button onclick="window.editImportantTask('${escJ(task)}')" class="text-gray-400 hover:text-amber-400 bg-slate-800 rounded px-1.5 py-0.5 border border-slate-700 transition" title="แก้ไขชื่องาน / จำนวนคน"><span class="material-icons text-[14px] block">edit</span></button>` : '';
       const delBtn = canEdit ? `<button onclick="window.deleteImportantTask('${escJ(task)}')" class="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition bg-slate-800 rounded px-1.5 py-0.5 border border-slate-700" title="ลบหน้าที่นี้"><span class="material-icons text-[14px] block">delete</span></button>` : '';
-      html += `\n                <div class="p-3 rounded-xl border transition shadow-sm group bg-slate-800 ${boxClass}">\n                    <div class="flex justify-between items-start gap-2">\n                        <div class="font-bold text-sm text-slate-200 leading-tight flex-1 min-w-0">\n                            ${esc(task)}\n                            ${isLegacy ? '<span class="text-[9px] text-gray-500 ml-1 font-normal">(งานนี้ถูกลบแล้ว)</span>' : ''}\n                            <div class="flex flex-wrap items-center gap-1 mt-1">\n                                <span class="text-[9px] font-bold text-slate-400 bg-slate-900/50 border border-slate-700 px-1.5 rounded">หลัก ${cfg.main} · ซัพ ${cfg.support}</span>\n                                ${lockedCount ? `<span class="text-[9px] bg-amber-900/50 text-amber-300 px-1 rounded">🔒 ประจำ ${lockedCount} คน</span>` : ''}\n                            </div>\n                        </div>\n                        <div class="flex gap-1 shrink-0">${delBtn}${cfgBtn}</div>\n                    </div>\n                    ${section('main', 'หลัก', team.main, cfg.main, missMain)}\n                    ${section('support', 'ซัพพอร์ต', team.support, cfg.support, missSup)}\n                </div>\n            `;
+      html += `\n                <div class="p-3 rounded-xl border transition shadow-sm group bg-slate-800 ${boxClass}">\n                    <div class="flex justify-between items-start gap-2">\n                        <div class="font-bold text-sm text-slate-200 leading-tight flex-1 min-w-0">\n                            ${esc(task)}\n                            ${isLegacy ? '<span class="text-[9px] text-gray-500 ml-1 font-normal">(งานนี้ถูกลบแล้ว)</span>' : ''}\n                            <div class="flex flex-wrap items-center gap-1 mt-1">\n                                <span class="text-[9px] font-bold text-slate-400 bg-slate-900/50 border border-slate-700 px-1.5 rounded">หลัก ${cfg.main} · ซัพ ${cfg.support}</span>\n                                ${lockedCount ? `<span class="text-[9px] bg-amber-900/50 text-amber-300 px-1 rounded">🔒 ประจำ ${lockedCount} คน</span>` : ''}\n                            </div>\n                        </div>\n                        <div class="flex gap-1 shrink-0">${cfgBtn}${delBtn}</div>\n                    </div>\n                    ${section('main', 'หลัก', team.main, cfg.main, missMain)}\n                    ${section('support', 'ซัพพอร์ต', team.support, cfg.support, missSup)}\n                </div>\n            `;
     }));
   }
   html += `</div></div>`;
@@ -444,7 +444,7 @@ window.randomizeImportantTasks = async function() {
     value: JSON.stringify(window.currentImportantAssigns)
   } ]);
   Swal.close();
-  if (error) return;
+  if (error) return Swal.fire('บันทึกไม่สำเร็จ', error.message || String(error), 'error');
   window._impLog(`สุ่มหน้าที่พิเศษ: เพิ่มหลัก ${mainAdded} · ซัพ ${supAdded} · ซัพดูแลแทนหลัก ${coverAdded}`);
   window.renderImportantTasksPanel();
   window.debouncedBroadcast('duty-updates', 'force_reload');
@@ -673,7 +673,7 @@ window.configImportantTask = async function(taskName) {
   }
   window.clearSettingCache();
   const {error: error} = await appDB.from('settings').upsert(rows);
-  if (error) return;
+  if (error) return Swal.fire('บันทึกไม่สำเร็จ', error.message || String(error), 'error');
   const cut = [ ...cutMain, ...cutSup ];
   if (cut.length) window._impLog(`ลดจำนวนคนงาน "${taskName}" → ปลด ${cut.join(', ')}`);
   window.renderImportantTasksPanel();
@@ -686,6 +686,175 @@ window.configImportantTask = async function(taskName) {
     timer: cut.length ? 3e3 : 1500,
     title: `ตั้งเป็น หลัก ${counts.main} · ซัพ ${counts.support} แล้ว` + (cut.length ? ` (ปลดออก: ${cut.join(', ')})` : '')
   });
+};
+
+window.editImportantTask = async function(taskName) {
+  if (window._impDenied()) return;
+  if (!(window.globalImportantTasks || []).includes(taskName)) return Swal.fire('แก้ไขไม่ได้', 'งานนี้ถูกลบออกจากรายการแล้วครับ', 'info');
+  const cur = window.impCfgOf(taskName);
+  const k = window.impKeys();
+  const {value: form} = await Swal.fire({
+    title: 'แก้ไขหน้าที่',
+    html: `<div style="text-align:left;font-size:12px;font-weight:700;color:#fbbf24;margin-bottom:6px">ชื่องาน <span style="opacity:.6;color:inherit;font-weight:600">(${window.escapeHtml(k.shift)})</span></div><input id="impEditName" class="swal2-input" style="margin:0;width:100%;box-sizing:border-box">` + window._impCountFieldsHtml(cur.main, cur.support),
+    showCancelButton: true,
+    confirmButtonText: 'บันทึก',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: '#f59e0b',
+    customClass: {
+      popup: 'dark:bg-slate-800 dark:text-white rounded-3xl'
+    },
+    didOpen: () => {
+      const el = document.getElementById('impEditName');
+      if (el) {
+        el.value = taskName;
+        el.focus();
+      }
+    },
+    preConfirm: () => {
+      const name = (document.getElementById('impEditName').value || '').trim();
+      if (!name) {
+        Swal.showValidationMessage('กรุณาใส่ชื่อหน้าที่');
+        return false;
+      }
+      if (name !== taskName && window.globalImportantTasks.includes(name)) {
+        Swal.showValidationMessage('มีหน้าที่ชื่อนี้อยู่แล้วในกะนี้');
+        return false;
+      }
+      const counts = window._impReadCounts();
+      if (!counts) return false;
+      return {
+        name: name,
+        counts: counts
+      };
+    }
+  });
+  if (!form) return;
+  const renamed = form.name !== taskName;
+  const sameCounts = form.counts.main === cur.main && form.counts.support === cur.support;
+  if (!renamed && sameCounts) return;
+  Swal.fire({
+    title: 'กำลังบันทึก...',
+    allowOutsideClick: false,
+    didOpen: () => Swal.showLoading()
+  });
+  try {
+    const rows = [];
+    let task = taskName;
+    let movedDays = 0;
+    if (renamed) {
+      const nn = form.name;
+      window.globalImportantTasks = window.globalImportantTasks.map((t => t === taskName ? nn : t));
+      window.importantTaskCfg = window.importantTaskCfg || {};
+      if (window.importantTaskCfg[taskName]) {
+        window.importantTaskCfg[nn] = window.importantTaskCfg[taskName];
+        delete window.importantTaskCfg[taskName];
+      }
+      const ren = obj => {
+        if (!obj || !Object.prototype.hasOwnProperty.call(obj, taskName)) return false;
+        const out = {};
+        Object.keys(obj).forEach((key => {
+          out[key === taskName ? nn : key] = obj[key];
+        }));
+        Object.keys(obj).forEach((key => delete obj[key]));
+        Object.assign(obj, out);
+        return true;
+      };
+      window.currentImportantAssigns = window.currentImportantAssigns || {};
+      window.lockedImportantTasks = window.lockedImportantTasks || {};
+      ren(window.currentImportantAssigns);
+      ren(window.lockedImportantTasks);
+      rows.push({
+        key: k.list,
+        value: JSON.stringify(window.globalImportantTasks)
+      }, {
+        key: k.assign,
+        value: JSON.stringify(window.currentImportantAssigns)
+      }, {
+        key: k.lock,
+        value: JSON.stringify(window.lockedImportantTasks)
+      });
+      const pre = `duty_important_assign_${currentDutyDept}_`, suf = `_${k.shift}`;
+      const {data: others, error: oErr} = await appDB.from('settings').select('key, value').like('key', `${pre}%${suf}`);
+      if (oErr) throw oErr;
+      (others || []).forEach((r => {
+        if (!r || r.key === k.assign || !r.key.startsWith(pre) || !r.key.endsWith(suf)) return;
+        let obj;
+        try {
+          obj = JSON.parse(r.value);
+        } catch (e) {
+          return;
+        }
+        if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return;
+        if (ren(obj)) {
+          rows.push({
+            key: r.key,
+            value: JSON.stringify(obj)
+          });
+          movedDays++;
+        }
+      }));
+      task = nn;
+    }
+    window.importantTaskCfg = window.importantTaskCfg || {};
+    window.importantTaskCfg[task] = form.counts;
+    const team = window.impTeamOf(task);
+    const lk = window.impNormTeam((window.lockedImportantTasks || {})[task]) || {
+      main: [],
+      support: []
+    };
+    const keepOf = (role, need) => {
+      const list = team[role];
+      if (list.length <= need) return list.slice();
+      const locked = list.filter((n => lk[role].includes(n))).slice(0, need);
+      const rest = list.filter((n => !lk[role].includes(n))).slice(0, Math.max(0, need - locked.length));
+      const keep = new Set([ ...locked, ...rest ]);
+      return list.filter((n => keep.has(n)));
+    };
+    const keptMain = keepOf('main', form.counts.main), keptSup = keepOf('support', form.counts.support);
+    const cut = [ ...team.main.filter((n => !keptMain.includes(n))), ...team.support.filter((n => !keptSup.includes(n))) ];
+    if (cut.length) {
+      const trimmed = window.impNormTeam({
+        main: keptMain,
+        support: keptSup
+      });
+      if (trimmed) window.currentImportantAssigns[task] = trimmed; else delete window.currentImportantAssigns[task];
+      window.impPruneLocks(task);
+    }
+    const put = (key, val) => {
+      const i = rows.findIndex((r => r.key === key));
+      if (i >= 0) rows[i].value = val; else rows.push({
+        key: key,
+        value: val
+      });
+    };
+    put(k.cfg, JSON.stringify(window.importantTaskCfg));
+    if (cut.length || renamed) {
+      put(k.assign, JSON.stringify(window.currentImportantAssigns));
+      put(k.lock, JSON.stringify(window.lockedImportantTasks || {}));
+    }
+    window.clearSettingCache();
+    const {error: error} = await appDB.from('settings').upsert(rows);
+    if (error) throw error;
+    const parts = [];
+    if (renamed) parts.push(`เปลี่ยนชื่อ "${taskName}" → "${task}"`);
+    if (!sameCounts) parts.push(`จำนวน หลัก ${form.counts.main} · ซัพ ${form.counts.support}`);
+    if (cut.length) parts.push(`ปลด ${cut.join(', ')}`);
+    window._impLog(`แก้ไขงาน: ${parts.join(' · ')}`);
+    window.renderImportantTasksPanel();
+    if ((currentDutyDept === 'ODQL' || currentDutyDept === 'TRAINER_OD') && typeof window.renderTrainerOdMatrix === 'function' && typeof currentRosterData !== 'undefined') window.renderTrainerOdMatrix(currentRosterData);
+    window.debouncedBroadcast('duty-updates', 'force_reload');
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'success',
+      showConfirmButton: false,
+      timer: cut.length ? 3e3 : 1800,
+      title: 'แก้ไขแล้ว' + (cut.length ? ` (ปลดออก: ${cut.join(', ')})` : '')
+    });
+  } catch (e) {
+    Swal.fire('บันทึกไม่สำเร็จ', e && e.message || String(e), 'error');
+    if (typeof window.refreshDutyData === 'function') window.refreshDutyData();
+  }
 };
 
 window.deleteImportantTask = async function(taskName) {
@@ -788,7 +957,7 @@ window.assignImportantTask = async function(taskName, role) {
     await window.impSaveTeam(taskName, team, `มอบหมายงาน "${taskName}" [${roleLabel}] ให้ ${picked.join(', ')}`);
     Swal.close();
   } catch (e) {
-    Swal.close();
+    Swal.fire('บันทึกไม่สำเร็จ', e && e.message || String(e), 'error');
   }
 };
 

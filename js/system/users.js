@@ -339,6 +339,15 @@ window.saveData = async function(e) {
           }
         }));
       }
+      if (myDep === 'ODQL') {
+        try {
+          const {data: supRow} = await appDB.from('settings').select('value').eq('key', `duty_odql_sup_${dateVal}_${sName}`).maybeSingle();
+          const sups = supRow && supRow.value ? JSON.parse(supRow.value) || {} : {};
+          (sups[String(currentUser.id)] || []).forEach((t => {
+            if (t && !allowedTeams.includes(t)) allowedTeams.push(t);
+          }));
+        } catch (e) {}
+      }
       if (allowedTeams.length === 0) {
         isOffRoster = true;
         assignedTeamsStr = '(ไม่มีในตารางจัดหน้าที่)';
