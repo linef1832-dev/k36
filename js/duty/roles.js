@@ -67,7 +67,7 @@ window.renderImportantTasksPanel = function() {
   window.lockedImportantTasks = window.impNormMap(window.lockedImportantTasks);
   const assigns = window.currentImportantAssigns;
   const locks = window.lockedImportantTasks;
-  let html = `\n        <div class="bg-[#151f32] border border-slate-700/80 rounded-2xl shadow-lg flex flex-col max-h-[750px] overflow-hidden">\n            <div class="bg-gradient-to-r from-amber-600 to-yellow-500 text-white p-3 flex justify-between items-center shadow-md shrink-0">\n                <div class="flex items-center gap-2">\n                    <span class="material-icons">star</span>\n                    <h4 class="font-black text-sm tracking-wide">หน้าที่ประจำ / พิเศษ</h4>\n                </div>\n                <div class="flex gap-1">\n                    ${isAdmin ? `<button onclick="window.randomizeImportantTasks()" class="bg-indigo-600 hover:bg-indigo-500 px-2 py-1 rounded text-[10px] font-bold shadow-inner transition flex items-center gap-1 border border-indigo-400 active:scale-95"><span class="material-icons text-[12px]">casino</span> สุ่มลงงาน</button>` : ''}\n                    ${isAdmin ? `<button onclick="window.addImportantTask()" class="bg-black/20 hover:bg-black/30 px-2 py-1 rounded text-[10px] font-bold shadow-inner transition flex items-center gap-1 border border-white/20"><span class="material-icons text-[12px]">add</span> เพิ่ม</button>` : ''}\n                </div>\n            </div>\n            <div class="p-3 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-3">\n    `;
+  let html = `\n        <div class="bg-[#151f32] border border-slate-700/80 rounded-2xl shadow-lg flex flex-col max-h-[750px] overflow-hidden">\n            <div class="bg-gradient-to-r from-amber-600 to-yellow-500 text-white p-3 flex justify-between items-center shadow-md shrink-0">\n                <div class="flex items-center gap-2">\n                    <h4 class="font-black text-sm tracking-wide">หน้าที่ประจำ / พิเศษ</h4>\n                </div>\n                <div class="flex gap-1">\n                    ${isAdmin ? `<button onclick="window.randomizeImportantTasks()" class="bg-indigo-600 hover:bg-indigo-500 px-2 py-1 rounded text-[10px] font-bold shadow-inner transition flex items-center gap-1 border border-indigo-400 active:scale-95"><span class="material-icons text-[12px]">casino</span> สุ่มลงงาน</button>` : ''}\n                    ${isAdmin ? `<button onclick="window.addImportantTask()" class="bg-black/20 hover:bg-black/30 px-2 py-1 rounded text-[10px] font-bold shadow-inner transition flex items-center gap-1 border border-white/20"><span class="material-icons text-[12px]">add</span> เพิ่ม</button>` : ''}\n                </div>\n            </div>\n            <div class="p-3 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-3">\n    `;
   const allTasksToShow = [ ...new Set([ ...window.globalImportantTasks, ...Object.keys(assigns) ]) ];
   if (allTasksToShow.length === 0) {
     html += isAdmin ? `<div class="text-center py-7 px-3 text-gray-400 text-xs font-bold border border-dashed border-slate-700 rounded-xl bg-slate-900/50 flex flex-col items-center gap-2"><span>ยังไม่มีงานประจำของแผนกนี้ในกะนี้</span><span class="text-[10.5px] font-semibold text-gray-500">เพิ่มงานก่อน แล้วค่อยกด "สุ่มลงงาน"</span><button onclick="window.addImportantTask()" class="mt-1 bg-amber-500 hover:bg-amber-400 text-white px-3 py-1.5 rounded-lg text-[11px] font-black flex items-center gap-1 active:scale-95 transition"><span class="material-icons text-[14px]">add</span> เพิ่มงานแรก</button></div>` : `<div class="text-center py-10 text-gray-500 text-xs font-bold border border-dashed border-slate-700 rounded-xl bg-slate-900/50">แอดมินยังไม่ได้ตั้งค่างานพิเศษ</div>`;
@@ -357,9 +357,48 @@ window.toggleLockImportantPerson = async function(taskName, role, name) {
   window.renderImportantTasksPanel();
 };
 
-window.randomizeImportantTasks = async function() {
-  if (window._impDenied()) return;
+window.impHistory = async function(dateStr, shift, days) {
+  const out = {};
+  const base = new Date(dateStr + 'T00:00:00');
+  if (isNaN(base)) return out;
+  const pad = n => String(n).padStart(2, '0');
+  const keys = [], ago = {};
+  for (let i = 1; i <= days; i++) {
+    const d = new Date(base);
+    d.setDate(d.getDate() - i);
+    const ds = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const key = `duty_important_assign_${currentDutyDept}_${ds}_${shift}`;
+    keys.push(key);
+    ago[key] = i;
+  }
+  const {data: data, error: error} = await appDB.from('settings').select('key, value').in('key', keys);
+  if (error) throw error;
+  (data || []).forEach((r => {
+    let obj;
+    try {
+      obj = JSON.parse(r.value);
+    } catch (e) {
+      return;
+    }
+    const map = window.impNormMap(obj || {});
+    Object.keys(map).forEach((t => {
+      const tm = map[t];
+      if (!tm) return;
+      [ ...tm.main, ...tm.support ].forEach((n => {
+        out[n] = out[n] || {};
+        if (!out[n][t] || ago[r.key] < out[n][t]) out[n][t] = ago[r.key];
+      }));
+    }));
+  }));
+  return out;
+};
+
+window.randomizeImportantTasks = async function(opts) {
+  opts = opts || {};
+  const silent = !!opts.silent;
+  if (!silent && window._impDenied()) return null;
   if (window.globalImportantTasks.length === 0) {
+    if (silent) return null;
     const ask = await Swal.fire({
       icon: 'info',
       title: 'ยังไม่มีงานให้สุ่ม',
@@ -370,62 +409,139 @@ window.randomizeImportantTasks = async function() {
       confirmButtonColor: '#f59e0b'
     });
     if (ask.isConfirmed) await window.addImportantTask();
-    return;
+    return null;
   }
   const k = window.impKeys();
   const available = window.getDutyActiveStaff(k.shift, {
     anyRole: true
   }).map((u => u.username));
-  if (available.length === 0) return Swal.fire('ไม่มีพนักงาน', 'ไม่พบรายชื่อผู้สอนในกะนี้ครับ', 'error');
+  if (available.length === 0) {
+    if (!silent) Swal.fire('ไม่มีพนักงาน', 'ไม่พบรายชื่อผู้สอนในกะนี้ครับ', 'error');
+    return null;
+  }
+  const gap = Math.max(1, Math.min(7, typeof window.getRotationGapDays === 'function' ? window.getRotationGapDays(currentDutyDept) || 1 : 1));
+  let hist = {};
+  try {
+    hist = await window.impHistory(k.date, k.shift, gap);
+  } catch (e) {
+    hist = {};
+  }
+  if (opts.fresh) window.currentImportantAssigns = {};
   window.impApplyLocks();
   const tasks = window.globalImportantTasks.slice();
-  const teams = {};
-  tasks.forEach((t => {
-    teams[t] = window.impTeamOf(t);
-  }));
-  const load = new Map, mainOf = new Set;
-  const bump = n => load.set(n, (load.get(n) || 0) + 1);
-  for (const t in window.currentImportantAssigns) {
-    const tm = teams[t] || window.impNormTeam(window.currentImportantAssigns[t]);
-    if (!tm) continue;
-    tm.main.forEach((n => {
-      mainOf.add(n);
-      bump(n);
-    }));
-    tm.support.forEach(bump);
-  }
-  const rank = new Map(available.slice().sort((() => Math.random() - .5)).map(((n, i) => [ n, i ])));
-  const inTask = (t, n) => teams[t].main.includes(n) || teams[t].support.includes(n);
-  const pickLeast = cands => cands.sort(((a, b) => (load.get(a) || 0) - (load.get(b) || 0) || rank.get(a) - rank.get(b)))[0];
-  const fill = (role, order, target, candOk) => {
-    let added = 0, progress = true;
-    while (progress) {
-      progress = false;
-      for (const t of order) {
-        if (teams[t][role].length >= target(t)) continue;
-        const n = pickLeast(available.filter((x => !inTask(t, x) && candOk(x))));
-        if (!n) continue;
-        teams[t][role].push(n);
-        bump(n);
-        if (role === 'main') mainOf.add(n);
-        added++;
-        progress = true;
-      }
-    }
-    return added;
-  };
   const cfgOf = t => window.impCfgOf(t);
-  const mainAdded = fill('main', tasks, (t => cfgOf(t).main), (n => !mainOf.has(n)));
-  const noMain = tasks.filter((t => teams[t].main.length === 0));
-  const withMain = tasks.filter((t => teams[t].main.length > 0));
-  const coverAdded = fill('support', noMain, (t => Math.max(1, cfgOf(t).support)), (() => true));
-  const supAdded = fill('support', withMain, (t => cfgOf(t).support), (() => true));
-  let shortMain = 0, shortSup = 0;
-  tasks.forEach((t => {
-    const c = cfgOf(t);
-    shortMain += Math.max(0, c.main - teams[t].main.length);
-    shortSup += Math.max(0, (teams[t].main.length ? c.support : Math.max(1, c.support)) - teams[t].support.length);
-  }));
+  const recent = (n, t) => {
+    const a = hist[n] && hist[n][t];
+    return a ? gap + 1 - a : 0;
+  };
+  const runOnce = () => {
+    const teams = {};
+    tasks.forEach((t => {
+      const tm = window.impTeamOf(t);
+      teams[t] = {
+        main: tm.main.slice(),
+        support: tm.support.slice()
+      };
+    }));
+    const load = new Map, mainOf = new Set;
+    const bump = n => load.set(n, (load.get(n) || 0) + 1);
+    for (const t in window.currentImportantAssigns) {
+      const tm = teams[t] || window.impNormTeam(window.currentImportantAssigns[t]);
+      if (!tm) continue;
+      tm.main.forEach((n => {
+        mainOf.add(n);
+        bump(n);
+      }));
+      tm.support.forEach(bump);
+    }
+    const rank = new Map(available.slice().sort((() => Math.random() - .5)).map(((n, i) => [ n, i ])));
+    const inTask = (t, n) => teams[t].main.includes(n) || teams[t].support.includes(n);
+    const repeats = [];
+    let penalty = 0;
+    const fill = (role, order, target, candOk) => {
+      let added = 0, progress = true;
+      while (progress) {
+        progress = false;
+        for (const t of order) {
+          if (teams[t][role].length >= target(t)) continue;
+          const cands = available.filter((x => !inTask(t, x) && candOk(x)));
+          if (!cands.length) continue;
+          cands.sort(((a, b) => (load.get(a) || 0) - (load.get(b) || 0) || recent(a, t) - recent(b, t) || rank.get(a) - rank.get(b)));
+          const n = cands[0];
+          teams[t][role].push(n);
+          bump(n);
+          if (role === 'main') mainOf.add(n);
+          const rc = recent(n, t);
+          if (rc) {
+            repeats.push(`${n} → ${t}`);
+            penalty += rc;
+          }
+          added++;
+          progress = true;
+        }
+      }
+      return added;
+    };
+    const order = tasks.slice().sort((() => Math.random() - .5));
+    const mainAdded = fill('main', order, (t => cfgOf(t).main), (n => !mainOf.has(n)));
+    const noMain = order.filter((t => teams[t].main.length === 0));
+    const withMain = order.filter((t => teams[t].main.length > 0));
+    const coverAdded = fill('support', noMain, (t => Math.max(1, cfgOf(t).support)), (() => true));
+    const supAdded = fill('support', withMain, (t => cfgOf(t).support), (() => true));
+    let shortMain = 0, shortSup = 0;
+    tasks.forEach((t => {
+      const c = cfgOf(t);
+      shortMain += Math.max(0, c.main - teams[t].main.length);
+      shortSup += Math.max(0, (teams[t].main.length ? c.support : Math.max(1, c.support)) - teams[t].support.length);
+    }));
+    const maxLoad = Math.max(0, ...load.values());
+    return {
+      teams: teams,
+      mainAdded: mainAdded,
+      coverAdded: coverAdded,
+      supAdded: supAdded,
+      shortMain: shortMain,
+      shortSup: shortSup,
+      noMain: tasks.filter((t => teams[t].main.length === 0)),
+      repeats: repeats,
+      score: [ shortMain, shortSup, maxLoad, penalty ]
+    };
+  };
+  const better = (a, b) => {
+    for (let i = 0; i < a.score.length; i++) if (a.score[i] !== b.score[i]) return a.score[i] < b.score[i];
+    return false;
+  };
+  let best = runOnce();
+  for (let i = 0; i < 60 && best.score[3] > 0; i++) {
+    const r = runOnce();
+    if (better(r, best)) best = r;
+  }
+  const {teams: teams, mainAdded: mainAdded, coverAdded: coverAdded, supAdded: supAdded, shortMain: shortMain, shortSup: shortSup, noMain: noMain, repeats: repeats} = best;
+
+  if (silent) {
+    tasks.forEach((t => {
+      const n = window.impNormTeam(teams[t]);
+      if (n) window.currentImportantAssigns[t] = n; else delete window.currentImportantAssigns[t];
+    }));
+    window.clearSettingCache();
+    const {error: sErr} = await appDB.from('settings').upsert([ {
+      key: k.assign,
+      value: JSON.stringify(window.currentImportantAssigns)
+    } ]);
+    if (sErr) throw sErr;
+    window._impLog(`สุ่มหน้าที่พิเศษ (พร้อมจัดเวร): หลัก ${mainAdded} · ซัพ ${supAdded} · ซัพดูแลแทนหลัก ${coverAdded}${repeats.length ? ' · ซ้ำงานเดิม: ' + repeats.join(', ') : ''}`);
+    window.renderImportantTasksPanel();
+    return {
+      mainAdded: mainAdded,
+      supAdded: supAdded,
+      coverAdded: coverAdded,
+      shortMain: shortMain,
+      shortSup: shortSup,
+      noMain: noMain.length,
+      repeats: repeats,
+      gap: gap
+    };
+  }
   if (mainAdded + coverAdded + supAdded === 0) {
     if (shortMain + shortSup > 0) return Swal.fire('คนไม่พอ', `ยังขาด หลัก ${shortMain} · ซัพ ${shortSup} ตำแหน่ง แต่ไม่มีผู้สอนเหลือให้สุ่มแล้วครับ`, 'info');
     return Swal.fire('เตือน', 'ทุกหน้าที่มีคนครบตามจำนวนที่ตั้งไว้แล้วครับ', 'info');
@@ -445,14 +561,20 @@ window.randomizeImportantTasks = async function() {
   } ]);
   Swal.close();
   if (error) return Swal.fire('บันทึกไม่สำเร็จ', error.message || String(error), 'error');
-  window._impLog(`สุ่มหน้าที่พิเศษ: เพิ่มหลัก ${mainAdded} · ซัพ ${supAdded} · ซัพดูแลแทนหลัก ${coverAdded}`);
+  window._impLog(`สุ่มหน้าที่พิเศษ: เพิ่มหลัก ${mainAdded} · ซัพ ${supAdded} · ซัพดูแลแทนหลัก ${coverAdded}${repeats.length ? ' · ซ้ำงานเดิม: ' + repeats.join(', ') : ''}`);
   window.renderImportantTasksPanel();
   window.debouncedBroadcast('duty-updates', 'force_reload');
-  const sum = `เพิ่มหลัก ${mainAdded} · ซัพ ${supAdded + coverAdded} คน`;
+  const sum = `เพิ่มหลัก ${mainAdded} · ซัพ ${supAdded + coverAdded} คน` + (repeats.length ? `<div style="margin-top:8px;font-size:12px;text-align:left;opacity:.85">คนไม่พอ จำเป็นต้องให้ทำงานเดิมซ้ำ (เคยทำใน ${gap} วันล่าสุด):<br><b>${repeats.map((x => window.escapeHtml(x))).join('<br>')}</b></div>` : '');
   if (shortMain > 0) {
     Swal.fire('สุ่มแล้ว — คนไม่พอเป็นหลัก', `${sum}<br>มี <b>${noMain.length}</b> หน้าที่ที่ไม่มีหลัก → ใส่ซัพพอร์ตดูแลแทนให้แล้ว` + (shortSup ? `<br>ยังขาดซัพพอร์ต <b>${shortSup}</b> ตำแหน่ง` : ''), 'warning');
   } else if (shortSup > 0) {
     Swal.fire('สุ่มแล้ว แต่คนไม่พอ', `${sum}<br>ยังขาดซัพพอร์ต <b>${shortSup}</b> ตำแหน่ง`, 'warning');
+  } else if (repeats.length) {
+    Swal.fire({
+      icon: 'info',
+      title: 'สุ่มสำเร็จ',
+      html: sum
+    });
   } else {
     Swal.mixin({
       toast: true,

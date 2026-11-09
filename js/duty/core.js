@@ -1582,8 +1582,27 @@ window.generateDutyRoster = async function() {
       } ]);
       if (appDB.channel) window.debouncedBroadcast('duty-updates', 'force_reload');
     } catch (logError) {}
+    let impSummary = '';
+    if ((currentDutyDept === 'ODQL' || currentDutyDept === 'TRAINER_OD') && typeof window.randomizeImportantTasks === 'function' && (window.globalImportantTasks || []).length) {
+      try {
+        const ir = await window.randomizeImportantTasks({
+          fresh: true,
+          silent: true
+        });
+        if (ir) {
+          const lines = Object.keys(window.currentImportantAssigns || {}).map((t => {
+            const tm = window.impNormTeam(window.currentImportantAssigns[t]);
+            if (!tm) return '';
+            return `• ${window.escapeHtml(t)}: <b>${window.escapeHtml(tm.main.join(', ') || '-')}</b>${tm.support.length ? ' <span style="opacity:.75">(ซัพ ' + window.escapeHtml(tm.support.join(', ')) + ')</span>' : ''}`;
+          })).filter(Boolean);
+          impSummary = `<div style="margin-top:12px;text-align:left;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.35);border-radius:12px;padding:10px 12px;font-size:12px;color:#b45309;line-height:1.7"><b>หน้าที่ประจำ / พิเศษ</b> (เวียนไม่ซ้ำงานเดิม ${ir.gap} วัน)<br>${lines.join('<br>')}` + (ir.repeats.length ? `<div style="margin-top:6px;font-size:11.5px">คนไม่พอ ต้องทำงานเดิมซ้ำ: <b>${ir.repeats.map((x => window.escapeHtml(x))).join(', ')}</b></div>` : '') + (ir.shortMain || ir.shortSup ? `<div style="margin-top:6px;font-size:11.5px;color:#b91c1c">ยังขาด หลัก ${ir.shortMain} · ซัพ ${ir.shortSup} ตำแหน่ง</div>` : '') + `</div>`;
+        }
+      } catch (impErr) {
+        impSummary = `<div style="margin-top:12px;text-align:left;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:12px;padding:10px 12px;font-size:12px;color:#b91c1c">สุ่มหน้าที่ประจำ / พิเศษไม่สำเร็จ: ${window.escapeHtml(impErr && impErr.message || String(impErr))}<br>กดปุ่ม "สุ่มลงงาน" อีกครั้งได้</div>`;
+      }
+    }
     window.refreshDutyData();
-    let pinSummary = '';
+    let pinSummary = impSummary;
     const totalPicked = rotationStats.fresh + rotationStats.rotated + rotationStats.repeated;
     if (totalPicked > 0) {
       pinSummary += `<div style="margin-top:12px;text-align:left;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.35);border-radius:12px;padding:10px 12px;font-size:12px;color:#047857">\n                <b>🔄 การหมุนเวียนเว็บ</b> <span style="font-size:10.5px;opacity:.75">(ดูประวัติย้อนหลัง ${rotation.lookback} วัน พบตาราง ${rotation.daysFound} วัน)</span><br>\n                • ได้เว็บที่ <b>ไม่เคยทำเลย</b> — ${rotationStats.fresh} คน<br>\n                • ได้เว็บที่ <b>วนครบรอบแล้ว</b> — ${rotationStats.rotated} คน\n                ${rotationStats.repeated > 0 ? `<br>• <span style="color:#b45309">ยังต้องทำซ้ำก่อนครบรอบ — ${rotationStats.repeated} คน</span>` : ''}\n                ${rotationStats.repairSwaps > 0 ? `<br><span style="font-size:10.5px;opacity:.8">🔧 ปรับสลับให้อีก ${rotationStats.repairSwaps} คู่ เพื่อลดการซ้ำเว็บ</span>` : ''}\n            </div>`;
