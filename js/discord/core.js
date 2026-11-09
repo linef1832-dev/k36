@@ -1,5 +1,37 @@
 const DISCORD_API_URL = 'https://my-discord-production-9382.up.railway.app';
 
+window.dsApiKey = '';
+
+window.dsLoadApiKey = async function(force) {
+  if (window.dsApiKey && !force) return window.dsApiKey;
+  try {
+    if (typeof appDB === 'undefined') return '';
+    const {data: data} = await appDB.from('settings').select('value').eq('key', 'discord_api_key').maybeSingle();
+    window.dsApiKey = data && data.value ? String(data.value).trim() : '';
+  } catch (e) {
+    window.dsApiKey = window.dsApiKey || '';
+  }
+  return window.dsApiKey;
+};
+
+window.dsFetch = async function(url, opts) {
+  const o = Object.assign({}, opts || {});
+  const h = Object.assign({}, o.headers || {});
+  if (!window.dsApiKey) await window.dsLoadApiKey();
+  if (window.dsApiKey) h['x-api-key'] = window.dsApiKey;
+  o.headers = h;
+  const res = await fetch(url, o);
+  if (res && res.status === 401) {
+    window.dsApiKey = '';
+    await window.dsLoadApiKey(true);
+    if (window.dsApiKey) {
+      h['x-api-key'] = window.dsApiKey;
+      return fetch(url, o);
+    }
+  }
+  return res;
+};
+
 let spyInterval;
 
 let logInterval;
@@ -156,7 +188,7 @@ window.autoFixStaffGroup = async function(staffId) {
   });
   try {
     for (const wrongG of mismatch.wrongGroups) {
-      await window.dsBotOk(fetch(DISCORD_API_URL + '/api/groups/remove-member', {
+      await window.dsBotOk(window.dsFetch(DISCORD_API_URL + '/api/groups/remove-member', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -168,7 +200,7 @@ window.autoFixStaffGroup = async function(staffId) {
       }));
       extStaffGroups[wrongG] = (extStaffGroups[wrongG] || []).filter((id => id !== staff.id));
     }
-    await window.dsBotOk(fetch(DISCORD_API_URL + '/api/groups/assign', {
+    await window.dsBotOk(window.dsFetch(DISCORD_API_URL + '/api/groups/assign', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -230,7 +262,7 @@ window.autoFixAllMismatches = async function() {
         continue;
       }
       for (const wrongG of info.wrongGroups) {
-        await window.dsBotOk(fetch(DISCORD_API_URL + '/api/groups/remove-member', {
+        await window.dsBotOk(window.dsFetch(DISCORD_API_URL + '/api/groups/remove-member', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -242,7 +274,7 @@ window.autoFixAllMismatches = async function() {
         }));
         extStaffGroups[wrongG] = (extStaffGroups[wrongG] || []).filter((id => id !== staff.id));
       }
-      await window.dsBotOk(fetch(DISCORD_API_URL + '/api/groups/assign', {
+      await window.dsBotOk(window.dsFetch(DISCORD_API_URL + '/api/groups/assign', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -464,7 +496,7 @@ window.editCustomName = async function(staffId, currentName) {
       await saveCustomNamesToDb();
       try {
         const tStamp = Date.now();
-        const sRes = await fetch(`${DISCORD_API_URL}/api/staff-list?t=${tStamp}`, {
+        const sRes = await window.dsFetch(`${DISCORD_API_URL}/api/staff-list?t=${tStamp}`, {
           headers: {
             'Cache-Control': 'no-cache'
           }
@@ -547,7 +579,7 @@ window.confirmDeleteDuplicate = async function(staffId, staffName) {
     didOpen: () => Swal.showLoading()
   });
   try {
-    const res = await fetch(DISCORD_API_URL + '/api/kick-user', {
+    const res = await window.dsFetch(DISCORD_API_URL + '/api/kick-user', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -688,6 +720,7 @@ window.switchDiscordTab = function(tabName) {
         if (typeof window.registerPageInterval === 'function') window.registerPageInterval(spyInterval);
       } else if (tabName === 'manage') {
         activeBtn.className = "ds-tab ds-tab-active";
+        if (typeof window.ds_fillApiKeyField === 'function') window.ds_fillApiKeyField();
         if (!isDataLoaded) fetchSystemData(false); else {
           _doRenderManagerList();
           renderGroupList();
@@ -740,11 +773,11 @@ window.fetchSystemData = async function(forceSync = false, silent = false) {
         'ngrok-skip-browser-warning': 'true'
       }
     };
-    const [sRes, oRes, gRes] = await Promise.all([ fetch(`${DISCORD_API_URL}/api/staff-list?t=${tStamp}`, fetchOpts).catch((e => {
+    const [sRes, oRes, gRes] = await Promise.all([ window.dsFetch(`${DISCORD_API_URL}/api/staff-list?t=${tStamp}`, fetchOpts).catch((e => {
       throw new Error('NET_BLOCK');
-    })), fetch(`${DISCORD_API_URL}/api/online-status?t=${tStamp}`, fetchOpts).catch((e => {
+    })), window.dsFetch(`${DISCORD_API_URL}/api/online-status?t=${tStamp}`, fetchOpts).catch((e => {
       throw new Error('NET_BLOCK');
-    })), fetch(`${DISCORD_API_URL}/api/staff-groups?t=${tStamp}`, fetchOpts).catch((e => {
+    })), window.dsFetch(`${DISCORD_API_URL}/api/staff-groups?t=${tStamp}`, fetchOpts).catch((e => {
       throw new Error('NET_BLOCK');
     })) ]);
     if (!sRes.ok) throw new Error('BOT_SLEEP');
@@ -793,7 +826,7 @@ window.syncDiscord = async function() {
     didOpen: () => Swal.showLoading()
   });
   try {
-    const res = await fetch(DISCORD_API_URL + '/api/import-discord-members', {
+    const res = await window.dsFetch(DISCORD_API_URL + '/api/import-discord-members', {
       method: 'POST',
       headers: {
         'Cache-Control': 'no-cache'
@@ -841,7 +874,7 @@ window.spy_moveSelectedUsers = async function() {
     didOpen: () => Swal.showLoading()
   });
   try {
-    const res = await fetch(`${DISCORD_API_URL}/api/move-users`, {
+    const res = await window.dsFetch(`${DISCORD_API_URL}/api/move-users`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -872,7 +905,7 @@ window.spy_returnMove = async function() {
     didOpen: () => Swal.showLoading()
   });
   try {
-    const res = await fetch(`${DISCORD_API_URL}/api/spy-return`, {
+    const res = await window.dsFetch(`${DISCORD_API_URL}/api/spy-return`, {
       method: 'POST'
     });
     const r = await res.json();
@@ -889,7 +922,7 @@ window.spy_moveSingleUser = async function(uid, targetId) {
   if (!window.dsRequire('ds_spy')) return;
   if (!targetId) return;
   try {
-    await window.dsBotOk(fetch(`${DISCORD_API_URL}/api/move-users`, {
+    await window.dsBotOk(window.dsFetch(`${DISCORD_API_URL}/api/move-users`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -922,7 +955,7 @@ window.ds_fetchSpy = async function() {
   const ctl = typeof AbortController !== 'undefined' ? new AbortController : null;
   const tm = ctl ? setTimeout((() => ctl.abort()), 1e4) : null;
   try {
-    const res = await fetch(DISCORD_API_URL + '/api/spy-data?t=' + Date.now(), ctl ? {
+    const res = await window.dsFetch(DISCORD_API_URL + '/api/spy-data?t=' + Date.now(), ctl ? {
       signal: ctl.signal
     } : undefined);
     if (res.ok) {
@@ -1167,7 +1200,7 @@ window.ds_startMove = async function() {
   try {
     let moved = 0;
     if (realRooms.length) {
-      const r = await window.dsBotOk(fetch(`${DISCORD_API_URL}/api/mass-move-rooms`, {
+      const r = await window.dsBotOk(window.dsFetch(`${DISCORD_API_URL}/api/mass-move-rooms`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -1180,7 +1213,7 @@ window.ds_startMove = async function() {
       moved += r && r.count != null ? Number(r.count) : 0;
     }
     if (S.users.length) {
-      const r2 = await window.dsBotOk(fetch(`${DISCORD_API_URL}/api/move-users`, {
+      const r2 = await window.dsBotOk(window.dsFetch(`${DISCORD_API_URL}/api/move-users`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -1219,7 +1252,7 @@ window.ds_returnMove = async function() {
     didOpen: () => Swal.showLoading()
   });
   try {
-    const r = await window.dsBotOk(fetch(`${DISCORD_API_URL}/api/mass-return`, {
+    const r = await window.dsBotOk(window.dsFetch(`${DISCORD_API_URL}/api/mass-return`, {
       method: 'POST'
     }));
     const n = r && r.count != null ? r.count : 0;
@@ -1323,7 +1356,7 @@ window.scheduleTransfer = async function() {
       }
     }
     try {
-      await window.dsBotOk(fetch(DISCORD_API_URL + '/api/schedule-transfer', {
+      await window.dsBotOk(window.dsFetch(DISCORD_API_URL + '/api/schedule-transfer', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -1348,7 +1381,7 @@ window.scheduleTransfer = async function() {
 
 window.fetchTransfers = async function() {
   try {
-    const [dsRes, webRes] = await Promise.all([ fetch(DISCORD_API_URL + '/api/transfers').catch((() => ({
+    const [dsRes, webRes] = await Promise.all([ window.dsFetch(DISCORD_API_URL + '/api/transfers').catch((() => ({
       json: () => ({
         pending: [],
         history: []
@@ -1498,7 +1531,7 @@ window.filterSummaryPopup = function() {
 window.delTransfer = async function(id) {
   if (!window.dsRequire('ds_manage')) return;
   try {
-    await window.dsBotOk(fetch(DISCORD_API_URL + '/api/delete-transfer', {
+    await window.dsBotOk(window.dsFetch(DISCORD_API_URL + '/api/delete-transfer', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -1511,4 +1544,65 @@ window.delTransfer = async function(id) {
     Swal.fire('ลบไม่สำเร็จ', e.message, 'error');
   }
   fetchTransfers();
+};
+
+window.ds_toggleKeyEye = function() {
+  const i = document.getElementById('dsApiKeyInput');
+  const e = document.getElementById('dsApiKeyEye');
+  if (!i) return;
+  i.type = i.type === 'password' ? 'text' : 'password';
+  if (e) e.textContent = i.type === 'password' ? 'visibility' : 'visibility_off';
+};
+
+window.ds_fillApiKeyField = async function() {
+  const i = document.getElementById('dsApiKeyInput');
+  if (!i) return;
+  const k = await window.dsLoadApiKey(true);
+  i.value = k || '';
+  const st = document.getElementById('dsApiKeyStatus');
+  if (st) st.textContent = k ? '🔒 ตั้งกุญแจไว้แล้ว' : '⚠️ ยังไม่ได้ตั้งกุญแจ (บอทเปิดรับทุกคำขอ)';
+};
+
+window.ds_saveApiKey = async function() {
+  if (!window.dsRequire('ds_manage')) return;
+  const i = document.getElementById('dsApiKeyInput');
+  const val = (i && i.value || '').trim();
+  try {
+    const {error: error} = await appDB.from('settings').upsert([ {
+      key: 'discord_api_key',
+      value: val
+    } ]);
+    if (error) throw error;
+    window.dsApiKey = val;
+    if (typeof window.clearSettingCache === 'function') window.clearSettingCache();
+    const st = document.getElementById('dsApiKeyStatus');
+    if (st) st.textContent = val ? '🔒 บันทึกแล้ว' : 'ล้างกุญแจแล้ว';
+    Swal.fire({
+      icon: 'success',
+      title: val ? 'บันทึกกุญแจแล้ว' : 'ล้างกุญแจแล้ว',
+      text: val ? 'อย่าลืมตั้ง API_KEY เดียวกันใน Railway ของบอท แล้วกด "ทดสอบ"' : 'บอทจะรับทุกคำขอถ้าไม่ได้ตั้ง API_KEY ใน Railway',
+      timer: 2500,
+      showConfirmButton: false
+    });
+  } catch (e) {
+    Swal.fire('บันทึกไม่สำเร็จ', e.message, 'error');
+  }
+};
+
+window.ds_testApiKey = async function() {
+  const st = document.getElementById('dsApiKeyStatus');
+  if (st) st.textContent = '⏳ กำลังทดสอบ...';
+  try {
+    const i = document.getElementById('dsApiKeyInput');
+    if (i) window.dsApiKey = (i.value || '').trim();
+    const res = await window.dsFetch(DISCORD_API_URL + '/api/spy-data?t=' + Date.now());
+    if (res.status === 401) {
+      if (st) st.textContent = '❌ กุญแจไม่ตรงกับบอท';
+      return;
+    }
+    if (!res.ok) throw new Error('บอทตอบ ' + res.status);
+    if (st) st.textContent = '✅ เชื่อมต่อบอทได้ กุญแจถูกต้อง';
+  } catch (e) {
+    if (st) st.textContent = '❌ เชื่อมต่อบอทไม่ได้: ' + (e.message || e);
+  }
 };

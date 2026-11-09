@@ -998,280 +998,226 @@ window.onDutySearch = function() {
   }), 300);
 };
 
-window.getTrainerMatrixRoleKey = function(dept, dateStr, shift) {
-  return `trainer_matrix_roles_${dept}_${dateStr}_${shift}`;
+window.odqlWebs = function() {
+  const base = [ 'Jun88', 'MK8', 'VV72', 'TH26', 'PG688', 'JL69', 'K188', 'BT678', 'NM9', 'F168' ];
+  const extra = (typeof TEAM_LIST !== 'undefined' ? TEAM_LIST : []).filter((t => !base.includes(t)));
+  return [ ...base, ...extra ];
+};
+
+window.odqlTaskList = function() {
+  const list = Array.isArray(window.globalImportantTasks) ? window.globalImportantTasks : [];
+  return list.map((t => typeof t === 'string' ? t : t && (t.name || t.title) || '')).filter(Boolean);
+};
+
+window.odqlSupKey = function() {
+  const d = document.getElementById('dutyDate') ? document.getElementById('dutyDate').value : '';
+  const sh = document.getElementById('dutyShiftSelect') ? document.getElementById('dutyShiftSelect').value : 'all';
+  return `duty_odql_sup_${d}_${sh}`;
+};
+
+window.odqlLoadSups = async function(rosterData) {
+  const key = window.odqlSupKey();
+  if (window._odqlSupKey === key && window._odqlSups) return window._odqlSups;
+  let sups = {};
+  try {
+    const {data: data} = await appDB.from('settings').select('value').eq('key', key).maybeSingle();
+    if (data && data.value) sups = JSON.parse(data.value) || {};
+  } catch (e) {}
+  Object.values(rosterData || {}).forEach((arr => (arr || []).forEach((x => {
+    if (x && x.id && x.secondary_team && !sups[String(x.id)]) sups[String(x.id)] = [ x.secondary_team ];
+  }))));
+  window._odqlSupKey = key;
+  window._odqlSups = sups;
+  return sups;
+};
+
+window.odqlPrimaryOf = function(uid, rosterData) {
+  for (const t in rosterData) if ((rosterData[t] || []).some((x => x && String(x.id) === String(uid)))) return t;
+  return null;
+};
+
+window.odqlCellOf = function(u, web, rosterData) {
+  const uid = String(u.id);
+  if (window.odqlPrimaryOf(uid, rosterData) === web) return 'job';
+  const sups = (window._odqlSups || {})[uid] || [];
+  return sups.includes(web) ? 'sup' : 'not';
+};
+
+window.odqlTaskCellOf = function(u, task) {
+  const team = window.impTeamOf ? window.impTeamOf(task) : {
+    main: [],
+    support: []
+  };
+  if (team.main.includes(u.username)) return 'job';
+  if (team.support.includes(u.username)) return 'sup';
+  return 'not';
 };
 
 window.renderTrainerOdMatrix = async function(rosterData) {
   const matrixGrid = document.getElementById('dutyMatrixGrid');
   if (!matrixGrid) return;
-  let canEdit = window.isDutyAdmin();
-  if (window.isTrainerDept()) {
-    if (!canPerm('duty_manage_amql') && !canPerm('duty_manage_odql')) {
-      canEdit = false;
-    }
-  }
-  let disableAttr = canEdit ? '' : 'disabled';
-  let cursorClass = canEdit ? 'cursor-pointer hover:shadow-md' : 'cursor-default pointer-events-none appearance-none opacity-100';
-  const targetDate = document.getElementById('dutyDate') ? document.getElementById('dutyDate').value : '';
-  const shiftFilterForKey = document.getElementById('dutyShiftSelect') ? document.getElementById('dutyShiftSelect').value : 'all';
-  const matrixRoleKey = window.getTrainerMatrixRoleKey(currentDutyDept, targetDate, shiftFilterForKey);
-  let savedRoleOverrides = {};
-  try {
-    if (targetDate) {
-      const {data: data} = await window.getSettingCached(matrixRoleKey);
-      if (data && data.value) savedRoleOverrides = JSON.parse(data.value);
-    }
-  } catch (e) {
-    console.warn('Load trainer matrix roles failed:', e);
-    savedRoleOverrides = {};
-  }
-  const matrixWebsites = [ 'Jun88', 'MK8', 'VV72', 'TH26', 'K188', 'BT678', 'PG688', 'JL69', 'NM9', 'F168' ];
-  const webColors = {
-    Jun88: 'bg-blue-600 text-white',
-    MK8: 'bg-black text-yellow-400',
-    VV72: 'bg-red-800 text-white',
-    TH26: 'bg-gray-700 text-white',
-    K188: 'bg-sky-500 text-white',
-    BT678: 'bg-red-600 text-white',
-    PG688: 'bg-amber-100 text-amber-900',
-    JL69: 'bg-slate-600 text-white',
-    NM9: 'bg-pink-600 text-white',
-    F168: 'bg-orange-600 text-white'
-  };
+  rosterData = rosterData || {};
+  await window.odqlLoadSups(rosterData);
+  const canEdit = window.isDutyAdmin() && (!window.isTrainerDept() || canPerm('duty_manage_odql') || canPerm('duty_manage_amql') || canPerm('duty_manage'));
   const shiftFilter = document.getElementById('dutyShiftSelect') ? document.getElementById('dutyShiftSelect').value : 'all';
-  const staffList = GLOBAL_USER_LIST.filter((u => {
-    let isOdTrainer = false;
-    if (u.department === 'ODQL' || u.department === 'TRAINER_OD') isOdTrainer = true;
-    if (!isOdTrainer) return false;
-    if (shiftFilter !== 'all') {
-      if (u.allowed_shift !== shiftFilter && u.allowed_shift !== 'all') return false;
-    }
+  const webs = window.odqlWebs();
+  const tasks = window.odqlTaskList();
+  const leaveIds = new Set((window.currentDutyLeaveData || []).map((l => String(l.user_id))));
+  const inRoster = new Set;
+  Object.values(rosterData).forEach((arr => (arr || []).forEach((x => x && x.id && inRoster.add(String(x.id))))));
+  const trainers = (GLOBAL_USER_LIST || []).filter((u => {
+    const d = String(u.department || '');
+    if (!(d === 'ODQL' || d === 'TRAINER_OD')) return false;
+    if (leaveIds.has(String(u.id)) && !inRoster.has(String(u.id))) return false;
+    if (shiftFilter !== 'all' && !window.isDutyShiftMatch(u, shiftFilter) && !inRoster.has(String(u.id))) return false;
     return true;
   }));
-  const leaveIds = new Set(window.currentDutyLeaveData.map((l => String(l.user_id))));
-  const activeTrainers = staffList.filter((u => !leaveIds.has(String(u.id))));
-  let userTaskRoles = {};
-  let globalPoolIndex = 0;
-  matrixWebsites.forEach((web => {
-    let webTasks = customDutyRoles[web] || [ 'ไม่มีหัวข้อ' ];
-    if (webTasks.length === 0) webTasks = [ '-' ];
-    let primaryUsers = (rosterData[web] || []).filter((u => !u.username.includes('ขาดคน')));
-    if (primaryUsers.length === 0 && activeTrainers.length > 0) {
-      let pool = activeTrainers.length > 0 ? activeTrainers : primaryUsers;
-      webTasks.forEach(((task, tIdx) => {
-        if (pool.length > 0) {
-          let uJob = pool[globalPoolIndex % pool.length];
-          if (!userTaskRoles[uJob.id]) userTaskRoles[uJob.id] = {};
-          if (!userTaskRoles[uJob.id][web]) userTaskRoles[uJob.id][web] = {};
-          userTaskRoles[uJob.id][web][tIdx] = 'job';
-          if (pool.length > 1) {
-            let uSup = pool[(globalPoolIndex + 1) % pool.length];
-            if (!userTaskRoles[uSup.id]) userTaskRoles[uSup.id] = {};
-            if (!userTaskRoles[uSup.id][web]) userTaskRoles[uSup.id][web] = {};
-            userTaskRoles[uSup.id][web][tIdx] = 'sup';
-          }
-          globalPoolIndex++;
-        }
-      }));
-    } else {
-      primaryUsers.sort(((a, b) => a.username.localeCompare(b.username)));
-      if (web === 'F168') {
-        webTasks.forEach(((task, tIdx) => {
-          if (primaryUsers.length > 0) {
-            let uJob1 = primaryUsers[tIdx % primaryUsers.length];
-            if (!userTaskRoles[uJob1.id]) userTaskRoles[uJob1.id] = {};
-            if (!userTaskRoles[uJob1.id][web]) userTaskRoles[uJob1.id][web] = {};
-            userTaskRoles[uJob1.id][web][tIdx] = 'job';
-            if (primaryUsers.length > 1) {
-              let uJob2 = primaryUsers[(tIdx + 1) % primaryUsers.length];
-              if (!userTaskRoles[uJob2.id]) userTaskRoles[uJob2.id] = {};
-              if (!userTaskRoles[uJob2.id][web]) userTaskRoles[uJob2.id][web] = {};
-              userTaskRoles[uJob2.id][web][tIdx] = 'job';
-            }
-            if (primaryUsers.length > 2) {
-              let uJob3 = primaryUsers[(tIdx + 2) % primaryUsers.length];
-              if (!userTaskRoles[uJob3.id]) userTaskRoles[uJob3.id] = {};
-              if (!userTaskRoles[uJob3.id][web]) userTaskRoles[uJob3.id][web] = {};
-              userTaskRoles[uJob3.id][web][tIdx] = 'job';
-            }
-            if (primaryUsers.length > 3) {
-              for (let i = 3; i < primaryUsers.length; i++) {
-                let uSup = primaryUsers[(tIdx + i) % primaryUsers.length];
-                if (!userTaskRoles[uSup.id]) userTaskRoles[uSup.id] = {};
-                if (!userTaskRoles[uSup.id][web]) userTaskRoles[uSup.id][web] = {};
-                userTaskRoles[uSup.id][web][tIdx] = 'sup';
-              }
-            }
-          }
-        }));
-      } else {
-        let allowedTaskIndices = [];
-        webTasks.forEach(((task, i) => {
-          allowedTaskIndices.push(i);
-        }));
-        allowedTaskIndices.sort(((a, b) => {
-          let taskA = webTasks[a];
-          let taskB = webTasks[b];
-          const getScore = task => 50;
-          return getScore(taskB) - getScore(taskA);
-        }));
-        if (allowedTaskIndices.length > 0) {
-          primaryUsers.forEach(((u, pIdx) => {
-            let tIdx = allowedTaskIndices[pIdx % allowedTaskIndices.length];
-            if (!userTaskRoles[u.id]) userTaskRoles[u.id] = {};
-            if (!userTaskRoles[u.id][web]) userTaskRoles[u.id][web] = {};
-            userTaskRoles[u.id][web][tIdx] = 'job';
-          }));
-        }
-      }
-    }
-  }));
-  for (const pWeb in rosterData) {
-    let standbyUsers = (rosterData[pWeb] || []).filter((u => u.secondary_team && matrixWebsites.includes(u.secondary_team) && !u.username.includes('ขาดคน')));
-    standbyUsers.sort(((a, b) => a.username.localeCompare(b.username)));
-    standbyUsers.forEach(((u, idx) => {
-      let sWeb = u.secondary_team;
-      if (!userTaskRoles[u.id]) userTaskRoles[u.id] = {};
-      if (!userTaskRoles[u.id][sWeb]) userTaskRoles[u.id][sWeb] = {};
-      let sWebTasks = customDutyRoles[sWeb] || [ 'ไม่มีหัวข้อ' ];
-      if (sWebTasks.length === 0) sWebTasks = [ '-' ];
-      let sTaskIndex = (idx + 1) % sWebTasks.length;
-      for (let offset = 0; offset < sWebTasks.length; offset++) {
-        let currentTry = (sTaskIndex + offset) % sWebTasks.length;
-        if (!userTaskRoles[u.id][sWeb][currentTry]) {
-          userTaskRoles[u.id][sWeb][currentTry] = 'sup';
-          break;
-        }
-      }
-    }));
-  }
-  let html = `\n        <style>\n            .od-divider { border-right:3px solid #64748b !important; }\n            .dark .od-divider, html.dark .od-divider { border-right:3px solid var(--k-line) !important; }\n        </style>\n        <div class="w-full min-w-max border border-slate-600 shadow-sm rounded-lg overflow-hidden">\n        <table class="w-full text-center border-collapse whitespace-nowrap dark:text-white">`;
-  html += `<thead class="bg-slate-200 dark:bg-slate-900 border-b border-slate-400 dark:border-slate-700"><tr>`;
-  html += `<th rowspan="2" class="border border-slate-300 dark:border-slate-700 p-3 w-[1%] whitespace-nowrap text-base">กะ</th>`;
-  html += `<th rowspan="2" class="border border-slate-300 dark:border-slate-700 p-3 w-[180px] min-w-[180px] whitespace-nowrap text-[15px] od-divider">รายชื่อผู้ดูแล</th>`;
-  matrixWebsites.forEach((web => {
-    let webTasks = customDutyRoles[web] || [ 'ไม่มีหัวข้อ' ];
-    if (webTasks.length === 0) webTasks = [ '-' ];
-    let bgColor = webColors[web] || 'bg-slate-700 text-white';
-    html += `<th colspan="${webTasks.length}" class="border border-slate-300 dark:border-slate-700 p-2 font-black text-base tracking-wide od-divider ${bgColor}">${web}</th>`;
-  }));
-  html += `</tr><tr>`;
-  matrixWebsites.forEach((web => {
-    let webTasks = customDutyRoles[web] || [ 'ไม่มีหัวข้อ' ];
-    if (webTasks.length === 0) webTasks = [ '-' ];
-    webTasks.forEach(((task, tIdx) => {
-      let dividerClass = tIdx === webTasks.length - 1 ? 'od-divider' : '';
-      html += `<th class="border border-slate-300 dark:border-slate-700 p-2.5 text-[13px] font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-gray-300 min-w-[100px] max-w-[130px] truncate ${dividerClass}" title="${task}">${task}</th>`;
-    }));
-  }));
-  html += `</tr></thead><tbody>`;
-  const shiftGroups = {};
-  staffList.forEach((u => {
-    const s = u.allowed_shift || 'all';
-    if (!shiftGroups[s]) shiftGroups[s] = [];
-    shiftGroups[s].push(u);
-  }));
-  const shiftOrder = [ 'กะเช้า', 'กะกลาง', 'กะดึก', 'all' ];
-  const sortedShifts = Object.keys(shiftGroups).sort(((a, b) => {
-    let ia = shiftOrder.indexOf(a);
-    if (ia === -1) ia = 99;
-    let ib = shiftOrder.indexOf(b);
-    if (ib === -1) ib = 99;
-    return ia - ib;
-  }));
-  sortedShifts.forEach((shift => {
-    const shiftStaff = shiftGroups[shift];
-    if (shiftStaff.length === 0) return;
-    let shiftNameDisplay = shift.replace('กะ', '');
-    if (shift === 'all') shiftNameDisplay = 'อิสระ';
-    let shiftColor = 'bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-200';
-    if (shift === 'กะดึก') shiftColor = 'bg-purple-200 text-purple-900 dark:bg-purple-900 dark:text-purple-200'; else if (shift === 'กะเช้า') shiftColor = 'bg-orange-200 text-orange-900 dark:bg-orange-900 dark:text-orange-200'; else if (shift === 'กะกลาง') shiftColor = 'bg-blue-200 text-blue-900 dark:bg-blue-900 dark:text-blue-200'; else if (shift === 'all') shiftColor = 'bg-emerald-200 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-200';
-    shiftStaff.forEach(((user, index) => {
-      let isLeave = leaveIds.has(String(user.id));
-      let rowOpacity = isLeave ? 'opacity-60 bg-red-50/50 dark:bg-red-900/20' : 'hover:bg-slate-100 dark:hover:bg-slate-800/50';
-      html += `<tr class="${rowOpacity} transition border-b border-slate-200 dark:border-slate-700">`;
-      if (index === 0) {
-        html += `<td rowspan="${shiftStaff.length}" class="border border-slate-300 dark:border-slate-700 font-black text-[15px] ${shiftColor}">${shiftNameDisplay}</td>`;
-      }
-      let nameColor = isLeave ? 'text-red-500' : 'text-green-600 dark:text-green-400';
-      let leaveTag = isLeave ? '<span class="text-[11px] bg-red-500 text-white px-1.5 py-0.5 rounded shadow-sm ml-1">ลาหยุด</span>' : '';
-      html += `<td class="border border-slate-300 dark:border-slate-700 p-3 text-left font-bold ${nameColor} pl-3 text-[15px] od-divider">\n                <div class="flex items-center">\n                    <span class="uppercase">${window.escapeHtml(user.username)}</span> ${leaveTag}\n                </div>\n            </td>`;
-      matrixWebsites.forEach((web => {
-        let webTasks = customDutyRoles[web] || [ 'ไม่มีหัวข้อ' ];
-        if (webTasks.length === 0) webTasks = [ '-' ];
-        webTasks.forEach(((task, tIdx) => {
-          let dividerClass = tIdx === webTasks.length - 1 ? 'od-divider' : '';
-          if (task === '-') {
-            html += `<td class="border border-slate-300 dark:border-slate-700 p-2 bg-gray-100 dark:bg-slate-800/50 ${dividerClass}"></td>`;
-          } else {
-            let role = 'not';
-            if (isLeave) {
-              role = 'off';
-            } else if (userTaskRoles[user.id] && userTaskRoles[user.id][web] && userTaskRoles[user.id][web][tIdx]) {
-              role = userTaskRoles[user.id][web][tIdx];
-            }
-            const overrideKey = `${user.id}_${web}_${tIdx}`;
-            if (savedRoleOverrides[overrideKey] !== undefined) {
-              role = savedRoleOverrides[overrideKey];
-            }
-            let selNot = role === 'not' ? 'selected' : '';
-            let selJob = role === 'job' ? 'selected' : '';
-            let selSup = role === 'sup' ? 'selected' : '';
-            let selOff = role === 'off' ? 'selected' : '';
-            let selectClass = `text-[13px] p-1.5 rounded outline-none ${cursorClass} border font-bold focus:ring-2 focus:ring-blue-500 w-full min-w-[90px] text-center shadow-sm transition `;
-            if (role === 'job') selectClass += "bg-green-50 dark:bg-green-900/30 text-green-600 border-green-300 dark:border-green-700"; else if (role === 'sup') selectClass += "bg-yellow-50 dark:bg-yellow-900/30 text-yellow-600 border-yellow-300 dark:border-yellow-700"; else if (role === 'off') selectClass += "bg-gray-100 dark:bg-slate-800 text-gray-500 border-gray-300 dark:border-slate-600"; else selectClass += "bg-white dark:bg-slate-800 text-gray-500 border-gray-300 dark:border-slate-600";
-            let onChangeAttr = canEdit ? `onchange="window.saveTrainerMatrixRole('${user.id}', '${web}', ${tIdx}, this.value); this.className = this.options[this.selectedIndex].className + ' text-[13px] p-1.5 rounded outline-none ${cursorClass} border font-bold focus:ring-2 focus:ring-blue-500 w-full min-w-[90px] text-center shadow-sm transition'"` : '';
-            html += `<td class="border border-slate-300 dark:border-slate-700 p-1.5 ${dividerClass}">\n                            <select class="${selectClass}" ${disableAttr} ${onChangeAttr}>\n                                <option value="not" class="bg-white dark:bg-slate-800 text-gray-500" ${selNot}>🚫 Not</option>\n                                <option value="job" class="bg-green-50 dark:bg-green-900/30 text-green-600" ${selJob}>✅ Job</option>\n                                <option value="sup" class="bg-yellow-50 dark:bg-yellow-900/30 text-yellow-600" ${selSup}>👉 Sup</option>\n                                <option value="off" class="bg-gray-100 dark:bg-slate-800 text-gray-500" ${selOff}>⛔ OFF</option>\n                            </select>\n                        </td>`;
-          }
-        }));
-      }));
-      html += `</tr>`;
-    }));
-  }));
-  html += `</tbody></table></div>`;
-  matrixGrid.innerHTML = html;
+  const shOrder = [ 'กะเช้า', 'กะกลาง', 'กะดึก' ];
+  const shLabel = s => s === 'กะเช้า' ? 'เช้า' : s === 'กะกลาง' ? 'กลาง' : s === 'กะดึก' ? 'ดึก' : '-';
+  trainers.sort(((a, b) => shOrder.indexOf(window.getDutyShiftForToday(a)) - shOrder.indexOf(window.getDutyShiftForToday(b)) || a.username.localeCompare(b.username)));
+  const esc = window.escapeHtml;
+  const cell = (val, uid, kind, key) => `<td class="oq-c ${val}${canEdit ? ' ed' : ''}" data-uid="${esc(String(uid))}" data-kind="${kind}" data-key="${esc(key)}" ${canEdit ? `onclick="odqlCycle(this)" title="กดเพื่อสลับ: Job → S → Not"` : ''}><span>${val === 'job' ? '✓ Job' : val === 'sup' ? 'S' : 'Not'}</span></td>`;
+  let head1 = `<th rowspan="2" class="oq-h oq-fix1">รายชื่อผู้ดูแล</th><th rowspan="2" class="oq-h oq-fix2">กะ</th>`;
+  head1 += `<th colspan="${webs.length}" class="oq-h oq-grp">เว็บที่ดูแล (Job = หลัก · S = รอง)</th>`;
+  if (tasks.length) head1 += `<th colspan="${tasks.length}" class="oq-h oq-grp oq-grp-t">งานประจำวัน</th>`;
+  const webHex = {
+    Jun88: '#2563eb',
+    MK8: '#facc15',
+    VV72: '#991b1b',
+    TH26: '#64748b',
+    PG688: '#fbbf24',
+    JL69: '#475569',
+    K188: '#0ea5e9',
+    BT678: '#dc2626',
+    NM9: '#db2777',
+    F168: '#ea580c'
+  };
+  let head2 = webs.map((w => `<th class="oq-h oq-web" style="--wc:${webHex[w] || '#64748b'}">${esc(w)}</th>`)).join('');
+  head2 += tasks.map((t => `<th class="oq-h oq-task" title="${esc(t)}">${esc(t)}</th>`)).join('');
+  const rows = trainers.map((u => {
+    const sh = window.getDutyShiftForToday(u);
+    const onLeave = leaveIds.has(String(u.id));
+    let r = `<tr class="oq-r${onLeave ? ' lv' : ''}"><td class="oq-n oq-fix1" title="${esc(u.username)}">${esc(u.username)}${onLeave ? ' <small>(ลา)</small>' : ''}</td><td class="oq-s oq-fix2 ${sh === 'กะดึก' ? 'n' : sh === 'กะกลาง' ? 'm' : 'd'}">${shLabel(sh)}</td>`;
+    r += webs.map((w => cell(window.odqlCellOf(u, w, rosterData), u.id, 'web', w))).join('');
+    r += tasks.map((t => cell(window.odqlTaskCellOf(u, t), u.id, 'task', t))).join('');
+    return r + '</tr>';
+  })).join('');
+  const sumJob = webs.map((w => trainers.filter((u => window.odqlCellOf(u, w, rosterData) === 'job')).length));
+  const sumSup = webs.map((w => trainers.filter((u => window.odqlCellOf(u, w, rosterData) === 'sup')).length));
+  const foot = `<tr class="oq-f"><td class="oq-fix1">รวม Job / S</td><td class="oq-fix2"></td>${webs.map(((w, i) => `<td><b>${sumJob[i]}</b><small>/${sumSup[i]}</small></td>`)).join('')}${tasks.map((t => {
+    const tm = window.impTeamOf ? window.impTeamOf(t) : {
+      main: [],
+      support: []
+    };
+    return `<td><b>${tm.main.length}</b><small>/${tm.support.length}</small></td>`;
+  })).join('')}</tr>`;
+  matrixGrid.innerHTML = `
+    <div class="oq-top">
+      <div class="oq-legend"><span class="job">✓ Job</span> ดูแลหลัก <span class="sup">S</span> ซัพพอร์ต/เว็บรอง <span class="not">Not</span> ไม่ดูแล${canEdit ? ' · กดช่องเพื่อสลับ บันทึกทันที' : ''}</div>
+      <div class="oq-tools">
+        <button type="button" class="oq-btn" onclick="odqlCopySheet()" title="คัดลอกเป็นตารางไปวางในชีต/Excel"><span class="material-icons">content_copy</span>คัดลอกไปวางชีต</button>
+        ${!tasks.length && canEdit ? '<span class="oq-hint">ยังไม่มีงานประจำวัน — เพิ่มได้ที่กล่อง "หน้าที่ประจำ / พิเศษ" ด้านซ้าย</span>' : ''}
+      </div>
+    </div>
+    <div class="oq-wrap"><table class="oq-t"><thead><tr>${head1}</tr><tr>${head2}</tr></thead><tbody>${rows || `<tr><td colspan="${2 + webs.length + tasks.length}" class="oq-empty">ไม่มีผู้สอน OD ในกะนี้</td></tr>`}</tbody><tfoot>${foot}</tfoot></table></div>`;
 };
 
-window.saveTrainerMatrixRole = async function(userId, web, taskIdx, newRole) {
+window.odqlCycle = async function(td) {
+  if (window._odqlBusy) return;
+  const uid = td.dataset.uid, kind = td.dataset.kind, key = td.dataset.key;
+  const cur = td.classList.contains('job') ? 'job' : td.classList.contains('sup') ? 'sup' : 'not';
+  const next = cur === 'not' ? 'job' : cur === 'job' ? 'sup' : 'not';
+  const u = (GLOBAL_USER_LIST || []).find((x => String(x.id) === String(uid)));
+  if (!u) return;
+  window._odqlBusy = true;
+  td.classList.add('busy');
   try {
-    const targetDate = document.getElementById('dutyDate') ? document.getElementById('dutyDate').value : '';
-    const shiftFilter = document.getElementById('dutyShiftSelect') ? document.getElementById('dutyShiftSelect').value : 'all';
-    if (!targetDate) {
-      Swal.fire('!', 'กรุณาเลือกวันที่ก่อน', 'warning');
-      return;
+    const targetDate = document.getElementById('dutyDate').value;
+    const shiftFilter = document.getElementById('dutyShiftSelect').value;
+    if (kind === 'web') {
+      const sups = window._odqlSups || (window._odqlSups = {});
+      const mine = (sups[String(uid)] || []).filter((w => w !== key));
+      let entry = null;
+      for (const t in currentRosterData) {
+        const idx = (currentRosterData[t] || []).findIndex((x => x && String(x.id) === String(uid)));
+        if (idx > -1) entry = currentRosterData[t].splice(idx, 1)[0];
+      }
+      if (!entry) entry = {
+        ...u,
+        assigned_by: currentUser.username,
+        assigned_at: (new Date).toISOString()
+      };
+      if (next === 'job') {
+        if (!currentRosterData[key]) currentRosterData[key] = [];
+        entry.secondary_team = mine[0] || null;
+        currentRosterData[key].push(entry);
+        sups[String(uid)] = mine;
+      } else if (next === 'sup') {
+        sups[String(uid)] = [ ...mine, key ];
+      } else {
+        sups[String(uid)] = mine;
+        if (!mine.length) delete sups[String(uid)];
+      }
+      window.clearSettingCache();
+      window.dutyDbOk(await appDB.from('settings').upsert([ {
+        key: getDutySaveKey(targetDate, shiftFilter),
+        value: JSON.stringify(currentRosterData)
+      }, {
+        key: window.odqlSupKey(),
+        value: JSON.stringify(sups)
+      } ]));
+    } else {
+      const team = window.impTeamOf(key);
+      team.main = team.main.filter((n => n !== u.username));
+      team.support = team.support.filter((n => n !== u.username));
+      if (next === 'job') team.main.push(u.username); else if (next === 'sup') team.support.push(u.username);
+      const norm = window.impNormTeam(team);
+      if (norm) window.currentImportantAssigns[key] = norm; else delete window.currentImportantAssigns[key];
+      window.clearSettingCache();
+      window.dutyDbOk(await appDB.from('settings').upsert([ {
+        key: `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`,
+        value: JSON.stringify(window.currentImportantAssigns)
+      } ]));
     }
-    const matrixRoleKey = window.getTrainerMatrixRoleKey(currentDutyDept, targetDate, shiftFilter);
-    const overrideKey = `${userId}_${web}_${taskIdx}`;
-    let current = {};
     try {
-      const {data: data} = await window.getSettingCached(matrixRoleKey);
-      if (data && data.value) current = JSON.parse(data.value);
-    } catch (e) {}
-    current[overrideKey] = newRole;
-    window.clearSettingCache();
-    const {error: _matrixErr} = await appDB.from('settings').upsert([ {
-      key: matrixRoleKey,
-      value: JSON.stringify(current)
-    } ]);
-    if (_matrixErr) {
-      Swal.fire('Error', 'บันทึกไม่สำเร็จ: ' + _matrixErr.message, 'error');
-      return;
-    }
-    try {
-      const user = (window.GLOBAL_USER_LIST || []).find((u => String(u.id) === String(userId)));
-      const userName = user ? user.username : userId;
       await appDB.from('system_logs').insert([ {
         action_type: 'จัดหน้าที่',
         performed_by: currentUser.username,
-        target_details: `เปลี่ยน role ของ ${userName} ที่ [${web}] หัวข้อ #${taskIdx} → ${newRole} (${currentDutyDept}, ${shiftFilter}, ${targetDate})`
+        target_details: `ผู้สอน OD: ${u.username} ${kind === 'web' ? 'เว็บ' : 'งาน'} [${key}] → ${next === 'job' ? 'Job' : next === 'sup' ? 'S' : 'Not'} (${currentDutyDept}, ${shiftFilter}, ${targetDate})`
       } ]);
     } catch (e) {}
     try {
       window.debouncedBroadcast('duty-updates', 'force_reload');
     } catch (e) {}
+    window.renderTrainerOdMatrix(currentRosterData);
+    if (typeof window.renderImportantTasksPanel === 'function') window.renderImportantTasksPanel();
   } catch (err) {
-    console.error('saveTrainerMatrixRole error:', err);
-    Swal.fire('Error', err.message, 'error');
+    Swal.fire('บันทึกไม่สำเร็จ', err.message, 'error');
+  } finally {
+    window._odqlBusy = false;
+    td.classList.remove('busy');
+  }
+};
+
+window.odqlCopySheet = async function() {
+  const table = document.querySelector('#dutyMatrixGrid table.oq-t');
+  if (!table) return;
+  const lines = [];
+  table.querySelectorAll('thead tr:last-child, tbody tr').forEach(((tr, i) => {
+    const cells = [ ...tr.children ].map((c => c.innerText.replace(/\s+/g, ' ').trim()));
+    if (i === 0) cells.unshift('กะ', 'รายชื่อผู้ดูแล');
+    lines.push(cells.join('\t'));
+  }));
+  try {
+    await navigator.clipboard.writeText(lines.join('\n'));
+    Swal.fire({
+      icon: 'success',
+      title: 'คัดลอกแล้ว',
+      text: 'ไปวาง (Ctrl+V) ในชีตได้เลย ค่าจะลงช่องตรงกับตาราง',
+      timer: 1800,
+      showConfirmButton: false
+    });
+  } catch (e) {
+    Swal.fire('คัดลอกไม่สำเร็จ', 'เบราว์เซอร์ไม่อนุญาต ลองกดอีกครั้ง', 'error');
   }
 };

@@ -559,7 +559,7 @@ window.addUserToGroup = async function(groupName) {
   btn.innerHTML = '<span class="material-icons animate-spin">sync</span>';
   btn.disabled = true;
   try {
-    const res = await fetch(DISCORD_API_URL + '/api/groups/assign', {
+    const res = await window.dsFetch(DISCORD_API_URL + '/api/groups/assign', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -591,7 +591,7 @@ window.removeUserFromGroup = async function(groupName, staffId) {
   const listContainer = document.getElementById('modalMemberList');
   listContainer.style.opacity = '0.5';
   try {
-    const res = await fetch(DISCORD_API_URL + '/api/groups/remove-member', {
+    const res = await window.dsFetch(DISCORD_API_URL + '/api/groups/remove-member', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -637,7 +637,7 @@ window.spy_kickUser = async function(uid, name) {
     didOpen: () => Swal.showLoading()
   });
   try {
-    const res = await fetch(`${DISCORD_API_URL}/api/kick-user`, {
+    const res = await window.dsFetch(`${DISCORD_API_URL}/api/kick-user`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'

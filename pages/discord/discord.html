@@ -197,6 +197,18 @@
         #dsApp .mv-back:hover{background:var(--k-btn-h)}
         #dsApp .mv-empty{color:var(--k-mute2);font-size:12.5px;font-weight:700;text-align:center;padding:24px 8px}
         @media (max-width:900px){ #dsApp .mv-grid{grid-template-columns:1fr} #dsApp .mv-card{min-height:0} }
+        #dsApp .ds-key{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:0 0 18px;padding:12px 14px;border-radius:14px;background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.35)}
+        #dsApp .ds-key-l{display:flex;align-items:flex-start;gap:10px;flex:1;min-width:260px;color:var(--k-tx-strong);font-size:13px}
+        #dsApp .ds-key-l .material-icons{color:#f59e0b;font-size:22px}
+        #dsApp .ds-key-l small{display:block;font-size:11px;color:var(--k-mute);font-weight:600;margin-top:2px}
+        #dsApp .ds-key-l code{font-family:ui-monospace,monospace;background:var(--k-sunk);padding:1px 5px;border-radius:5px}
+        #dsApp .ds-key-r{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+        #dsApp .ds-key-r input{width:260px;height:36px;border-radius:10px;background:var(--k-field);border:1px solid var(--k-line3);color:var(--k-tx-strong);font-family:ui-monospace,monospace;font-size:12.5px;outline:none}
+        #dsApp .ds-key-r input:focus{border-color:#f59e0b}
+        #dsApp .ds-key-btn{display:inline-flex;align-items:center;gap:4px;height:36px;padding:0 10px;border-radius:10px;border:1px solid var(--k-line3);background:var(--k-btn);color:var(--k-tx2);font-size:12px;font-weight:800}
+        #dsApp .ds-key-btn .material-icons{font-size:16px}
+        #dsApp .ds-key-btn.save{background:#f59e0b;border-color:#f59e0b;color:#1b1406}
+        #dsApp .ds-key-st{font-size:12px;font-weight:800}
 </style>
     <aside class="dsn-side">
         <div class="dsn-brand">
@@ -291,6 +303,16 @@
         <div id="dsContent_manage" class="max-w-6xl mx-auto hidden fade-in pb-10">
             <div class="bg-slate-800 p-4 md:p-6 rounded-3xl border border-slate-700 shadow-lg">
                 <h2 class="text-amber-500 font-black mb-6 flex items-center gap-2 text-xl"><span class="material-icons">manage_accounts</span> จัดการรายชื่อพนักงานและกลุ่ม</h2>
+                <div class="ds-key">
+                    <div class="ds-key-l"><span class="material-icons">vpn_key</span><div><b>กุญแจ API บอท Discord</b><small>ต้องตรงกับค่า <code>API_KEY</code> ใน Railway ของบอท · ถ้าตั้งที่ Railway แล้วไม่ตั้งตรงนี้ ทุกปุ่มที่สั่งบอทจะใช้ไม่ได้</small></div></div>
+                    <div class="ds-key-r">
+                        <input type="password" id="dsApiKeyInput" placeholder="วางกุญแจที่นี่" autocomplete="off">
+                        <button type="button" onclick="ds_toggleKeyEye()" class="ds-key-btn" title="แสดง/ซ่อน"><span class="material-icons" id="dsApiKeyEye">visibility</span></button>
+                        <button type="button" onclick="ds_saveApiKey()" class="ds-key-btn save"><span class="material-icons">save</span>บันทึก</button>
+                        <button type="button" onclick="ds_testApiKey()" class="ds-key-btn"><span class="material-icons">wifi_tethering</span>ทดสอบ</button>
+                        <span id="dsApiKeyStatus" class="ds-key-st"></span>
+                    </div>
+                </div>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     <div class="bg-slate-900 p-5 rounded-2xl border border-slate-700 flex flex-col h-[650px] shadow-inner">

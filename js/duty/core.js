@@ -699,7 +699,9 @@ window.refreshDutyData = async function() {
         appDB.from('settings').upsert([ {
           key: impAssignKey,
           value: JSON.stringify(window.currentImportantAssigns)
-        } ]);
+        } ]).then((r => {
+          if (r && r.error) console.warn('[impAssign] บันทึกอัตโนมัติไม่สำเร็จ:', r.error.message);
+        }));
       }
     } catch (e) {
       console.log(e);
@@ -1523,10 +1525,10 @@ window.generateDutyRoster = async function() {
       try {
         const _rooms = window.getOdDiscordRooms();
         const _roomMap = window.assignOdRooms(rosterResult, _rooms);
-        await appDB.from('settings').upsert([ {
+        window.dutyDbOk(await appDB.from('settings').upsert([ {
           key: `duty_od_rooms_${targetDate}_${shiftFilter}`,
           value: JSON.stringify(_roomMap)
-        } ]);
+        } ]));
         window._odRoomCache = null;
       } catch (e) {
         console.warn('จัดห้องดิส OD ไม่สำเร็จ:', e);
@@ -1612,10 +1614,11 @@ window.renderRosterGrid = async function(rosterData) {
   const matrixGrid = document.getElementById('dutyMatrixGrid');
   if (!cardGrid) return;
   if (currentDutyDept === 'ODQL' || currentDutyDept === 'TRAINER_OD') {
+    currentRosterData = rosterData || {};
     cardGrid.classList.add('hidden');
     if (matrixGrid) matrixGrid.classList.remove('hidden');
     if (typeof window.renderTrainerOdMatrix === 'function') {
-      window.renderTrainerOdMatrix(rosterData);
+      await window.renderTrainerOdMatrix(currentRosterData);
     }
     return;
   } else {
