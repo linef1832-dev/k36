@@ -801,6 +801,26 @@ function _dreqEnsureStyle() {
   document.head.appendChild(s);
 }
 
+window.dutyAccessOf = function(uid) {
+  if (typeof dutyAccessMatrix === 'undefined' || !dutyAccessMatrix) return [];
+  return dutyAccessMatrix[String(uid)] || dutyAccessMatrix[Number(uid)] || [];
+};
+
+window.dutyHasAccess = function(uid, team) {
+  const acc = window.dutyAccessOf(uid);
+  if (currentDutyDept === 'ODQL' && !acc.length) return true;
+  return acc.includes(team);
+};
+
+window.dutyNoAccess = function(uid, teams) {
+  return (teams || []).filter((t => t && !window.dutyHasAccess(uid, t)));
+};
+
+window.dutyUserName = function(uid) {
+  const u = (GLOBAL_USER_LIST || []).find((x => String(x.id) === String(uid)));
+  return u ? u.username : String(uid);
+};
+
 window.dutyIsPlaceholder = function(u) {
   return !!(u && !u.id && String(u.username || '').includes('ขาดคน'));
 };

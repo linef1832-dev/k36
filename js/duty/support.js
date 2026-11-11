@@ -461,6 +461,7 @@ window.buildStayPinPreview = function(dateStr, shiftFilter) {
     let uDept = u.department || 'AM';
     if (uDept === 'TRAINER') uDept = 'AMQL';
     if (uDept !== currentDutyDept) return;
+    if (typeof window.dutyHasAccess === 'function' && !window.dutyHasAccess(uid, pin.team)) return;
     roster[pin.team].push({
       ...u,
       secondary_team: null,

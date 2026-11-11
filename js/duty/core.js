@@ -846,7 +846,14 @@ window.restoreFromLeave = async function(userId, username) {
     });
   }
   let optionsHtml = '<option value="" disabled selected>-- เลือกเว็บที่จะให้ไปทำ --</option>';
-  sortedTeams.forEach((t => {
+  const restoreAcc = window.dutyAccessOf(userId);
+  const restoreTeams = currentDutyDept === 'ODQL' && !restoreAcc.length ? sortedTeams : sortedTeams.filter((t => restoreAcc.includes(t)));
+  if (!restoreTeams.length) return Swal.fire({
+    icon: 'warning',
+    title: 'ยังไม่มีสิทธิ์เว็บไหนเลย',
+    html: `<b>${window.escapeHtml(username)}</b> ยังไม่ได้ติกสิทธิ์หลังบ้านเว็บใดเลย<br>ไปติกในแท็บ "ตั้งค่าสิทธิ์และหัวข้อ" ก่อน แล้วค่อยดึงกลับครับ`
+  });
+  restoreTeams.forEach((t => {
     optionsHtml += `<option value="${t}">${t}</option>`;
   }));
   const {value: selectedTeam} = await Swal.fire({
@@ -1101,6 +1108,11 @@ window.addStaffToRoster = async function() {
       }
       if (subTeam && subTeam === team) {
         Swal.showValidationMessage('เว็บรองต้องไม่ซ้ำกับเว็บหลัก');
+        return false;
+      }
+      const noAcc = window.dutyNoAccess(userId, [ team, subTeam ].filter(Boolean));
+      if (noAcc.length) {
+        Swal.showValidationMessage(`${window.escapeHtml(window.dutyUserName(userId))} ไม่มีสิทธิ์หลังบ้านเว็บ ${noAcc.join(', ')} — ติกสิทธิ์ในแท็บ "ตั้งค่าสิทธิ์และหัวข้อ" ก่อน`);
         return false;
       }
       return {
@@ -1425,6 +1437,14 @@ window.generateDutyRoster = async function() {
         });
         return;
       }
+      if (!window.dutyHasAccess(uid, pin.team)) {
+        pinnedSkipped.push({
+          username: pin.username,
+          team: pin.team,
+          noAccess: true
+        });
+        return;
+      }
       if ((remainingReqs[pin.team] || 0) <= 0) pinnedOverQuota.push(`${window.escapeHtml(pin.username)} (${pin.team})`);
       rosterResult[pin.team].push({
         ...u,
@@ -1623,6 +1643,7 @@ window.generateDutyRoster = async function() {
     if (pinnedSkipped.length > 0) {
       const lines = pinnedSkipped.map((s => {
         const newFaces = (rosterResult[s.team] || []).filter((u => u && u.id && yestTeamMap[String(u.id)] !== s.team)).map((u => u.username));
+        if (s.noAccess) return `• <b>${window.escapeHtml(s.username)}</b> (ล็อกไว้ที่ ${s.team}) → <span style="color:#dc2626;font-weight:800">ไม่มีสิทธิ์หลังบ้านเว็บ ${s.team} แล้ว จึงไม่ได้ใส่ให้</span>`;
         return `• <b>${window.escapeHtml(s.username)}</b> (ล็อกไว้ที่ ${s.team}) → ` + (newFaces.length ? `วันนี้ <b>${s.team}</b> ได้ <b>${newFaces.join(', ')}</b> มาแทน` : `วันนี้ <b>${s.team}</b> ใช้คนเดิมทั้งหมด`);
       }));
       pinSummary += `<div style="margin-top:8px;text-align:left;background:rgba(148,163,184,.12);border:1px solid rgba(148,163,184,.3);border-radius:12px;padding:10px 12px;font-size:11.5px;color:var(--k-mute);line-height:1.8">\n                ℹ️ <b>คนที่ถูกล็อกแต่วันนี้ไม่ได้ทำงาน</b> (ลาหยุด / สลับกะ) — การล็อกยังอยู่ ใช้ต่อวันถัดไปได้<br>\n                ${lines.join('<br>')}\n                <div style="margin-top:6px;opacity:.8">คนที่มาแทนไม่ได้ถูกล็อกไว้ พรุ่งนี้จะหมุนตามปกติ ถ้าอยากให้อยู่ต่อให้กด 📌 เอง</div>\n            </div>`;
@@ -1986,7 +2007,8 @@ window.renderRosterGrid = async function(rosterData) {
           pin: pin,
           sup: sup,
           hist: hist,
-          histHtml: histHtml
+          histHtml: histHtml,
+          noAcc: !miss && !!a.id && currentDutyDept !== 'ODQL' && typeof window.dutyHasAccess === 'function' && !_grpTeams.some((gt => window.dutyHasAccess(a.id, gt)))
         };
       })),
       trainerBtn: window.isTrainerDept && window.isTrainerDept() && (isAdmin || currentUser && (currentUser.department === 'AMQL' || currentUser.department === 'ODQL' || String(currentUser.department || '').startsWith('TRAINER'))) ? `<button type="button" class="ov-trbtn" onclick="openTrainerReportModal('${team}')" title="บันทึกประเมินการดูแลเว็บนี้">📝 ประเมิน</button>` : ''
@@ -2003,7 +2025,7 @@ window.renderRosterGrid = async function(rosterData) {
   const _isAdm = typeof window.isDutyAdmin === 'function' && window.isDutyAdmin();
   const _ovRows = _dmItems.map((it => {
     const st = it.missing ? [ 'bad', 'ขาดคน' ] : it.warn ? [ 'warn', 'พักชนกัน' ] : [ 'ok', 'พร้อม' ];
-    const chips = it.people.map((p => p.miss ? (_isAdm ? `<span class="ov-p miss" style="cursor:pointer" title="กดเพื่อเอาช่องขาดคนออก (เมื่อคนครบแล้ว)" onclick="dutyRemovePlaceholder('${window.escapeJsAttr(it.team)}')"><b>ขาดคน</b></span>` : `<span class="ov-p miss"><b>ขาดคน</b></span>`) : `<span class="ov-p duty-user-card ${p.drag ? 'can' : ''} ${p.me ? 'me' : ''}" data-name="${window.escapeHtml(p.name.toLowerCase())}" ${p.drag ? `draggable="true" ondragstart="handleDragStart(event, '${p.id}', '${window.escapeJsAttr(p.name)}', '${it.team}')"` : ''} title="${window.escapeHtml(p.name)}${p.sec ? ' · งานรอง ' + p.sec : ''}${p.hist ? '\nย้อนหลัง: ' + window.escapeHtml(p.hist) : ''}">\n                <span class="ov-top">\n                <b>${window.escapeHtml(p.name)}</b>${p.me ? '<span class="dc-me">ฉัน</span>' : ''}\n                <small class="${p.slots.length ? '' : 'none'}">${p.slots.length ? p.slots.map((x => x.split('-')[0])).join(' · ') : 'ยังไม่ลงพัก'}</small>\n                ${p.sec ? _canSec ? `<button type="button" class="ov-sec" onclick="event.stopPropagation(); changeSecondaryTeam('${it.team}', '${p.id}', '${window.escapeJsAttr(p.name)}')" title="กดเพื่อเปลี่ยนงานรองของ ${window.escapeHtml(p.name)}">รอง ${p.sec}<span class="material-icons">edit</span></button>` : `<i>รอง ${p.sec}</i>` : _canSec && p.id ? `<button type="button" class="ov-sec add" onclick="event.stopPropagation(); changeSecondaryTeam('${it.team}', '${p.id}', '${window.escapeJsAttr(p.name)}')" title="แจกงานรองให้ ${window.escapeHtml(p.name)}">+ รอง</button>` : ''}\n                ${p.sup.map((t => `<i class="ov-sup">🛟 ${window.escapeHtml(t)}</i>`)).join('')}\n                ${p.pin ? `<span class="ov-pin">${p.pin}</span>` : ''}${p.drag && p.id ? `<button type="button" class="ov-del" onclick="event.stopPropagation(); dutyRemoveFromRoster('${it.team}', '${p.id}', '${window.escapeJsAttr(p.name)}')" title="เอา ${window.escapeHtml(p.name)} ออกจากตารางนี้ (ไม่ใช่ลาหยุด)"><span class="material-icons">delete_outline</span></button>` : ''}\n                </span>\n                <span class="ov-imp" data-imp-name="${window.escapeHtml(p.name)}"></span>\n                ${p.histHtml ? `<span class="ov-hist"><span class="material-icons">history</span>${p.histHtml}</span>` : ''}\n            </span>`)).join('') || '<span class="ov-empty">ยังไม่มีคน · ลากชื่อมาวางได้</span>';
+    const chips = it.people.map((p => p.miss ? (_isAdm ? `<span class="ov-p miss" style="cursor:pointer" title="กดเพื่อเอาช่องขาดคนออก (เมื่อคนครบแล้ว)" onclick="dutyRemovePlaceholder('${window.escapeJsAttr(it.team)}')"><b>ขาดคน</b></span>` : `<span class="ov-p miss"><b>ขาดคน</b></span>`) : `<span class="ov-p duty-user-card ${p.drag ? 'can' : ''} ${p.me ? 'me' : ''}" data-name="${window.escapeHtml(p.name.toLowerCase())}" ${p.drag ? `draggable="true" ondragstart="handleDragStart(event, '${p.id}', '${window.escapeJsAttr(p.name)}', '${it.team}')"` : ''} title="${window.escapeHtml(p.name)}${p.sec ? ' · งานรอง ' + p.sec : ''}${p.hist ? '\nย้อนหลัง: ' + window.escapeHtml(p.hist) : ''}">\n                <span class="ov-top">\n                <b>${window.escapeHtml(p.name)}</b>${p.me ? '<span class="dc-me">ฉัน</span>' : ''}${p.noAcc ? `<span class="ov-noacc" title="${window.escapeHtml(p.name)} ไม่ได้ติกสิทธิ์หลังบ้านเว็บ ${window.escapeHtml(it.team)} — ย้ายไปเว็บที่มีสิทธิ์ หรือติกสิทธิ์เพิ่ม">⚠ ไม่มีสิทธิ์เว็บนี้</span>` : ''}\n                <small class="${p.slots.length ? '' : 'none'}">${p.slots.length ? p.slots.map((x => x.split('-')[0])).join(' · ') : 'ยังไม่ลงพัก'}</small>\n                ${p.sec ? _canSec ? `<button type="button" class="ov-sec" onclick="event.stopPropagation(); changeSecondaryTeam('${it.team}', '${p.id}', '${window.escapeJsAttr(p.name)}')" title="กดเพื่อเปลี่ยนงานรองของ ${window.escapeHtml(p.name)}">รอง ${p.sec}<span class="material-icons">edit</span></button>` : `<i>รอง ${p.sec}</i>` : _canSec && p.id ? `<button type="button" class="ov-sec add" onclick="event.stopPropagation(); changeSecondaryTeam('${it.team}', '${p.id}', '${window.escapeJsAttr(p.name)}')" title="แจกงานรองให้ ${window.escapeHtml(p.name)}">+ รอง</button>` : ''}\n                ${p.sup.map((t => `<i class="ov-sup">🛟 ${window.escapeHtml(t)}</i>`)).join('')}\n                ${p.pin ? `<span class="ov-pin">${p.pin}</span>` : ''}${p.drag && p.id ? `<button type="button" class="ov-del" onclick="event.stopPropagation(); dutyRemoveFromRoster('${it.team}', '${p.id}', '${window.escapeJsAttr(p.name)}')" title="เอา ${window.escapeHtml(p.name)} ออกจากตารางนี้ (ไม่ใช่ลาหยุด)"><span class="material-icons">delete_outline</span></button>` : ''}\n                </span>\n                <span class="ov-imp" data-imp-name="${window.escapeHtml(p.name)}"></span>\n                ${p.histHtml ? `<span class="ov-hist"><span class="material-icons">history</span>${p.histHtml}</span>` : ''}\n            </span>`)).join('') || '<span class="ov-empty">ยังไม่มีคน · ลากชื่อมาวางได้</span>';
     return `<div class="ov-row" data-team="${it.team}" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${it.team}')">\n            <span class="ov-tint ${it.color.bg}" aria-hidden="true"></span>\n            <div class="ov-team">\n                <span class="ov-bar ${it.color.bg}"></span>\n                <span><b>${it.title}</b><small>${it.count} คน</small>${it.room ? `<span class="ov-room" title="เข้าห้อง Discord: ${window.escapeHtml(it.room)}"><span class="material-icons">headset_mic</span>${window.escapeHtml(it.room)}</span>` : ''}\n                    <span class="ov-narrow"><span class="ov-stp ${st[0]}">${st[1]}</span>${it.standbyNames.length ? `<span class="ov-sbn" title="สแตนด์บายช่วยเว็บนี้">รอง: ${it.standbyNames.map((n => window.escapeHtml(n))).join(', ')}</span>` : ''}</span>\n                    ${it.trainerBtn || ''}</span>\n            </div>\n            <div class="ov-people">${chips}</div>\n            <div class="ov-sb">${it.standbyNames.length ? it.standbyNames.map((n => window.escapeHtml(n))).join(', ') : '—'}</div>\n            <div class="ov-st"><span class="${st[0]}">${st[1]}</span></div>\n        </div>`;
   })).join('');
   const _okN = _dmItems.filter((x => !x.missing)).length, _missN = _dmItems.filter((x => x.missing)).length;

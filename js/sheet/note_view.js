@@ -631,6 +631,7 @@ const _nHdrCls = 'nt-hdr';
 const _nEsc = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 window.renderNoteTable = function() {
+  if (typeof window._noteZoomBind === 'function') window._noteZoomBind();
   const wrap = document.getElementById('noteTableWrap');
   const note = window._currentNote;
   if (!wrap || !note) return;
@@ -704,4 +705,88 @@ window.copyNoteCell = function(td) {
 window.copyNoteRow = function(btn) {
   const tr = btn.closest('tr');
   window._copyText([ ...tr.querySelectorAll('td[data-v]') ].map((td => td.dataset.v)).join('\t'), tr);
+};
+
+window._noteZoom = (() => {
+  try {
+    const v = parseFloat(localStorage.getItem('noteZoom'));
+    return v >= .5 && v <= 2 ? v : 1;
+  } catch (e) {
+    return 1;
+  }
+})();
+
+window.noteZoomApply = function() {
+  const wrap = document.getElementById('noteTableWrap');
+  const z = window._noteZoom;
+  if (wrap) wrap.style.setProperty('--nz', String(z));
+  const lbl = document.getElementById('noteZoomVal');
+  if (lbl) lbl.textContent = Math.round(z * 100) + '%';
+};
+
+window.noteZoomSet = function(z, anchor) {
+  const wrap = document.getElementById('noteTableWrap');
+  const old = window._noteZoom;
+  z = Math.max(.5, Math.min(2, Math.round(z * 100) / 100));
+  if (z === old) return window.noteZoomApply();
+  let ax = 0, ay = 0, cx = 0, cy = 0;
+  if (wrap) {
+    const r = wrap.getBoundingClientRect();
+    ax = anchor ? anchor.x - r.left : wrap.clientWidth / 2;
+    ay = anchor ? anchor.y - r.top : wrap.clientHeight / 2;
+    cx = (wrap.scrollLeft + ax) / old;
+    cy = (wrap.scrollTop + ay) / old;
+  }
+  window._noteZoom = z;
+  try {
+    localStorage.setItem('noteZoom', String(z));
+  } catch (e) {}
+  window.noteZoomApply();
+  if (wrap) {
+    wrap.scrollLeft = Math.max(0, cx * z - ax);
+    wrap.scrollTop = Math.max(0, cy * z - ay);
+  }
+};
+
+window.noteZoomStep = function(dir) {
+  const steps = [ .5, .6, .67, .75, .8, .9, 1, 1.1, 1.25, 1.5, 1.75, 2 ];
+  const z = window._noteZoom;
+  let next;
+  if (dir > 0) next = steps.find((s => s > z + .001)) || 2; else next = steps.slice().reverse().find((s => s < z - .001)) || .5;
+  window.noteZoomSet(next);
+};
+
+window.noteZoomFit = function() {
+  const wrap = document.getElementById('noteTableWrap');
+  const inner = wrap && wrap.firstElementChild;
+  const tbl = inner && inner.querySelector('table');
+  if (!wrap || !tbl) return;
+  const natural = tbl.getBoundingClientRect().width / (window._noteZoom || 1);
+  if (!natural) return;
+  window.noteZoomSet(Math.floor((wrap.clientWidth - 6) / natural * 100) / 100);
+  wrap.scrollLeft = 0;
+};
+
+window._noteZoomBind = function() {
+  const bind = () => {
+    const wrap = document.getElementById('noteTableWrap');
+    if (!wrap || wrap.dataset.nzBound) return !!wrap;
+    wrap.dataset.nzBound = '1';
+    wrap.addEventListener('wheel', (e => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      const tb = document.getElementById('noteToolbar');
+      if (tb && !tb.classList.contains('hidden')) return;
+      e.preventDefault();
+      const f = Math.exp(-e.deltaY * (e.deltaMode === 1 ? .05 : .0018));
+      window.noteZoomSet(window._noteZoom * f, {
+        x: e.clientX,
+        y: e.clientY
+      });
+    }), {
+      passive: false
+    });
+    window.noteZoomApply();
+    return true;
+  };
+  bind();
 };
