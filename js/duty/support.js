@@ -466,6 +466,7 @@ window.buildStayPinPreview = function(dateStr, shiftFilter) {
       secondary_team: null,
       stay_pinned: true
     });
+    if (typeof window.dutyFillSlot === 'function') window.dutyFillSlot(roster, pin.team);
     count++;
   }));
   return {

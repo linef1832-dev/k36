@@ -885,11 +885,14 @@ window.restoreFromLeave = async function(userId, username) {
         if (!currentRosterData[selectedTeam]) currentRosterData[selectedTeam] = [];
         movedFrom = window.dutyRemoveFromOtherTeams(currentRosterData, userId, selectedTeam) || [];
         const isExist = currentRosterData[selectedTeam].some((u => String(u.id) === String(userId)));
-        if (!isExist) currentRosterData[selectedTeam].push({
-          ...fullUserObj,
-          assigned_by: currentUser.username,
-          assigned_at: (new Date).toISOString()
-        });
+        if (!isExist) {
+          currentRosterData[selectedTeam].push({
+            ...fullUserObj,
+            assigned_by: currentUser.username,
+            assigned_at: (new Date).toISOString()
+          });
+          window.dutyFillSlot(currentRosterData, selectedTeam);
+        }
         const saveKey = getDutySaveKey(targetDate, shiftFilter);
         if (typeof window.dutyDedupeRoster === "function") window.dutyDedupeRoster(currentRosterData);
         window.clearSettingCache();
@@ -1176,6 +1179,7 @@ window.addStaffToRoster = async function() {
       assigned_at: (new Date).toISOString(),
       pulled_in: true
     });
+    window.dutyFillSlot(currentRosterData, team);
     const saveKey = getDutySaveKey(targetDate, shiftFilter);
     if (typeof window.dutyDedupeRoster === "function") window.dutyDedupeRoster(currentRosterData);
     window.clearSettingCache();
@@ -1846,6 +1850,7 @@ window.renderRosterGrid = async function(rosterData) {
     const _isGrp = _grpTeams.length > 1;
     const _title = _grpTeams.join(' + ');
     let assignees = _grpTeams.flatMap((t => (rosterData[t] || []).filter((a => a && typeof a.username === 'string'))));
+    if (assignees.some((a => a.id && !a.username.includes('ขาดคน')))) assignees = assignees.filter((a => !(!a.id && a.username.includes('ขาดคน'))));
     if (window.isTrainerDept()) {}
     const rolesForThisTeam = [ ...new Set(_grpTeams.flatMap((t => customDutyRoles[t] || []))) ];
     const colorClass = TEAM_COLORS[team] || TEAM_COLORS['DEFAULT'];
@@ -1957,7 +1962,7 @@ window.renderRosterGrid = async function(rosterData) {
       count: primaryCount,
       standby: standbyCount,
       warn: !!breakWarnHtml,
-      missing: assignees.some((u => String(u.username).includes('ขาดคน'))) || primaryCount === 0,
+      missing: primaryCount === 0,
       standbyNames: standbyList.map((x => x.name)),
       people: assignees.map((a => {
         const miss = String(a.username).includes('ขาดคน');
@@ -1995,9 +2000,10 @@ window.renderRosterGrid = async function(rosterData) {
   const _cut = finalGridHtml.indexOf('<div class="duty-site-card');
   const _previewNote = window.isRosterPreview ? _cut < 0 ? finalGridHtml : finalGridHtml.slice(0, _cut) : '';
   const _canSec = typeof window.isDutyAdmin === 'function' && window.isDutyAdmin() || typeof window.hasUserPerm === 'function' && window.hasUserPerm('duty_secondary');
+  const _isAdm = typeof window.isDutyAdmin === 'function' && window.isDutyAdmin();
   const _ovRows = _dmItems.map((it => {
     const st = it.missing ? [ 'bad', 'ขาดคน' ] : it.warn ? [ 'warn', 'พักชนกัน' ] : [ 'ok', 'พร้อม' ];
-    const chips = it.people.map((p => p.miss ? `<span class="ov-p miss"><b>ขาดคน</b></span>` : `<span class="ov-p duty-user-card ${p.drag ? 'can' : ''} ${p.me ? 'me' : ''}" data-name="${window.escapeHtml(p.name.toLowerCase())}" ${p.drag ? `draggable="true" ondragstart="handleDragStart(event, '${p.id}', '${window.escapeJsAttr(p.name)}', '${it.team}')"` : ''} title="${window.escapeHtml(p.name)}${p.sec ? ' · งานรอง ' + p.sec : ''}${p.hist ? '\nย้อนหลัง: ' + window.escapeHtml(p.hist) : ''}">\n                <span class="ov-top">\n                <b>${window.escapeHtml(p.name)}</b>${p.me ? '<span class="dc-me">ฉัน</span>' : ''}\n                <small class="${p.slots.length ? '' : 'none'}">${p.slots.length ? p.slots.map((x => x.split('-')[0])).join(' · ') : 'ยังไม่ลงพัก'}</small>\n                ${p.sec ? _canSec ? `<button type="button" class="ov-sec" onclick="event.stopPropagation(); changeSecondaryTeam('${it.team}', '${p.id}', '${window.escapeJsAttr(p.name)}')" title="กดเพื่อเปลี่ยนงานรองของ ${window.escapeHtml(p.name)}">รอง ${p.sec}<span class="material-icons">edit</span></button>` : `<i>รอง ${p.sec}</i>` : _canSec && p.id ? `<button type="button" class="ov-sec add" onclick="event.stopPropagation(); changeSecondaryTeam('${it.team}', '${p.id}', '${window.escapeJsAttr(p.name)}')" title="แจกงานรองให้ ${window.escapeHtml(p.name)}">+ รอง</button>` : ''}\n                ${p.sup.map((t => `<i class="ov-sup">🛟 ${window.escapeHtml(t)}</i>`)).join('')}\n                ${p.pin ? `<span class="ov-pin">${p.pin}</span>` : ''}${p.drag && p.id ? `<button type="button" class="ov-del" onclick="event.stopPropagation(); dutyRemoveFromRoster('${it.team}', '${p.id}', '${window.escapeJsAttr(p.name)}')" title="เอา ${window.escapeHtml(p.name)} ออกจากตารางนี้ (ไม่ใช่ลาหยุด)"><span class="material-icons">delete_outline</span></button>` : ''}\n                </span>\n                <span class="ov-imp" data-imp-name="${window.escapeHtml(p.name)}"></span>\n                ${p.histHtml ? `<span class="ov-hist"><span class="material-icons">history</span>${p.histHtml}</span>` : ''}\n            </span>`)).join('') || '<span class="ov-empty">ยังไม่มีคน · ลากชื่อมาวางได้</span>';
+    const chips = it.people.map((p => p.miss ? (_isAdm ? `<span class="ov-p miss" style="cursor:pointer" title="กดเพื่อเอาช่องขาดคนออก (เมื่อคนครบแล้ว)" onclick="dutyRemovePlaceholder('${window.escapeJsAttr(it.team)}')"><b>ขาดคน</b></span>` : `<span class="ov-p miss"><b>ขาดคน</b></span>`) : `<span class="ov-p duty-user-card ${p.drag ? 'can' : ''} ${p.me ? 'me' : ''}" data-name="${window.escapeHtml(p.name.toLowerCase())}" ${p.drag ? `draggable="true" ondragstart="handleDragStart(event, '${p.id}', '${window.escapeJsAttr(p.name)}', '${it.team}')"` : ''} title="${window.escapeHtml(p.name)}${p.sec ? ' · งานรอง ' + p.sec : ''}${p.hist ? '\nย้อนหลัง: ' + window.escapeHtml(p.hist) : ''}">\n                <span class="ov-top">\n                <b>${window.escapeHtml(p.name)}</b>${p.me ? '<span class="dc-me">ฉัน</span>' : ''}\n                <small class="${p.slots.length ? '' : 'none'}">${p.slots.length ? p.slots.map((x => x.split('-')[0])).join(' · ') : 'ยังไม่ลงพัก'}</small>\n                ${p.sec ? _canSec ? `<button type="button" class="ov-sec" onclick="event.stopPropagation(); changeSecondaryTeam('${it.team}', '${p.id}', '${window.escapeJsAttr(p.name)}')" title="กดเพื่อเปลี่ยนงานรองของ ${window.escapeHtml(p.name)}">รอง ${p.sec}<span class="material-icons">edit</span></button>` : `<i>รอง ${p.sec}</i>` : _canSec && p.id ? `<button type="button" class="ov-sec add" onclick="event.stopPropagation(); changeSecondaryTeam('${it.team}', '${p.id}', '${window.escapeJsAttr(p.name)}')" title="แจกงานรองให้ ${window.escapeHtml(p.name)}">+ รอง</button>` : ''}\n                ${p.sup.map((t => `<i class="ov-sup">🛟 ${window.escapeHtml(t)}</i>`)).join('')}\n                ${p.pin ? `<span class="ov-pin">${p.pin}</span>` : ''}${p.drag && p.id ? `<button type="button" class="ov-del" onclick="event.stopPropagation(); dutyRemoveFromRoster('${it.team}', '${p.id}', '${window.escapeJsAttr(p.name)}')" title="เอา ${window.escapeHtml(p.name)} ออกจากตารางนี้ (ไม่ใช่ลาหยุด)"><span class="material-icons">delete_outline</span></button>` : ''}\n                </span>\n                <span class="ov-imp" data-imp-name="${window.escapeHtml(p.name)}"></span>\n                ${p.histHtml ? `<span class="ov-hist"><span class="material-icons">history</span>${p.histHtml}</span>` : ''}\n            </span>`)).join('') || '<span class="ov-empty">ยังไม่มีคน · ลากชื่อมาวางได้</span>';
     return `<div class="ov-row" data-team="${it.team}" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${it.team}')">\n            <span class="ov-tint ${it.color.bg}" aria-hidden="true"></span>\n            <div class="ov-team">\n                <span class="ov-bar ${it.color.bg}"></span>\n                <span><b>${it.title}</b><small>${it.count} คน</small>${it.room ? `<span class="ov-room" title="เข้าห้อง Discord: ${window.escapeHtml(it.room)}"><span class="material-icons">headset_mic</span>${window.escapeHtml(it.room)}</span>` : ''}\n                    <span class="ov-narrow"><span class="ov-stp ${st[0]}">${st[1]}</span>${it.standbyNames.length ? `<span class="ov-sbn" title="สแตนด์บายช่วยเว็บนี้">รอง: ${it.standbyNames.map((n => window.escapeHtml(n))).join(', ')}</span>` : ''}</span>\n                    ${it.trainerBtn || ''}</span>\n            </div>\n            <div class="ov-people">${chips}</div>\n            <div class="ov-sb">${it.standbyNames.length ? it.standbyNames.map((n => window.escapeHtml(n))).join(', ') : '—'}</div>\n            <div class="ov-st"><span class="${st[0]}">${st[1]}</span></div>\n        </div>`;
   })).join('');
   const _okN = _dmItems.filter((x => !x.missing)).length, _missN = _dmItems.filter((x => x.missing)).length;

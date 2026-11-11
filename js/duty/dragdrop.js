@@ -237,6 +237,7 @@ window.handleDrop = async function(event, toTeam) {
       assigned_by: currentUser.username,
       assigned_at: (new Date).toISOString()
     });
+    window.dutyFillSlot(currentRosterData, toTeam);
   }
   const saveKey = getDutySaveKey(targetDate, shiftFilter);
   Swal.fire({
@@ -799,6 +800,55 @@ function _dreqEnsureStyle() {
   s.textContent = `\n        #dutyApp .dq{background:var(--k-panel2);border-bottom:1px solid var(--k-line);padding:12px}\n        #dutyApp .dq-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}\n        #dutyApp .dq-title{display:flex;align-items:center;gap:10px;min-width:0}\n        #dutyApp .dq-title>.material-icons{font-size:20px;color:var(--k-gold-tx);width:36px;height:36px;border-radius:10px;background:rgba(232,193,90,.12);display:flex;align-items:center;justify-content:center;flex:none}\n        #dutyApp .dq-h{font-size:14.5px;font-weight:900;color:var(--k-tx-strong)}\n        #dutyApp .dq-hint{font-size:11.5px;font-weight:600;color:var(--k-mute2)}\n        #dutyApp .dq-poolslot{margin-left:auto}\n        #dutyApp .dq-tools{display:flex;gap:8px}\n        #dutyApp .dq-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:6px}\n\n        .dreq-card{position:relative;display:flex;flex-direction:column;border-radius:9px;background:var(--k-card);border:1px solid var(--k-line);overflow:hidden;transition:border-color .25s,box-shadow .25s}\n        .dreq-card:hover{border-color:var(--k-line4)}\n        .dreq-name{display:flex;align-items:center;justify-content:center;height:20px;font-size:11px;font-weight:900;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 20px}\n        .dreq-ctrl{display:flex;align-items:center;justify-content:space-between;gap:2px;padding:5px 6px}\n        .dreq-btn{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900;line-height:1;color:var(--k-tx2);background:var(--k-btn);border:1px solid var(--k-line3);cursor:pointer;transition:background .15s,color .15s,border-color .15s,transform .08s;flex:none}\n        .dreq-btn:hover{background:var(--k-btn-h);color:var(--k-tx-strong);border-color:var(--k-line4)}\n        .dreq-btn.plus:hover{background:rgba(34,197,94,.15);border-color:rgba(34,197,94,.5);color:var(--k-green-tx)}\n        .dreq-btn.minus:hover{background:rgba(251,146,60,.14);border-color:rgba(251,146,60,.5);color:var(--k-amber-tx)}\n        .dreq-btn:active{transform:scale(.92)}\n        .dreq-btn:focus-visible,.dreq-move button:focus-visible{outline:2px solid #E8C15A;outline-offset:2px}\n        .dreq-num{width:100%;min-width:0;text-align:center;font-size:17px;font-weight:900;background:transparent;color:var(--k-tx-strong);outline:none;border:0;-moz-appearance:textfield;font-variant-numeric:tabular-nums}\n        .dreq-num::-webkit-outer-spin-button,.dreq-num::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}\n        .dreq-num:focus{color:var(--k-gold-tx)}\n        .dreq-card.zero .dreq-num{color:var(--k-mute3)}\n        .dreq-move{position:absolute;top:0;left:0;right:0;height:20px;display:flex;justify-content:space-between;pointer-events:none}\n        .dreq-move button{pointer-events:auto;width:20px;height:20px;display:flex;align-items:center;justify-content:center;color:color-mix(in srgb,var(--k-tx-strong) 85.0%,transparent);background:color-mix(in srgb,var(--k-panel2) 28.0%,transparent);opacity:0;transition:opacity .15s,background .15s;cursor:pointer}\n        .dreq-move button .material-icons{font-size:14px}\n        .dreq-move button:hover{background:color-mix(in srgb,var(--k-panel2) 50.0%,transparent)}\n        .dreq-card:hover .dreq-move button,.dreq-move button:focus-visible{opacity:1}\n        @media (hover:none){ .dreq-move button{opacity:.9} }\n\n        .dreq-flash-up{border-color:#22c55e!important;box-shadow:0 0 14px rgba(34,197,94,.45)!important}\n        .dreq-flash-down{border-color:#fb923c!important;box-shadow:0 0 14px rgba(251,146,60,.45)!important}\n        .dreq-flash-self{border-color:#E8C15A!important;box-shadow:0 0 14px rgba(232,193,90,.45)!important}\n        .dreq-delta{position:absolute;top:22px;right:4px;z-index:5;font-size:11px;font-weight:900;padding:1px 7px;border-radius:99px;pointer-events:none;animation:dreqPop 1.3s ease forwards}\n        .dreq-delta.up{background:#16a34a;color:#fff}\n        .dreq-delta.down{background:#ea580c;color:#fff}\n        @keyframes dreqPop{0%{opacity:0;transform:translateY(6px) scale(.6)}15%{opacity:1;transform:translateY(0) scale(1.1)}30%{transform:scale(1)}80%{opacity:1}100%{opacity:0;transform:translateY(-8px)}}\n\n        .dreq-pool{position:relative;display:flex;align-items:center;gap:12px;padding:6px 14px 6px 8px;border-radius:12px;background:var(--k-gold-bg);border:1px solid rgba(232,193,90,.45);min-width:250px}\n        .dreq-pool-ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:rgba(232,193,90,.14);color:var(--k-gold-tx);flex:none}\n        .dreq-pool-ic .material-icons{font-size:19px}\n        .dreq-pool-body{flex:1;min-width:0}\n        .dreq-pool-row{display:flex;align-items:baseline;gap:6px}\n        .dreq-pool-lb{font-size:12px;font-weight:800;color:var(--k-gold-tx)}\n        .dreq-pool-num{font-size:20px;font-weight:900;color:var(--k-amber-tx);font-variant-numeric:tabular-nums;line-height:1.1}\n        .dreq-pool-unit{font-size:11px;font-weight:700;color:var(--k-gold-tx)}\n        .dreq-pool-sub{margin-left:auto;font-size:11px;font-weight:700;color:var(--k-mute);white-space:nowrap;font-variant-numeric:tabular-nums}\n        .dreq-pool-bar{height:5px;border-radius:5px;background:color-mix(in srgb,var(--k-tx-strong) 8.0%,transparent);margin-top:5px;overflow:hidden}\n        .dreq-pool-bar i{display:block;height:100%;border-radius:5px;background:#E8C15A;transition:width .3s}\n        .dreq-pool.ok{background:var(--k-green-bg);border-color:rgba(34,197,94,.5)}\n        .dreq-pool.ok .dreq-pool-ic{background:rgba(34,197,94,.14);color:var(--k-green-tx)}\n        .dreq-pool.ok .dreq-pool-num,.dreq-pool.ok .dreq-pool-lb{color:var(--k-green-tx)}\n        .dreq-pool.ok .dreq-pool-bar i{background:#22c55e}\n        .dreq-pool.bad{background:var(--k-red-bg);border-color:rgba(248,113,113,.6)}\n        .dreq-pool.bad .dreq-pool-num,.dreq-pool.bad .dreq-pool-lb{color:var(--k-red-tx)}\n        .dreq-pool.bad .dreq-pool-bar i{background:#ef4444}\n        .dreq-shake{animation:dreqShake .4s ease}\n        @keyframes dreqShake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-4px)}40%,80%{transform:translateX(4px)}}\n        @media (max-width:640px){ #dutyApp .dq-poolslot{margin-left:0;width:100%} .dreq-pool{min-width:0} #dutyApp .dq-grid{grid-template-columns:repeat(auto-fill,minmax(104px,1fr))} }\n        @media (prefers-reduced-motion:reduce){ .dreq-delta,.dreq-shake{animation:none} }\n    `;
   document.head.appendChild(s);
 }
+
+window.dutyIsPlaceholder = function(u) {
+  return !!(u && !u.id && String(u.username || '').includes('ขาดคน'));
+};
+
+window.dutyFillSlot = function(roster, team) {
+  if (!roster || !Array.isArray(roster[team])) return false;
+  const i = roster[team].findIndex(window.dutyIsPlaceholder);
+  if (i < 0) return false;
+  roster[team].splice(i, 1);
+  return true;
+};
+
+window.dutyRemovePlaceholder = async function(team) {
+  if (typeof window.isDutyAdmin === 'function' && !window.isDutyAdmin()) return;
+  if (typeof window.blockIfPreview === 'function' && window.blockIfPreview()) return;
+  const list = (currentRosterData || {})[team] || [];
+  const real = list.filter((u => u && u.id)).length;
+  const ok = await Swal.fire({
+    icon: 'question',
+    title: `เอาช่อง "ขาดคน" ออกจาก ${team}?`,
+    html: `ตอนนี้ ${window.escapeHtml(team)} มีคนทำงาน <b>${real}</b> คน<br><span style="font-size:12px;opacity:.8">ใช้เมื่อคนครบแล้ว หรือไม่ต้องการเพิ่มคนในเว็บนี้</span>`,
+    showCancelButton: true,
+    confirmButtonText: 'เอาออก',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: '#16a34a'
+  });
+  if (!ok.isConfirmed) return;
+  if (!window.dutyFillSlot(currentRosterData, team)) return;
+  const targetDate = document.getElementById('dutyDate').value;
+  const shiftFilter = document.getElementById('dutyShiftSelect').value;
+  try {
+    window.clearSettingCache();
+    window.dutyDbOk(await appDB.from('settings').upsert([ {
+      key: getDutySaveKey(targetDate, shiftFilter),
+      value: JSON.stringify(currentRosterData)
+    } ]));
+    appDB.from('system_logs').insert([ {
+      action_type: 'จัดหน้าที่',
+      performed_by: currentUser.username,
+      target_details: `เอาช่องขาดคนออกจากเว็บ ${team} (${currentDutyDept}, ${shiftFilter}, ${targetDate})`
+    } ]).then((() => {}), (() => {}));
+    window.debouncedBroadcast('duty-updates', 'force_reload', 150);
+    if (typeof window.refreshDutyData === 'function') window.refreshDutyData();
+  } catch (e) {
+    Swal.fire('บันทึกไม่สำเร็จ', e && e.message || String(e), 'error');
+    if (typeof window.refreshDutyData === 'function') window.refreshDutyData();
+  }
+};
 
 window.dutyReqsShared = function() {
   return currentDutyDept === 'ODQL' || currentDutyDept === 'TRAINER_OD';
