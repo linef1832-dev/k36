@@ -154,8 +154,8 @@ async function oa_fetchReplies(f, t, since) {
   if (total > PAGE) {
     const starts = [];
     for (let st = PAGE; st < total; st += PAGE) starts.push(st);
-    for (let i = 0; i < starts.length; i += 4) {
-      const res = await Promise.all(starts.slice(i, i + 4).map((st => q(false).range(st, st + PAGE - 1))));
+    for (let i = 0; i < starts.length; i += 6) {
+      const res = await Promise.all(starts.slice(i, i + 6).map((st => q(false).range(st, st + PAGE - 1))));
       res.forEach((rz => {
         if (rz.error) throw rz.error;
         all = all.concat(rz.data || []);
@@ -251,6 +251,7 @@ async function oa_fetchUsers() {
         o.users[String(u.id)] = u;
       }));
       o._usersAt = Date.now();
+      oa_bump();
       return true;
     }
   } catch (e) {}
@@ -346,6 +347,7 @@ window.oa_load = async function(opts = {}) {
     o._loadedTo = t;
     o.shiftMap = sm;
     o.siteMap = wm;
+    oa_bump();
     o._fullAt = Date.now();
     o._cursor = oa_maxLast(rows);
     o._viewFrom = document.getElementById('oaFrom').value;
@@ -469,7 +471,17 @@ function oa_saveCache(now) {
         savedAt: Date.now(),
         fullAt: o._fullAt || 0,
         cursor: o._cursor || null,
-        rows: o.rows.filter((r => r.work_date >= from && r.work_date <= today)),
+        rows: o.rows.filter((r => r.work_date >= from && r.work_date <= today)).map((r => ({
+          work_date: r.work_date,
+          user_id: r.user_id,
+          username: r.username,
+          oa_id: r.oa_id,
+          oa_name: r.oa_name,
+          chat_id: r.chat_id,
+          chat_name: r.chat_name,
+          first_at: r.first_at,
+          last_at: r.last_at
+        }))),
         users: o.users,
         shiftMap: sm,
         siteMap: wm
@@ -494,7 +506,14 @@ function oa_applyCache(c) {
   }));
   o._cursor = c.cursor;
   o._fullAt = c.fullAt || 0;
+  oa_bump();
   return true;
+}
+
+function oa_h(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619);
+  return h >>> 0;
 }
 
 function oa_sigOf(rows, sm, wm, f, t) {
@@ -502,10 +521,19 @@ function oa_sigOf(rows, sm, wm, f, t) {
     const d = k.slice(k.lastIndexOf('|') + 1);
     return d >= f && d <= t;
   };
-  const a = rows.map((r => `${r.work_date}|${r.user_id}|${r.oa_id}|${r.chat_id}|${r.last_at}|${r.chat_name || ''}`)).sort().join('\n');
-  const b = Object.keys(sm).filter(inR).sort().map((k => k + '=' + sm[k])).join(',');
-  const c = Object.keys(wm).filter(inR).sort().map((k => k + '=' + [ ...wm[k] ].sort().join('/'))).join(',');
-  return a.length + ':' + a + '#' + b + '#' + c;
+  let a = 0, ax = 0, n = 0;
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    const h = oa_h(`${r.work_date}|${r.user_id}|${r.oa_id}|${r.chat_id}|${r.last_at}|${r.chat_name || ''}|${r.oa_name || ''}`);
+    a = a + h >>> 0;
+    ax ^= Math.imul(h, 2654435761) >>> 0;
+    n++;
+  }
+  let b = 0;
+  for (const k in sm) if (inR(k)) b = b + oa_h(k + '=' + sm[k]) >>> 0;
+  let c = 0;
+  for (const k in wm) if (inR(k)) c = c + oa_h(k + '=' + [ ...wm[k] ].sort().join('/')) >>> 0;
+  return `${n}:${a}:${ax >>> 0}:${b}:${c}`;
 }
 
 const OA_FULL_EVERY = 10 * 6e4;
@@ -554,6 +582,7 @@ window.oa_refresh = async function(mode) {
         }));
         Object.assign(o.siteMap, wm);
         o.rows = o.rows.filter((r => r.work_date < rf || r.work_date > rt)).concat(rows);
+        oa_bump();
       }
       o._fullAt = Date.now();
       o._cursor = oa_maxLast(o.rows) || o._cursor;
@@ -586,6 +615,7 @@ window.oa_refresh = async function(mode) {
     }
     oa_setUpdated('อัปเดต ' + oa_nowHM());
     if (changed) {
+      oa_bump();
       window.oa_render();
       oa_saveCache();
     }
@@ -617,13 +647,35 @@ if (!window._oaVisHook) {
   }));
 }
 
+const OA_NOSITE = Object.freeze([]);
+
+function oa_bump() {
+  const o = window._oa;
+  o._dv = Math.max((o._dv || 0) + 1, Date.now());
+}
+
+function oa_der(r) {
+  const o = window._oa;
+  if (!o._dv) oa_bump();
+  if (r._dv === o._dv) return r;
+  const un = r.username || '';
+  r._sh = o.shiftMap[un.toLowerCase().trim() + '|' + r.work_date] || '';
+  const s = o.siteMap[un.toUpperCase().trim() + '|' + r.work_date];
+  r._st = s && s.size ? [ ...s ] : OA_NOSITE;
+  const u = o.users[String(r.user_id)];
+  r._dp = u && u.department || '-';
+  r._nm = u && (u.username || u.name) || r.username || String(r.user_id);
+  r._q = (r._nm + '\u0001' + String(r.chat_name || '')).toLowerCase();
+  r._dv = o._dv;
+  return r;
+}
+
 function oa_shiftOf(r) {
-  return window._oa.shiftMap[(r.username || '').toLowerCase().trim() + '|' + r.work_date] || '';
+  return oa_der(r)._sh;
 }
 
 function oa_sitesOf(r) {
-  const s = window._oa.siteMap[(r.username || '').toUpperCase().trim() + '|' + r.work_date];
-  return s ? [ ...s ] : [];
+  return oa_der(r)._st;
 }
 
 function oa_sitesOfRows(rows) {
@@ -633,13 +685,11 @@ function oa_sitesOfRows(rows) {
 }
 
 function oa_deptOf(r) {
-  const u = window._oa.users[String(r.user_id)];
-  return u && u.department || '-';
+  return oa_der(r)._dp;
 }
 
 function oa_nameOf(r) {
-  const u = window._oa.users[String(r.user_id)];
-  return u && (u.username || u.name) || r.username || String(r.user_id);
+  return oa_der(r)._nm;
 }
 
 window.oa_setDept = function(d) {
@@ -686,18 +736,27 @@ function oa_inView() {
 function oa_filtered(inView) {
   const o = window._oa, q = ((document.getElementById('oaSearch') || {}).value || '').trim().toLowerCase();
   const N = '__NONE__';
-  return (inView || oa_inView()).filter((r => (o.dept === 'ALL' || (o.dept === N ? oa_deptOf(r) === '-' : oa_deptOf(r) === o.dept)) && (o.shift === 'ALL' || (o.shift === N ? !oa_shiftOf(r) : oa_shiftOf(r) === o.shift)) && (o.site === 'ALL' || (o.site === N ? oa_sitesOf(r).length === 0 : oa_sitesOf(r).includes(o.site))) && (o.oaline === 'ALL' || (o.oaline === N ? !r.oa_name : (r.oa_name || '') === o.oaline)) && (!q || oa_nameOf(r).toLowerCase().includes(q) || String(r.chat_name || '').toLowerCase().includes(q))));
+  return (inView || oa_inView()).filter((r => (o.dept === 'ALL' || (o.dept === N ? oa_deptOf(r) === '-' : oa_deptOf(r) === o.dept)) && (o.shift === 'ALL' || (o.shift === N ? !oa_shiftOf(r) : oa_shiftOf(r) === o.shift)) && (o.site === 'ALL' || (o.site === N ? oa_sitesOf(r).length === 0 : oa_sitesOf(r).includes(o.site))) && (o.oaline === 'ALL' || (o.oaline === N ? !r.oa_name : (r.oa_name || '') === o.oaline)) && (!q || oa_der(r)._q.includes(q))));
 }
 
 function oa_renderChips(inView) {
   const o = window._oa, q = (document.getElementById('oaSearch') || {}).value || '';
-  const count = (fn => {
-    const m = {};
-    inView.forEach((r => [].concat(fn(r)).forEach((k => {
-      if (k) m[k] = (m[k] || 0) + 1;
-    }))));
-    return m;
-  });
+  const cD = {}, cS = {}, cW = {}, cL = {};
+  let nS = 0, nW = 0, nL = 0;
+  for (let i = 0; i < inView.length; i++) {
+    const r = oa_der(inView[i]);
+    cD[r._dp] = (cD[r._dp] || 0) + 1;
+    if (r._sh) cS[r._sh] = (cS[r._sh] || 0) + 1; else nS++;
+    if (r._st.length) for (let j = 0; j < r._st.length; j++) cW[r._st[j]] = (cW[r._st[j]] || 0) + 1; else nW++;
+    if (r.oa_name) cL[r.oa_name] = (cL[r.oa_name] || 0) + 1; else nL++;
+  }
+  const _cnt = {
+    d: cD,
+    s: cS,
+    w: cW,
+    l: cL
+  };
+  const count = (fn => fn === oa_deptOf ? _cnt.d : fn === oa_shiftOf ? _cnt.s : fn === oa_sitesOf ? _cnt.w : _cnt.l);
   const chip = (cls, on, fn, val, label, n) => `<button class="oa-chip ${cls} ${on ? 'on' : ''}" onclick="${fn}('${oa_jsq(val)}')">${oa_esc(label)}${n != null ? `<i>${n}</i>` : ''}</button>`;
   const allChip = (key, cur, total) => `<button class="oa-chip oa-all ${cur === 'ALL' ? 'on' : ''}" onclick="oa_setFilterAll('${key}')">ทั้งหมด<i>${total}</i></button>`;
   const total = inView.length;
@@ -716,14 +775,14 @@ function oa_renderChips(inView) {
   const sh = document.getElementById('oaShiftChips');
   if (sh) {
     const cnt = count(oa_shiftOf);
-    const sNone = inView.filter((r => !oa_shiftOf(r))).length;
+    const sNone = nS;
     sh.innerHTML = allChip('shift', o.shift, total) + [ 'เช้า', 'กลาง', 'ดึก' ].map((k => chip('', o.shift === k, 'oa_setShift', k, 'กะ' + k, cnt[k] || 0))).join('') + noneChip('oa_setShift', o.shift, sNone);
   }
   const st = document.getElementById('oaSiteChips');
   if (st) {
-    const arr = oa_sitesOfRows(inView).sort();
     const cnt = count(oa_sitesOf);
-    const wNone = inView.filter((r => oa_sitesOf(r).length === 0)).length;
+    const arr = Object.keys(cnt).sort();
+    const wNone = nW;
     if (o.site !== 'ALL' && o.site !== N && !arr.includes(o.site)) o.site = 'ALL';
     st.innerHTML = arr.length ? allChip('site', o.site, total) + arr.map((k => chip('oa-chip-site', o.site === k, 'oa_setSite', k, k, cnt[k] || 0))).join('') + noneChip('oa_setSite', o.site, wNone, 'oa-chip-site') : '';
     const g = st.closest('.oa-fgroup');
@@ -731,9 +790,9 @@ function oa_renderChips(inView) {
   }
   const ol = document.getElementById('oaLineChips');
   if (ol) {
-    const cnt = count((r => r.oa_name || ''));
+    const cnt = count(null);
     const arr = Object.keys(cnt).sort();
-    const lNone = inView.filter((r => !r.oa_name)).length;
+    const lNone = nL;
     if (o.oaline !== 'ALL' && o.oaline !== N && !arr.includes(o.oaline)) o.oaline = 'ALL';
     ol.innerHTML = arr.length ? allChip('oaline', o.oaline, total) + arr.map((k => chip('oa-chip-line', o.oaline === k, 'oa_setOaLine', k, k, cnt[k]))).join('') + noneChip('oa_setOaLine', o.oaline, lNone, 'oa-chip-line') : '';
     const g = ol.closest('.oa-fgroup');
@@ -1004,7 +1063,7 @@ function oa_fmtLong(f, t) {
 function oa_summaryBySite(rows) {
   const NONE = 'ไม่ระบุเว็บ', g = {};
   rows.forEach((r => {
-    const sv = oa_sitesOf(r).sort();
+    const sv = oa_sitesOf(r).slice().sort();
     const site = sv.length ? sv.join(' + ') : NONE;
     const s = g[site] || (g[site] = {
       site: site,
