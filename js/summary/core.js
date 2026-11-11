@@ -603,12 +603,9 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
               }, ((cell, colNumber) => {
                 let val = cell.value;
                 if (val && typeof val === 'object' && val.text) val = val.text; else if (val && typeof val === 'object' && 'result' in val) val = val.result;
-                if (val && val instanceof Date) {
-                  const offset = val.getTimezoneOffset() * 6e4;
-                  const localDate = new Date(val - offset);
-                  const ds = localDate.toISOString().split('T')[0];
-                  const ts = localDate.toISOString().split('T')[1].split('.')[0];
-                  val = `${ds} ${ts}`;
+                if (val && val instanceof Date && !isNaN(val)) {
+                  const iso = val.toISOString();
+                  val = `${iso.split('T')[0]} ${iso.split('T')[1].split('.')[0]}`;
                 }
                 cols[colNumber - 1] = String(val || '');
               }));
@@ -1523,6 +1520,60 @@ window.saveSummaryToSupabase = async function() {
         groupedData[key].reject_count += item.rejectCount || 0;
       }
     }));
+    const saveDates = [ ...new Set(Object.values(groupedData).map((r => r.date)).filter(Boolean)) ];
+    const {data: existRows, error: exErr} = await window.selectAllRows((() => appDB.from('transaction_daily_summary').select('date, employee_name, website, count, total_amount, approved_count, reject_count').in('date', saveDates).order('id', {
+      ascending: true
+    })));
+    if (exErr) throw exErr;
+    const upWebs = [ ...new Set(Object.values(groupedData).map((r => r.website)).filter(Boolean)) ];
+    const upWebsLc = new Set(upWebs.map((w => w.toLowerCase())));
+    const upPairs = new Set(Object.values(groupedData).map((r => `${r.date}|${String(r.website || '').trim().toLowerCase()}`)));
+    const overlap = (existRows || []).filter((r => upWebsLc.has(String(r.website || '').trim().toLowerCase()) && upPairs.has(`${r.date}|${String(r.website || '').trim().toLowerCase()}`)));
+    if (overlap.length) {
+      const existRows2 = overlap;
+      const exDates = [ ...new Set(existRows2.map((r => r.date))) ].sort();
+      const exWebs = [ ...new Set(existRows2.map((r => r.website))) ];
+      const fmt = d => {
+        const [y, m, dd] = String(d).split('-');
+        return `${dd}/${m}/${y}`;
+      };
+      const pick = await Swal.fire({
+        icon: 'question',
+        title: 'วันนี้มียอดบันทึกไว้แล้ว',
+        html: `วันที่ <b>${exDates.map(fmt).join(', ')}</b> มียอดของเว็บ <b>${window.escapeHtml(exWebs.join(', '))}</b> บันทึกไว้แล้ว<br><br><div style="text-align:left;font-size:13px;line-height:1.7"><b>แทนที่ของเดิม</b> — ลบยอดเดิมเฉพาะเว็บที่อยู่ในไฟล์ชุดนี้ แล้วใช้ยอดใหม่แทน (เว็บอื่นไม่โดนแตะ) ใช้ตอนอัปไฟล์แก้ไข/ไฟล์ล่าสุด<br><b>บวกเพิ่มเข้าไป</b> — เก็บยอดเดิมไว้ แล้วบวกยอดจากไฟล์ชุดนี้ ใช้ตอนไฟล์ของวันเดียวกันแบ่งเป็นหลายส่วน<br><span style="color:#dc2626;font-size:12px">ถ้าเป็นไฟล์เดิมที่เคยอัปแล้ว ห้ามกดบวกเพิ่ม ยอดจะซ้ำ</span></div>`,
+        showDenyButton: true,
+        showCancelButton: true,
+        confirmButtonText: 'แทนที่ของเดิม',
+        denyButtonText: 'บวกเพิ่มเข้าไป',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#dc2626',
+        denyButtonColor: '#16a34a'
+      });
+      if (pick.isDismissed) return;
+      Swal.fire({
+        title: 'กำลังบันทึกข้อมูล...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
+      if (pick.isConfirmed) {
+        for (const d of exDates) {
+          const webs = [ ...new Set(existRows2.filter((r => r.date === d)).map((r => r.website))) ];
+          if (!webs.length) continue;
+          const {error: delErr} = await appDB.from('transaction_daily_summary').delete().eq('date', d).in('website', webs);
+          if (delErr) throw delErr;
+        }
+      } else if (pick.isDenied) {
+        existRows2.forEach((r => {
+          const key = `${r.date}_${String(r.employee_name || '').trim().toLowerCase()}_${String(r.website || '').trim().toLowerCase()}`;
+          const g = groupedData[key];
+          if (!g) return;
+          g.count += parseInt(r.count) || 0;
+          g.total_amount += parseFloat(r.total_amount) || 0;
+          g.approved_count += parseInt(r.approved_count) || 0;
+          g.reject_count += parseInt(r.reject_count) || 0;
+        }));
+      }
+    }
     const finalInsertData = Object.values(groupedData);
     const chunkSize = 500;
     for (let i = 0; i < finalInsertData.length; i += chunkSize) {
