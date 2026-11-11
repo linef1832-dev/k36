@@ -61,6 +61,18 @@ window.normalizeUserDept = function(u) {
   return d;
 };
 
+window.dutyTeamOff = function(teams) {
+  const list = Array.isArray(teams) ? teams : [ teams ];
+  let seen = false;
+  for (const t of list) {
+    const el = document.getElementById(`req_${t}`);
+    if (!el) return false;
+    seen = true;
+    if ((parseInt(el.value) || 0) > 0) return false;
+  }
+  return seen;
+};
+
 window.getDutyActiveStaff = function(shiftFilter, opts) {
   opts = opts || {};
   return (GLOBAL_USER_LIST || []).filter((u => {
@@ -1983,7 +1995,8 @@ window.renderRosterGrid = async function(rosterData) {
       count: primaryCount,
       standby: standbyCount,
       warn: !!breakWarnHtml,
-      missing: primaryCount === 0,
+      missing: primaryCount === 0 && !window.dutyTeamOff(_grpTeams),
+      off: primaryCount === 0 && window.dutyTeamOff(_grpTeams),
       standbyNames: standbyList.map((x => x.name)),
       people: assignees.map((a => {
         const miss = String(a.username).includes('ขาดคน');
@@ -2024,12 +2037,12 @@ window.renderRosterGrid = async function(rosterData) {
   const _canSec = typeof window.isDutyAdmin === 'function' && window.isDutyAdmin() || typeof window.hasUserPerm === 'function' && window.hasUserPerm('duty_secondary');
   const _isAdm = typeof window.isDutyAdmin === 'function' && window.isDutyAdmin();
   const _ovRows = _dmItems.map((it => {
-    const st = it.missing ? [ 'bad', 'ขาดคน' ] : it.warn ? [ 'warn', 'พักชนกัน' ] : [ 'ok', 'พร้อม' ];
+    const st = it.off ? [ 'off', 'ไม่เปิด' ] : it.missing ? [ 'bad', 'ขาดคน' ] : it.warn ? [ 'warn', 'พักชนกัน' ] : [ 'ok', 'พร้อม' ];
     const chips = it.people.map((p => p.miss ? (_isAdm ? `<span class="ov-p miss" style="cursor:pointer" title="กดเพื่อเอาช่องขาดคนออก (เมื่อคนครบแล้ว)" onclick="dutyRemovePlaceholder('${window.escapeJsAttr(it.team)}')"><b>ขาดคน</b></span>` : `<span class="ov-p miss"><b>ขาดคน</b></span>`) : `<span class="ov-p duty-user-card ${p.drag ? 'can' : ''} ${p.me ? 'me' : ''}" data-name="${window.escapeHtml(p.name.toLowerCase())}" ${p.drag ? `draggable="true" ondragstart="handleDragStart(event, '${p.id}', '${window.escapeJsAttr(p.name)}', '${it.team}')"` : ''} title="${window.escapeHtml(p.name)}${p.sec ? ' · งานรอง ' + p.sec : ''}${p.hist ? '\nย้อนหลัง: ' + window.escapeHtml(p.hist) : ''}">\n                <span class="ov-top">\n                <b>${window.escapeHtml(p.name)}</b>${p.me ? '<span class="dc-me">ฉัน</span>' : ''}${p.noAcc ? `<span class="ov-noacc" title="${window.escapeHtml(p.name)} ไม่ได้ติกสิทธิ์หลังบ้านเว็บ ${window.escapeHtml(it.team)} — ย้ายไปเว็บที่มีสิทธิ์ หรือติกสิทธิ์เพิ่ม">⚠ ไม่มีสิทธิ์เว็บนี้</span>` : ''}\n                <small class="${p.slots.length ? '' : 'none'}">${p.slots.length ? p.slots.map((x => x.split('-')[0])).join(' · ') : 'ยังไม่ลงพัก'}</small>\n                ${p.sec ? _canSec ? `<button type="button" class="ov-sec" onclick="event.stopPropagation(); changeSecondaryTeam('${it.team}', '${p.id}', '${window.escapeJsAttr(p.name)}')" title="กดเพื่อเปลี่ยนงานรองของ ${window.escapeHtml(p.name)}">รอง ${p.sec}<span class="material-icons">edit</span></button>` : `<i>รอง ${p.sec}</i>` : _canSec && p.id ? `<button type="button" class="ov-sec add" onclick="event.stopPropagation(); changeSecondaryTeam('${it.team}', '${p.id}', '${window.escapeJsAttr(p.name)}')" title="แจกงานรองให้ ${window.escapeHtml(p.name)}">+ รอง</button>` : ''}\n                ${p.sup.map((t => `<i class="ov-sup">🛟 ${window.escapeHtml(t)}</i>`)).join('')}\n                ${p.pin ? `<span class="ov-pin">${p.pin}</span>` : ''}${p.drag && p.id ? `<button type="button" class="ov-del" onclick="event.stopPropagation(); dutyRemoveFromRoster('${it.team}', '${p.id}', '${window.escapeJsAttr(p.name)}')" title="เอา ${window.escapeHtml(p.name)} ออกจากตารางนี้ (ไม่ใช่ลาหยุด)"><span class="material-icons">delete_outline</span></button>` : ''}\n                </span>\n                <span class="ov-imp" data-imp-name="${window.escapeHtml(p.name)}"></span>\n                ${p.histHtml ? `<span class="ov-hist"><span class="material-icons">history</span>${p.histHtml}</span>` : ''}\n            </span>`)).join('') || '<span class="ov-empty">ยังไม่มีคน · ลากชื่อมาวางได้</span>';
     return `<div class="ov-row" data-team="${it.team}" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${it.team}')">\n            <span class="ov-tint ${it.color.bg}" aria-hidden="true"></span>\n            <div class="ov-team">\n                <span class="ov-bar ${it.color.bg}"></span>\n                <span><b>${it.title}</b><small>${it.count} คน</small>${it.room ? `<span class="ov-room" title="เข้าห้อง Discord: ${window.escapeHtml(it.room)}"><span class="material-icons">headset_mic</span>${window.escapeHtml(it.room)}</span>` : ''}\n                    <span class="ov-narrow"><span class="ov-stp ${st[0]}">${st[1]}</span>${it.standbyNames.length ? `<span class="ov-sbn" title="สแตนด์บายช่วยเว็บนี้">รอง: ${it.standbyNames.map((n => window.escapeHtml(n))).join(', ')}</span>` : ''}</span>\n                    ${it.trainerBtn || ''}</span>\n            </div>\n            <div class="ov-people">${chips}</div>\n            <div class="ov-sb">${it.standbyNames.length ? it.standbyNames.map((n => window.escapeHtml(n))).join(', ') : '—'}</div>\n            <div class="ov-st"><span class="${st[0]}">${st[1]}</span></div>\n        </div>`;
   })).join('');
-  const _okN = _dmItems.filter((x => !x.missing)).length, _missN = _dmItems.filter((x => x.missing)).length;
-  const _overview = `<section class="ov-wrap">\n            <div class="ov-sum"><span>เว็บพร้อม <b>${_okN}/${_dmItems.length}</b></span>${_missN ? `<span class="bad">ขาดคน <b>${_missN}</b> เว็บ</span>` : ''}<span>คนทำงาน <b>${_dmItems.reduce(((a, x) => a + x.count), 0)}</b></span></div>\n            <div class="ov-scroll custom-scrollbar"><div class="ov-table">\n                <div class="ov-row ov-h"><div>เว็บ</div><div>คนประจำ · เวลาพัก</div><div>สแตนด์บายช่วย</div><div style="text-align:right">สถานะ</div></div>\n                ${_ovRows}\n            </div></div>\n        </section>`;
+  const _offN = _dmItems.filter((x => x.off)).length, _okN = _dmItems.filter((x => !x.missing && !x.off)).length, _missN = _dmItems.filter((x => x.missing)).length;
+  const _overview = `<section class="ov-wrap">\n            <div class="ov-sum"><span>เว็บพร้อม <b>${_okN}/${_dmItems.length - _offN}</b></span>${_offN ? `<span>ไม่เปิด <b>${_offN}</b> เว็บ</span>` : ''}${_missN ? `<span class="bad">ขาดคน <b>${_missN}</b> เว็บ</span>` : ''}<span>คนทำงาน <b>${_dmItems.reduce(((a, x) => a + x.count), 0)}</b></span></div>\n            <div class="ov-scroll custom-scrollbar"><div class="ov-table">\n                <div class="ov-row ov-h"><div>เว็บ</div><div>คนประจำ · เวลาพัก</div><div>สแตนด์บายช่วย</div><div style="text-align:right">สถานะ</div></div>\n                ${_ovRows}\n            </div></div>\n        </section>`;
   let _meBar = '';
   if (_me) {
     const mine = _dmItems.find((it => it.people.some((p => p.me))));
