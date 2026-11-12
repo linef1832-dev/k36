@@ -95,6 +95,10 @@ window.fetchPasswords = async function(resetPage) {
   if (stat) stat.innerHTML = `<span class="material-icons">shield</span>${viewAll ? 'รหัสผ่านที่บันทึกไว้' : 'รหัสผ่านของคุณ'} <b style="color:var(--k-tx2)">${(count || 0).toLocaleString()}</b> รายการ · รหัสจะแสดงเมื่อกดดูเท่านั้น`;
   window._pwdVals = {};
   window._pwdRows = {};
+  if ((!data || data.length === 0) && (count || 0) > 0 && _pwdPage > 1) {
+    _pwdPage = Math.max(1, Math.ceil(count / PWD_PAGE_SIZE));
+    return fetchPasswords();
+  }
   if (!data || data.length === 0) {
     grid.innerHTML = `<div class="pw-empty"><span class="material-icons">no_encryption</span><b>${_pwdSearchQ ? `ไม่พบ "${_pwdEsc(_pwdSearchQ)}"` : 'ยังไม่มีรหัสผ่านที่บันทึกไว้'}</b>${_pwdSearchQ ? '' : '<span>กด "เพิ่มรหัสผ่าน" เพื่อเริ่ม</span>'}</div>`;
     renderPwdPagination(count || 0);
@@ -257,7 +261,7 @@ async function _pwdClip(txt) {
 
 window.copyText = async function(txt) {
   if (!txt) return;
-  await _pwdClip(txt);
+  if (!await _pwdClip(txt)) return Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2200 }).fire({ icon: 'error', title: 'คัดลอกไม่สำเร็จ' });
   Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1000 }).fire({ icon: 'success', title: 'คัดลอกแล้ว' });
 };
 
@@ -266,7 +270,7 @@ window.pwdCopy = async function(btn) {
   const txt = v ? v[btn.dataset.k] : '';
   if (!txt) return;
   const ok = await _pwdClip(txt);
-  if (!ok) return;
+  if (!ok) return Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2200 }).fire({ icon: 'error', title: 'คัดลอกไม่สำเร็จ', text: 'เบราว์เซอร์ไม่อนุญาต ลองคลิกที่หน้าเว็บแล้วกดอีกครั้ง' });
   const orig = btn.innerHTML;
   btn.classList.add('ok');
   btn.innerHTML = '<span class="material-icons">check</span>';
