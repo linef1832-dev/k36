@@ -107,6 +107,30 @@ window._leaveVerifyBooking = function(myId, uid, dateStr, reason) {
 
 window.toggleLeaveTable = async function(dateStr, action, targetUserId, targetUserName, targetUserShift) {
   const typeToSave = window.activeLeaveType || 'X';
+  const _isSelf = typeof currentUser !== 'undefined' && currentUser && String(currentUser.id) === String(targetUserId);
+  const _canMg = typeof window.leaveCanManage === 'function' && window.leaveCanManage(currentViewDept);
+  if (!_canMg) {
+    if (!_isSelf) return Swal.fire('ไม่มีสิทธิ์', 'จัดการวันหยุดของคนอื่นไม่ได้', 'error');
+    if (typeof checkBookingWindow === 'function' && !checkBookingWindow(targetUserShift || '')) {
+      if (typeof renderLeaveTable === 'function') renderLeaveTable();
+      return Swal.fire({
+        icon: 'error',
+        title: 'ปิดจองแล้ว',
+        text: 'ตอนนี้อยู่นอกเวลาทำรายการของกะคุณ',
+        timer: 2200,
+        showConfirmButton: false
+      });
+    }
+    const _s = deptSettings[currentViewDept] || {};
+    const _d = parseInt(String(dateStr).slice(8, 10), 10);
+    if (_s.startDay && _d < _s.startDay || _s.endDay && _d > _s.endDay) return Swal.fire({
+      icon: 'error',
+      title: 'ล็อกวัน',
+      text: 'วันที่นี้ถูกล็อก ไม่สามารถทำรายการได้',
+      timer: 1800,
+      showConfirmButton: false
+    });
+  }
   if (action === 'remove') {
     const result = await Swal.fire({
       title: 'ยืนยันการลบ?',
@@ -140,7 +164,13 @@ window.toggleLeaveTable = async function(dateStr, action, targetUserId, targetUs
       await fetchLeaveData(true);
       const verdict = window._leaveVerifyBooking(myId, targetUserId, dateStr, typeToSave);
       if (verdict) {
-        if (myId != null) await appDB.from('leave_requests').delete().eq('id', myId);
+        if (myId != null) {
+          const {error: undoErr} = await appDB.from('leave_requests').delete().eq('id', myId);
+          if (undoErr) {
+            await fetchLeaveData();
+            return Swal.fire('ยกเลิกรายการไม่สำเร็จ', `${verdict.text}\n\nแต่ระบบลบรายการให้ไม่ได้ (${undoErr.message}) กรุณากดยกเลิกเอง หรือแจ้งหัวหน้า`, 'error');
+          }
+        }
         await fetchLeaveData();
         return Swal.fire({
           icon: 'warning',

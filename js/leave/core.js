@@ -394,7 +394,7 @@ async function loadLeaveSettings(skipRender = false) {
 }
 
 window.checkBookingWindow = function(targetShift) {
-  const now = new Date;
+  const now = typeof window.serverNow === 'function' ? window.serverNow() : new Date;
   const _settingDept = currentViewDept;
   const s = deptSettings[_settingDept] || {};
   const getStatus = (name, startStr, endStr) => {

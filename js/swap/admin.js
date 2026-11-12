@@ -238,6 +238,21 @@ window.openAddMissingSwap = async function() {
       scheduledFor = `${date}T00:00:00`;
       status = 'info_only';
     }
+    if (leaveRequest) {
+      const realLv0 = await window._swRealLeaveOn(user.id, leaveRequest.leave_date);
+      if (realLv0.length) {
+        const go0 = await Swal.fire({
+          icon: 'warning',
+          title: 'วันนั้นพนักงานมีวันหยุดอยู่แล้ว',
+          text: `${user.username || ''} ลงวันหยุด (${realLv0.join(', ')}) ไว้วันที่ ${leaveRequest.leave_date} ถ้าเพิ่มสลับกะนี้ วันหยุดนั้นจะถูกแทนด้วย XX ต้องการทำต่อไหม?`,
+          showCancelButton: true,
+          confirmButtonText: 'ทำต่อ',
+          cancelButtonText: 'ยกเลิก',
+          confirmButtonColor: '#d33'
+        });
+        if (!go0.isConfirmed) return;
+      }
+    }
     const {error: error} = await appDB.from('scheduled_tasks').insert({
       task_type: 'individual_shift_update',
       payload: payload,

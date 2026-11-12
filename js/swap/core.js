@@ -681,14 +681,44 @@ window.confirmAndSaveSwapPlan = async function() {
             status: 'info_only'
           });
         }));
+        if (leaveRequestsToInsert.length > 0) {
+          const byDate = {};
+          leaveRequestsToInsert.forEach((r => (byDate[r.leave_date] = byDate[r.leave_date] || new Set).add(r.user_id)));
+          const clash = [];
+          for (const [d, set] of Object.entries(byDate)) {
+            const {data: ex, error: exErr} = await appDB.from('leave_requests').select('user_name, leave_date, reason').eq('leave_date', d).in('user_id', [ ...set ]).neq('reason', 'XX');
+            if (exErr) throw exErr;
+            (ex || []).forEach((r => clash.push(`${r.user_name} (${r.leave_date} · ${r.reason || 'X'})`)));
+          }
+          if (clash.length) {
+            return Swal.fire({
+              icon: 'warning',
+              title: 'มีคนลงวันหยุดชนกับวัน XX',
+              html: `ระหว่างที่สร้างแผน มีคนลงวันหยุดในวันที่ต้องลง XX:<br><div style="text-align:left;font-size:13px;margin-top:8px;max-height:180px;overflow:auto">${clash.map((c => '• ' + window.escapeHtml(c))).join('<br>')}</div><br><span style="font-size:12px;opacity:.8">ยังไม่ได้บันทึกอะไร — กดสร้างแผนใหม่อีกครั้ง ระบบจะจัดเลี่ยงวันเหล่านี้ให้</span>`
+            });
+          }
+        }
+        let insertedTaskIds = [];
         if (tasksToInsert.length > 0) {
-          const {error: error} = await appDB.from('scheduled_tasks').insert(tasksToInsert);
+          const {data: insTasks, error: error} = await appDB.from('scheduled_tasks').insert(tasksToInsert).select('id');
           if (error) throw error;
+          insertedTaskIds = (insTasks || []).map((t => t.id));
         }
         if (leaveRequestsToInsert.length > 0) {
-          await swapDeleteLeavesBatch(leaveRequestsToInsert, false);
-          const {error: leaveError} = await appDB.from('leave_requests').insert(leaveRequestsToInsert);
-          if (leaveError) throw leaveError;
+          try {
+            await swapDeleteLeavesBatch(leaveRequestsToInsert, true);
+            const {error: leaveError} = await appDB.from('leave_requests').insert(leaveRequestsToInsert);
+            if (leaveError) throw leaveError;
+          } catch (leaveErr) {
+            if (insertedTaskIds.length) {
+              try {
+                await swapDeleteTasksBatch(insertedTaskIds);
+              } catch (e2) {
+                throw new Error(`${leaveErr.message || leaveErr} · และย้อนรายการตั้งเวลาสลับกะไม่สำเร็จ กรุณาตรวจในแท็บรายการก่อนสร้างใหม่`);
+              }
+            }
+            throw new Error(`${leaveErr.message || leaveErr} · ระบบย้อนรายการตั้งเวลาให้แล้ว ยังไม่มีอะไรถูกบันทึก`);
+          }
         }
         if (typeof logAction === 'function') await logAction('Auto Swap Plan', `สร้างแผนสลับกะ และลง XX อัตโนมัติ`);
         Swal.fire({
