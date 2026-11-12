@@ -255,7 +255,8 @@ window.renderFineStats = function() {
   }
   const statsMap = {};
   filteredFines.forEach((f => {
-    const name = f.user_name;
+    const _u = userDict[String(f.user_name || '').toLowerCase()];
+    const name = _u ? _u.username : String(f.user_name || '').trim();
     if (!statsMap[name]) {
       statsMap[name] = {
         count: 0,
@@ -287,7 +288,7 @@ window.renderFineStats = function() {
     return window.renderTemplate('tpl-fine-stats-card', {
       rank: rank,
       medalClass: medalClass,
-      name: stat.name,
+      name: window.escapeHtml(stat.name),
       count: stat.count,
       amount: stat.amount.toLocaleString('en-US')
     });

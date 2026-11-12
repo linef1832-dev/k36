@@ -58,7 +58,7 @@ function updateNewNoteRuleDropdown() {
   globalFineRules.forEach((r => {
     let colorStyle = '';
     if (r.includes('[ออนไลน์]')) colorStyle = 'color: #3b82f6; font-weight: bold; background-color: #1e293b;'; else if (r.includes('[WFH]')) colorStyle = 'color: #10b981; font-weight: bold; background-color: #1e293b;'; else if (r.includes('[ออฟฟิศ]')) colorStyle = 'color: #f59e0b; font-weight: bold; background-color: #1e293b;'; else colorStyle = 'color: #cbd5e1; background-color: #1e293b;';
-    html += `<option value="${r}" style="${colorStyle}">${r}</option>`;
+    html += `<option value="${window.escapeHtml(r)}" style="${colorStyle}">${window.escapeHtml(r)}</option>`;
   }));
   select.innerHTML = html;
 }
@@ -72,7 +72,7 @@ window.renderNotesDropdown = function(selectedRule = '') {
     } else {
       filteredNotes = globalFineNotes.filter((n => n.rule === 'ALL'));
     }
-    noteSelect.innerHTML = '<option value="">-- เลือกหมายเหตุสำเร็จรูป (ไม่บังคับ) --</option>' + filteredNotes.map((n => `<option value="${n.text}">${n.text}</option>`)).join('');
+    noteSelect.innerHTML = '<option value="">-- เลือกหมายเหตุสำเร็จรูป (ไม่บังคับ) --</option>' + filteredNotes.map((n => `<option value="${window.escapeHtml(n.text)}">${window.escapeHtml(n.text)}</option>`)).join('');
   }
   const listDiv = document.getElementById('fineNotesListFull');
   if (listDiv) {
@@ -105,8 +105,8 @@ window.renderNotesDropdown = function(selectedRule = '') {
     const buildCards = (items, ruleColorClass) => items.map((item => {
       let displayRule = item.n.rule === 'ALL' ? 'ใช้ได้กับทุกกฎ (ทั่วไป)' : item.n.rule;
       return window.renderTemplate('tpl-fine-note-item', {
-        noteText: item.n.text,
-        ruleText: displayRule,
+        noteText: window.escapeHtml(item.n.text),
+        ruleText: window.escapeHtml(displayRule),
         ruleColor: ruleColorClass,
         index: item.idx
       });
@@ -417,7 +417,7 @@ function renderRulesDropdown() {
       let itemsHtml = items.map(((item, i) => window.renderTemplate('tpl-fine-rule-item', {
         badgeClass: colorClass.badge,
         indexDisplay: i + 1,
-        text: item.text,
+        text: window.escapeHtml(item.text),
         rawIndex: item.index
       }))).join('');
       return window.renderTemplate('tpl-fine-rule-group', {

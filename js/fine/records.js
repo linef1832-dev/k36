@@ -62,6 +62,29 @@ window.submitFine = async function(e) {
   }
   const fileInput = document.getElementById('fineImageInput');
   if (!empName || !ruleText) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาระบุพนักงานและหัวข้อกฎให้ครบถ้วน', 'warning');
+  if (penaltyType !== 'nowage' && amountToSave <= 0) {
+    const z = await Swal.fire({
+      icon: 'question',
+      title: 'ยอดปรับเป็น 0 บาท',
+      text: 'ยังไม่ได้ใส่จำนวนเงินปรับ ต้องการออกใบปรับแบบ 0 บาท (ตักเตือน) ไหม?',
+      showCancelButton: true,
+      confirmButtonText: 'ออกใบปรับ 0 บาท',
+      cancelButtonText: 'กลับไปแก้'
+    });
+    if (!z.isConfirmed) return;
+  }
+  if (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST && GLOBAL_USER_LIST.length && !GLOBAL_USER_LIST.some((u => String(u.username).toLowerCase() === empName.toLowerCase()))) {
+    const ask = await Swal.fire({
+      icon: 'warning',
+      title: 'ไม่พบชื่อพนักงานนี้ในระบบ',
+      html: `ชื่อ <b>${window.escapeHtml(empName)}</b> ไม่ตรงกับพนักงานคนไหน<br><span style="font-size:12px;opacity:.8">ถ้าบันทึกไป พนักงานจะมองไม่เห็นใบปรับนี้ในหน้าของตัวเอง</span>`,
+      showCancelButton: true,
+      confirmButtonText: 'บันทึกชื่อนี้',
+      cancelButtonText: 'กลับไปแก้ชื่อ',
+      confirmButtonColor: '#d33'
+    });
+    if (!ask.isConfirmed) return;
+  }
   if (window._fineSubmitting) return;
   window._fineSubmitting = true;
   const submitBtn = e && e.target && e.target.querySelector ? e.target.querySelector('button[type="submit"]') : null;
@@ -93,13 +116,17 @@ window.submitFine = async function(e) {
       imageUrl = publicUrlData.publicUrl;
     }
     let targetId = null;
+    let saveName = empName;
     if (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST) {
       const tUser = GLOBAL_USER_LIST.find((u => String(u.username).toLowerCase() === String(empName).toLowerCase()));
-      if (tUser) targetId = tUser.id;
+      if (tUser) {
+        targetId = tUser.id;
+        saveName = tUser.username;
+      }
     }
     const {data: _fineRows, error: dbError} = await appDB.from('fines').insert([ {
       user_id: targetId,
-      user_name: empName,
+      user_name: saveName,
       rule_text: ruleText,
       note: finalNote,
       amount: amountToSave,
@@ -164,7 +191,7 @@ window.fetchFinesData = async function() {
       }).order('id', {
         ascending: false
       });
-      if (!canViewAll && !canViewStats) q = q.eq('user_name', currentUser.username);
+      if (!canViewAll && !canViewStats) q = q.or(`user_id.eq.${parseInt(currentUser.id) || 0},user_name.ilike.${String(currentUser.username || '').replace(/[,()%*]/g, '')}`);
       return q;
     };
     const {data: data, error: error} = typeof window.selectAllRows === 'function' ? await window.selectAllRows(build) : await build();
@@ -205,7 +232,7 @@ window.renderFineTable = function() {
   }
   let baseData = globalFines;
   if (!canViewAll) {
-    baseData = globalFines.filter((f => f.user_name === currentUser.username));
+    baseData = globalFines.filter((f => String(f.user_id) === String(currentUser.id) || String(f.user_name || '').toLowerCase() === String(currentUser.username || '').toLowerCase()));
   }
   const filtered = baseData.filter((f => {
     const matchTerm = f.user_name && f.user_name.toLowerCase().includes(term) || f.rule_text && f.rule_text.toLowerCase().includes(term) || f.note && f.note.toLowerCase().includes(term);
@@ -314,7 +341,7 @@ window.renderFineTable = function() {
         amountDisplay = '<span class="text-gray-400">-</span>';
       }
       const imgDisplay = f.evidence_url ? window.renderTemplate('tpl-fine-history-img-btn', {
-        url: f.evidence_url
+        url: window.escapeHtml(f.evidence_url)
       }) : window.renderTemplate('tpl-fine-history-img-none');
       let noteHtml = '';
       if (f.note && f.note.trim() !== '') {
@@ -323,7 +350,7 @@ window.renderFineTable = function() {
           cleanNoteForTable = cleanNoteForTable.substring(1, cleanNoteForTable.length - 1).trim();
         }
         noteHtml = window.renderTemplate('tpl-fine-history-note', {
-          note: cleanNoteForTable
+          note: window.escapeHtml(cleanNoteForTable)
         });
       }
       let displayName = f.user_name;
@@ -365,7 +392,7 @@ window.renderFineTable = function() {
         });
       }
       displayName = window.renderTemplate('tpl-fine-history-emp-display', {
-        empName: f.user_name,
+        empName: window.escapeHtml(f.user_name || ''),
         deptBadgeHtml: deptBadgeHtml
       });
       let rawRule = f.rule_text || '';
@@ -383,9 +410,9 @@ window.renderFineTable = function() {
         const detail = catMatch[2].trim();
         let catColor = 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700';
         if (cat === 'ออนไลน์') catColor = 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-800/50'; else if (cat === 'WFH') catColor = 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-800/50'; else if (cat === 'ออฟฟิศ') catColor = 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800/50';
-        ruleDisplay = `\n                    <div class="flex items-start md:items-center gap-2 flex-col md:flex-row flex-wrap">\n                        <div class="flex items-center gap-1.5">\n                            <span class="text-[10px] px-2 py-0.5 rounded border ${catColor} shadow-sm font-black whitespace-nowrap">${cat}</span>\n                            ${countBadge}\n                        </div>\n                        <span class="text-red-600 dark:text-red-400 leading-snug">${detail}</span>\n                    </div>\n                `;
+        ruleDisplay = `\n                    <div class="flex items-start md:items-center gap-2 flex-col md:flex-row flex-wrap">\n                        <div class="flex items-center gap-1.5">\n                            <span class="text-[10px] px-2 py-0.5 rounded border ${catColor} shadow-sm font-black whitespace-nowrap">${window.escapeHtml(cat)}</span>\n                            ${countBadge}\n                        </div>\n                        <span class="text-red-600 dark:text-red-400 leading-snug">${window.escapeHtml(detail)}</span>\n                    </div>\n                `;
       } else {
-        ruleDisplay = `\n                    <div class="flex items-start gap-2 flex-col md:flex-row flex-wrap">\n                        ${countBadge ? `<div class="flex items-center gap-1.5">${countBadge}</div>` : ''}\n                        <span class="text-red-600 dark:text-red-400 leading-snug">${cleanRule}</span>\n                    </div>\n                `;
+        ruleDisplay = `\n                    <div class="flex items-start gap-2 flex-col md:flex-row flex-wrap">\n                        ${countBadge ? `<div class="flex items-center gap-1.5">${countBadge}</div>` : ''}\n                        <span class="text-red-600 dark:text-red-400 leading-snug">${window.escapeHtml(cleanRule)}</span>\n                    </div>\n                `;
       }
       return window.renderTemplate('tpl-fine-history-row', {
         id: f.id,
@@ -396,7 +423,7 @@ window.renderFineTable = function() {
         noteHtml: noteHtml,
         amountDisplay: amountDisplay,
         imgDisplay: imgDisplay,
-        issuedBy: f.issued_by || 'ไม่ระบุ'
+        issuedBy: window.escapeHtml(f.issued_by || 'ไม่ระบุ')
       });
     };
     const PAGE = 40;
