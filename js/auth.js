@@ -480,8 +480,9 @@ async function handleLogin(e) {
     }
   });
   try {
-    const _wlPromise = appDB.from('settings').select('value').eq('key', 'ip_whitelist').maybeSingle().then((r => r)).catch((() => ({
-      data: null
+    const _wlPromise = appDB.from('settings').select('value').eq('key', 'ip_whitelist').maybeSingle().then((r => r)).catch((e => ({
+      data: null,
+      error: e || new Error('network')
     })));
     window.prewarmIpProbe();
     const {data: loginRes, error: error} = await appDB.rpc('verify_login', {
@@ -536,8 +537,10 @@ async function handleLogin(e) {
         }
       });
     }
+    let ipCfgFailed = false;
     try {
-      const {data: ipCfgRow} = await _wlPromise;
+      const {data: ipCfgRow, error: ipCfgErr} = await _wlPromise;
+      if (ipCfgErr) throw ipCfgErr;
       const ipCfg = ipCfgRow && ipCfgRow.value ? JSON.parse(ipCfgRow.value) : null;
       if (ipCfg && ipCfg.enabled && user) {
         const curIp = await window.prewarmIpProbe();
@@ -573,6 +576,18 @@ async function handleLogin(e) {
       }
     } catch (ipErr) {
       console.error('IP allowlist check:', ipErr);
+      ipCfgFailed = true;
+    }
+    if (ipCfgFailed) {
+      Swal.close();
+      clearPinInputs();
+      return Swal.fire({
+        icon: 'error',
+        title: 'ตรวจสอบสิทธิ์ IP ไม่สำเร็จ',
+        text: 'เชื่อมต่อระบบไม่เสถียร กรุณาลองเข้าสู่ระบบอีกครั้ง',
+        confirmButtonText: 'ลองใหม่',
+        confirmButtonColor: '#cc0000'
+      });
     }
     await window._finishLoginAfterIp(user, remember);
   } catch (err) {

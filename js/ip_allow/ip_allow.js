@@ -132,11 +132,18 @@
   const myIpAllowed = () => !!myIp && ipData.ips.some((x => ipMatches(myIp, x.ip)));
   function validIpInput(v) {
     if (!/^[0-9a-fA-F:.]+\*?$/.test(v) || v.length < 3) return false;
+    const oct = n => /^\d{1,3}$/.test(n) && +n <= 255;
     if (/^[0-9.]+$/.test(v)) {
       const p = v.split('.');
-      return p.length === 4 && p.every((n => n !== '' && +n >= 0 && +n <= 255));
+      return p.length === 4 && p.every(oct);
     }
-    return true;
+    if (/^[0-9.]+\*$/.test(v)) {
+      if (!/\.\*$/.test(v)) return false;
+      const p = v.slice(0, -2).split('.');
+      return p.length >= 1 && p.length <= 3 && p.every(oct);
+    }
+    if (v.endsWith('*')) return /:\*$/.test(v) && v.indexOf(':') > 0;
+    return v.includes(':');
   }
   function renderHero() {
     const on = ipData.enabled;
@@ -286,7 +293,11 @@
     const ip = String(ipArg || (ipEl ? ipEl.value : '')).trim().replace(/\s+/g, '');
     const note = String(noteArg !== undefined ? noteArg : noteEl ? noteEl.value : '').trim().slice(0, 80);
     if (!validIpInput(ip)) {
-      Swal.fire('รูปแบบไม่ถูกต้อง', 'กรอกเป็น IP เช่น 49.228.10.55 หรือช่วง เช่น 49.228.*', 'warning');
+      Swal.fire({
+        icon: 'warning',
+        title: 'รูปแบบไม่ถูกต้อง',
+        html: 'กรอกเป็น IP เต็ม เช่น <b class="ia-mono">49.228.10.55</b><br>หรือทั้งช่วง ให้ลงท้ายด้วย <b class="ia-mono">.*</b> เช่น <b class="ia-mono">49.228.*</b> หรือ <b class="ia-mono">49.228.10.*</b><br><span style="font-size:12px;opacity:.8">ห้ามใช้ * ติดกับตัวเลข เช่น 49.22* เพราะจะเปิดกว้างเกินไป</span>'
+      });
       return false;
     }
     let dup = false;
