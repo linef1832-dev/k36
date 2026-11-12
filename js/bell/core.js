@@ -407,7 +407,10 @@ window.bell_loadShifts = async function() {
 };
 
 function bell_shiftOf(r) {
-  return window._bellShift[(r.username || '').toLowerCase().trim()] || '';
+  const fromBreak = window._bellShift[(r.username || '').toLowerCase().trim()];
+  if (fromBreak) return fromBreak;
+  const u = (window._bellUsers || []).find((x => String(x.id) === String(r.id)));
+  return bell_normShift(u && u.allowed_shift);
 }
 
 window._bellDept = window._bellDept || 'ALL';
@@ -519,17 +522,12 @@ async function bell_ring(rows) {
   const btn = document.querySelector('.bell-selring');
   if (btn) btn.disabled = true;
   bell_setStatus(`🔔 กำลังเรียก ${rows.length} คน…`, 'warn');
+  const failed = [];
   await Promise.all(rows.map((async r => {
     const token = bell_uuid();
+    const prevTok = r.p && r.p.status === 'ringing' && r.p.ring_token ? r.p.ring_token : null;
+    let histMade = false;
     try {
-      const up = await window.appDB.from('bell_presence').update({
-        status: 'ringing',
-        ring_token: token,
-        ring_at: nowIso,
-        confirmed_at: null
-      }).eq('user_id', r.id).select('user_id');
-      if (up.error) throw up.error;
-      if (Array.isArray(up.data) && up.data.length === 0) throw new Error('ไม่พบสถานะแอปของ ' + r.username);
       const ins = await window.appDB.from('bell_history').insert([ {
         user_id: r.id,
         username: r.username,
@@ -541,12 +539,28 @@ async function bell_ring(rows) {
         status: 'รอยืนยัน'
       } ]);
       if (ins.error) throw ins.error;
+      histMade = true;
+      const up = await window.appDB.from('bell_presence').update({
+        status: 'ringing',
+        ring_token: token,
+        ring_at: nowIso,
+        confirmed_at: null
+      }).eq('user_id', r.id).select('user_id');
+      if (up.error) throw up.error;
+      if (Array.isArray(up.data) && up.data.length === 0) throw new Error('ไม่พบสถานะแอปของ ' + r.username);
+      if (prevTok && prevTok !== token) window.appDB.from('bell_history').update({
+        status: 'เรียกซ้ำ'
+      }).eq('ring_token', prevTok).eq('status', 'รอยืนยัน').then((() => {}), (() => {}));
       ok++;
     } catch (e) {
       console.error('ring error', r.id, e);
+      failed.push(r.username);
+      if (histMade) window.appDB.from('bell_history').update({
+        status: 'ส่งไม่สำเร็จ'
+      }).eq('ring_token', token).then((() => {}), (() => {}));
     }
   })));
-  bell_setStatus(`🔔 เรียกแล้ว ${ok}/${rows.length} คน`, ok ? 'ok' : 'err');
+  bell_setStatus(`🔔 เรียกแล้ว ${ok}/${rows.length} คน` + (failed.length ? ` · ไม่สำเร็จ: ${failed.join(', ')}` : ''), ok ? failed.length ? 'warn' : 'ok' : 'err');
   window._bellSelected = new Set;
   const sa = document.getElementById('bellSelectAll');
   if (sa) sa.checked = false;
@@ -747,7 +761,7 @@ window.bell_renderHistory = function() {
   body.innerHTML = pageRows.map((r => {
     const done = r.status === 'เข้างานแล้ว';
     const dep = bell_histDept(r), sh = bell_histShift(r);
-    return `<tr class="bell-hist-row">\n            <td class="font-bold">${bell_esc(r.name || r.username || '')}</td>\n            <td class="text-center bell-hist-muted">${bell_esc(dep || '-')}</td>\n            <td class="text-center bell-hist-muted">${sh ? 'กะ' + bell_esc(sh) : '-'}</td>\n            <td class="text-center bell-hist-muted">${bell_esc(r.team || '-')}</td>\n            <td class="text-center">${bell_esc(bell_full(r.ring_at))}</td>\n            <td class="text-center">${bell_esc(bell_full(r.confirmed_at)) || '-'}</td>\n            <td class="text-center">${r.elapsed_sec != null ? bell_hms(r.elapsed_sec) : '-'}</td>\n            <td class="text-center"><span class="bell-badge ${done ? 'confirmed' : 'ringing'}" style="animation:none">${bell_esc(r.status || '')}</span></td>\n            <td class="text-center bell-hist-muted">${bell_esc(r.rung_by || '')}</td>\n        </tr>`;
+    return `<tr class="bell-hist-row">\n            <td class="font-bold">${bell_esc(r.name || r.username || '')}</td>\n            <td class="text-center bell-hist-muted">${bell_esc(dep || '-')}</td>\n            <td class="text-center bell-hist-muted">${sh ? 'กะ' + bell_esc(sh) : '-'}</td>\n            <td class="text-center bell-hist-muted">${bell_esc(r.team || '-')}</td>\n            <td class="text-center">${bell_esc(bell_full(r.ring_at))}</td>\n            <td class="text-center">${bell_esc(bell_full(r.confirmed_at)) || '-'}</td>\n            <td class="text-center">${r.elapsed_sec != null ? bell_hms(r.elapsed_sec) : '-'}</td>\n            <td class="text-center"><span class="bell-badge ${done ? 'confirmed' : r.status === 'รอยืนยัน' ? 'ringing' : 'offline'}" style="animation:none">${bell_esc(r.status || '')}</span></td>\n            <td class="text-center bell-hist-muted">${bell_esc(r.rung_by || '')}</td>\n        </tr>`;
   })).join('');
 };
 
