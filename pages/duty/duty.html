@@ -101,6 +101,10 @@
     #dutyApp .ov-stp.ok{background:var(--k-green-bg);color:var(--k-green-tx);border:1px solid var(--k-green-line)}
     #dutyApp .ov-stp.warn{background:rgba(245,158,11,.12);color:var(--k-amber-tx);border:1px solid rgba(245,158,11,.4)}
     #dutyApp .ov-stp.bad{background:#dc2626;color:#fff}
+    #dutyApp #dutyResultGrid, #dutyApp #dutyMatrixGrid, #dutyApp #mainRosterPanel{min-width:0}
+    #dutyApp .duty-body>#dutyRosterWrapper{min-width:0;flex:1 1 0%}
+    #dutyApp .duty-body{min-height:0}
+    @media (max-width:767.98px){#dutyApp .duty-body{overflow-y:auto!important;-webkit-overflow-scrolling:touch}#dutyApp .duty-body>*{flex:none!important}#dutyApp .duty-body>.lv-panel{min-height:260px;border-top:1px solid var(--k-line)}}
     #dutyApp .ov-stp.off{background:transparent;color:var(--k-mute);border:1px dashed var(--k-line3)}
     #dutyApp .ov-sbl{display:flex;align-items:flex-start;gap:4px;font-size:11px;font-weight:800;color:var(--k-tx3);line-height:1.4}
     #dutyApp .ov-sbl .material-icons{font-size:13px;color:var(--k-mute);margin-top:1px}
@@ -401,7 +405,7 @@
                 <div id="dutyRequirements" class="dq-grid"></div>
             </div>
 
-            <div class="flex-1 flex flex-col md:flex-row overflow-hidden bg-slate-100 dark:bg-slate-900/80 w-full">
+            <div class="duty-body flex-1 flex flex-col md:flex-row overflow-hidden bg-slate-100 dark:bg-slate-900/80 w-full">
                 
                 <div id="dutyResultGrid" class="flex-1 p-4 overflow-y-auto custom-scrollbar grid gap-4 content-start w-full fast-render-list" style="grid-template-columns:repeat(auto-fill,minmax(320px,1fr))">
                     <div class="col-span-full flex flex-col items-center justify-center py-20 text-gray-400 opacity-50">
