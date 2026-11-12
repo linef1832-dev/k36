@@ -414,7 +414,7 @@ window.srManageTopics = async function() {
   const rowHtml = (t, i) => {
     const g = t.group || 'ALL';
     const lim = Number(t.limit) || 0;
-    return `<div class="srmt-row" data-lim="${lim}" data-g="${g}">\n            <label class="srmt-sw" style="background:${t.color}" title="กดเพื่อเปลี่ยนสี"><input type="color" value="${t.color}" oninput="this.parentElement.style.background=this.value"></label>\n            <input class="srmt-name" type="text" value="${_srEsc(t.name)}" placeholder="ชื่อหัวข้อ">\n            <div class="srmt-seg">${[ 'AM', 'OD', 'ALL' ].map((x => `<button type="button" data-g="${x}" class="${g === x ? 'on' : ''}">${x === 'ALL' ? 'ทั้งคู่' : x}</button>`)).join('')}</div>\n            <div class="srmt-lim" title="ผิดเรื่องนี้กี่ครั้ง/เดือน ถึงจะเตือน"><button type="button" data-d="-1">−</button><span class="${lim ? '' : 'off'}">${lim ? lim + ' ครั้ง' : 'ไม่เตือน'}</span><button type="button" data-d="1">+</button></div>\n            <button type="button" class="srmt-del" title="ลบหัวข้อนี้">✕</button>\n        </div>`;
+    return `<div class="srmt-row" data-lim="${lim}" data-g="${g}" data-orig="${_srEsc(t.name || '')}">\n            <label class="srmt-sw" style="background:${t.color}" title="กดเพื่อเปลี่ยนสี"><input type="color" value="${t.color}" oninput="this.parentElement.style.background=this.value"></label>\n            <input class="srmt-name" type="text" value="${_srEsc(t.name)}" placeholder="ชื่อหัวข้อ">\n            <div class="srmt-seg">${[ 'AM', 'OD', 'ALL' ].map((x => `<button type="button" data-g="${x}" class="${g === x ? 'on' : ''}">${x === 'ALL' ? 'ทั้งคู่' : x}</button>`)).join('')}</div>\n            <div class="srmt-lim" title="ผิดเรื่องนี้กี่ครั้ง/เดือน ถึงจะเตือน"><button type="button" data-d="-1">−</button><span class="${lim ? '' : 'off'}">${lim ? lim + ' ครั้ง' : 'ไม่เตือน'}</span><button type="button" data-d="1">+</button></div>\n            <button type="button" class="srmt-del" title="ลบหัวข้อนี้">✕</button>\n        </div>`;
   };
   const res = await Swal.fire({
     title: 'แก้หัวข้อ',
@@ -469,8 +469,11 @@ window.srManageTopics = async function() {
     preConfirm: () => {
       const out = [];
       const seen = new Set;
+      SR._mtRenames = [];
       document.querySelectorAll('#srMtBox .srmt-row').forEach((r => {
         const n = r.querySelector('.srmt-name').value.trim();
+        const orig = r.dataset.orig || '';
+        if (orig && n && orig !== n) SR._mtRenames.push([ orig, n ]);
         const c = r.querySelector('.srmt-sw input').value;
         const lim = Number(r.dataset.lim) || 0;
         if (n && !seen.has(n)) {
@@ -508,6 +511,46 @@ window.srManageTopics = async function() {
   srRenderTopics();
   srFillFilters();
   srRender();
+  const renames = (SR._mtRenames || []).filter((([o, n]) => o !== n));
+  SR._mtRenames = [];
+  if (renames.length) {
+    let total = 0;
+    const counts = [];
+    for (const [o, n] of renames) {
+      const {count: c} = await appDB.from('staff_records').select('id', {
+        count: 'exact',
+        head: true
+      }).eq('topic', o);
+      counts.push([ o, n, c || 0 ]);
+      total += c || 0;
+    }
+    if (total > 0) {
+      const ask = await Swal.fire({
+        icon: 'question',
+        title: 'เปลี่ยนชื่อในประวัติเดิมด้วยไหม?',
+        html: `<div style="text-align:left;font-size:13px;line-height:1.8">${counts.filter((x => x[2])).map((([o, n, c]) => `• <b>${_srEsc(o)}</b> → <b>${_srEsc(n)}</b> (${c} รายการ)`)).join('<br>')}</div><div style="font-size:12px;opacity:.8;margin-top:8px">ถ้าไม่เปลี่ยน ประวัติเดิมจะแยกนับคนละหัวข้อกับชื่อใหม่ และเกณฑ์เตือนจะนับไม่รวมกัน</div>`,
+        showCancelButton: true,
+        confirmButtonText: 'เปลี่ยนชื่อในประวัติเดิมด้วย',
+        cancelButtonText: 'ไม่ต้อง',
+        confirmButtonColor: '#16a34a'
+      });
+      if (ask.isConfirmed) {
+        const fails = [];
+        for (const [o, n, c] of counts) {
+          if (!c) continue;
+          const {error: e2} = await appDB.from('staff_records').update({
+            topic: n
+          }).eq('topic', o);
+          if (e2) fails.push(`${o}: ${e2.message}`); else _srLog({
+            action: 'topics',
+            detail: `เปลี่ยนชื่อหัวข้อในประวัติเดิม "${o}" → "${n}" (${c} รายการ)`
+          });
+        }
+        await srLoad();
+        if (fails.length) return Swal.fire('เปลี่ยนชื่อบางส่วนไม่สำเร็จ', fails.map(_srEsc).join('<br>'), 'error');
+      }
+    }
+  }
   Swal.fire({
     toast: true,
     position: 'top-end',
@@ -818,19 +861,26 @@ async function _srSaveInner() {
   if (!date) return Swal.fire('ยังไม่ได้เลือกวันที่', '', 'warning');
   if (!SR.selTopics.size) return Swal.fire('ยังไม่ได้เลือกเรื่องที่ผิด', 'กดเลือกได้มากกว่า 1 เรื่อง', 'warning');
   const isNote = SR.kind === 'note';
-  if (!isNote && date.slice(0, 7) === SR.month) {
+  let countOf = _srCountOf;
+  if (!isNote && date.slice(0, 7) !== SR.month && [ ...SR.selTopics ].some((t => _srTopicLimit(t)))) {
+    const [ma, mb] = _srMonthRange(date.slice(0, 7));
+    const {data: mrows} = await appDB.from('staff_records').select('*').gte('record_date', ma).lte('record_date', mb).in('topic', [ ...SR.selTopics ]).limit(5e3);
+    const other = (mrows || []).filter((r => !_srIsNote(r)));
+    countOf = (name, topic) => other.filter((r => String(r.user_name).toLowerCase() === String(name).toLowerCase() && r.topic === topic)).length;
+  }
+  if (!isNote) {
     const hits = [];
     SR.pickedList.forEach((u => [ ...SR.selTopics ].forEach((t => {
       const lim = _srTopicLimit(t);
       if (!lim) return;
-      const nth = _srCountOf(u.username, t) + 1;
+      const nth = countOf(u.username, t) + 1;
       if (nth >= lim) hits.push(`<tr><td style="text-align:left;padding:4px 8px"><b>${_srEsc(u.username)}</b></td><td style="text-align:left;padding:4px 8px">${_srEsc(t)}</td><td style="padding:4px 8px;font-weight:900;color:#dc2626">ครั้งที่ ${nth}/${lim}</td></tr>`);
     }))));
     if (hits.length) {
       const go = await Swal.fire({
         icon: 'warning',
         title: 'มีคนถึงเกณฑ์',
-        html: `<div style="font-size:13px;margin-bottom:8px">บันทึกรอบนี้แล้วจะถึง/เกินเกณฑ์ที่ตั้งไว้ของเดือนนี้</div><table style="width:100%;font-size:13px">${hits.join('')}</table>`,
+        html: `<div style="font-size:13px;margin-bottom:8px">บันทึกรอบนี้แล้วจะถึง/เกินเกณฑ์ที่ตั้งไว้ของเดือนนั้น</div><table style="width:100%;font-size:13px">${hits.join('')}</table>`,
         showCancelButton: true,
         confirmButtonText: 'บันทึกต่อ',
         cancelButtonText: 'กลับไปแก้',
@@ -1096,14 +1146,15 @@ window.srEdit = async function(id) {
     }
   });
   if (!res.isConfirmed || !res.value) return;
-  let {error: error} = await appDB.from('staff_records').update(res.value).eq('id', id);
+  let {data: upd, error: error} = await appDB.from('staff_records').update(res.value).eq('id', id).select('id');
   if (error && String(error.message || '').includes('kind')) {
     const isN = res.value.kind === 'note';
     delete res.value.kind;
     res.value.note = isN ? SR_NOTE_TAG + (res.value.note || '') : res.value.note;
-    ({error: error} = await appDB.from('staff_records').update(res.value).eq('id', id));
+    ({data: upd, error: error} = await appDB.from('staff_records').update(res.value).eq('id', id).select('id'));
   }
   if (error) return Swal.fire('แก้ไขไม่สำเร็จ', error.message, 'error');
+  if (Array.isArray(upd) && upd.length === 0) return Swal.fire('แก้ไขไม่สำเร็จ', 'ฐานข้อมูลไม่ยอมแก้รายการนี้ (อาจไม่มีสิทธิ์ หรือถูกลบไปแล้ว)', 'error');
   const _chg = [];
   const _lab = {
     user_name: 'พนักงาน',
