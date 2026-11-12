@@ -207,6 +207,12 @@ window.initQuickRebook = async function() {
 };
 
 async function _qrbBookOne(team, shift, slot) {
+  const radio = document.querySelector(`input[name="shift"][value="${shift}"]`);
+  if (!radio) throw new Error(`วันนี้คุณลง${shift}ไม่ได้ (ไม่มีสิทธิ์กะนี้)`);
+  radio.checked = true;
+  if (typeof refreshTimeSlots === 'function') await refreshTimeSlots();
+  const assigned = Array.isArray(window._myAssignedTeams) ? window._myAssignedTeams : [];
+  if (assigned.length && !assigned.includes(team)) team = assigned[0];
   const ts = document.getElementById('dailyTeam');
   if (ts) {
     const has = [ ...ts.options ].some((o => o.value === team));
@@ -214,10 +220,6 @@ async function _qrbBookOne(team, shift, slot) {
       ts.value = team;
     } else throw new Error(`เว็บ "${team}" ไม่อยู่ในรายการแล้ว — เลือกจากฟอร์มด้านล่างแทนนะ`);
   }
-  const radio = document.querySelector(`input[name="shift"][value="${shift}"]`);
-  if (!radio) throw new Error(`วันนี้คุณลง${shift}ไม่ได้ (ไม่มีสิทธิ์กะนี้)`);
-  radio.checked = true;
-  if (typeof refreshTimeSlots === 'function') await refreshTimeSlots();
   const sel = document.getElementById('tSlot');
   const opt = sel ? [ ...sel.options ].find((o => o.value === slot)) : null;
   if (!opt) throw new Error(`วันนี้ไม่มีรอบ ${slot} ในตั้งค่าแล้ว`);
@@ -289,7 +291,7 @@ window.quickRebookAll = async function(btnId) {
     Swal.fire({
       icon: okCount ? 'warning' : 'error',
       title: `ลงสำเร็จ ${okCount}/${items.length} รอบ`,
-      html: `<div style="text-align:left;font-size:13px;line-height:1.8">${fails.map((f => '• ' + f)).join('<br>')}</div>`
+      html: `<div style="text-align:left;font-size:13px;line-height:1.8">${fails.map((f => '• ' + (window.escapeHtml ? window.escapeHtml(f) : f))).join('<br>')}</div>`
     });
   }
   if (typeof initQuickRebook === 'function') initQuickRebook();
@@ -584,7 +586,11 @@ async function _doRefreshTimeSlots() {
       tHtml += `<option value="${t}">${isAssigned ? `⭐ ${t} (หน้าที่ของคุณ)` : t}</option>`;
     }));
     teamSelect.innerHTML = tHtml;
-    if (oldVal && sortedTeams.includes(oldVal)) teamSelect.value = oldVal; else if (assignedTeams.length > 0) teamSelect.value = assignedTeams[0];
+    const autoKey = `${rosterKey}|${assignedTeams.join(',')}`;
+    if (assignedTeams.length > 0 && teamSelect.dataset.autoFor !== autoKey) {
+      teamSelect.dataset.autoFor = autoKey;
+      teamSelect.value = assignedTeams.includes(oldVal) ? oldVal : assignedTeams[0];
+    } else if (oldVal && sortedTeams.includes(oldVal)) teamSelect.value = oldVal; else if (assignedTeams.length > 0) teamSelect.value = assignedTeams[0];
   }
   const selectedTeam = teamSelect ? teamSelect.value : window.currentUser?.team || '';
   const previousSelectedSlot = slotSelect.value;
