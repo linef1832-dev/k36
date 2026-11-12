@@ -333,12 +333,12 @@ window.exportSummaryToExcel = async function() {
         const c = {};
         return k => c[k] = (c[k] || 0) + 1;
       })();
-      const addShiftDivider = (sheet, lastCol, emp) => {
+      const addShiftDivider = (sheet, lastCol, emp, labelCol) => {
         const row = sheet.addRow([]);
         row.height = 15;
         for (let c = 1; c <= lastCol; c++) row.getCell(c).fill = solid('FF000000');
         const k = groupKey(emp);
-        const cell = row.getCell(2);
+        const cell = row.getCell(labelCol || 2);
         cell.value = `${shiftLabel(emp.shift)} · ${emp.dept} · ${groupCount[k]} คน`;
         cell.font = {
           size: 9,
@@ -499,7 +499,7 @@ window.exportSummaryToExcel = async function() {
         vertical: 'middle',
         indent: 1
       };
-      const refHead = ws2.addRow([ 'ลำดับ', 'ชื่อพนักงาน (อ้างอิง)', 'กะ (อ้างอิง)' ].concat(targetWebOrder.map((w => `${w} (สรุปยอด)`)), [ 'รวม (สรุปยอด)' ]));
+      const refHead = ws2.addRow([ 'กะ (อ้างอิง)', 'ลำดับ', 'ชื่อพนักงาน (อ้างอิง)' ].concat(targetWebOrder.map((w => `${w} (สรุปยอด)`)), [ 'รวม (สรุปยอด)' ]));
       refHead.height = 25;
       refHead.eachCell(((cell, colNumber) => {
         cell.font = {
@@ -544,17 +544,17 @@ window.exportSummaryToExcel = async function() {
       })();
       let prevShiftRef = null;
       sortedEmps.forEach(((emp, i) => {
-        if (prevShiftRef !== groupKey(emp)) addShiftDivider(ws2, REF_TOT, emp);
+        if (prevShiftRef !== groupKey(emp)) addShiftDivider(ws2, REF_TOT, emp, 3);
         prevShiftRef = groupKey(emp);
         const webVals = targetWebOrder.map((w => emp.websData[w].total));
         webVals.forEach(((v, j) => {
           refColTot[j] += v;
         }));
-        const r = ws2.addRow([ refSeq(groupKey(emp)), emp.name, emp.shift ].concat(webVals, [ webVals.reduce(((a, b) => a + b), 0) ]));
+        const r = ws2.addRow([ emp.shift, refSeq(groupKey(emp)), emp.name ].concat(webVals, [ webVals.reduce(((a, b) => a + b), 0) ]));
         r.eachCell(((cell, colNumber) => {
           cell.alignment = {
             vertical: 'middle',
-            horizontal: colNumber === 2 ? 'left' : 'center'
+            horizontal: colNumber === 3 ? 'left' : 'center'
           };
           cell.border = {
             top: thin('FFCBD5E1'),
@@ -562,9 +562,9 @@ window.exportSummaryToExcel = async function() {
             left: thin('FFCBD5E1'),
             right: thin('FFCBD5E1')
           };
-          if (colNumber === 2) cell.font = {
+          if (colNumber === 3) cell.font = {
             bold: true
-          }; else if (colNumber === 3) shiftCellStyle(cell); else if (colNumber === REF_TOT) {
+          }; else if (colNumber === 1) shiftCellStyle(cell); else if (colNumber === REF_TOT) {
             cell.fill = solid('FFFDE047');
             cell.font = {
               bold: true,
@@ -589,7 +589,7 @@ window.exportSummaryToExcel = async function() {
       }));
       {
         const grand = refColTot.reduce(((a, b) => a + b), 0);
-        const tr = ws2.addRow([ '', 'รวมทุกคน', '' ].concat(refColTot, [ grand ]));
+        const tr = ws2.addRow([ '', '', 'รวมทุกคน' ].concat(refColTot, [ grand ]));
         tr.height = 22;
         tr.eachCell({
           includeEmpty: true
@@ -604,7 +604,7 @@ window.exportSummaryToExcel = async function() {
           cell.fill = solid('FF1F2937');
           cell.alignment = {
             vertical: 'middle',
-            horizontal: colNumber === 2 ? 'left' : 'center'
+            horizontal: colNumber === 3 ? 'left' : 'center'
           };
           cell.border = {
             top: {
@@ -629,7 +629,7 @@ window.exportSummaryToExcel = async function() {
         zoomScaleNormal: 80,
         showGridLines: false
       } ];
-      for (let c = 1; c <= REF_TOT; c++) ws2.getColumn(c).width = c === 1 ? 8 : c === 2 ? 30 : c === 3 ? 11 : c === REF_TOT ? 14 : 12;
+      for (let c = 1; c <= REF_TOT; c++) ws2.getColumn(c).width = c === 1 ? 11 : c === 2 ? 8 : c === 3 ? 30 : c === REF_TOT ? 14 : 12;
       for (let c = 1; c <= LASTCOL; c++) {
         const col = ws.getColumn(c);
         if (c === 1) col.width = 8; else if (c === 2) col.width = 22; else if (c === 3 || c === 4) col.width = 12; else if (c === 5) col.width = 11; else if (c > E) col.width = 14; else col.width = 11;

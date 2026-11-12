@@ -871,7 +871,7 @@ window.dutyRemovePlaceholder = async function(team) {
 };
 
 window.dutyReqsShared = function() {
-  return currentDutyDept === 'ODQL' || currentDutyDept === 'TRAINER_OD';
+  return !!currentDutyDept;
 };
 
 window._dreqSaveTimer = null;
@@ -922,7 +922,7 @@ window.dutyLoadSharedReqs = async function() {
       try {
         lo = JSON.parse(local || '{}') || {};
       } catch (e) {}
-      if (Object.values(lo).some((v => parseInt(v) > 0))) window.dutySaveReqs(lo);
+      if ((dept === 'ODQL' || dept === 'TRAINER_OD') && Object.values(lo).some((v => parseInt(v) > 0))) window.dutySaveReqs(lo);
       return;
     }
     let remote = {};

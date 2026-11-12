@@ -1405,6 +1405,29 @@ window.generateDutyRoster = async function() {
   }
   const odqlMulti = currentDutyDept === 'ODQL';
   if (!odqlMulti && requiredCount > activeStaff.length) return Swal.fire('ขาดคน!', `คุณจัดงาน ${requiredCount} คน แต่มีคนว่างแค่ ${activeStaff.length} คน (กรุณาลดจำนวน)`, 'error');
+  const withAnyAccess = activeStaff.filter((u => (dutyAccessMatrix[String(u.id)] || []).some((t => sortedTeams.includes(t))))).length;
+  if (!odqlMulti && requiredCount < withAnyAccess) {
+    const gap = withAnyAccess - requiredCount;
+    const ask2 = await Swal.fire({
+      icon: 'warning',
+      title: `จะมี ${gap} คนไม่ได้ลงเว็บ`,
+      html: `ตั้งจำนวนคนต่อเว็บรวม <b>${requiredCount}</b> คน แต่วันนี้มาทำงาน <b>${withAnyAccess}</b> คน<br><br><b>คำนวณออโต้แล้วจัด</b> — ปรับตัวเลขให้พอดีกับคนที่มา ทุกคนได้หน้างาน<br><b>จัดตามตัวเลขนี้</b> — ${gap} คนจะเหลืออยู่ส่วนกลาง`,
+      showDenyButton: true,
+      showCancelButton: true,
+      confirmButtonText: '⚡ คำนวณออโต้แล้วจัด',
+      denyButtonText: 'จัดตามตัวเลขนี้',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#16a34a',
+      denyButtonColor: '#64748b'
+    });
+    if (ask2.isDismissed) return;
+    if (ask2.isConfirmed) {
+      window.autoSuggestRequirements();
+      requiredCount = 0;
+      document.querySelectorAll('.req-input').forEach((i => requiredCount += parseInt(i.value) || 0));
+      if (requiredCount === 0) return;
+    }
+  }
   Swal.fire({
     title: 'กำลังจัดตารางหลัก...',
     text: 'ระบบกำลังจัดหน้าที่หลัก โดยจะยังไม่แจกงานรอง...',
@@ -1539,6 +1562,65 @@ window.generateDutyRoster = async function() {
       rosterResult[teamToFill].push(pickedUser);
       remainingReqs[teamToFill]--;
       unassignedPool = unassignedPool.filter((u => u.id !== pickedUser.id));
+    }
+    if (!odqlMulti && unassignedPool.length) {
+      const isPh = x => x && !x.id && String(x.username || '').includes('ขาดคน');
+      const accOf = u => (dutyAccessMatrix[String(u.id)] || []).filter((t => sortedTeams.includes(t)));
+      for (let guard = 0; guard < 500 && unassignedPool.length; guard++) {
+        if (!sortedTeams.some((t => (rosterResult[t] || []).some(isPh)))) break;
+        let done = false;
+        for (const u of unassignedPool) {
+          const prev = new Map, q = [];
+          accOf(u).forEach((t => {
+            if (!prev.has(t)) {
+              prev.set(t, {
+                from: null,
+                user: u
+              });
+              q.push(t);
+            }
+          }));
+          let hit = null;
+          while (q.length) {
+            const t = q.shift();
+            if ((rosterResult[t] || []).some(isPh)) {
+              hit = t;
+              break;
+            }
+            (rosterResult[t] || []).forEach((p => {
+              if (!p || !p.id || p.stay_pinned) return;
+              accOf(p).forEach((t2 => {
+                if (prev.has(t2)) return;
+                prev.set(t2, {
+                  from: t,
+                  user: p
+                });
+                q.push(t2);
+              }));
+            }));
+          }
+          if (!hit) continue;
+          rosterResult[hit].splice(rosterResult[hit].findIndex(isPh), 1);
+          let t = hit;
+          for (;;) {
+            const {from: from, user: user} = prev.get(t);
+            const entry = from === null ? {
+              ...user,
+              secondary_team: null,
+              assigned_by: currentUser.username,
+              assigned_at: (new Date).toISOString()
+            } : user;
+            rosterResult[t].push(entry);
+            if (from === null) break;
+            rosterResult[from] = rosterResult[from].filter((x => x !== user));
+            t = from;
+          }
+          unassignedPool = unassignedPool.filter((x => String(x.id) !== String(u.id)));
+          done = true;
+          break;
+        }
+        if (!done) break;
+      }
     }
     if (odqlMulti && activeStaff.length) {
       let rr = 0;
@@ -1699,6 +1781,7 @@ window.renderRosterGrid = async function(rosterData) {
   const cardGrid = document.getElementById('dutyResultGrid');
   const matrixGrid = document.getElementById('dutyMatrixGrid');
   if (!cardGrid) return;
+  if (currentDutyDept !== 'ODQL' && currentDutyDept !== 'TRAINER_OD' && typeof window.dutyLoadSharedReqs === 'function') window.dutyLoadSharedReqs();
   if (currentDutyDept === 'ODQL' || currentDutyDept === 'TRAINER_OD') {
     if (typeof window.odqlPending === 'function' && window.odqlPending()) {
       window._odqlQ.needRefresh = true;
