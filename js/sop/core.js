@@ -283,10 +283,14 @@ window.sop_saveCategoryColor = async function(idx) {
   const newColor = palette.dataset.color;
   if (!newColor || !globalSOPCategories[idx]) return;
   globalSOPCategories[idx].color = newColor;
-  await appDB.from('settings').upsert([ {
+  const _saveRes286 = await appDB.from('settings').upsert([ {
     key: 'sop_categories',
     value: JSON.stringify(globalSOPCategories)
   } ]);
+  if (_saveRes286 && _saveRes286.error) {
+    Swal.fire('บันทึกไม่สำเร็จ', String(_saveRes286.error.message || _saveRes286.error), 'error');
+    return;
+  }
   document.getElementById('sopCatListContainer').innerHTML = window.renderSopManageCatHtml();
   sop_renderAllRulesPage();
   sop_renderList();
@@ -313,10 +317,14 @@ window.sop_addCategory = async function() {
   });
   input.value = '';
   document.getElementById('sopCatListContainer').innerHTML = window.renderSopManageCatHtml();
-  await appDB.from('settings').upsert([ {
+  const _saveRes316 = await appDB.from('settings').upsert([ {
     key: 'sop_categories',
     value: JSON.stringify(globalSOPCategories)
   } ]);
+  if (_saveRes316 && _saveRes316.error) {
+    Swal.fire('บันทึกไม่สำเร็จ', String(_saveRes316.error.message || _saveRes316.error), 'error');
+    return;
+  }
   sop_renderCategoryDropdowns();
   sop_renderAllRulesPage();
 };
@@ -340,10 +348,14 @@ window.sop_deleteCategory = async function(idx) {
   if (confirm.isConfirmed) {
     globalSOPCategories.splice(idx, 1);
     document.getElementById('sopCatListContainer').innerHTML = window.renderSopManageCatHtml();
-    await appDB.from('settings').upsert([ {
+    const _saveRes343 = await appDB.from('settings').upsert([ {
       key: 'sop_categories',
       value: JSON.stringify(globalSOPCategories)
     } ]);
+    if (_saveRes343 && _saveRes343.error) {
+      Swal.fire('บันทึกไม่สำเร็จ', String(_saveRes343.error.message || _saveRes343.error), 'error');
+      return;
+    }
     sop_renderCategoryDropdowns();
     sop_renderList();
   }

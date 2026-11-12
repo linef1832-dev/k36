@@ -145,10 +145,11 @@ window.sop_loadTelegramConfig = async function() {
 
 window.sop_saveTelegramConfig = async function() {
   if (!window.sopRequire(window.sopCanManage)) return;
-  await appDB.from('settings').upsert([ {
+  const _saveRes148 = await appDB.from('settings').upsert([ {
     key: 'sop_telegram_config',
     value: JSON.stringify(window._sopTelegramConfig)
   } ]);
+  if (_saveRes148 && _saveRes148.error) throw new Error('บันทึกไม่สำเร็จ: ' + (_saveRes148.error.message || _saveRes148.error));
 };
 
 window.sop_telegramSettings = async function() {
@@ -199,7 +200,11 @@ window.sop_telegramSettings = async function() {
   });
   try {
     window._sopTelegramConfig = result.value;
-    await sop_saveTelegramConfig();
+    try {
+      await sop_saveTelegramConfig();
+    } catch (e) {
+      return Swal.fire('บันทึกไม่สำเร็จ', String(e.message || e), 'error');
+    }
     Swal.fire({
       icon: 'success',
       title: 'บันทึกสำเร็จ!',
@@ -491,10 +496,11 @@ async function sop_loadGroups() {
 }
 
 async function sop_saveGroups() {
-  await appDB.from('settings').upsert([ {
+  const _saveRes494 = await appDB.from('settings').upsert([ {
     key: 'sop_groups',
     value: JSON.stringify(globalSopGroups)
   } ]);
+  if (_saveRes494 && _saveRes494.error) throw new Error('บันทึกไม่สำเร็จ: ' + (_saveRes494.error.message || _saveRes494.error));
   sop_updateGroupDropdown();
 }
 
@@ -525,7 +531,11 @@ window.sop_manageGroups = async function() {
         btn.addEventListener('click', (async e => {
           const idx = parseInt(btn.getAttribute('onclick').match(/\d+/)[0]);
           globalSopGroups.splice(idx, 1);
-          await sop_saveGroups();
+          try {
+            await sop_saveGroups();
+          } catch (e) {
+            return Swal.fire('บันทึกไม่สำเร็จ', String(e.message || e), 'error');
+          }
           Swal.close();
           sop_manageGroups();
         }));
@@ -538,7 +548,11 @@ window.sop_manageGroups = async function() {
       return Swal.fire('มีกลุ่มนี้แล้ว', '', 'warning');
     }
     globalSopGroups.push(newName);
-    await sop_saveGroups();
+    try {
+      await sop_saveGroups();
+    } catch (e) {
+      return Swal.fire('บันทึกไม่สำเร็จ', String(e.message || e), 'error');
+    }
     Swal.fire({
       icon: 'success',
       title: `สร้างกลุ่ม "${newName}" แล้ว!`,
@@ -552,7 +566,11 @@ window.sop_manageGroups = async function() {
 window.sop_deleteGroup = async function(idx) {
   if (!window.sopRequire(window.sopCanManage)) return;
   globalSopGroups.splice(idx, 1);
-  await sop_saveGroups();
+  try {
+    await sop_saveGroups();
+  } catch (e) {
+    Swal.fire('บันทึกไม่สำเร็จ', String(e.message || e), 'error');
+  }
 };
 
 window.sop_moveToGroup = async function(idx) {
@@ -624,10 +642,14 @@ window.sop_moveCategoryToGroup = async function(catId) {
   });
   if (selectedGroup !== undefined) {
     cat.group = selectedGroup || '';
-    await appDB.from('settings').upsert([ {
+    const _saveRes627 = await appDB.from('settings').upsert([ {
       key: 'sop_categories',
       value: JSON.stringify(globalSOPCategories)
     } ]);
+    if (_saveRes627 && _saveRes627.error) {
+      Swal.fire('บันทึกไม่สำเร็จ', String(_saveRes627.error.message || _saveRes627.error), 'error');
+      return;
+    }
     sop_renderAllRulesPage();
     Swal.fire({
       icon: 'success',

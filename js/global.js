@@ -1347,10 +1347,14 @@ window.deleteCustomPermDept = async function(dept) {
       } catch (e) {}
       dbDepts = dbDepts.filter((d => d !== dept));
       SETTINGS['custom_departments'] = JSON.stringify(dbDepts);
-      await appDB.from('settings').upsert([ {
+      const _saveRes1350 = await appDB.from('settings').upsert([ {
         key: 'custom_departments',
         value: JSON.stringify(dbDepts)
       } ]);
+      if (_saveRes1350 && _saveRes1350.error) {
+        Swal.fire('บันทึกไม่สำเร็จ', String(_saveRes1350.error.message || _saveRes1350.error), 'error');
+        return;
+      }
       window.renderPermsTable();
       Swal.fire({
         icon: 'success',
@@ -1406,16 +1410,24 @@ window.renameCustomPermDept = async function(oldDept) {
       MENU_PERMS = newPerms;
       SETTINGS['dept_menu_rules'] = JSON.stringify(MENU_PERMS);
       window.safeSetItem('cached_menu_rules', JSON.stringify(MENU_PERMS));
-      await appDB.from('settings').upsert([ {
+      const _saveRes1409 = await appDB.from('settings').upsert([ {
         key: 'custom_departments',
         value: JSON.stringify(dbDepts)
       }, {
         key: 'dept_menu_rules',
         value: JSON.stringify(MENU_PERMS)
       } ]);
-      await appDB.from('users').update({
+      if (_saveRes1409 && _saveRes1409.error) {
+        Swal.fire('บันทึกไม่สำเร็จ', String(_saveRes1409.error.message || _saveRes1409.error), 'error');
+        return;
+      }
+      const _saveRes1416 = await appDB.from('users').update({
         department: newDept
       }).eq('department', oldDept);
+      if (_saveRes1416 && _saveRes1416.error) {
+        Swal.fire('บันทึกไม่สำเร็จ', String(_saveRes1416.error.message || _saveRes1416.error), 'error');
+        return;
+      }
       if (typeof GLOBAL_USER_LIST !== 'undefined') {
         GLOBAL_USER_LIST.forEach((u => {
           if (u.department === oldDept) u.department = newDept;

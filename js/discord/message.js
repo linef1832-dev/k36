@@ -127,10 +127,14 @@ window.ds_saveMsgTemplate = async function() {
   });
   templates.unshift(text);
   try {
-    await appDB.from('settings').upsert([ {
+    const _saveRes130 = await appDB.from('settings').upsert([ {
       key: 'discord_msg_templates',
       value: JSON.stringify(templates)
     } ]);
+    if (_saveRes130 && _saveRes130.error) {
+      Swal.fire('บันทึกไม่สำเร็จ', String(_saveRes130.error.message || _saveRes130.error), 'error');
+      return;
+    }
     window.globalDsMsgTemplates = templates;
     ds_loadMsgTemplates();
     Swal.fire({
@@ -171,10 +175,14 @@ window.ds_deleteMsgTemplate = async function(idx) {
       didOpen: () => Swal.showLoading()
     });
     try {
-      await appDB.from('settings').upsert([ {
+      const _saveRes174 = await appDB.from('settings').upsert([ {
         key: 'discord_msg_templates',
         value: JSON.stringify(templates)
       } ]);
+      if (_saveRes174 && _saveRes174.error) {
+        Swal.fire('บันทึกไม่สำเร็จ', String(_saveRes174.error.message || _saveRes174.error), 'error');
+        return;
+      }
       window.globalDsMsgTemplates = templates;
       ds_loadMsgTemplates();
       Swal.fire({

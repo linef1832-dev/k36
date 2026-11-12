@@ -659,3 +659,90 @@ window.ds_clearOldMoveLogs = async function() {
     }
   }
 };
+
+window.deleteGroup = async function(groupName) {
+  if (!window.dsRequire('ds_manage')) return;
+  const n = (extStaffGroups[groupName] || []).length;
+  const ok = await Swal.fire({
+    icon: 'warning',
+    title: `ลบกลุ่ม "${dsEsc(groupName)}"?`,
+    html: `สมาชิก ${n} คนจะไม่อยู่ในกลุ่มนี้แล้ว<br><span style="font-size:12px;opacity:.8">ตัวพนักงานไม่ถูกลบ · ถ้ามีการตั้งเวลาย้ายกลุ่มที่ใช้ชื่อนี้ จะใช้ไม่ได้</span>`,
+    showCancelButton: true,
+    confirmButtonText: 'ลบกลุ่ม',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: '#dc2626'
+  });
+  if (!ok.isConfirmed) return;
+  try {
+    await window.dsBotOk(window.dsFetch(DISCORD_API_URL + '/api/groups/delete', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        name: groupName
+      })
+    }));
+    delete extStaffGroups[groupName];
+    if (typeof updateAllFilters === 'function') updateAllFilters();
+    renderGroupList();
+    if (typeof ds_logAction === 'function') ds_logAction('Delete Group', `ลบกลุ่ม ${groupName} (${n} คน)`);
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'success',
+      title: 'ลบกลุ่มแล้ว',
+      timer: 1500,
+      showConfirmButton: false
+    });
+  } catch (e) {
+    Swal.fire('ลบกลุ่มไม่สำเร็จ', dsEsc(e.message || String(e)), 'error');
+  }
+};
+
+window.renameGroup = async function(oldName) {
+  if (!window.dsRequire('ds_manage')) return;
+  const {value: newName} = await Swal.fire({
+    title: 'เปลี่ยนชื่อกลุ่ม',
+    input: 'text',
+    inputValue: oldName,
+    showCancelButton: true,
+    confirmButtonText: 'บันทึก',
+    cancelButtonText: 'ยกเลิก',
+    inputValidator: v => {
+      v = String(v || '').trim();
+      if (!v) return 'กรุณาใส่ชื่อกลุ่ม';
+      if (v !== oldName && extStaffGroups[v]) return 'มีกลุ่มชื่อนี้อยู่แล้ว';
+      return null;
+    }
+  });
+  const nn = String(newName || '').trim();
+  if (!nn || nn === oldName) return;
+  try {
+    await window.dsBotOk(window.dsFetch(DISCORD_API_URL + '/api/groups/rename', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        oldName: oldName,
+        newName: nn
+      })
+    }));
+    extStaffGroups[nn] = extStaffGroups[oldName] || [];
+    delete extStaffGroups[oldName];
+    if (typeof updateAllFilters === 'function') updateAllFilters();
+    renderGroupList();
+    if (typeof ds_logAction === 'function') ds_logAction('Rename Group', `เปลี่ยนชื่อกลุ่ม ${oldName} → ${nn}`);
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'success',
+      title: 'เปลี่ยนชื่อแล้ว',
+      timer: 1500,
+      showConfirmButton: false
+    });
+  } catch (e) {
+    Swal.fire('เปลี่ยนชื่อไม่สำเร็จ', dsEsc(e.message || String(e)), 'error');
+  }
+};
