@@ -167,6 +167,7 @@ window.copyImageToClipboard = async function(imageUrl) {
 window.filterGalleryImages = function() {
   clearTimeout(window.gallerySearchTimer);
   window.gallerySearchTimer = setTimeout((() => {
+    _galleryPage = 1;
     fetchGalleryImages(true);
   }), 300);
 };
@@ -382,7 +383,8 @@ window.initGalleryDragDrop = function() {
   if (!zone || !adminControls || adminControls.classList.contains('hidden')) return;
   zone.classList.remove('hidden');
   const galleryApp = document.getElementById('galleryApp');
-  if (!galleryApp) return;
+  if (!galleryApp || galleryApp.dataset.gxDrop) return;
+  galleryApp.dataset.gxDrop = '1';
   galleryApp.addEventListener('dragover', (e => {
     e.preventDefault();
     zone.classList.add('gx-drag');
@@ -418,7 +420,7 @@ function _renderWebBadges(data) {
   badgeEl.innerHTML = sorted.map((([web, count]) => {
     const isActive = currentFilter === web;
     const activeClass = isActive ? 'bg-pink-600 text-white border-pink-400' : 'bg-slate-700 text-gray-300 border-slate-600 hover:bg-pink-700 hover:text-white';
-    return `<span class="text-[11px] font-bold px-2 py-0.5 rounded-full ${activeClass} border cursor-pointer transition"\n              onclick="document.getElementById('galleryFilter').value='${web}'; fetchGalleryImages()">\n            ${web} <span class="${isActive ? 'text-pink-200' : 'text-pink-400'}">${count}</span>\n        </span>`;
+    return `<span class="text-[11px] font-bold px-2 py-0.5 rounded-full ${activeClass} border cursor-pointer transition"\n              onclick="document.getElementById('galleryFilter').value='${web}'; syncUploadCategory(); _galleryPage=1; fetchGalleryImages()">\n            ${web} <span class="${isActive ? 'text-pink-200' : 'text-pink-400'}">${count}</span>\n        </span>`;
   })).join('');
 }
 

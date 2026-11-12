@@ -89,6 +89,13 @@ window.initGalleryApp = function() {
   }
   const searchInput = document.getElementById('gallerySearch');
   if (searchInput) searchInput.value = '';
+  _galleryPage = 1;
+  try {
+    const lvKey = `gallery_last_view_${currentUser.username}`;
+    const prev = localStorage.getItem(lvKey);
+    window._galleryPrevView = prev || new Date(Date.now() - 3 * 864e5).toISOString();
+    window.safeSetItem ? window.safeSetItem(lvKey, (new Date).toISOString()) : localStorage.setItem(lvKey, (new Date).toISOString());
+  } catch (e) {}
   setTimeout((() => initGalleryDragDrop()), 300);
 };
 
@@ -258,7 +265,7 @@ function _renderGalleryGrid() {
   }
   const isAdminG = canPerm('gallery_delete');
   const canDelG = isAdminG || typeof window.hasUserPerm === 'function' && window.hasUserPerm('gallery_delete');
-  const lastViewG = new Date(localStorage.getItem(`gallery_last_view_${currentUser.username}`) || '2000-01-01');
+  const lastViewG = new Date(window._galleryPrevView || Date.now() - 3 * 864e5);
   grid.innerHTML = pageData.map(((img, i) => {
     const realIdx = start + i;
     const imgDate = new Date(img.created_at);
@@ -310,7 +317,8 @@ function _renderGalleryGrid() {
 
 window.handleImageUpload = async function(input) {
   const files = input.files;
-  let category = document.getElementById('galleryFilter').value;
+  const upSel = document.getElementById('uploadCategory');
+  let category = upSel && upSel.value ? upSel.value : document.getElementById('galleryFilter').value;
   if (category === 'all' || !category) category = 'ทั่วไป';
   const currentSuffix = GALLERY_MODE_SUFFIX[currentGalleryMode] || '';
   category += currentSuffix;
@@ -381,8 +389,9 @@ window.handleImageUpload = async function(input) {
       failCount++;
     }
   }
-  input.value = '';
-  document.getElementById('galleryFilter').value = category.replace(currentSuffix, '');
+  if (input && 'value' in input) input.value = '';
+  document.getElementById('galleryFilter').value = displayCategory;
+  _galleryPage = 1;
   if (window._galleryMarkDirty) window._galleryMarkDirty();
   fetchGalleryImages();
   if (failCount === 0) Swal.fire({
@@ -487,7 +496,8 @@ window.downloadAllInFilter = async function() {
     general: '',
     bonus: '_BonusTime',
     reach: '_ReachMenu',
-    card: '_CardMenu'
+    card: '_CardMenu',
+    logo: '_Logo'
   };
   folderName += folderSuffixMap[currentGalleryMode] || '';
   const confirm = await Swal.fire({
@@ -511,11 +521,26 @@ window.downloadAllInFilter = async function() {
       const zip = new JSZip;
       const imgFolder = zip.folder(folderName);
       let count = 0;
+      const usedNames = new Set;
+      const uniqName = n => {
+        let name = String(n || '').replace(/[\\/:*?"<>|]+/g, '_').trim() || `image_${count}.jpg`;
+        if (!usedNames.has(name.toLowerCase())) {
+          usedNames.add(name.toLowerCase());
+          return name;
+        }
+        const dot = name.lastIndexOf('.');
+        const base = dot > 0 ? name.slice(0, dot) : name, ext = dot > 0 ? name.slice(dot) : '';
+        let k = 2;
+        while (usedNames.has(`${base} (${k})${ext}`.toLowerCase())) k++;
+        name = `${base} (${k})${ext}`;
+        usedNames.add(name.toLowerCase());
+        return name;
+      };
       for (const img of currentGalleryData) {
         try {
           const response = await fetch(img.url);
           const blob = await response.blob();
-          const fileName = img.name || `image_${Date.now()}_${count}.jpg`;
+          const fileName = uniqName(img.name || `image_${Date.now()}_${count}.jpg`);
           imgFolder.file(fileName, blob);
           count++;
           Swal.update({

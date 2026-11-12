@@ -247,10 +247,10 @@
         </div>
 
         <div class="gx-side-label">ตัวกรอง</div>
-        <select id="galleryFilter" onchange="syncUploadCategory(); fetchGalleryImages()" class="gx-select">
+        <select id="galleryFilter" onchange="syncUploadCategory(); _galleryPage=1; fetchGalleryImages()" class="gx-select">
             <option value="all">🌐 ทุกเว็บ</option>
         </select>
-        <select id="gallerySort" onchange="fetchGalleryImages()" class="gx-select">
+        <select id="gallerySort" onchange="_galleryPage=1; fetchGalleryImages()" class="gx-select">
             <option value="newest">🕐 ใหม่สุด</option>
             <option value="oldest">🕐 เก่าสุด</option>
             <option value="name_asc">🔤 ชื่อ A-Z</option>
@@ -292,7 +292,7 @@
         <div class="gx-foot">
             <div class="flex items-center gap-3">
                 <label class="flex items-center gap-2 cursor-pointer font-bold"><input type="checkbox" onchange="toggleSelectAllImages(this)" class="w-4 h-4 rounded cursor-pointer accent-amber-400"> เลือกทั้งหมดในหน้านี้</label>
-                <select id="galleryPerPage" onchange="fetchGalleryImages()">
+                <select id="galleryPerPage" onchange="_galleryPage=1; fetchGalleryImages()">
                     <option value="20">20 รูป/หน้า</option>
                     <option value="50" selected>50 รูป/หน้า</option>
                     <option value="100">100 รูป/หน้า</option>
