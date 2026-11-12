@@ -289,16 +289,25 @@ function _updateLightbox() {
 }
 
 window.moveLightbox = function(dir) {
+  if (!_lbData.length) return;
   _lbIndex = (_lbIndex + dir + _lbData.length) % _lbData.length;
   _updateLightbox();
 };
 
 window.closeLightbox = function() {
-  document.getElementById('galleryLightbox').classList.add('hidden');
+  const box = document.getElementById('galleryLightbox');
+  if (box) box.classList.add('hidden');
   document.removeEventListener('keydown', _lbKeyHandler);
 };
 
 function _lbKeyHandler(e) {
+  const box = document.getElementById('galleryLightbox');
+  if (!box || box.classList.contains('hidden') || !document.getElementById('lightboxImg')) {
+    document.removeEventListener('keydown', _lbKeyHandler);
+    return;
+  }
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
   if (e.key === 'ArrowRight') moveLightbox(1); else if (e.key === 'ArrowLeft') moveLightbox(-1); else if (e.key === 'Escape') closeLightbox();
 }
 
@@ -314,7 +323,7 @@ window._copyLightboxUrl = function() {
       toast: true,
       position: 'top-end'
     });
-  }));
+  }), (() => _galleryCopyFailPopup(new Error('เบราว์เซอร์ไม่อนุญาตให้คัดลอก ลองคลิกที่หน้าเว็บแล้วกดอีกครั้ง'))));
 };
 
 window._renameLightboxImg = async function() {
