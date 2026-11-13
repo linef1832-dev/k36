@@ -1,0 +1,195 @@
+
+<div id="boEditPage" class="fade-in">
+<style>
+#boEditPage{--cy:92,201,232;--gd:232,193,90;--ok:73,212,154;--dng:240,117,111;--wn:240,182,74;
+  color:var(--k-tx);max-width:1180px;margin:0 auto;padding:22px 18px 80px;display:flex;flex-direction:column;gap:18px}
+#boEditPage .material-icons{font-size:18px}
+#boEditPage .be-top{display:flex;align-items:center;gap:15px;flex-wrap:wrap}
+#boEditPage .be-crest{width:48px;height:48px;border-radius:15px;flex:none;display:flex;align-items:center;justify-content:center;
+  background:rgb(var(--cy));color:#04192a;box-shadow:0 8px 20px rgba(var(--cy),.25)}
+#boEditPage .be-crest .material-icons{font-size:25px}
+#boEditPage .be-top h1{margin:0;font-size:22px;font-weight:900;color:var(--k-tx-strong)}
+#boEditPage .be-top .lede{font-size:12.5px;font-weight:700;color:var(--k-mute);margin-top:2px}
+#boEditPage .be-top-r{margin-left:auto;display:flex;gap:9px}
+#boEditPage .be-gbtn{display:inline-flex;align-items:center;gap:7px;padding:9px 15px;border-radius:10px;
+  border:1px solid var(--k-line2);background:var(--k-btn);color:var(--k-tx2);font:inherit;font-weight:800;font-size:13px;cursor:pointer;transition:.15s}
+#boEditPage .be-gbtn:hover{background:var(--k-btn-h);border-color:var(--k-line4)}
+#boEditPage .be-gbtn:disabled{opacity:.5;cursor:not-allowed}
+
+#boEditPage .be-mode{display:flex;gap:4px;padding:4px;background:var(--k-sunk);border:1px solid var(--k-line);border-radius:13px;width:max-content}
+#boEditPage .be-mode button{border:0;background:transparent;color:var(--k-tx3);font:inherit;font-weight:800;font-size:13px;padding:8px 16px;border-radius:9px;cursor:pointer;transition:.15s}
+#boEditPage .be-mode button.on{background:linear-gradient(180deg,var(--k-btn-h),var(--k-btn));color:var(--k-gold);box-shadow:inset 0 0 0 1px var(--k-line3)}
+
+#boEditPage .be-stage{display:grid;grid-template-columns:270px 1fr;gap:18px;align-items:start}
+@media(max-width:880px){#boEditPage .be-stage{grid-template-columns:1fr}}
+
+#boEditPage .be-rail{background:var(--k-panel);border:1px solid var(--k-line);border-radius:20px;box-shadow:var(--k-shadow);overflow:hidden;position:sticky;top:16px}
+#boEditPage .be-rail-h{padding:14px 16px;border-bottom:1px solid var(--k-line);display:flex;align-items:center;gap:8px}
+#boEditPage .be-rail-h .t{font-weight:900;font-size:14px;color:var(--k-tx-strong)}
+#boEditPage .be-rail-h .c{margin-left:auto;font-size:12px;font-weight:900;color:var(--k-gold);background:var(--k-sunk);border:1px solid var(--k-line2);padding:2px 9px;border-radius:99px}
+#boEditPage .be-rail-tools{display:flex;gap:8px;padding:10px 12px;border-bottom:1px solid var(--k-line)}
+#boEditPage .be-link{background:0;border:0;color:rgb(var(--cy));font:inherit;font-weight:800;font-size:12px;cursor:pointer;padding:3px 4px}
+#boEditPage .be-link:hover{text-decoration:underline}
+#boEditPage .be-sites{max-height:60vh;overflow:auto;padding:6px}
+#boEditPage .be-site{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;cursor:pointer;transition:.12s}
+#boEditPage .be-site:hover{background:var(--k-field)}
+#boEditPage .be-site.sel{background:linear-gradient(90deg,rgba(var(--gd),.10),transparent 80%);box-shadow:inset 2px 0 0 rgb(var(--gd))}
+#boEditPage .be-site.dis{opacity:.4;cursor:not-allowed}
+#boEditPage .be-chk{width:20px;height:20px;border-radius:6px;border:1.5px solid var(--k-line3);flex:none;display:flex;align-items:center;justify-content:center;transition:.12s}
+#boEditPage .be-site.sel .be-chk{background:rgb(var(--gd));border-color:rgb(var(--gd));color:#20180a}
+#boEditPage .be-chk .material-icons{font-size:14px;opacity:0}
+#boEditPage .be-site.sel .be-chk .material-icons{opacity:1}
+#boEditPage .be-site .nm{font-weight:800;font-size:13.5px}
+#boEditPage .be-site .st{font-size:11px;color:var(--k-mute);display:flex;align-items:center;gap:5px;margin-top:1px}
+#boEditPage .be-pulse{width:7px;height:7px;border-radius:50%;background:rgb(var(--ok));box-shadow:0 0 7px rgb(var(--ok))}
+#boEditPage .be-pulse.bad{background:rgb(var(--dng));box-shadow:none}
+
+#boEditPage .be-ed{display:flex;flex-direction:column;gap:16px}
+#boEditPage .be-panel{background:var(--k-panel);border:1px solid var(--k-line);border-radius:20px;box-shadow:var(--k-shadow);overflow:hidden}
+#boEditPage .be-ph{display:flex;align-items:center;gap:12px;padding:15px 18px;border-bottom:1px solid var(--k-line)}
+#boEditPage .be-ph .bdg{width:34px;height:34px;border-radius:10px;flex:none;display:flex;align-items:center;justify-content:center;background:rgba(var(--cy),.12);color:rgb(var(--cy))}
+#boEditPage .be-ph .ttl{font-weight:900;font-size:15px;color:var(--k-tx-strong)}
+#boEditPage .be-ph .meta{font-size:12px;color:var(--k-tx3)}
+#boEditPage .be-ph .right{margin-left:auto}
+#boEditPage .be-read{font-size:11.5px;color:var(--k-mute);background:var(--k-sunk);border:1px solid var(--k-line);border-radius:8px;padding:5px 10px;display:inline-flex;gap:8px}
+#boEditPage .be-read b{color:var(--k-tx2);font-weight:800}
+
+#boEditPage .be-pb{padding:18px;display:flex;flex-direction:column;gap:22px}
+#boEditPage .be-pick{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+#boEditPage .be-f{display:flex;flex-direction:column;gap:6px;flex:1;min-width:240px}
+#boEditPage .be-f .lab{font-size:12px;font-weight:800;color:var(--k-tx3)}
+#boEditPage select,#boEditPage input[type=text]{appearance:none;width:100%;background:var(--k-field);border:1.5px solid var(--k-line2);color:var(--k-tx);font:inherit;padding:10px 13px;border-radius:9px;outline:none;transition:.15s}
+#boEditPage select:focus,#boEditPage input:focus{border-color:rgb(var(--cy));background:var(--k-btn-h);box-shadow:0 0 0 4px rgba(var(--cy),.10)}
+#boEditPage .be-batchnote{flex:2;padding:10px 13px;border:1.5px dashed var(--k-line3);border-radius:9px;color:var(--k-tx3);font-size:12.5px;background:var(--k-sunk)}
+
+#boEditPage .be-sec{display:flex;flex-direction:column;gap:12px}
+#boEditPage .be-sh{display:flex;align-items:center;gap:9px}
+#boEditPage .be-sh .d{width:6px;height:6px;border-radius:2px;background:rgb(var(--gd));transform:rotate(45deg)}
+#boEditPage .be-sh h3{margin:0;font-size:13.5px;font-weight:900;color:var(--k-tx-strong)}
+#boEditPage .be-sh .ap{margin-left:auto;display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--k-mute);font-weight:700;cursor:pointer;user-select:none}
+#boEditPage .be-etog{width:34px;height:19px;border-radius:99px;background:var(--k-line2);position:relative;flex:none;cursor:pointer;transition:.15s}
+#boEditPage .be-etog.on{background:rgb(var(--gd))}
+#boEditPage .be-etog b{position:absolute;top:2.5px;left:2.5px;width:14px;height:14px;border-radius:50%;background:var(--k-bg);transition:.15s}
+#boEditPage .be-etog.on b{left:17.5px;background:#20180a}
+#boEditPage .be-sec.off{opacity:.45}
+
+#boEditPage .be-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+@media(max-width:620px){#boEditPage .be-grid{grid-template-columns:1fr}}
+#boEditPage .be-f2{display:flex;flex-direction:column;gap:6px}
+#boEditPage .be-f2 .lab{font-size:11.5px;font-weight:700;color:var(--k-tx3)}
+#boEditPage .be-f2 input{font-variant-numeric:tabular-nums}
+
+#boEditPage .be-seg{display:inline-flex;gap:3px;padding:3px;background:var(--k-sunk);border:1px solid var(--k-line);border-radius:11px}
+#boEditPage .be-seg label{padding:8px 16px;border-radius:8px;font-weight:800;font-size:13px;color:var(--k-tx3);cursor:pointer;display:flex;align-items:center;gap:7px}
+#boEditPage .be-seg input{display:none}
+#boEditPage .be-seg .dd{width:8px;height:8px;border-radius:50%;background:var(--k-mute2)}
+#boEditPage .be-seg label.open.act{background:rgba(var(--ok),.14);color:rgb(var(--ok));box-shadow:inset 0 0 0 1px rgba(var(--ok),.4)}
+#boEditPage .be-seg label.open.act .dd{background:rgb(var(--ok));box-shadow:0 0 8px rgb(var(--ok))}
+#boEditPage .be-seg label.close.act{background:rgba(var(--dng),.12);color:rgb(var(--dng));box-shadow:inset 0 0 0 1px rgba(var(--dng),.4)}
+#boEditPage .be-seg label.close.act .dd{background:rgb(var(--dng))}
+
+#boEditPage .be-ptypes{display:flex;flex-direction:column;gap:9px}
+#boEditPage .be-pthead{display:grid;grid-template-columns:30px 1.5fr 110px 110px;gap:12px;padding:0 13px;font-size:11px;font-weight:800;color:var(--k-mute);align-items:center}
+#boEditPage .be-pt{display:grid;grid-template-columns:30px 1.5fr 110px 110px;gap:12px;align-items:center;padding:12px 13px;border-radius:13px;background:var(--k-sunk);border:1px solid var(--k-line);transition:.15s}
+#boEditPage .be-pt.off{opacity:.5}
+#boEditPage .be-pt .name{font-weight:800;font-size:13.5px}
+#boEditPage .be-pt .code{font-size:11px;color:var(--k-mute);font-weight:700}
+#boEditPage .be-pt input{padding:8px 11px;font-size:13px;text-align:right;font-variant-numeric:tabular-nums}
+#boEditPage .be-sw{width:42px;height:23px;border-radius:99px;background:var(--k-line3);position:relative;cursor:pointer;flex:none;transition:.15s}
+#boEditPage .be-sw.on{background:rgb(var(--ok))}
+#boEditPage .be-sw b{position:absolute;top:3px;left:3px;width:17px;height:17px;border-radius:50%;background:#fff;transition:.15s;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+#boEditPage .be-sw.on b{left:22px}
+#boEditPage .be-mini{font-size:10px;font-weight:700;color:var(--k-mute);margin-bottom:3px;display:block;text-align:left}
+
+#boEditPage .be-chips{display:flex;gap:8px;flex-wrap:wrap}
+#boEditPage .be-chip{display:inline-flex;align-items:center;gap:7px;padding:7px 11px;border-radius:9px;background:var(--k-btn);border:1px solid var(--k-line2);font-weight:800;font-size:13px;font-variant-numeric:tabular-nums}
+#boEditPage .be-chip .x{color:var(--k-mute);cursor:pointer;line-height:1}
+#boEditPage .be-chip .x:hover{color:rgb(var(--dng))}
+#boEditPage .be-chip.add{border-style:dashed;color:var(--k-tx3);cursor:pointer;background:transparent}
+#boEditPage .be-chip.add:hover{border-color:rgb(var(--cy));color:rgb(var(--cy))}
+
+#boEditPage .be-foot{position:sticky;bottom:0;display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 18px;
+  background:var(--k-panel2);border:1px solid var(--k-line);border-radius:20px;box-shadow:0 -10px 30px -20px rgba(0,0,0,.9)}
+#boEditPage .be-foot .sm{font-size:12.5px;color:var(--k-tx3)}
+#boEditPage .be-foot .sm b{color:var(--k-gold)}
+#boEditPage .be-foot .sp{flex:1}
+#boEditPage .be-btn{display:inline-flex;align-items:center;gap:8px;padding:11px 18px;border-radius:9px;border:1px solid var(--k-line2);background:var(--k-btn);color:var(--k-tx2);font:inherit;font-weight:900;font-size:13.5px;cursor:pointer;transition:.15s}
+#boEditPage .be-btn:hover{background:var(--k-btn-h);border-color:var(--k-line4)}
+#boEditPage .be-btn.pri{border:0;color:#20180a;background:linear-gradient(180deg,#f2d98f,rgb(var(--gd)));box-shadow:0 10px 22px -10px rgba(var(--gd),.6)}
+#boEditPage .be-btn.pri:hover{filter:brightness(1.05)}
+#boEditPage .be-btn:disabled{opacity:.5;cursor:not-allowed;filter:none}
+
+#boEditPage .be-empty,#boEditPage #boEditNoPerm{padding:40px 20px;text-align:center;color:var(--k-mute);font-weight:700;background:var(--k-panel);border:1px dashed var(--k-line2);border-radius:20px}
+#boEditPage #boEditNoPerm{background:var(--k-red-bg);border:1px solid var(--k-red-line);border-style:solid}
+#boEditPage .be-load{display:flex;align-items:center;justify-content:center;gap:10px;padding:30px;color:var(--k-tx3);font-weight:700}
+#boEditPage .be-spin{width:22px;height:22px;border:3px solid rgba(var(--cy),.85);border-top-color:transparent;border-radius:50%;animation:bespin 1s linear infinite}
+@keyframes bespin{to{transform:rotate(360deg)}}
+#boEditPage .hidden{display:none!important}
+</style>
+
+    <div class="be-top">
+        <div class="be-crest"><span class="material-icons">tune</span></div>
+        <div>
+            <h1>แก้ช่องทางชำระเงิน</h1>
+            <div class="lede">ปรับวงเงินและสถานะช่องทาง แล้วให้บอทบันทึกให้ ทีละเว็บหรือหลายเว็บพร้อมกัน</div>
+        </div>
+        <div class="be-top-r">
+            <button class="be-gbtn" id="beReloadBtn" onclick="beReload()"><span class="material-icons">refresh</span>รีเฟรช</button>
+        </div>
+    </div>
+
+    <div id="boEditNoPerm" class="hidden">
+        <span class="material-icons" style="font-size:40px;color:var(--k-red-tx)">block</span>
+        <p style="margin:8px 0 0;font-weight:800;color:var(--k-red-tx)">เฉพาะผู้มีสิทธิ์เท่านั้น</p>
+    </div>
+
+    <div id="boEditApp" class="hidden" style="display:none;flex-direction:column;gap:18px">
+
+        <div class="be-mode">
+            <button class="on" id="beModeSingle" onclick="beSetMode('single')">เว็บเดียว</button>
+            <button id="beModeBatch" onclick="beSetMode('batch')">หลายเว็บพร้อมกัน</button>
+        </div>
+
+        <div class="be-stage">
+            <aside class="be-rail">
+                <div class="be-rail-h"><span class="t">เว็บที่จะแก้</span><span class="c" id="beSelCount">0</span></div>
+                <div class="be-rail-tools hidden" id="beRailTools">
+                    <button class="be-link" onclick="beAllSites(true)">เลือกทั้งหมด</button>
+                    <button class="be-link" onclick="beAllSites(false)">ล้าง</button>
+                </div>
+                <div class="be-sites" id="beSiteList"></div>
+            </aside>
+
+            <main class="be-ed">
+                <section class="be-panel">
+                    <div class="be-ph">
+                        <div class="bdg"><span class="material-icons">credit_card</span></div>
+                        <div>
+                            <div class="ttl" id="beChanTitle">เลือกเว็บและช่องทาง</div>
+                            <div class="meta" id="beChanSub">เลือกเว็บทางซ้าย แล้วเลือกช่องทางด้านล่าง</div>
+                        </div>
+                        <div class="right" id="beReadBox"></div>
+                    </div>
+                    <div class="be-pb" id="beBody">
+                        <div class="be-pick">
+                            <div class="be-f" id="beChanField">
+                                <span class="lab">ช่องทางชำระเงิน</span>
+                                <select id="beChanSel" onchange="beLoadChannel()"><option>— เลือกเว็บก่อน —</option></select>
+                            </div>
+                            <div class="be-batchnote hidden" id="beBatchNote">
+                                จับคู่ช่องทางด้วยรหัสเดียวกันในทุกเว็บที่เลือก — เว็บไหนไม่มีช่องทางนี้ ระบบจะข้ามให้
+                            </div>
+                        </div>
+                        <div id="beForm"></div>
+                    </div>
+                </section>
+
+                <div class="be-foot">
+                    <div class="sm" id="beFootSummary">ยังไม่ได้เลือก</div>
+                    <div class="sp"></div>
+                    <button class="be-btn pri" id="beSendBtn" onclick="beSend()" disabled><span class="material-icons">send</span>ส่งให้บอทแก้</button>
+                </div>
+            </main>
+        </div>
+    </div>
+</div>

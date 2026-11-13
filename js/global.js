@@ -826,7 +826,8 @@ const PAGE_SCRIPTS = {
   ip_allow: [ 'ip_allow/ip_allow' ],
   slip_check: [ 'slip_check/core', 'slip_check/scan', 'slip_check/history' ],
   vnc: [ 'vnc/core' ],
-  bo_bot: [ 'bo_bot/core' ]
+  bo_bot: [ 'bo_bot/core' ],
+  bo_edit: [ 'bo_edit/core' ]
 };
 
 window._loadedScripts = {};
@@ -1250,6 +1251,8 @@ async function showPage(pageName) {
           if (typeof initVncApp === 'function') await initVncApp();
         } else if (pageName === 'bo_bot') {
           if (typeof initBoBotApp === 'function') await initBoBotApp();
+        } else if (pageName === 'bo_edit') {
+          if (typeof initBoEditApp === 'function') await initBoEditApp();
         }
         if (window._hideRefreshChip) window._hideRefreshChip();
         const _appNow = document.getElementById('app-content');

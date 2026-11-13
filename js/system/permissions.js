@@ -335,6 +335,16 @@ const PERM_GROUPS = [ {
     isSub: true
   } ]
 }, {
+  id: 'page_bo_edit',
+  name: 'แก้ช่องทางชำระเงิน',
+  icon: 'tune',
+  theme: 'cyan',
+  items: [ {
+    id: 'bo_edit',
+    name: 'เข้าหน้าแก้ช่องทางชำระเงิน',
+    isSub: false
+  } ]
+}, {
   id: 'page_bo_bot',
   name: 'บอทหลังบ้าน (Railway)',
   icon: 'smart_toy',
