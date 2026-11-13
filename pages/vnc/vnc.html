@@ -1,0 +1,101 @@
+
+<div id="vncPage" class="fade-in">
+<style>
+#vncPage{--a:45,212,191;color:var(--k-tx);max-width:1400px;margin:0 auto;padding:22px 20px 40px;display:flex;flex-direction:column;gap:16px}
+#vncPage .material-icons{font-size:18px}
+#vncPage .vn-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+#vncPage .vn-logo{width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:rgb(var(--a));color:#04201c;flex:none;box-shadow:0 8px 20px rgba(var(--a),.25)}
+#vncPage .vn-logo .material-icons{font-size:24px}
+#vncPage .vn-title{margin:0;font-size:21px;font-weight:900;color:var(--k-tx-strong)}
+#vncPage .vn-sub{font-size:12.5px;font-weight:700;color:var(--k-mute);margin-top:2px}
+#vncPage .vn-head-r{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+#vncPage .vn-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:10px;border:1px solid var(--k-line2);background:var(--k-btn);color:var(--k-tx2);font-size:13px;font-weight:800;cursor:pointer;transition:background .15s,border-color .15s;white-space:nowrap}
+#vncPage .vn-btn:hover{background:var(--k-btn-h);border-color:var(--k-line4)}
+#vncPage .vn-btn.pri{background:rgb(var(--a));border-color:rgb(var(--a));color:#04201c}
+#vncPage .vn-btn.pri:hover{filter:brightness(1.08)}
+#vncPage .vn-btn.dng{color:var(--k-red-tx);border-color:var(--k-red-line);background:var(--k-red-bg)}
+#vncPage .vn-btn.dng:hover{background:var(--k-red-bg-h);border-color:var(--k-red-line-h)}
+#vncPage .vn-btn.on{border-color:rgb(var(--a));color:rgb(var(--a));background:rgba(var(--a),.10)}
+#vncPage .vn-btn:disabled{opacity:.45;cursor:not-allowed}
+#vncPage .vn-btn.sm{padding:6px 10px;font-size:12px}
+#vncPage .vn-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+#vncPage .vn-card{background:var(--k-panel);border:1px solid var(--k-line);border-radius:18px;box-shadow:var(--k-shadow);padding:16px 18px;display:flex;flex-direction:column;gap:10px;min-width:0}
+#vncPage .vn-card-h{display:flex;align-items:center;gap:10px}
+#vncPage .vn-card-ic{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:rgba(var(--a),.12);color:rgb(var(--a));flex:none}
+#vncPage .vn-card-n{font-size:15px;font-weight:900;color:var(--k-tx-strong);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#vncPage .vn-card-u{font-family:monospace;font-size:11.5px;color:var(--k-mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#vncPage .vn-card-note{font-size:12.5px;color:var(--k-tx3);line-height:1.5}
+#vncPage .vn-card-f{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto}
+#vncPage .vn-dot{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:800;color:var(--k-mute);flex:none}
+#vncPage .vn-dot i{width:9px;height:9px;border-radius:50%;background:var(--k-line4)}
+#vncPage .vn-dot.ok{color:var(--k-green-tx)}
+#vncPage .vn-dot.ok i{background:#10b981;box-shadow:0 0 8px #10b98188}
+#vncPage .vn-dot.bad{color:var(--k-red-tx)}
+#vncPage .vn-dot.bad i{background:#ef4444}
+#vncPage .vn-empty{padding:40px 20px;text-align:center;color:var(--k-mute);font-weight:700;background:var(--k-panel);border:1px dashed var(--k-line2);border-radius:18px}
+#vncPage #vncNoPerm{padding:34px;text-align:center;border-radius:18px;background:var(--k-red-bg);border:1px solid var(--k-red-line)}
+
+#vncViewer{display:flex;flex-direction:column;gap:10px;background:var(--k-panel);border:1px solid var(--k-line);border-radius:18px;padding:10px;box-shadow:var(--k-shadow)}
+#vncViewer:fullscreen{border-radius:0;padding:6px;background:#000;border:none}
+#vncViewer .vn-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+#vncViewer .vn-bar-n{display:flex;align-items:center;gap:8px;font-weight:900;color:var(--k-tx-strong);font-size:14px;margin-right:auto;min-width:0}
+#vncViewer .vn-bar-n span.t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#vncViewer select{padding:6px 8px;border-radius:10px;border:1px solid var(--k-line2);background:var(--k-field);color:var(--k-tx);font-size:12px;font-weight:700}
+#vncScreen{position:relative;width:100%;height:calc(100vh - 150px);min-height:360px;background:#000;border-radius:12px;overflow:hidden}
+#vncViewer:fullscreen #vncScreen{height:calc(100vh - 56px);border-radius:0}
+#vncScreen .vn-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#cbd5e1;font-weight:800;font-size:14px;z-index:2;pointer-events:none}
+#vncScreen .vn-spin{width:34px;height:34px;border:3px solid rgba(var(--a),.9);border-top-color:transparent;border-radius:50%;animation:vnspin 1s linear infinite}
+@keyframes vnspin{to{transform:rotate(360deg)}}
+#vncPage .vn-badge{font-size:10.5px;font-weight:900;padding:2px 8px;border-radius:999px;background:var(--k-gold-bg);color:var(--k-gold-tx);border:1px solid rgba(232,193,90,.4)}
+</style>
+
+    <div class="vn-head">
+        <div class="vn-logo"><span class="material-icons">desktop_windows</span></div>
+        <div>
+            <h1 class="vn-title">ควบคุมเซิร์ฟเวอร์ (VNC)</h1>
+            <div class="vn-sub">เข้าหน้าจอเซิร์ฟเวอร์ Linux / VPS เพื่อคลิกและตั้งค่าผ่านเว็บ</div>
+        </div>
+        <div class="vn-head-r" id="vncHeadBtns">
+            <button class="vn-btn" onclick="vncRefreshList()"><span class="material-icons">refresh</span>ตรวจสถานะ</button>
+            <button class="vn-btn pri hidden" id="vncAddBtn" onclick="vncEditServer()"><span class="material-icons">add</span>เพิ่มเซิร์ฟเวอร์</button>
+        </div>
+    </div>
+
+    <div id="vncNoPerm" class="hidden">
+        <span class="material-icons" style="font-size:40px;color:var(--k-red-tx)">block</span>
+        <p style="margin:8px 0 0;font-weight:800;color:var(--k-red-tx)">เฉพาะผู้มีสิทธิ์เท่านั้น</p>
+    </div>
+
+    <div id="vncApp" class="hidden" style="display:none;flex-direction:column;gap:16px">
+        <div id="vncList" class="vn-grid"></div>
+
+        <div id="vncViewer" class="hidden" style="display:none">
+            <div class="vn-bar">
+                <div class="vn-bar-n">
+                    <span class="material-icons" style="color:rgb(var(--a))">dns</span>
+                    <span class="t" id="vncViewerName">-</span>
+                    <span class="vn-dot" id="vncViewerStatus"><i></i>กำลังเชื่อมต่อ</span>
+                    <span class="vn-badge hidden" id="vncViewOnlyBadge">ดูอย่างเดียว</span>
+                </div>
+                <select id="vncScaleSel" onchange="vncSetScale(this.value)" title="การแสดงผล">
+                    <option value="fit">พอดีจอ</option>
+                    <option value="real">ขนาดจริง (เลื่อนดู)</option>
+                    <option value="remote">ปรับความละเอียดเครื่องตามจอ</option>
+                </select>
+                <select id="vncQualitySel" onchange="vncSetQuality(this.value)" title="คุณภาพภาพ">
+                    <option value="2">ภาพ: ประหยัดเน็ต</option>
+                    <option value="6" selected>ภาพ: ปกติ</option>
+                    <option value="9">ภาพ: คมชัดสุด</option>
+                </select>
+                <button class="vn-btn sm" id="vncViewOnlyBtn" onclick="vncToggleViewOnly()"><span class="material-icons">visibility</span>ดูอย่างเดียว</button>
+                <button class="vn-btn sm" id="vncCadBtn" onclick="vncCtrlAltDel()" title="ส่ง Ctrl+Alt+Del"><span class="material-icons">keyboard</span>Ctrl+Alt+Del</button>
+                <button class="vn-btn sm" id="vncClipBtn" onclick="vncClipboard()" title="คลิปบอร์ด"><span class="material-icons">content_paste</span>คลิปบอร์ด</button>
+                <button class="vn-btn sm" onclick="vncFullscreen()" title="เต็มจอ"><span class="material-icons">fullscreen</span></button>
+                <button class="vn-btn sm dng" onclick="vncDisconnect()"><span class="material-icons">power_settings_new</span>ตัดการเชื่อมต่อ</button>
+            </div>
+            <div id="vncScreen">
+                <div class="vn-overlay" id="vncOverlay"><div class="vn-spin"></div><div id="vncOverlayText">กำลังเชื่อมต่อ...</div></div>
+            </div>
+        </div>
+    </div>
+</div>

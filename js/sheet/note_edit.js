@@ -269,22 +269,7 @@ window.renderNoteEditor = function() {
     const text = (e.clipboardData || window.clipboardData)?.getData('text/plain') || '';
     let grid = _nParseTSV(text);
     let isSingle = grid.length === 1 && grid[0].length === 1;
-    if (isSingle && !/\n/.test(grid[0][0])) {
-      if (e.target && e.target.closest && e.target.closest('.nt-ebody')) {
-        e.preventDefault();
-        const clean = text.replace(/\r\n?/g, '\n').replace(/[\u00a0\u2007\u202f]/g, ' ').replace(/[\u200b\u2060\ufeff]/g, '');
-        if (!document.execCommand || !document.execCommand('insertText', false, clean)) {
-          const sel = window.getSelection();
-          if (sel && sel.rangeCount) {
-            const rg = sel.getRangeAt(0);
-            rg.deleteContents();
-            rg.insertNode(document.createTextNode(clean));
-            rg.collapse(false);
-          }
-        }
-      }
-      return;
-    }
+    if (isSingle && !/\n/.test(grid[0][0])) return;
     e.preventDefault();
     const plainText = text.replace(/\r\n?/g, '\n').replace(/\n$/, '');
     const isPlainMultiLine = !/\t/.test(plainText) && !/^"/.test(plainText.trim()) && /\n/.test(plainText) && grid.length > 1;

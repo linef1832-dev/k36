@@ -335,6 +335,20 @@ const PERM_GROUPS = [ {
     isSub: true
   } ]
 }, {
+  id: 'page_bo_bot',
+  name: 'บอทหลังบ้าน (Railway)',
+  icon: 'smart_toy',
+  theme: 'sky',
+  items: [ {
+    id: 'bo_bot',
+    name: 'เข้าหน้าบอทหลังบ้าน',
+    isSub: false
+  }, {
+    id: 'bo_bot_manage',
+    name: 'เพิ่ม/แก้เว็บ + ตั้งบัญชีบอท + สร้างกุญแจ',
+    isSub: true
+  } ]
+}, {
   id: 'page_od_config',
   name: 'OD Form Bot (ตั้งค่าส่วนขยาย)',
   icon: 'extension',
@@ -528,6 +542,18 @@ const PERM_GROUPS = [ {
   }, {
     id: 'oa_chat_export',
     name: 'ดาวน์โหลด CSV แชท LINE OA',
+    isSub: true
+  }, {
+    id: 'vnc',
+    name: 'เข้าหน้าควบคุมเซิร์ฟเวอร์ (VNC)',
+    isSub: false
+  }, {
+    id: 'vnc_control',
+    name: 'คุมเมาส์/คีย์บอร์ดได้ (ไม่ติ๊ก = ดูจอได้อย่างเดียว)',
+    isSub: true
+  }, {
+    id: 'vnc_manage',
+    name: 'เพิ่ม/แก้ไข/ลบรายการเซิร์ฟเวอร์ VNC',
     isSub: true
   } ]
 } ];

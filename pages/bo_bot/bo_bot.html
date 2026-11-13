@@ -1,0 +1,77 @@
+
+<div id="boBotPage" class="fade-in">
+<style>
+#boBotPage{--a:56,189,248;--ok:16,185,129;--no:239,68,68;--wn:245,158,11;color:var(--k-tx);max-width:1240px;margin:0 auto;padding:22px 20px 40px;display:flex;flex-direction:column;gap:16px}
+#boBotPage .material-icons{font-size:18px}
+#boBotPage .bb-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+#boBotPage .bb-logo{width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:rgb(var(--a));color:#04192a;flex:none;box-shadow:0 8px 20px rgba(var(--a),.25)}
+#boBotPage .bb-logo .material-icons{font-size:24px}
+#boBotPage .bb-title{margin:0;font-size:21px;font-weight:900;color:var(--k-tx-strong)}
+#boBotPage .bb-sub{font-size:12.5px;font-weight:700;color:var(--k-mute);margin-top:2px}
+#boBotPage .bb-head-r{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+#boBotPage .bb-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:10px;border:1px solid var(--k-line2);background:var(--k-btn);color:var(--k-tx2);font-size:13px;font-weight:800;cursor:pointer;white-space:nowrap;transition:background .15s,border-color .15s}
+#boBotPage .bb-btn:hover{background:var(--k-btn-h);border-color:var(--k-line4)}
+#boBotPage .bb-btn.pri{background:rgb(var(--a));border-color:rgb(var(--a));color:#04192a}
+#boBotPage .bb-btn.pri:hover{filter:brightness(1.08)}
+#boBotPage .bb-btn.dng{color:var(--k-red-tx);border-color:var(--k-red-line);background:var(--k-red-bg)}
+#boBotPage .bb-btn.dng:hover{background:var(--k-red-bg-h)}
+#boBotPage .bb-btn.sm{padding:6px 10px;font-size:12px}
+#boBotPage .bb-btn:focus-visible{outline:2px solid rgb(var(--a));outline-offset:2px}
+
+#boBotPage .bb-key{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:16px 18px;border-radius:16px;background:var(--k-panel);border:1px solid var(--k-line);box-shadow:var(--k-shadow)}
+#boBotPage .bb-key.missing{border-color:rgba(var(--wn),.55);background:linear-gradient(110deg,rgba(var(--wn),.10),var(--k-panel) 50%)}
+#boBotPage .bb-key-ic{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none;background:rgba(var(--ok),.14);color:rgb(var(--ok))}
+#boBotPage .bb-key.missing .bb-key-ic{background:rgba(var(--wn),.16);color:rgb(var(--wn))}
+#boBotPage .bb-key-t{font-size:14px;font-weight:900;color:var(--k-tx-strong)}
+#boBotPage .bb-key-s{font-size:12.5px;font-weight:600;color:var(--k-tx3);margin-top:2px;line-height:1.5}
+#boBotPage .bb-key-s code{font-family:Consolas,monospace;font-size:12px;color:var(--k-tx2);background:var(--k-sunk);padding:1px 6px;border-radius:6px}
+
+#boBotPage .bb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}
+#boBotPage .bb-card{background:var(--k-panel);border:1px solid var(--k-line);border-radius:18px;box-shadow:var(--k-shadow);padding:16px 18px;display:flex;flex-direction:column;gap:12px;min-width:0}
+#boBotPage .bb-card.off{opacity:.62}
+#boBotPage .bb-card-h{display:flex;align-items:flex-start;gap:10px}
+#boBotPage .bb-card-n{font-size:16px;font-weight:900;color:var(--k-tx-strong)}
+#boBotPage .bb-card-id{font-family:Consolas,monospace;font-size:11.5px;color:var(--k-mute)}
+#boBotPage .bb-st{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:800;padding:4px 10px;border-radius:999px;background:var(--k-sunk);color:var(--k-mute);border:1px solid var(--k-line);white-space:nowrap}
+#boBotPage .bb-st i{width:8px;height:8px;border-radius:50%;background:currentColor}
+#boBotPage .bb-st.ok{color:var(--k-green-tx);border-color:var(--k-green-line);background:var(--k-green-bg)}
+#boBotPage .bb-st.bad{color:var(--k-red-tx);border-color:var(--k-red-line);background:var(--k-red-bg)}
+#boBotPage .bb-st.wn{color:var(--k-amber-tx)}
+#boBotPage .bb-rows{display:flex;flex-direction:column;gap:7px}
+#boBotPage .bb-row{display:flex;gap:10px;font-size:12.5px;align-items:baseline}
+#boBotPage .bb-row b{flex:none;width:92px;color:var(--k-mute);font-weight:700}
+#boBotPage .bb-row span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--k-tx2)}
+#boBotPage .bb-row span.mono{font-family:Consolas,monospace;font-size:11.5px}
+#boBotPage .bb-cred{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:var(--k-sunk);border:1px solid var(--k-line)}
+#boBotPage .bb-cred .material-icons{color:var(--k-mute)}
+#boBotPage .bb-cred.set .material-icons{color:var(--k-green-tx)}
+#boBotPage .bb-cred-t{font-size:12.5px;font-weight:800;color:var(--k-tx2)}
+#boBotPage .bb-cred-s{font-size:11.5px;color:var(--k-mute)}
+#boBotPage .bb-err{font-size:12px;color:var(--k-red-tx);background:var(--k-red-bg);border:1px solid var(--k-red-line);border-radius:10px;padding:8px 10px;line-height:1.45}
+#boBotPage .bb-card-f{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto}
+#boBotPage .bb-empty{padding:40px 20px;text-align:center;color:var(--k-mute);font-weight:700;background:var(--k-panel);border:1px dashed var(--k-line2);border-radius:18px;grid-column:1/-1}
+#boBotPage #boBotNoPerm{padding:34px;text-align:center;border-radius:18px;background:var(--k-red-bg);border:1px solid var(--k-red-line)}
+</style>
+
+    <div class="bb-head">
+        <div class="bb-logo"><span class="material-icons">smart_toy</span></div>
+        <div>
+            <h1 class="bb-title">บอทหลังบ้าน</h1>
+            <div class="bb-sub">ตั้งเว็บและบัญชีที่บอทบน Railway ใช้ล็อกอิน</div>
+        </div>
+        <div class="bb-head-r" id="boBotHeadBtns">
+            <button class="bb-btn" onclick="boBotReload()"><span class="material-icons">refresh</span>รีเฟรช</button>
+            <button class="bb-btn pri hidden" id="boBotAddBtn" onclick="boBotEditSite()"><span class="material-icons">add</span>เพิ่มเว็บ</button>
+        </div>
+    </div>
+
+    <div id="boBotNoPerm" class="hidden">
+        <span class="material-icons" style="font-size:40px;color:var(--k-red-tx)">block</span>
+        <p style="margin:8px 0 0;font-weight:800;color:var(--k-red-tx)">เฉพาะผู้มีสิทธิ์เท่านั้น</p>
+    </div>
+
+    <div id="boBotApp" class="hidden" style="display:none;flex-direction:column;gap:16px">
+        <div id="boBotKey"></div>
+        <div id="boBotList" class="bb-grid"></div>
+    </div>
+</div>

@@ -824,7 +824,9 @@ const PAGE_SCRIPTS = {
   sop: [ 'sop/core', 'sop/rules', 'sop/manage', 'sop/share' ],
   ip_check: [ 'ip_check/core', 'ip_check/tabs', 'ip_check/risk', 'ip_check/alerts' ],
   ip_allow: [ 'ip_allow/ip_allow' ],
-  slip_check: [ 'slip_check/core', 'slip_check/scan', 'slip_check/history' ]
+  slip_check: [ 'slip_check/core', 'slip_check/scan', 'slip_check/history' ],
+  vnc: [ 'vnc/core' ],
+  bo_bot: [ 'bo_bot/core' ]
 };
 
 window._loadedScripts = {};
@@ -1089,6 +1091,12 @@ window.checkCoverage = function(username, covMap, slotBookings) {
 
 async function showPage(pageName) {
   const loading = document.getElementById('loading');
+  if (typeof window._pageLeaveHook === 'function') {
+    try {
+      window._pageLeaveHook();
+    } catch (e) {}
+    window._pageLeaveHook = null;
+  }
   window.cleanupPageSubscriptions();
   window.cleanupPageIntervals();
   document.querySelectorAll('#gdPreview').forEach((el => el.remove()));
@@ -1238,6 +1246,10 @@ async function showPage(pageName) {
           if (typeof initOaChat === 'function') await initOaChat();
         } else if (pageName === 'staff_record') {
           if (typeof initStaffRecord === 'function') await initStaffRecord();
+        } else if (pageName === 'vnc') {
+          if (typeof initVncApp === 'function') await initVncApp();
+        } else if (pageName === 'bo_bot') {
+          if (typeof initBoBotApp === 'function') await initBoBotApp();
         }
         if (window._hideRefreshChip) window._hideRefreshChip();
         const _appNow = document.getElementById('app-content');
