@@ -39,13 +39,15 @@
     if (error) throw new Error(error.message);
     const id = data.id;
     const end = Date.now() + TASK_WAIT_MS;
+    let wait = 400; // เริ่มถี่ แล้วค่อย ๆ ถ่างออกถ้ายังไม่เสร็จ
     while (Date.now() < end) {
-      await sleep(1200);
+      await sleep(wait);
       const { data: t } = await appDB.from('bo_tasks').select('status,result,error').eq('id', id).maybeSingle();
       if (!t) continue;
       if (t.status === 'done') return t.result || {};
       if (t.status === 'failed' || t.status === 'expired' || t.status === 'cancelled')
         throw new Error(t.error || ('งาน' + t.status));
+      if (wait < 1500) wait += 200;
     }
     throw new Error('บอทไม่ตอบใน ' + Math.round(TASK_WAIT_MS / 1000) + ' วินาที (เว็บนี้อาจล็อกอินไม่ได้)');
   }
@@ -177,12 +179,20 @@
     const typeCodes = d ? Object.keys(v.types) : PAYTYPES.map(p => p.code);
     const rows = typeCodes.map(code => {
       const meta = PAYTYPES.find(p => p.code === code) || { name: code };
-      const t = (v.types && v.types[code]) || { enabled: false, min: '', max: '' };
-      return `<div class="be-pt ${t.enabled ? '' : 'off'}" data-code="${esc(code)}">
-        <div class="be-sw ${t.enabled ? 'on' : ''}" onclick="beSwp(this)"><b></b></div>
-        <div><div class="name">${esc(meta.name)}</div><div class="code">${esc(code)}</div></div>
-        <div><span class="be-mini">ขั้นต่ำ</span><input type="text" class="t-min" value="${esc(t.min)}"></div>
-        <div><span class="be-mini">สูงสุด</span><input type="text" class="t-max" value="${esc(t.max)}"></div>
+      const t = (v.types && v.types[code]) || { enabled: false, min: '', max: '', pfeepct: '0', pfeeconst: '0', dfeepct: '0', dfeeconst: '0' };
+      return `<div class="be-pt2 ${t.enabled ? '' : 'off'}" data-code="${esc(code)}">
+        <div class="be-pt2-h">
+          <div class="be-sw ${t.enabled ? 'on' : ''}" onclick="beSwp2(this)"><b></b></div>
+          <div class="name">${esc(meta.name)} <span class="code">${esc(code)}</span></div>
+        </div>
+        <div class="be-pt2-g">
+          <div><span class="be-mini">ฝากขั้นต่ำ</span><input type="text" class="t-min" value="${esc(t.min)}"></div>
+          <div><span class="be-mini">ฝากสูงสุด</span><input type="text" class="t-max" value="${esc(t.max)}"></div>
+          <div><span class="be-mini">ค่าธ. ผู้เล่น %</span><input type="text" class="t-pfeepct" value="${esc(t.pfeepct || '0')}"></div>
+          <div><span class="be-mini">ค่าธ. ผู้เล่น บาท</span><input type="text" class="t-pfeeconst" value="${esc(t.pfeeconst || '0')}"></div>
+          <div><span class="be-mini">ค่าธ. บุคคล3 %</span><input type="text" class="t-dfeepct" value="${esc(t.dfeepct || '0')}"></div>
+          <div><span class="be-mini">ค่าธ. บุคคล3 บาท</span><input type="text" class="t-dfeeconst" value="${esc(t.dfeeconst || '0')}"></div>
+        </div>
       </div>`;
     }).join('');
     const chips = (v.suggestamounts || []).map(a =>
@@ -204,7 +214,14 @@
         <div class="be-f2"><span class="lab">เงินฝากสะสมขีดจำกัด</span><input type="text" id="v_maxtotalamt" value="${esc(nfmt(v.maxtotalamt || ''))}"></div>
         <div class="be-f2"><span class="lab">ถอนขั้นต่ำ</span><input type="text" id="v_minpayoutamt" value="${esc(nfmt(v.minpayoutamt || ''))}"></div>
         <div class="be-f2"><span class="lab">ถอนสูงสุด</span><input type="text" id="v_maxpayoutamt" value="${esc(nfmt(v.maxpayoutamt || ''))}"></div>
+        <div class="be-f2"><span class="lab">ค่าธรรมเนียมถอน %</span><input type="text" id="v_payoutfeepct" value="${esc(v.payoutfeepct || '0')}"></div>
+        <div class="be-f2"><span class="lab">ค่าธรรมเนียมถอน บาท</span><input type="text" id="v_payoutfeeconst" value="${esc(v.payoutfeeconst || '0')}"></div>
       </div>
+    </div>
+
+    <div class="be-sec" id="sec_remark">
+      ${secHead('หมายเหตุ', 'remark', false)}
+      <input type="text" id="v_remark" value="${esc(v.remark || '')}" placeholder="หมายเหตุ (ว่างได้)">
     </div>
 
     <div class="be-sec" id="sec_types">
@@ -223,12 +240,16 @@
 
   function wireForm() {
     // เปิดทุก section เป็น "ไม่แก้" ก่อน แล้วหรี่ลง
-    ['status', 'totals', 'types', 'suggest'].forEach(k => {
+    ['status', 'totals', 'types', 'suggest', 'remark'].forEach(k => {
       const sec = $('sec_' + k); if (sec) sec.classList.add('off');
     });
     $('beForm').querySelectorAll('input[type=text]').forEach(inp => {
       inp.addEventListener('input', updateFoot);
-      inp.addEventListener('blur', () => { if (/amt/.test(inp.id) || inp.classList.contains('t-min') || inp.classList.contains('t-max')) { const n = nclean(inp.value); if (n) inp.value = nfmt(n); } });
+      inp.addEventListener('blur', () => {
+        // จัดรูปเฉพาะช่องเงิน (ไม่ใช่ช่อง % หรือค่าธรรมเนียม)
+        const isMoney = /^v_(maxdailyamt|maxtotalamt|minpayoutamt|maxpayoutamt)$/.test(inp.id) || inp.classList.contains('t-min') || inp.classList.contains('t-max');
+        if (isMoney) { const n = nclean(inp.value); if (n) inp.value = nfmt(n); }
+      });
     });
   }
 
@@ -242,6 +263,7 @@
   };
   window.beSeg = function(r) { r.closest('.be-seg').querySelectorAll('label').forEach(l => l.classList.remove('act')); r.parentElement.classList.add('act'); updateFoot(); };
   window.beSwp = function(el) { el.classList.toggle('on'); el.closest('.be-pt').classList.toggle('off', !el.classList.contains('on')); updateFoot(); };
+  window.beSwp2 = function(el) { el.classList.toggle('on'); el.closest('.be-pt2').classList.toggle('off', !el.classList.contains('on')); updateFoot(); };
   window.beAddChip = async function() {
     const { value } = await Swal.fire({ title: 'เพิ่มจำนวนเงิน', input: 'text', inputPlaceholder: 'เช่น 1000', showCancelButton: true, confirmButtonText: 'เพิ่ม', cancelButtonText: 'ยกเลิก' });
     if (!value) return;
@@ -268,17 +290,25 @@
       ['maxdailyamt', 'maxtotalamt', 'minpayoutamt', 'maxpayoutamt'].forEach(k => {
         const el = $('v_' + k); if (el && nclean(el.value) !== '') ch[k] = nclean(el.value);
       });
+      ['payoutfeepct', 'payoutfeeconst'].forEach(k => {
+        const el = $('v_' + k); if (el && nclean(el.value) !== '') ch[k] = nclean(el.value);
+      });
     }
     if (act('types')) {
       ch.types = {};
-      $('beForm').querySelectorAll('.be-pt').forEach(row => {
+      $('beForm').querySelectorAll('.be-pt2').forEach(row => {
         const code = row.dataset.code;
         const enabled = row.querySelector('.be-sw').classList.contains('on');
-        const min = nclean(row.querySelector('.t-min').value);
-        const max = nclean(row.querySelector('.t-max').value);
+        const g = (sel2) => { const el = row.querySelector(sel2); return el ? nclean(el.value) : ''; };
         const t = { enabled };
+        const min = g('.t-min'), max = g('.t-max');
         if (min !== '') t.min = min;
         if (max !== '') t.max = max;
+        const pp = g('.t-pfeepct'), pc = g('.t-pfeeconst'), dp = g('.t-dfeepct'), dc = g('.t-dfeeconst');
+        if (pp !== '') t.pfeepct = pp;
+        if (pc !== '') t.pfeeconst = pc;
+        if (dp !== '') t.dfeepct = dp;
+        if (dc !== '') t.dfeeconst = dc;
         ch.types[code] = t;
       });
     }
@@ -286,13 +316,16 @@
       ch.suggestamounts = [...$('beChips').querySelectorAll('.be-chip:not(.add)')].map(c => nclean(c.textContent.replace('✕', '')));
       ch.amountsuggest = ch.suggestamounts.length > 0;
     }
+    if (act('remark')) {
+      const el = $('v_remark'); if (el) ch.remark = el.value;
+    }
     return ch;
   }
 
   function countChanges(ch) {
     let n = 0;
     if (ch._statusOpen !== undefined) n++;
-    ['maxdailyamt', 'maxtotalamt', 'minpayoutamt', 'maxpayoutamt'].forEach(k => { if (ch[k] !== undefined) n++; });
+    ['maxdailyamt', 'maxtotalamt', 'minpayoutamt', 'maxpayoutamt', 'payoutfeepct', 'payoutfeeconst', 'remark'].forEach(k => { if (ch[k] !== undefined) n++; });
     if (ch.types) n += Object.keys(ch.types).length;
     if (ch.suggestamounts) n++;
     return n;
@@ -312,7 +345,7 @@
   // แปลง changes ที่เก็บจากฟอร์ม → รูปแบบที่บอทเข้าใจ (ต่อ 1 เว็บ)
   function toTaskChanges(ch, baseStatusRaw) {
     const out = {};
-    ['maxdailyamt', 'maxtotalamt', 'minpayoutamt', 'maxpayoutamt', 'types', 'suggestamounts', 'amountsuggest'].forEach(k => {
+    ['maxdailyamt', 'maxtotalamt', 'minpayoutamt', 'maxpayoutamt', 'payoutfeepct', 'payoutfeeconst', 'remark', 'types', 'suggestamounts', 'amountsuggest'].forEach(k => {
       if (ch[k] !== undefined) out[k] = ch[k];
     });
     if (ch._statusOpen !== undefined) {
@@ -341,11 +374,16 @@
       const lbl = { maxdailyamt: 'ฝากสูงสุด/วัน', maxtotalamt: 'สะสมขีดจำกัด', minpayoutamt: 'ถอนขั้นต่ำ', maxpayoutamt: 'ถอนสูงสุด' }[k];
       if (ch[k] !== undefined) lines.push(lbl + ' = <b>' + nfmt(ch[k]) + '</b>');
     });
+    if (ch.payoutfeepct !== undefined) lines.push('ค่าธรรมเนียมถอน % = <b>' + ch.payoutfeepct + '</b>');
+    if (ch.payoutfeeconst !== undefined) lines.push('ค่าธรรมเนียมถอน บาท = <b>' + ch.payoutfeeconst + '</b>');
+    if (ch.remark !== undefined) lines.push('หมายเหตุ = <b>' + (esc(ch.remark) || '(ว่าง)') + '</b>');
     if (ch.types) Object.keys(ch.types).forEach(code => {
       const t = ch.types[code]; const bits = [];
       bits.push(t.enabled ? 'เปิด' : 'ปิด');
       if (t.min !== undefined) bits.push('ต่ำ ' + nfmt(t.min));
       if (t.max !== undefined) bits.push('สูง ' + nfmt(t.max));
+      if (t.pfeepct !== undefined || t.pfeeconst !== undefined) bits.push('ค่าธ.ผู้เล่น ' + (t.pfeepct ?? '0') + '%+' + (t.pfeeconst ?? '0'));
+      if (t.dfeepct !== undefined || t.dfeeconst !== undefined) bits.push('ค่าธ.บุคคล3 ' + (t.dfeepct ?? '0') + '%+' + (t.dfeeconst ?? '0'));
       lines.push(code + ': <b>' + bits.join(' / ') + '</b>');
     });
     if (ch.suggestamounts) lines.push('ปุ่มเงินแนะนำ <b>' + ch.suggestamounts.length + ' ปุ่ม</b>');
