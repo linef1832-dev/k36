@@ -39,7 +39,7 @@
     if (error) throw new Error(error.message);
     const id = data.id;
     const end = Date.now() + TASK_WAIT_MS;
-    let wait = 250; // เริ่มถี่ แล้วค่อย ๆ ถ่างออกถ้ายังไม่เสร็จ
+    let wait = 150; // เริ่มถี่ แล้วค่อย ๆ ถ่างออกถ้ายังไม่เสร็จ
     while (Date.now() < end) {
       await sleep(wait);
       const { data: t } = await appDB.from('bo_tasks').select('status,result,error').eq('id', id).maybeSingle();
@@ -47,7 +47,7 @@
       if (t.status === 'done') return t.result || {};
       if (t.status === 'failed' || t.status === 'expired' || t.status === 'cancelled')
         throw new Error(t.error || ('งาน' + t.status));
-      if (wait < 1200) wait += 150;
+      if (wait < 1000) wait += 120;
     }
     throw new Error('บอทไม่ตอบใน ' + Math.round(TASK_WAIT_MS / 1000) + ' วินาที (เว็บนี้อาจล็อกอินไม่ได้)');
   }
@@ -142,7 +142,7 @@
       window._beBatchStatic = (chanList.find(c => c.id === opt.value) || {}).staticname || '';
       $('beChanTitle').textContent = loaded.name || opt.text;
       const ro = loaded.readonly || {};
-      $('beReadBox').innerHTML = `<span class="be-read">ยอดวันนี้ <b>${nfmt(ro.dailyamt || 0)}</b>&nbsp;·&nbsp;สะสม <b>${nfmt(ro.totalamt || 0)}</b></span>`;
+      $('beReadBox').innerHTML = '';
       $('beChanSub').textContent = 'รหัส ' + (loaded.code || '-') + (ro.updatedby ? ' · แก้ล่าสุดโดย ' + ro.updatedby : '');
       renderForm();
     } catch (e) {
