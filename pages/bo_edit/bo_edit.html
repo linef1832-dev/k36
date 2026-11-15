@@ -1,4 +1,3 @@
-
 <div id="boEditPage" class="fade-in">
 <style>
 #boEditPage{--cy:92,201,232;--gd:232,193,90;--ok:73,212,154;--dng:240,117,111;--wn:240,182,74;
@@ -91,6 +90,14 @@
 #boEditPage .be-ptypes{display:flex;flex-direction:column;gap:9px}
 #boEditPage .be-pthead{display:grid;grid-template-columns:30px 1.5fr 110px 110px;gap:12px;padding:0 13px;font-size:11px;font-weight:800;color:var(--k-mute);align-items:center}
 #boEditPage .be-pt{display:grid;grid-template-columns:30px 1.5fr 110px 110px;gap:12px;align-items:center;padding:12px 13px;border-radius:13px;background:var(--k-sunk);border:1px solid var(--k-line);transition:.15s}
+#boEditPage .be-pt2{padding:12px 13px;border-radius:13px;background:var(--k-sunk);border:1px solid var(--k-line);transition:.15s;display:flex;flex-direction:column;gap:11px}
+#boEditPage .be-pt2.off{opacity:.5}
+#boEditPage .be-pt2-h{display:flex;align-items:center;gap:11px}
+#boEditPage .be-pt2-h .name{font-weight:800;font-size:13.5px}
+#boEditPage .be-pt2-h .code{font-size:11px;color:var(--k-mute);font-weight:700;margin-left:4px}
+#boEditPage .be-pt2-g{display:grid;grid-template-columns:repeat(6,1fr);gap:9px}
+@media(max-width:720px){#boEditPage .be-pt2-g{grid-template-columns:repeat(2,1fr)}}
+#boEditPage .be-pt2-g input{width:100%;padding:8px 10px;font-size:13px;text-align:right;font-variant-numeric:tabular-nums}
 #boEditPage .be-pt.off{opacity:.5}
 #boEditPage .be-pt .name{font-weight:800;font-size:13.5px}
 #boEditPage .be-pt .code{font-size:11px;color:var(--k-mute);font-weight:700}
