@@ -176,7 +176,9 @@
     const v = d ? d.values : { maxdailyamt: '', maxtotalamt: '', minpayoutamt: '', maxpayoutamt: '', amountsuggest: true, suggestamounts: [], types: {} };
     const statusOpen = d ? (d.status === 1 ? false : true) : true; // หมายเหตุ: ค่าดิบ status แปลผลตามหลังบ้าน (ดู note)
     // ประเภท: ถ้าโหมดเดียวแสดงเฉพาะที่มีจริง, โหมดหลายเว็บแสดงทุกชนิดให้เลือก
-    const typeCodes = d ? Object.keys(v.types) : PAYTYPES.map(p => p.code);
+    // ช่องทาง USDT แสดงเฉพาะ USDT, ช่องทาง THB แสดง 4 ประเภทมาตรฐานเสมอ (เหมือนหลังบ้าน)
+    const isUsdt = d && v.types && v.types['USDT'];
+    const typeCodes = isUsdt ? ['USDT'] : ['QR_BANK', 'PROMPTPAY', 'TRUEMONEY', 'DEBIT_CARD'];
     const rows = typeCodes.map(code => {
       const meta = PAYTYPES.find(p => p.code === code) || { name: code };
       const t = (v.types && v.types[code]) || { enabled: false, min: '', max: '', pfeepct: '0', pfeeconst: '0', dfeepct: '0', dfeeconst: '0' };
