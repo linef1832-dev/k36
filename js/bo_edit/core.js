@@ -39,7 +39,7 @@
     if (error) throw new Error(error.message);
     const id = data.id;
     const end = Date.now() + TASK_WAIT_MS;
-    let wait = 400; // เริ่มถี่ แล้วค่อย ๆ ถ่างออกถ้ายังไม่เสร็จ
+    let wait = 250; // เริ่มถี่ แล้วค่อย ๆ ถ่างออกถ้ายังไม่เสร็จ
     while (Date.now() < end) {
       await sleep(wait);
       const { data: t } = await appDB.from('bo_tasks').select('status,result,error').eq('id', id).maybeSingle();
@@ -47,7 +47,7 @@
       if (t.status === 'done') return t.result || {};
       if (t.status === 'failed' || t.status === 'expired' || t.status === 'cancelled')
         throw new Error(t.error || ('งาน' + t.status));
-      if (wait < 1500) wait += 200;
+      if (wait < 1200) wait += 150;
     }
     throw new Error('บอทไม่ตอบใน ' + Math.round(TASK_WAIT_MS / 1000) + ' วินาที (เว็บนี้อาจล็อกอินไม่ได้)');
   }
