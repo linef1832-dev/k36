@@ -483,6 +483,132 @@ window.handleDropExcel = function(e, systemName) {
   if (e.dataTransfer && e.dataTransfer.files.length > 0) window.processExcelUpload(e, systemName);
 };
 
+function smResolveEmp(name, base) {
+  if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) return {
+    user: null,
+    how: 'nolist'
+  };
+  if (!summaryUserCacheMap || summaryUserCacheMap.size !== window.GLOBAL_USER_LIST.length || summaryUserCacheRef !== window.GLOBAL_USER_LIST) buildSummaryUserCache();
+  const n = String(name || '').toLowerCase().trim();
+  const b = String(base || '').toLowerCase().trim().replace(/(\d+|vv)$/i, '');
+  if (!n) return {
+    user: null,
+    how: 'none'
+  };
+  if (summaryUserCacheMap.has(n)) return {
+    user: summaryUserCacheMap.get(n),
+    how: 'exact'
+  };
+  if (b && b !== n && summaryUserCacheMap.has(b)) return {
+    user: summaryUserCacheMap.get(b),
+    how: 'exact'
+  };
+  if (/^[man]/.test(n) && summaryUserCacheMap.has(n.substring(1))) return {
+    user: summaryUserCacheMap.get(n.substring(1)),
+    how: 'strip1'
+  };
+  if (n.length < 3) return {
+    user: null,
+    how: 'none'
+  };
+  const cands = summarySortedUserCache.filter((u => {
+    const db = String(u.username || '').toLowerCase().trim();
+    return db.length >= 3 && (n.startsWith(db) || db.startsWith(n));
+  }));
+  if (cands.length === 1) return {
+    user: cands[0],
+    how: 'fuzzy'
+  };
+  if (cands.length > 1) {
+    const pre = cands.filter((u => n.startsWith(String(u.username || '').toLowerCase().trim())));
+    if (pre.length) {
+      const L = Math.max(...pre.map((u => String(u.username).length)));
+      const top = pre.filter((u => String(u.username).length === L));
+      if (top.length === 1) return {
+        user: top[0],
+        how: 'fuzzy'
+      };
+    }
+    return {
+      user: null,
+      how: 'ambiguous',
+      cands: cands.map((u => u.username))
+    };
+  }
+  return {
+    user: null,
+    how: 'none'
+  };
+}
+
+function smParseWhen(cells) {
+  const pad = x => String(x).padStart(2, '0');
+  const to24 = (h, ap) => {
+    if (!ap) return h;
+    const pm = /p/i.test(ap);
+    if (h === 12) return pm ? 12 : 0;
+    return pm ? h + 12 : h;
+  };
+  let dateOnly = null, timeOnly = null;
+  for (const c of cells || []) {
+    const s = String(c == null ? '' : c).trim();
+    if (!s) continue;
+    let y = 0, mo = 0, d = 0, h = null;
+    let m = s.match(/(?<!\d)(20\d\d)-(\d{1,2})-(\d{1,2})(?!\d)(?!-\d)(?:[ T]+(\d{1,2}):(\d{2})(?::\d{2}(?:\.\d+)?)?\s*([AaPp][Mm])?)?/);
+    if (m) {
+      y = +m[1];
+      mo = +m[2];
+      d = +m[3];
+      if (m[4] !== undefined) h = to24(+m[4], m[6]);
+    } else {
+      m = s.match(/(?<!\d)(\d{1,2})[\/.](\d{1,2})[\/.]((?:20|25)\d\d)(?!\d)(?:[ ,T]+(\d{1,2}):(\d{2})(?::\d{2})?\s*([AaPp][Mm])?)?/);
+      if (m) {
+        const p1 = +m[1], p2 = +m[2];
+        y = +m[3];
+        if (y > 2400) y -= 543;
+        mo = p2 > 12 ? p1 : p2;
+        d = p2 > 12 ? p2 : p1;
+        if (m[4] !== undefined) h = to24(+m[4], m[6]);
+      }
+    }
+    if (m) {
+      if (mo < 1 || mo > 12 || d < 1 || d > 31) continue;
+      const ds = `${y}-${pad(mo)}-${pad(d)}`;
+      if (h !== null && h < 24) return {
+        date: ds,
+        hour: h
+      };
+      if (!dateOnly) dateOnly = ds;
+      continue;
+    }
+    if (timeOnly === null) {
+      const t = s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*([AaPp][Mm])?$/);
+      if (t) {
+        const h2 = to24(+t[1], t[3]);
+        if (h2 < 24) timeOnly = h2;
+      }
+    }
+  }
+  return {
+    date: dateOnly,
+    hour: dateOnly ? timeOnly : null
+  };
+}
+
+function smNoteIssue(kind, raw, mapped, web) {
+  if (!window._smMapIssues) window._smMapIssues = new Map;
+  const k = `${kind}\u0001${raw}\u0001${mapped}\u0001${web}`;
+  const o = window._smMapIssues.get(k) || {
+    kind: kind,
+    raw: raw,
+    mapped: mapped,
+    web: web,
+    n: 0
+  };
+  o.n++;
+  window._smMapIssues.set(k, o);
+}
+
 function getRealDbUser(rawName) {
   if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) return null;
   if (!summaryUserCacheMap || summaryUserCacheMap.size !== window.GLOBAL_USER_LIST.length || summaryUserCacheRef !== window.GLOBAL_USER_LIST) {
@@ -515,6 +641,30 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
       console.warn('fetchUsers refresh failed', e);
     }
   }
+  window._smFresh = false;
+  if (viewMode === 'preview' && pendingSummaryData.length) {
+    const ds = [ ...new Set(pendingSummaryData.map((x => x.date)).filter(Boolean)) ].sort().map((d => {
+      const [y, m, dd] = String(d).split('-');
+      return `${+dd}/${+m}/${+y + 543}`;
+    }));
+    const ask = await Swal.fire({
+      icon: 'question',
+      title: 'มีข้อมูลที่อัปไว้แต่ยังไม่บันทึก',
+      html: `ยอดวันที่ <b>${ds.join(', ') || '-'}</b> ยังค้างอยู่ในหน้านี้<br><span style="font-size:12px;opacity:.8">ถ้ารวมกัน ยอดที่แสดงจะปนกับไฟล์ใหม่</span>`,
+      showDenyButton: true,
+      showCancelButton: true,
+      confirmButtonText: 'ล้างแล้วเริ่มใหม่',
+      denyButtonText: 'รวมกับไฟล์ใหม่',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#0ea5e9',
+      denyButtonColor: '#64748b'
+    });
+    if (ask.isDismissed) {
+      if (event.target && event.target.value) event.target.value = '';
+      return;
+    }
+    window._smFresh = !!ask.isConfirmed;
+  }
   window.loadExcelLibrary((async () => {
     Swal.fire({
       title: `กำลังประมวลผล ${files.length} ไฟล์...`,
@@ -527,7 +677,9 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
       let skippedFiles = [];
       let errorFiles = [];
       window._unknownTcgBrands = new Set;
-      if (viewMode !== 'preview') {
+      window._smMapIssues = new Map;
+      if (viewMode !== 'preview' || window._smFresh) {
+        window._smFresh = false;
         pendingSummaryData = [];
         viewMode = 'preview';
         summaryActiveWebFilter = 'ALL';
@@ -691,6 +843,8 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
               break;
             }
           }
+          const defaultFromName = !!defaultWeb;
+          const sysWebs = smWebList().filter((w => smSystemOf(w, customSystemsAll) === fileSystem));
           if (!defaultWeb) {
             for (let r = startDataRow; r < Math.min(startDataRow + 50, parsedRowsData.length); r++) {
               if (!parsedRowsData[r]) continue;
@@ -766,32 +920,13 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
             let odType = 'ปกติ';
             let rowDate = null;
             let hour = null;
-            for (let c of cellData) {
-              const strC = String(c).trim();
-              let match = strC.match(/(202\d-\d{1,2}-\d{1,2})(?:\s+(\d{1,2}):\d{2}:\d{2})?/);
-              let altMatch = strC.match(/(\d{1,2})\/(\d{1,2})\/(202\d)(?:\s+(\d{1,2}):\d{2}(?::\d{2})?)?/);
-              let rowDateStr = null;
-              if (match) {
-                rowDateStr = match[1];
-                hour = match[2] ? parseInt(match[2], 10) : null;
-              } else if (altMatch) {
-                let p1 = parseInt(altMatch[1], 10);
-                let p2 = parseInt(altMatch[2], 10);
-                let y = altMatch[3];
-                let m = p2 > 12 ? p1 : p2;
-                let d = p2 > 12 ? p2 : p1;
-                rowDateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                hour = altMatch[4] ? parseInt(altMatch[4], 10) : null;
-              }
-              if (rowDateStr) {
-                rowDate = rowDateStr;
-                if (hour !== null && hour >= 0 && hour < 8) {
-                  let dObj = new Date(rowDate);
-                  dObj.setDate(dObj.getDate() - 1);
-                  rowDate = `${dObj.getFullYear()}-${String(dObj.getMonth() + 1).padStart(2, '0')}-${String(dObj.getDate()).padStart(2, '0')}`;
-                }
+            {
+              const when = smParseWhen(cellData);
+              if (when.date) {
+                rowDate = when.date;
+                hour = when.hour;
+                if (hour !== null && hour >= 0 && hour < 8) rowDate = window.getYesterdayDateStr(rowDate);
                 window.uploadedFileDates.add(rowDate);
-                break;
               }
             }
             if (!detectedDate && rowDate) detectedDate = rowDate;
@@ -803,7 +938,7 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
               webName = matchBrandToWeb(rawWeb);
               if (!webName) {
                 for (let w of Object.keys(webNameMap)) {
-                  if (rawWeb.startsWith(w.substring(0, 2)) || rawWeb.includes(w)) {
+                  if (rawWeb.includes(w)) {
                     webName = webNameMap[w];
                     break;
                   }
@@ -819,14 +954,17 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
               amount = 0;
             }
             let firstWord = rawApproveStr.split(/[\s\r\n]+/)[0] || '';
+            const rawAccount = firstWord;
+            let baseWord = '';
             if (firstWord && firstWord !== 'system' && firstWord !== 'auto' && firstWord !== '-' && firstWord !== 'nan' && !firstWord.includes('202') && firstWord !== 'null') {
               for (let w of Object.keys(webNameMap)) {
-                if (firstWord.endsWith(w)) {
+                if (firstWord.endsWith(w) && firstWord.length > w.length) {
                   if (fileSystem === 'K36') webName = webNameMap[w];
-                  firstWord = firstWord.replace(w, '');
+                  firstWord = firstWord.slice(0, -w.length);
                   break;
                 }
               }
+              baseWord = firstWord;
               if (firstWord.startsWith('odol')) {
                 odType = 'ODOL';
                 firstWord = firstWord.replace('odol', '');
@@ -857,12 +995,17 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
             if (!empName || empName.length < 2 || /^[\d\W]+$/.test(empName)) continue;
             const sysWords = [ 'system', 'auto', 'null', 'nan', 'admin', 'api', 'bot' ];
             if (sysWords.includes(empName.toLowerCase())) continue;
-            if (!webName) webName = defaultWeb;
+            let noWeb = false;
+            if (!webName) {
+              if (defaultFromName) webName = defaultWeb; else if (sysWebs.length === 1) webName = sysWebs[0]; else noWeb = true;
+            }
             let extractedShiftFromTime = 'UNKNOWN';
             if (hour !== null) {
-              if (hour >= 7 && hour < 19) extractedShiftFromTime = 'กะเช้า'; else extractedShiftFromTime = 'กะดึก';
+              if (hour >= 8 && hour < 20) extractedShiftFromTime = 'กะเช้า'; else extractedShiftFromTime = 'กะดึก';
             }
-            const realUser = getRealDbUser(empName);
+            const _res = smResolveEmp(empName, baseWord);
+            const realUser = _res.user;
+            if (_res.how === 'fuzzy' || _res.how === 'strip1') smNoteIssue('guess', rawAccount, realUser.username, webName); else if (_res.how === 'ambiguous') smNoteIssue('ambiguous', rawAccount, (_res.cands || []).join(' / '), webName); else if (_res.how === 'none') smNoteIssue('nouser', rawAccount, empName, webName);
             let finalShift = extractedShiftFromTime;
             if (realUser) {
               empName = realUser.username;
@@ -881,8 +1024,30 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
               status: txStatus,
               odType: odType,
               date: finalRowDate,
-              shift: finalShift
+              shift: finalShift,
+              noWeb: noWeb,
+              rawAccount: rawAccount,
+              part: hour === null ? 'x' : hour >= 8 && hour < 20 ? 'm' : 'n'
             });
+          }
+          {
+            const empWebs = {};
+            extractedRows.forEach((r => {
+              if (r.noWeb) return;
+              const k = `${r.date}|${String(r.empName).toLowerCase()}`;
+              (empWebs[k] = empWebs[k] || new Set).add(r.website);
+            }));
+            extractedRows.forEach((r => {
+              if (!r.noWeb) return;
+              const ws = empWebs[`${r.date}|${String(r.empName).toLowerCase()}`];
+              if (ws && ws.size === 1) {
+                r.website = [ ...ws ][0];
+                smNoteIssue('inferweb', r.rawAccount, r.empName, r.website);
+              } else {
+                r.website = 'ไม่ระบุเว็บ';
+                smNoteIssue('noweb', r.rawAccount, r.empName, r.website);
+              }
+            }));
           }
           const uniqueDates = [ ...new Set(extractedRows.map((r => r.date))) ];
           const yesterdayDates = uniqueDates.map((d => window.getYesterdayDateStr(d)));
@@ -903,7 +1068,21 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
             if (customSystemsAll[row.website]) {
               row.system = customSystemsAll[row.website];
             }
+            const _pt = row.part || 'x';
+            const _bumpPart = it => {
+              it.parts = it.parts || {};
+              const q = it.parts[_pt] = it.parts[_pt] || {
+                count: 0,
+                total_amount: 0,
+                approved_count: 0,
+                reject_count: 0
+              };
+              q.count += 1;
+              q.total_amount += row.amount;
+              if (row.status === 'Reject') q.reject_count += 1; else q.approved_count += 1;
+            };
             if (existingIndex > -1) {
+              _bumpPart(pendingSummaryData[existingIndex]);
               pendingSummaryData[existingIndex].count += 1;
               pendingSummaryData[existingIndex].totalAmount += row.amount;
               if (row.status === 'Reject') pendingSummaryData[existingIndex].rejectCount = (pendingSummaryData[existingIndex].rejectCount || 0) + 1; else pendingSummaryData[existingIndex].approvedCount = (pendingSummaryData[existingIndex].approvedCount || 0) + 1;
@@ -923,6 +1102,7 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                 totalAmount: row.amount,
                 yestCount: yestCount
               });
+              _bumpPart(pendingSummaryData[pendingSummaryData.length - 1]);
             }
           }));
           totalExtracted += extractedRows.length;
@@ -952,12 +1132,25 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
         console.warn('[TCG] พบแบรนด์ที่ระบบยังไม่รู้จัก (รายการเหล่านี้ถูกจัดเป็น default web):', Array.from(window._unknownTcgBrands));
       }
       let resultHtml = `ดึงข้อมูลมาได้ <b>${totalExtracted}</b> รายการ (เฉพาะ OD)<br><span class="text-sm text-green-600 font-bold">(ยอดถูกบวกทบกันเรียบร้อยแล้ว)</span>`;
+      if (window._smMapIssues && window._smMapIssues.size) {
+        const KIND = {
+          guess: [ 'เดาชื่อ', '#f59e0b' ],
+          ambiguous: [ 'ชื่อซ้ำหลายคน', '#ef4444' ],
+          nouser: [ 'ไม่พบชื่อในระบบ', '#ef4444' ],
+          inferweb: [ 'บัญชีไม่มีชื่อเว็บ · ใช้เว็บที่คนนี้ทำ', '#f59e0b' ],
+          noweb: [ 'ไม่รู้ว่าเว็บไหน', '#ef4444' ]
+        };
+        const iss = [ ...window._smMapIssues.values() ].sort(((a, b) => b.n - a.n));
+        const tot = iss.reduce(((a, x) => a + x.n), 0);
+        resultHtml += `<div style="margin-top:14px;text-align:left"><div style="font-weight:900;font-size:13px;color:#f59e0b">⚠ ระบบต้องเดา ${tot.toLocaleString()} รายการ — ตรวจก่อนบันทึก</div><div style="max-height:220px;overflow:auto;margin-top:6px;border:1px solid rgba(148,163,184,.3);border-radius:10px"><table style="width:100%;font-size:11.5px;border-collapse:collapse"><tr style="background:rgba(148,163,184,.12)"><th style="padding:5px 6px;text-align:left">บัญชีในไฟล์</th><th style="padding:5px 6px;text-align:left">นับให้</th><th style="padding:5px 6px;text-align:left">เว็บ</th><th style="padding:5px 6px">รายการ</th><th style="padding:5px 6px;text-align:left">เหตุผล</th></tr>${iss.slice(0, 40).map((x => `<tr style="border-top:1px solid rgba(148,163,184,.15)"><td style="padding:4px 6px;font-family:monospace">${window.escapeHtml(x.raw || '-')}</td><td style="padding:4px 6px;font-weight:800">${window.escapeHtml(x.mapped || '-')}</td><td style="padding:4px 6px">${window.escapeHtml(x.web || '-')}</td><td style="padding:4px 6px;text-align:center">${x.n}</td><td style="padding:4px 6px;color:${KIND[x.kind][1]};font-weight:800">${KIND[x.kind][0]}</td></tr>`)).join('')}</table></div>${iss.length > 40 ? `<div style="font-size:11px;opacity:.7;margin-top:4px">แสดง 40 จาก ${iss.length} แบบ</div>` : ''}</div>`;
+      }
       if (skippedFiles.length > 0) resultHtml += `<br><br><span class="text-xs text-orange-500"><b>ข้ามไฟล์ซ้ำ:</b><br>${skippedFiles.join('<br>')}</span>`;
       if (errorFiles.length > 0) resultHtml += `<br><br><span class="text-xs text-red-500"><b>ไฟล์ที่มีปัญหา:</b><br>${errorFiles.join('<br>')}</span>`;
       if (totalExtracted > 0) Swal.fire({
-        icon: 'success',
+        icon: window._smMapIssues && window._smMapIssues.size ? 'warning' : 'success',
         title: 'ประมวลผลเสร็จสิ้น!',
         html: resultHtml,
+        width: window._smMapIssues && window._smMapIssues.size ? 680 : undefined,
         showConfirmButton: true,
         confirmButtonColor: '#10b981'
       }); else Swal.fire({
@@ -1496,51 +1689,69 @@ window.saveSummaryToSupabase = async function() {
   });
   try {
     const fallbackDate = document.getElementById('summaryDateFilter').value;
-    const groupedData = {};
+    const lc = x => String(x || '').trim().toLowerCase();
+    const keyOf = (emp, web) => `${lc(emp)}|${lc(web)}`;
+    const newParts = {};
     pendingSummaryData.forEach((item => {
-      const dateVal = item.date || fallbackDate;
-      const empName = (item.empName || '').trim();
-      const web = (item.website || '').trim();
-      const key = `${dateVal}_${empName.toLowerCase()}_${web.toLowerCase()}`;
-      if (!groupedData[key]) {
-        groupedData[key] = {
-          date: dateVal,
-          employee_name: empName,
-          website: web,
-          system: item.system || 'UNKNOWN',
+      const d = item.date || fallbackDate;
+      const emp = (item.empName || '').trim(), web = (item.website || '').trim();
+      if (!d || !emp || !web) return;
+      const parts = item.parts && Object.keys(item.parts).length ? item.parts : {
+        x: {
           count: item.count || 0,
           total_amount: item.totalAmount || 0,
           approved_count: item.approvedCount || 0,
           reject_count: item.rejectCount || 0
+        }
+      };
+      Object.entries(parts).forEach((([p, v]) => {
+        const box = ((newParts[d] = newParts[d] || {})[p] = newParts[d][p] || {});
+        const k = keyOf(emp, web);
+        const o = box[k] = box[k] || {
+          employee_name: emp,
+          website: web,
+          system: item.system || 'UNKNOWN',
+          count: 0,
+          total_amount: 0,
+          approved_count: 0,
+          reject_count: 0
         };
-      } else {
-        groupedData[key].count += item.count || 0;
-        groupedData[key].total_amount += item.totalAmount || 0;
-        groupedData[key].approved_count += item.approvedCount || 0;
-        groupedData[key].reject_count += item.rejectCount || 0;
-      }
+        o.count += v.count || 0;
+        o.total_amount += v.total_amount || 0;
+        o.approved_count += v.approved_count || 0;
+        o.reject_count += v.reject_count || 0;
+      }));
     }));
-    const saveDates = [ ...new Set(Object.values(groupedData).map((r => r.date)).filter(Boolean)) ];
-    const {data: existRows, error: exErr} = await window.selectAllRows((() => appDB.from('transaction_daily_summary').select('date, employee_name, website, count, total_amount, approved_count, reject_count').in('date', saveDates).order('id', {
+    const saveDates = Object.keys(newParts).sort();
+    const {data: existRows, error: exErr} = await window.selectAllRows((() => appDB.from('transaction_daily_summary').select('date, employee_name, website, system, count, total_amount, approved_count, reject_count').in('date', saveDates).order('id', {
       ascending: true
     })));
     if (exErr) throw exErr;
-    const upWebs = [ ...new Set(Object.values(groupedData).map((r => r.website)).filter(Boolean)) ];
-    const upWebsLc = new Set(upWebs.map((w => w.toLowerCase())));
-    const upPairs = new Set(Object.values(groupedData).map((r => `${r.date}|${String(r.website || '').trim().toLowerCase()}`)));
-    const overlap = (existRows || []).filter((r => upWebsLc.has(String(r.website || '').trim().toLowerCase()) && upPairs.has(`${r.date}|${String(r.website || '').trim().toLowerCase()}`)));
-    if (overlap.length) {
-      const existRows2 = overlap;
-      const exDates = [ ...new Set(existRows2.map((r => r.date))) ].sort();
-      const exWebs = [ ...new Set(existRows2.map((r => r.website))) ];
+    const exMap = {};
+    (existRows || []).forEach((r => {
+      ((exMap[r.date] = exMap[r.date] || {})[keyOf(r.employee_name, r.website)] = r);
+    }));
+    const partKey = d => `summary_parts_v1_${d}`;
+    const {data: partRows, error: pErr} = await appDB.from('settings').select('key, value').in('key', saveDates.map(partKey));
+    if (pErr) throw pErr;
+    const stored = {};
+    (partRows || []).forEach((r => {
+      try {
+        stored[r.key.replace('summary_parts_v1_', '')] = JSON.parse(r.value) || {};
+      } catch (e) {}
+    }));
+    const webSetOf = d => new Set(Object.values(newParts[d]).flatMap((box => Object.values(box).map((o => lc(o.website))))));
+    const legacyDates = saveDates.filter((d => !stored[d] && Object.values(exMap[d] || {}).some((r => webSetOf(d).has(lc(r.website))))));
+    let legacyPick = null;
+    if (legacyDates.length) {
       const fmt = d => {
         const [y, m, dd] = String(d).split('-');
         return `${dd}/${m}/${y}`;
       };
       const pick = await Swal.fire({
         icon: 'question',
-        title: 'วันนี้มียอดบันทึกไว้แล้ว',
-        html: `วันที่ <b>${exDates.map(fmt).join(', ')}</b> มียอดของเว็บ <b>${window.escapeHtml(exWebs.join(', '))}</b> บันทึกไว้แล้ว<br><br><div style="text-align:left;font-size:13px;line-height:1.7"><b>แทนที่ของเดิม</b> — ลบยอดเดิมเฉพาะเว็บที่อยู่ในไฟล์ชุดนี้ แล้วใช้ยอดใหม่แทน (เว็บอื่นไม่โดนแตะ) ใช้ตอนอัปไฟล์แก้ไข/ไฟล์ล่าสุด<br><b>บวกเพิ่มเข้าไป</b> — เก็บยอดเดิมไว้ แล้วบวกยอดจากไฟล์ชุดนี้ ใช้ตอนไฟล์ของวันเดียวกันแบ่งเป็นหลายส่วน<br><span style="color:#dc2626;font-size:12px">ถ้าเป็นไฟล์เดิมที่เคยอัปแล้ว ห้ามกดบวกเพิ่ม ยอดจะซ้ำ</span></div>`,
+        title: 'วันนี้มียอดเก่าบันทึกไว้แล้ว',
+        html: `วันที่ <b>${legacyDates.map(fmt).join(', ')}</b> มียอดที่บันทึกไว้ก่อนอัปเดตระบบ<br><br><div style="text-align:left;font-size:13px;line-height:1.7"><b>แทนที่ของเดิม</b> — ลบยอดเดิมของเว็บในไฟล์ชุดนี้ แล้วใช้ยอดใหม่แทน<br><b>บวกเพิ่มเข้าไป</b> — ยอดเดิมเป็นคนละกะกับไฟล์นี้ (เช่น บันทึกกะเช้าไว้แล้ว ตอนนี้อัปกะดึก)<br><span style="font-size:12px;opacity:.8">ถามแค่ครั้งนี้ หลังจากนี้ระบบแยกยอดกะเช้า 08:00–20:00 / กะดึก 20:00–08:00 ให้เอง อัปไฟล์เดิมซ้ำก็ไม่บวกซ้ำ</span></div>`,
         showDenyButton: true,
         showCancelButton: true,
         confirmButtonText: 'แทนที่ของเดิม',
@@ -1550,31 +1761,105 @@ window.saveSummaryToSupabase = async function() {
         denyButtonColor: '#16a34a'
       });
       if (pick.isDismissed) return;
+      legacyPick = pick.isConfirmed ? 'replace' : 'add';
       Swal.fire({
         title: 'กำลังบันทึกข้อมูล...',
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading()
       });
-      if (pick.isConfirmed) {
-        for (const d of exDates) {
-          const webs = [ ...new Set(existRows2.filter((r => r.date === d)).map((r => r.website))) ];
-          if (!webs.length) continue;
-          const {error: delErr} = await appDB.from('transaction_daily_summary').delete().eq('date', d).in('website', webs);
-          if (delErr) throw delErr;
+    }
+    const upserts = [], deletes = [], partSaves = [];
+    const num = (o, f) => Number(o && o[f]) || 0;
+    for (const d of saveDates) {
+      const isLegacy = legacyDates.includes(d);
+      const webs = webSetOf(d);
+      const target = {};
+      Object.entries(exMap[d] || {}).forEach((([k, r]) => {
+        if (isLegacy && legacyPick === 'replace' && webs.has(lc(r.website))) {
+          deletes.push({
+            date: d,
+            employee_name: r.employee_name,
+            website: r.website
+          });
+          return;
         }
-      } else if (pick.isDenied) {
-        existRows2.forEach((r => {
-          const key = `${r.date}_${String(r.employee_name || '').trim().toLowerCase()}_${String(r.website || '').trim().toLowerCase()}`;
-          const g = groupedData[key];
-          if (!g) return;
-          g.count += parseInt(r.count) || 0;
-          g.total_amount += parseFloat(r.total_amount) || 0;
-          g.approved_count += parseInt(r.approved_count) || 0;
-          g.reject_count += parseInt(r.reject_count) || 0;
+        target[k] = {
+          date: d,
+          employee_name: r.employee_name,
+          website: r.website,
+          system: r.system || 'UNKNOWN',
+          count: num(r, 'count'),
+          total_amount: num(r, 'total_amount'),
+          approved_count: num(r, 'approved_count'),
+          reject_count: num(r, 'reject_count'),
+          _db: true
+        };
+      }));
+      const oldParts = isLegacy ? {} : stored[d] || {};
+      const nextParts = isLegacy && legacyPick === 'replace' ? {} : {
+        ...oldParts
+      };
+      Object.entries(newParts[d]).forEach((([p, box]) => {
+        const old = oldParts[p] || {};
+        new Set([ ...Object.keys(old), ...Object.keys(box) ]).forEach((k => {
+          const nv = box[k], ov = old[k];
+          const t = target[k] = target[k] || {
+            date: d,
+            employee_name: (nv || ov).employee_name,
+            website: (nv || ov).website,
+            system: (nv || ov).system || 'UNKNOWN',
+            count: 0,
+            total_amount: 0,
+            approved_count: 0,
+            reject_count: 0
+          };
+          [ 'count', 'total_amount', 'approved_count', 'reject_count' ].forEach((f => {
+            t[f] = Math.max(0, t[f] + num(nv, f) - num(ov, f));
+          }));
+          if (nv && nv.system) t.system = nv.system;
+          t._touched = true;
         }));
+        nextParts[p] = box;
+      }));
+      Object.values(target).forEach((t => {
+        if (!t._touched) return;
+        t.total_amount = Math.round(t.total_amount * 100) / 100;
+        if (t.count <= 0 && t.approved_count <= 0 && t.reject_count <= 0) {
+          if (t._db) deletes.push({
+            date: d,
+            employee_name: t.employee_name,
+            website: t.website
+          });
+          return;
+        }
+        upserts.push({
+          date: d,
+          employee_name: t.employee_name,
+          website: t.website,
+          system: t.system,
+          count: t.count,
+          total_amount: t.total_amount,
+          approved_count: t.approved_count,
+          reject_count: t.reject_count
+        });
+      }));
+      partSaves.push({
+        key: partKey(d),
+        value: JSON.stringify(nextParts)
+      });
+    }
+    const delGroups = {};
+    deletes.forEach((x => {
+      ((delGroups[`${x.date}\u0001${x.website}`] = delGroups[`${x.date}\u0001${x.website}`] || []).push(x.employee_name));
+    }));
+    for (const [gk, emps] of Object.entries(delGroups)) {
+      const [d, w] = gk.split('\u0001');
+      for (let i = 0; i < emps.length; i += 150) {
+        const {error: delErr} = await appDB.from('transaction_daily_summary').delete().eq('date', d).eq('website', w).in('employee_name', emps.slice(i, i + 150));
+        if (delErr) throw delErr;
       }
     }
-    const finalInsertData = Object.values(groupedData);
+    const finalInsertData = upserts;
     const chunkSize = 500;
     for (let i = 0; i < finalInsertData.length; i += chunkSize) {
       const chunk = finalInsertData.slice(i, i + chunkSize);
@@ -1584,6 +1869,10 @@ window.saveSummaryToSupabase = async function() {
       });
       if (window.clearQueryCache) window.clearQueryCache('sum_');
       if (error) throw error;
+    }
+    if (partSaves.length) {
+      const {error: psErr} = await appDB.from('settings').upsert(partSaves);
+      if (psErr) throw new Error('บันทึกยอดแล้ว แต่บันทึกข้อมูลแยกกะไม่สำเร็จ: ' + psErr.message);
     }
     if (window.pendingFileNames && window.pendingFileNames.length > 0) {
       const {data: savedFilesData} = await appDB.from('settings').select('value').eq('key', 'saved_excel_files').single();
@@ -1596,7 +1885,7 @@ window.saveSummaryToSupabase = async function() {
       if (sfErr) console.warn('saved_excel_files', sfErr.message);
       window.pendingFileNames = [];
     }
-    const savedDates = [ ...new Set(finalInsertData.map((r => r.date)).filter(Boolean)) ].sort();
+    const savedDates = saveDates.slice();
     window.uploadedFileDates.clear();
     if (window.clearQueryCache) window.clearQueryCache('sum_');
     await fetchAvailableDates();

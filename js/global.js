@@ -1089,12 +1089,6 @@ window.checkCoverage = function(username, covMap, slotBookings) {
 
 async function showPage(pageName) {
   const loading = document.getElementById('loading');
-  if (typeof window._pageLeaveHook === 'function') {
-    try {
-      window._pageLeaveHook();
-    } catch (e) {}
-    window._pageLeaveHook = null;
-  }
   window.cleanupPageSubscriptions();
   window.cleanupPageIntervals();
   document.querySelectorAll('#gdPreview').forEach((el => el.remove()));
