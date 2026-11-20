@@ -29,7 +29,8 @@ const GALLERY_MODE_SUFFIX = {
   bonus: '_BONUS',
   reach: '_REACH',
   card: '_CARD',
-  logo: '_LOGO'
+  logo: '_LOGO',
+  promo: '_PROMO'
 };
 
 const GALLERY_MODE_LABEL = {
@@ -37,7 +38,8 @@ const GALLERY_MODE_LABEL = {
   bonus: 'ยังไม่มีรูปโบนัสไทม์',
   reach: 'ยังไม่มีรูปรีชเมนู',
   card: 'ยังไม่มีรูปการ์ดเมนู',
-  logo: 'ยังไม่มีรูป LOGO'
+  logo: 'ยังไม่มีรูป LOGO',
+  promo: 'ยังไม่มีรูปโพสโปรโมท'
 };
 
 const GALLERY_MODE_UPLOAD_TEXT = {
@@ -45,7 +47,8 @@ const GALLERY_MODE_UPLOAD_TEXT = {
   bonus: '🎁 โบนัสไทม์ ',
   reach: '📣 รีชเมนู ',
   card: '🃏 การ์ดเมนู ',
-  logo: '🏷️ LOGO '
+  logo: '🏷️ LOGO ',
+  promo: '📌 รูปโพสโปรโมท '
 };
 
 window.initGalleryApp = function() {
@@ -53,7 +56,8 @@ window.initGalleryApp = function() {
     tabBonus: 'gallery_tab_bonus',
     tabReach: 'gallery_tab_reach',
     tabCard: 'gallery_tab_card',
-    tabLogo: 'gallery_tab_logo'
+    tabLogo: 'gallery_tab_logo',
+    tabPromo: 'gallery_tab_promo'
   };
   Object.keys(tabPermMap).forEach((btnId => {
     const btn = document.getElementById(btnId);
@@ -104,7 +108,8 @@ window.switchGalleryMode = function(mode) {
     bonus: 'gallery_tab_bonus',
     reach: 'gallery_tab_reach',
     card: 'gallery_tab_card',
-    logo: 'gallery_tab_logo'
+    logo: 'gallery_tab_logo',
+    promo: 'gallery_tab_promo'
   };
   if (modePerm[mode]) {
     const allowed = typeof window.hasUserPerm === 'function' && window.hasUserPerm(modePerm[mode]);
@@ -119,7 +124,8 @@ window.switchGalleryMode = function(mode) {
     bonus: 'tabBonus',
     reach: 'tabReach',
     card: 'tabCard',
-    logo: 'tabLogo'
+    logo: 'tabLogo',
+    promo: 'tabPromo'
   };
   Object.keys(tabBtn).forEach((k => {
     const el = document.getElementById(tabBtn[k]);
@@ -284,7 +290,8 @@ function _renderGalleryGrid() {
       _BONUS: 'rgba(217,119,6,.9)',
       _REACH: 'rgba(162,28,175,.9)',
       _CARD: 'rgba(5,150,105,.9)',
-      _LOGO: 'rgba(225,29,72,.9)'
+      _LOGO: 'rgba(225,29,72,.9)',
+      _PROMO: 'rgba(2,132,199,.9)'
     };
     Object.keys(sufMap).forEach((suf => {
       if (catNameG.endsWith(suf)) {
@@ -497,7 +504,8 @@ window.downloadAllInFilter = async function() {
     bonus: '_BonusTime',
     reach: '_ReachMenu',
     card: '_CardMenu',
-    logo: '_Logo'
+    logo: '_Logo',
+    promo: '_PromoPost'
   };
   folderName += folderSuffixMap[currentGalleryMode] || '';
   const confirm = await Swal.fire({

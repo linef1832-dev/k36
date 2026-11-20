@@ -421,7 +421,7 @@ function _renderWebBadges(data) {
   const counts = {};
   data.forEach((img => {
     const cat = img.category || 'ทั่วไป';
-    const webName = cat.replace(/_BONUS|_REACH|_CARD|_LOGO/g, '') || 'ทั่วไป';
+    const webName = cat.replace(/_BONUS|_REACH|_CARD|_LOGO|_PROMO/g, '') || 'ทั่วไป';
     counts[webName] = (counts[webName] || 0) + 1;
   }));
   const sorted = Object.entries(counts).sort(((a, b) => b[1] - a[1]));

@@ -134,6 +134,10 @@ const PERM_GROUPS = [ {
     name: 'ดูแท็บ "LOGO"',
     isSub: true
   }, {
+    id: 'gallery_tab_promo',
+    name: 'ดูแท็บ "รูปโพสโปรโมท"',
+    isSub: true
+  }, {
     id: 'gallery_upload',
     name: 'อัปโหลดรูปภาพ',
     isSub: true
