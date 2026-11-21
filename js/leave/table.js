@@ -170,6 +170,67 @@ window.renderLeaveTable = function() {
   Object.keys(swapsByUserId).forEach((uid => {
     swapsByUserId[uid].sort(((a, b) => new Date(a.scheduled_for).getTime() - new Date(b.scheduled_for).getTime()));
   }));
+  const _tlCache = {};
+  const _timelineOf = u => {
+    const strUid = String(u.id);
+    if (_tlCache[strUid]) return _tlCache[strUid];
+    const myMonthSwaps = swapsByUserId[strUid] || [];
+    const swapTimestamps = myMonthSwaps.map((s => {
+      const dt = new Date(s.scheduled_for);
+      dt.setHours(0, 0, 0, 0);
+      return dt.getTime();
+    }));
+    const shiftTimeline = {};
+    const monthIdx = currentCalendarDate.getMonth();
+    for (let d = 1; d <= daysInMonth; d++) {
+      const loopDate = new Date(year, monthIdx, d);
+      loopDate.setHours(0, 0, 0, 0);
+      const loopTs = loopDate.getTime();
+      let dayShift = u.allowed_shift;
+      for (let i = 0; i < myMonthSwaps.length; i++) {
+        const swap = myMonthSwaps[i];
+        const p = swap._p;
+        const swapTs = swapTimestamps[i];
+        if (swap.status === 'pending') {
+          if (loopTs >= swapTs && p.target_shift !== 'คงเดิม') {
+            dayShift = p.target_shift;
+          }
+        } else if (swap.status === 'completed') {
+          if (loopTs < swapTs) {
+            let orig = p.original_shift;
+            if (!orig) {
+              if (p.target_shift === 'กะดึก') orig = 'กะเช้า'; else if (p.target_shift === 'กะเช้า') orig = 'กะดึก'; else orig = 'กะกลาง';
+            }
+            dayShift = orig;
+          } else if (p.target_shift !== 'คงเดิม') {
+            dayShift = p.target_shift;
+          }
+        }
+      }
+      shiftTimeline[d] = dayShift;
+    }
+    _tlCache[strUid] = shiftTimeline;
+    return shiftTimeline;
+  };
+  const _shRank = sh => sh === 'กะดึก' ? 0 : sh === 'กะเช้า' ? 1 : sh === 'กะกลาง' ? 2 : 3;
+  const _sortInfo = {};
+  staffListToRender.forEach((u => {
+    const tl = _timelineOf(u);
+    const first = tl[1];
+    let stay = daysInMonth;
+    for (let d = 2; d <= daysInMonth; d++) if (tl[d] !== first) {
+      stay = d - 1;
+      break;
+    }
+    _sortInfo[String(u.id)] = {
+      rank: _shRank(first),
+      stay: stay
+    };
+  }));
+  staffListToRender.sort(((a, b) => {
+    const x = _sortInfo[String(a.id)], y = _sortInfo[String(b.id)];
+    return x.rank - y.rank || y.stay - x.stay || a.username.localeCompare(b.username);
+  }));
   let bodyHtml = '';
   staffListToRender.forEach(((u, index) => {
     const isMe = String(u.id) === String(currentUser.id);
@@ -216,41 +277,7 @@ window.renderLeaveTable = function() {
     let rowHtml = `<tr class="transition ${rowClass} h-[56px]">`;
     rowHtml += `<td class="p-2 sticky left-0 z-10 bg-white dark:bg-slate-900 border-r dark:border-slate-700 shadow-[inset_0_-1px_0_0_#e5e7eb] dark:shadow-[inset_0_-1px_0_0_#334155] text-[10px] text-center text-gray-400 font-mono w-[40px] min-w-[40px] max-w-[40px]">${index + 1}</td>`;
     rowHtml += `<td class="p-2 sticky left-[39px] z-10 bg-white dark:bg-slate-900 border-r dark:border-slate-700 shadow-[inset_0_-1px_0_0_#e5e7eb] dark:shadow-[inset_0_-1px_0_0_#334155] text-xs ${nameClass} w-[140px] min-w-[140px] max-w-[140px]">\n        <div class="flex justify-between items-start gap-1">\n            <div class="flex flex-col min-w-0 flex-1">\n                <div class="flex items-center"><span class="truncate max-w-[70px] font-bold text-[13px]">${window.escapeHtml(u.username)}</span>${removeBtn}</div>\n                ${breakdownHtml}\n            </div>\n            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full border shrink-0 mt-0.5 ${isPersonalFull ? 'bg-red-100 text-red-600 border-red-200' : 'bg-gray-100 text-gray-500 border-gray-200 shadow-inner'}">${myTotal}/${s.limit}</span>\n        </div>\n    </td>`;
-    const myMonthSwaps = swapsByUserId[strUid] || [];
-    const swapTimestamps = myMonthSwaps.map((s => {
-      const dt = new Date(s.scheduled_for);
-      dt.setHours(0, 0, 0, 0);
-      return dt.getTime();
-    }));
-    let shiftTimeline = {};
-    const monthIdx = currentCalendarDate.getMonth();
-    for (let d = 1; d <= daysInMonth; d++) {
-      const loopDate = new Date(year, monthIdx, d);
-      loopDate.setHours(0, 0, 0, 0);
-      const loopTs = loopDate.getTime();
-      let dayShift = u.allowed_shift;
-      for (let i = 0; i < myMonthSwaps.length; i++) {
-        const swap = myMonthSwaps[i];
-        const p = swap._p;
-        const swapTs = swapTimestamps[i];
-        if (swap.status === 'pending') {
-          if (loopTs >= swapTs && p.target_shift !== 'คงเดิม') {
-            dayShift = p.target_shift;
-          }
-        } else if (swap.status === 'completed') {
-          if (loopTs < swapTs) {
-            let orig = p.original_shift;
-            if (!orig) {
-              if (p.target_shift === 'กะดึก') orig = 'กะเช้า'; else if (p.target_shift === 'กะเช้า') orig = 'กะดึก'; else orig = 'กะกลาง';
-            }
-            dayShift = orig;
-          } else if (p.target_shift !== 'คงเดิม') {
-            dayShift = p.target_shift;
-          }
-        }
-      }
-      shiftTimeline[d] = dayShift;
-    }
+    const shiftTimeline = _timelineOf(u);
     let isThisUserShiftOpen = true;
     if (typeof checkBookingWindow === 'function') {
       isThisUserShiftOpen = checkBookingWindow(u.allowed_shift);
