@@ -110,6 +110,29 @@ window._leaveVerifyBooking = function(myId, uid, dateStr, reason) {
   return null;
 };
 
+window._leaveRefreshDay = async function(dateStr, uid) {
+  const day = d => String(d || '').split('T')[0].split(' ')[0];
+  const ym = String(dateStr).slice(0, 7);
+  const [y, m] = ym.split('-').map(Number);
+  const last = `${ym}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`;
+  const [dayRes, meRes] = await Promise.all([ appDB.from('leave_requests').select('*').eq('leave_date', dateStr).order('id', {
+    ascending: true
+  }), appDB.from('leave_requests').select('*').eq('user_id', uid).gte('leave_date', `${ym}-01`).lte('leave_date', last).order('id', {
+    ascending: true
+  }) ]);
+  if (dayRes.error) throw dayRes.error;
+  if (meRes.error) throw meRes.error;
+  const sid = String(uid);
+  const keep = allLeaveData.filter((l => day(l.leave_date) !== dateStr && !(String(l.user_id) === sid && day(l.leave_date).startsWith(ym))));
+  const seen = new Set(keep.map((l => String(l.id))));
+  [ ...dayRes.data || [], ...meRes.data || [] ].forEach((r => {
+    if (seen.has(String(r.id))) return;
+    seen.add(String(r.id));
+    keep.push(r);
+  }));
+  allLeaveData = keep;
+};
+
 window.toggleLeaveTable = async function(dateStr, action, targetUserId, targetUserName, targetUserShift) {
   const typeToSave = window.activeLeaveType || 'X';
   const _isSelf = typeof currentUser !== 'undefined' && currentUser && String(currentUser.id) === String(targetUserId);
@@ -166,7 +189,7 @@ window.toggleLeaveTable = async function(dateStr, action, targetUserId, targetUs
       } ]).select('id');
       if (error) throw error;
       const myId = insRows && insRows[0] && insRows[0].id;
-      await fetchLeaveData(true);
+      await window._leaveRefreshDay(dateStr, targetUserId);
       const verdict = window._leaveVerifyBooking(myId, targetUserId, dateStr, typeToSave);
       if (verdict) {
         if (myId != null) {
@@ -175,26 +198,31 @@ window.toggleLeaveTable = async function(dateStr, action, targetUserId, targetUs
             await fetchLeaveData();
             return Swal.fire('ยกเลิกรายการไม่สำเร็จ', `${verdict.text}\n\nแต่ระบบลบรายการให้ไม่ได้ (${undoErr.message}) กรุณากดยกเลิกเอง หรือแจ้งหัวหน้า`, 'error');
           }
+          allLeaveData = allLeaveData.filter((l => String(l.id) !== String(myId)));
         }
-        await fetchLeaveData();
+        renderLeaveTable();
         return Swal.fire({
           icon: 'warning',
           title: verdict.title,
           text: verdict.text
         });
       }
-      await logLeaveAction(`จอง [${typeToSave}]`, targetUserId, targetUserName, dateStr);
+      logLeaveAction(`จอง [${typeToSave}]`, targetUserId, targetUserName, dateStr);
     } else if (action === 'remove') {
       const {error: error} = await appDB.from('leave_requests').delete().eq('user_id', targetUserId).eq('leave_date', dateStr);
       if (error) throw error;
-      await logLeaveAction('ยกเลิก', targetUserId, targetUserName, dateStr);
+      const _day = d => String(d || '').split('T')[0].split(' ')[0];
+      allLeaveData = allLeaveData.filter((l => !(String(l.user_id) === String(targetUserId) && _day(l.leave_date) === dateStr)));
+      logLeaveAction('ยกเลิก', targetUserId, targetUserName, dateStr);
     }
-    await fetchLeaveData();
+    renderLeaveTable();
     Swal.fire({
+      toast: true,
+      position: 'top-end',
       icon: 'success',
       title: action === 'add' ? 'บันทึกสำเร็จ' : 'ลบสำเร็จ',
       showConfirmButton: false,
-      timer: 1e3
+      timer: 1200
     });
   } catch (error) {
     console.error('Toggle Leave Error:', error);
