@@ -509,7 +509,6 @@ function subscribeLeaveChanges() {
     schema: 'public',
     table: 'leave_requests'
   }, (payload => {
-    if (window.isEditingLeave) return;
     const leaveAppEl = document.getElementById('leaveApp');
     if (leaveAppEl && !leaveAppEl.classList.contains('hidden')) {
       let changedUserId = null;
