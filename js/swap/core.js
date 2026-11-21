@@ -20,6 +20,7 @@ window.openAutoSwapModal = async function() {
     fetchUsers();
   }
   await fetchPublicSwapSchedule();
+  if (!document.getElementById('swapPage') && !document.getElementById('tagsExcludeM')) return;
   const isGlobalAdmin = canPerm('swap_manage');
   const canManageSwap = isGlobalAdmin || typeof window.hasUserPerm === 'function' && window.hasUserPerm('swap_manage');
   if (canManageSwap) {
@@ -43,7 +44,9 @@ window.openAutoSwapModal = async function() {
 };
 
 window.updateSwapMonthLabel = function() {
-  const startDateVal = document.getElementById('swapStartDate').value;
+  const sd = document.getElementById('swapStartDate');
+  if (!sd) return;
+  const startDateVal = sd.value;
   if (startDateVal) {
     const d = new Date(startDateVal);
     const monthStr = d.toLocaleDateString('th-TH', {
@@ -60,7 +63,8 @@ window.clearExcludeStaff = function() {
   excludeNList = [];
   renderExcludeTags('กะเช้า');
   renderExcludeTags('กะดึก');
-  document.getElementById('swapPlanPreview').style.display = 'none';
+  const _pp = document.getElementById('swapPlanPreview');
+  if (_pp) _pp.style.display = 'none';
   const SHIFT_MAP_CHECK = {
     M_N: true,
     M_A: true,
@@ -130,7 +134,8 @@ window.addExcludeStaff = function(userId, shiftType) {
 
 window.removeExcludeStaff = function(userId, shiftType) {
   if (shiftType === 'กะเช้า') excludeMList = excludeMList.filter((u => u.id !== userId)); else excludeNList = excludeNList.filter((u => u.id !== userId));
-  document.getElementById('swapPlanPreview').style.display = 'none';
+  const _pp = document.getElementById('swapPlanPreview');
+  if (_pp) _pp.style.display = 'none';
   renderExcludeTags(shiftType);
 };
 
@@ -139,6 +144,7 @@ window.renderExcludeTags = function(shiftType) {
   const container = document.getElementById(containerId);
   const list = shiftType === 'กะเช้า' ? excludeMList : excludeNList;
   const colorClass = shiftType === 'กะเช้า' ? 'bg-orange-100 text-orange-800 border-orange-200' : 'bg-purple-100 text-purple-800 border-purple-200';
+  if (!container) return;
   if (list.length === 0) {
     container.innerHTML = `<span class="text-gray-400 text-[10px] italic w-full text-center py-2">ยังไม่มีรายชื่อ</span>`;
     return;
@@ -156,8 +162,8 @@ document.addEventListener('click', (function(event) {
   const nInput = document.getElementById('searchExcludeN');
   const mDrop = document.getElementById('dropdownExcludeM');
   const nDrop = document.getElementById('dropdownExcludeN');
-  if (mInput && !mInput.contains(event.target) && !mDrop.contains(event.target)) mDrop.classList.add('hidden');
-  if (nInput && !nInput.contains(event.target) && !nDrop.contains(event.target)) nDrop.classList.add('hidden');
+  if (mInput && mDrop && !mInput.contains(event.target) && !mDrop.contains(event.target)) mDrop.classList.add('hidden');
+  if (nInput && nDrop && !nInput.contains(event.target) && !nDrop.contains(event.target)) nDrop.classList.add('hidden');
 }));
 
 function swapTaskDateTH(ts) {

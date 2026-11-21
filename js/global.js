@@ -7,7 +7,7 @@ window._srvSyncedAt = 0;
 window.syncServerTime = async function(force) {
   try {
     if (!force && Date.now() - window._srvSyncedAt < 5 * 60 * 1e3) return;
-    const res = await fetch(DB_URL + '/rest/v1/', {
+    const res = await fetch(DB_URL + '/rest/v1/settings?select=key&limit=1', {
       method: 'HEAD',
       headers: {
         apikey: DB_KEY,
