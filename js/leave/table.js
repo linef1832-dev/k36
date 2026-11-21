@@ -73,81 +73,7 @@ window.renderLeaveTable = function() {
   if (typeof checkBookingWindow === 'function') checkBookingWindow();
   const allDeptUsers = window.leaveDeptUsers();
   const allDeptUserIds = new Set(allDeptUsers.map((u => String(u.id))));
-  const userShiftMapAll = {};
-  allDeptUsers.forEach((u => userShiftMapAll[String(u.id)] = u.allowed_shift || 'all'));
   const staffListToRender = allDeptUsers.filter((u => u.username.toLowerCase().includes(searchTerm) && (shiftFilter === 'all' || u.allowed_shift === shiftFilter))).sort(((a, b) => a.username.localeCompare(b.username)));
-  const bookedMap = new Map;
-  const personalCounts = {};
-  const shiftDailyCounts = {};
-  const seenLeave = new Set;
-  allLeaveData.forEach((l => {
-    const strUid = String(l.user_id);
-    if (!allDeptUserIds.has(strUid)) return;
-    const dupKey = strUid + '_' + String(l.leave_date || '').split('T')[0].split(' ')[0];
-    if (seenLeave.has(dupKey)) return;
-    seenLeave.add(dupKey);
-    const cleanDate = String(l.leave_date || '').split('T')[0].split(' ')[0];
-    const rsn = l.reason === 'Table-Booking' || !l.reason ? 'X' : l.reason;
-    bookedMap.set(`${strUid}_${cleanDate}`, rsn);
-    const uShift = userShiftMapAll[strUid];
-    const shiftKey = `${cleanDate}_${uShift}`;
-    if (!shiftDailyCounts[shiftKey]) shiftDailyCounts[shiftKey] = 0;
-    shiftDailyCounts[shiftKey]++;
-    const parts = cleanDate.split('-');
-    if (parts.length >= 3 && parseInt(parts[1], 10) === month + 1 && parseInt(parts[0], 10) === year) {
-      if (!personalCounts[strUid]) {
-        personalCounts[strUid] = {
-          total: 0,
-          details: {}
-        };
-      }
-      personalCounts[strUid].total++;
-      if (!personalCounts[strUid].details[rsn]) {
-        personalCounts[strUid].details[rsn] = 0;
-      }
-      personalCounts[strUid].details[rsn]++;
-    }
-  }));
-  let displayDeptText = currentViewDept;
-  if (currentViewDept === 'TRAINER') displayDeptText = 'ผู้สอน';
-  if (currentViewDept === 'SPECIAL') displayDeptText = 'พนักงานใหม่';
-  const totalByShift = {
-    'กะเช้า': 0,
-    'กะกลาง': 0,
-    'กะดึก': 0
-  };
-  allDeptUsers.forEach((u => {
-    if (totalByShift[u.allowed_shift] !== undefined) totalByShift[u.allowed_shift]++;
-  }));
-  let workingRowHtml = `<tr id="tableWorkingRow">\n        <th colspan="2" class="p-1.5 sticky left-0 z-30 bg-emerald-50 dark:bg-[#04251b] border-b border-r dark:border-slate-700 text-left pl-4 text-[10px] font-extrabold text-emerald-700 dark:text-emerald-400">\n            <span class="material-icons text-[12px] align-middle">groups</span> มาทำงาน (เหลือ/ทั้งหมด)\n        </th>\n    `;
-  let headerHtml = `\n        <th class="p-2 sticky left-0 z-30 bg-slate-50 dark:bg-slate-800 border-b border-r dark:border-slate-700 w-[40px] min-w-[40px] max-w-[40px] text-center">No.</th>\n        <th class="p-2 sticky left-[39px] z-30 bg-slate-50 dark:bg-slate-800 border-b border-r dark:border-slate-700 w-[140px] min-w-[140px] max-w-[140px] text-left pl-4">\n            รายชื่อ (${displayDeptText})\n        </th>\n    `;
-  for (let d = 1; d <= daysInMonth; d++) {
-    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-    const countM = shiftDailyCounts[`${dateStr}_กะเช้า`] || 0;
-    const countA = shiftDailyCounts[`${dateStr}_กะกลาง`] || 0;
-    const countN = shiftDailyCounts[`${dateStr}_กะดึก`] || 0;
-    const workM = Math.max(0, totalByShift['กะเช้า'] - countM);
-    const workA = Math.max(0, totalByShift['กะกลาง'] - countA);
-    const workN = Math.max(0, totalByShift['กะดึก'] - countN);
-    workingRowHtml += `<th data-col="${d - 1}" class="p-1 border-b border-r dark:border-slate-700 align-middle bg-emerald-50 dark:bg-[#0a1f1a] min-w-[75px]">\n            <div class="flex flex-col gap-0.5">\n                <div class="flex justify-between items-center">\n                    <span class="text-[9px] font-bold text-orange-500">เช้า</span>\n                    <span class="text-[10px] font-mono font-extrabold text-emerald-700 dark:text-emerald-300">${workM}/${totalByShift['กะเช้า']}</span>\n                </div>\n                <div class="flex justify-between items-center">\n                    <span class="text-[9px] font-bold text-blue-500">กลาง</span>\n                    <span class="text-[10px] font-mono font-extrabold text-emerald-700 dark:text-emerald-300">${workA}/${totalByShift['กะกลาง']}</span>\n                </div>\n                <div class="flex justify-between items-center">\n                    <span class="text-[9px] font-bold text-purple-400">ดึก</span>\n                    <span class="text-[10px] font-mono font-extrabold text-emerald-700 dark:text-emerald-300">${workN}/${totalByShift['กะดึก']}</span>\n                </div>\n            </div>\n        </th>`;
-    const isFullM = countM >= (s.quotaM || 0);
-    const isFullA = countA >= (s.quotaA || 0);
-    const isFullN = countN >= (s.quotaN || 0);
-    const textM = isFullM ? 'text-red-500 dark:text-red-400' : 'text-slate-700 dark:text-gray-200';
-    const textA = isFullA ? 'text-red-500 dark:text-red-400' : 'text-slate-700 dark:text-gray-200';
-    const textN = isFullN ? 'text-red-500 dark:text-red-400' : 'text-slate-700 dark:text-gray-200';
-    let bgClass = "bg-slate-50 dark:bg-slate-800";
-    let isLocked = false;
-    if (s.startDay && d < s.startDay) isLocked = true;
-    if (s.endDay && d > s.endDay) isLocked = true;
-    if (isLocked) bgClass = "locked-day-col bg-gray-200 dark:bg-[#0a1120]";
-    headerHtml += `<th data-col="${d - 1}" class="p-1.5 border-b border-r dark:border-slate-700 min-w-[75px] align-top ${bgClass}">\n            <div class="text-[14px] text-slate-800 dark:text-white font-extrabold text-center mb-1 pb-0.5 border-b border-gray-200 dark:border-slate-600">${d}</div>\n            <div class="flex flex-col gap-1">\n                <div class="flex justify-between items-center">\n                    <span class="text-[10px] font-bold text-orange-500">เช้า</span>\n                    <span class="text-[11px] font-mono font-bold ${textM}">${countM}/${s.quotaM || 0}</span>\n                </div>\n                <div class="flex justify-between items-center">\n                    <span class="text-[10px] font-bold text-blue-500">กลาง</span>\n                    <span class="text-[11px] font-mono font-bold ${textA}">${countA}/${s.quotaA || 0}</span>\n                </div>\n                <div class="flex justify-between items-center">\n                    <span class="text-[10px] font-bold text-purple-400">ดึก</span>\n                    <span class="text-[11px] font-mono font-bold ${textN}">${countN}/${s.quotaN || 0}</span>\n                </div>\n            </div>\n        </th>`;
-  }
-  workingRowHtml += `</tr>`;
-  const oldWorkingRow = document.getElementById('tableWorkingRow');
-  if (oldWorkingRow) oldWorkingRow.remove();
-  if (thead) thead.insertAdjacentHTML('beforebegin', workingRowHtml);
-  thead.innerHTML = headerHtml;
   const swapsByUserId = {};
   (allSwapData || []).forEach((t => {
     let p = t.payload;
@@ -214,7 +140,7 @@ window.renderLeaveTable = function() {
   };
   const _shRank = sh => sh === 'กะดึก' ? 0 : sh === 'กะเช้า' ? 1 : sh === 'กะกลาง' ? 2 : 3;
   const _sortInfo = {};
-  staffListToRender.forEach((u => {
+  allDeptUsers.forEach((u => {
     const tl = _timelineOf(u);
     const first = tl[1];
     let stay = daysInMonth;
@@ -227,10 +153,106 @@ window.renderLeaveTable = function() {
       stay: stay
     };
   }));
-  staffListToRender.sort(((a, b) => {
-    const x = _sortInfo[String(a.id)], y = _sortInfo[String(b.id)];
+  const _leaveCmp = (a, b) => {
+    const x = _sortInfo[String(a.id)] || {
+      rank: 9,
+      stay: 0
+    }, y = _sortInfo[String(b.id)] || {
+      rank: 9,
+      stay: 0
+    };
     return x.rank - y.rank || y.stay - x.stay || a.username.localeCompare(b.username);
+  };
+  staffListToRender.sort(_leaveCmp);
+  window._leaveSortCmp = _leaveCmp;
+  window._leaveSortKey = `${currentViewDept}|${year}-${String(month + 1).padStart(2, '0')}-`;
+  const _monthKey = `${year}-${String(month + 1).padStart(2, '0')}-`;
+  const _shiftOnDate = (uid, dateStr) => {
+    const u = allDeptUsers.find((x => String(x.id) === String(uid)));
+    if (!u) return 'all';
+    if (!String(dateStr).startsWith(_monthKey)) return u.allowed_shift || 'all';
+    const tl = _timelineOf(u);
+    return tl[parseInt(String(dateStr).slice(8, 10), 10)] || u.allowed_shift || 'all';
+  };
+  window._leaveShiftOnDate = _shiftOnDate;
+  window._leaveShiftOnDateDept = currentViewDept;
+  const bookedMap = new Map;
+  const personalCounts = {};
+  const shiftDailyCounts = {};
+  const seenLeave = new Set;
+  allLeaveData.forEach((l => {
+    const strUid = String(l.user_id);
+    if (!allDeptUserIds.has(strUid)) return;
+    const dupKey = strUid + '_' + String(l.leave_date || '').split('T')[0].split(' ')[0];
+    if (seenLeave.has(dupKey)) return;
+    seenLeave.add(dupKey);
+    const cleanDate = String(l.leave_date || '').split('T')[0].split(' ')[0];
+    const rsn = l.reason === 'Table-Booking' || !l.reason ? 'X' : l.reason;
+    bookedMap.set(`${strUid}_${cleanDate}`, rsn);
+    const uShift = _shiftOnDate(strUid, cleanDate);
+    const shiftKey = `${cleanDate}_${uShift}`;
+    if (!shiftDailyCounts[shiftKey]) shiftDailyCounts[shiftKey] = 0;
+    shiftDailyCounts[shiftKey]++;
+    const parts = cleanDate.split('-');
+    if (parts.length >= 3 && parseInt(parts[1], 10) === month + 1 && parseInt(parts[0], 10) === year) {
+      if (!personalCounts[strUid]) {
+        personalCounts[strUid] = {
+          total: 0,
+          details: {}
+        };
+      }
+      personalCounts[strUid].total++;
+      if (!personalCounts[strUid].details[rsn]) {
+        personalCounts[strUid].details[rsn] = 0;
+      }
+      personalCounts[strUid].details[rsn]++;
+    }
   }));
+  let displayDeptText = currentViewDept;
+  if (currentViewDept === 'TRAINER') displayDeptText = 'ผู้สอน';
+  if (currentViewDept === 'SPECIAL') displayDeptText = 'พนักงานใหม่';
+  const totalByShiftDay = {};
+  for (let d = 1; d <= daysInMonth; d++) {
+    const t = totalByShiftDay[d] = {
+      'กะเช้า': 0,
+      'กะกลาง': 0,
+      'กะดึก': 0
+    };
+    allDeptUsers.forEach((u => {
+      const sh = _timelineOf(u)[d];
+      if (t[sh] !== undefined) t[sh]++;
+    }));
+  }
+  let workingRowHtml = `<tr id="tableWorkingRow">\n        <th colspan="2" class="p-1.5 sticky left-0 z-30 bg-emerald-50 dark:bg-[#04251b] border-b border-r dark:border-slate-700 text-left pl-4 text-[10px] font-extrabold text-emerald-700 dark:text-emerald-400">\n            <span class="material-icons text-[12px] align-middle">groups</span> มาทำงาน (เหลือ/ทั้งหมด)\n        </th>\n    `;
+  let headerHtml = `\n        <th class="p-2 sticky left-0 z-30 bg-slate-50 dark:bg-slate-800 border-b border-r dark:border-slate-700 w-[40px] min-w-[40px] max-w-[40px] text-center">No.</th>\n        <th class="p-2 sticky left-[39px] z-30 bg-slate-50 dark:bg-slate-800 border-b border-r dark:border-slate-700 w-[140px] min-w-[140px] max-w-[140px] text-left pl-4">\n            รายชื่อ (${displayDeptText})\n        </th>\n    `;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const countM = shiftDailyCounts[`${dateStr}_กะเช้า`] || 0;
+    const countA = shiftDailyCounts[`${dateStr}_กะกลาง`] || 0;
+    const countN = shiftDailyCounts[`${dateStr}_กะดึก`] || 0;
+    const totalByShift = totalByShiftDay[d];
+    const workM = Math.max(0, totalByShift['กะเช้า'] - countM);
+    const workA = Math.max(0, totalByShift['กะกลาง'] - countA);
+    const workN = Math.max(0, totalByShift['กะดึก'] - countN);
+    workingRowHtml += `<th data-col="${d - 1}" class="p-1 border-b border-r dark:border-slate-700 align-middle bg-emerald-50 dark:bg-[#0a1f1a] min-w-[75px]">\n            <div class="flex flex-col gap-0.5">\n                <div class="flex justify-between items-center">\n                    <span class="text-[9px] font-bold text-orange-500">เช้า</span>\n                    <span class="text-[10px] font-mono font-extrabold text-emerald-700 dark:text-emerald-300">${workM}/${totalByShift['กะเช้า']}</span>\n                </div>\n                <div class="flex justify-between items-center">\n                    <span class="text-[9px] font-bold text-blue-500">กลาง</span>\n                    <span class="text-[10px] font-mono font-extrabold text-emerald-700 dark:text-emerald-300">${workA}/${totalByShift['กะกลาง']}</span>\n                </div>\n                <div class="flex justify-between items-center">\n                    <span class="text-[9px] font-bold text-purple-400">ดึก</span>\n                    <span class="text-[10px] font-mono font-extrabold text-emerald-700 dark:text-emerald-300">${workN}/${totalByShift['กะดึก']}</span>\n                </div>\n            </div>\n        </th>`;
+    const isFullM = countM >= (s.quotaM || 0);
+    const isFullA = countA >= (s.quotaA || 0);
+    const isFullN = countN >= (s.quotaN || 0);
+    const textM = isFullM ? 'text-red-500 dark:text-red-400' : 'text-slate-700 dark:text-gray-200';
+    const textA = isFullA ? 'text-red-500 dark:text-red-400' : 'text-slate-700 dark:text-gray-200';
+    const textN = isFullN ? 'text-red-500 dark:text-red-400' : 'text-slate-700 dark:text-gray-200';
+    let bgClass = "bg-slate-50 dark:bg-slate-800";
+    let isLocked = false;
+    if (s.startDay && d < s.startDay) isLocked = true;
+    if (s.endDay && d > s.endDay) isLocked = true;
+    if (isLocked) bgClass = "locked-day-col bg-gray-200 dark:bg-[#0a1120]";
+    headerHtml += `<th data-col="${d - 1}" class="p-1.5 border-b border-r dark:border-slate-700 min-w-[75px] align-top ${bgClass}">\n            <div class="text-[14px] text-slate-800 dark:text-white font-extrabold text-center mb-1 pb-0.5 border-b border-gray-200 dark:border-slate-600">${d}</div>\n            <div class="flex flex-col gap-1">\n                <div class="flex justify-between items-center">\n                    <span class="text-[10px] font-bold text-orange-500">เช้า</span>\n                    <span class="text-[11px] font-mono font-bold ${textM}">${countM}/${s.quotaM || 0}</span>\n                </div>\n                <div class="flex justify-between items-center">\n                    <span class="text-[10px] font-bold text-blue-500">กลาง</span>\n                    <span class="text-[11px] font-mono font-bold ${textA}">${countA}/${s.quotaA || 0}</span>\n                </div>\n                <div class="flex justify-between items-center">\n                    <span class="text-[10px] font-bold text-purple-400">ดึก</span>\n                    <span class="text-[11px] font-mono font-bold ${textN}">${countN}/${s.quotaN || 0}</span>\n                </div>\n            </div>\n        </th>`;
+  }
+  workingRowHtml += `</tr>`;
+  const oldWorkingRow = document.getElementById('tableWorkingRow');
+  if (oldWorkingRow) oldWorkingRow.remove();
+  if (thead) thead.insertAdjacentHTML('beforebegin', workingRowHtml);
+  thead.innerHTML = headerHtml;
   let bodyHtml = '';
   staffListToRender.forEach(((u, index) => {
     const isMe = String(u.id) === String(currentUser.id);
@@ -286,9 +308,11 @@ window.renderLeaveTable = function() {
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       const leaveReason = bookedMap.get(`${strUid}_${dateStr}`);
       const isBooked = !!leaveReason;
-      const shiftCountKey = `${dateStr}_${u.allowed_shift}`;
+      const dayShiftQ = shiftTimeline[d] || u.allowed_shift;
+      const dayQuota = dayShiftQ === 'กะเช้า' ? s.quotaM : dayShiftQ === 'กะกลาง' ? s.quotaA : dayShiftQ === 'กะดึก' ? s.quotaN : targetQuota;
+      const shiftCountKey = `${dateStr}_${dayShiftQ}`;
       const currentShiftCount = shiftDailyCounts[shiftCountKey] || 0;
-      const isShiftFull = currentShiftCount >= targetQuota;
+      const isShiftFull = currentShiftCount >= (dayQuota || 0);
       let isDateLocked = false;
       if (s.startDay && d < s.startDay) isDateLocked = true;
       if (s.endDay && d > s.endDay) isDateLocked = true;
@@ -310,7 +334,7 @@ window.renderLeaveTable = function() {
         if (isBooked) {
           let badgeStyle = getLeaveBadgeStyle(leaveReason, baseDeptColor);
           cellClass = `cursor-not-allowed opacity-70 ${badgeStyle}`;
-          cellContent = `<div class="flex items-center justify-center w-full h-full text-white text-[12px] font-bold">${leaveReason}</div>`;
+          cellContent = `<div class="flex items-center justify-center w-full h-full text-white text-[12px] font-bold">${window.escapeHtml(leaveReason)}</div>`;
         } else {
           cellClass = `${shiftBgColor} cursor-not-allowed opacity-40`;
           cellContent = `<div class="flex items-center justify-center w-full h-full"><span class="material-icons text-gray-400 dark:text-slate-500 text-xs">lock</span></div>`;
@@ -319,7 +343,7 @@ window.renderLeaveTable = function() {
         if (isBooked) {
           let badgeStyle = getLeaveBadgeStyle(leaveReason, baseDeptColor);
           cellClass = `cursor-pointer hover:opacity-90 transition-opacity duration-300 ${badgeStyle}`;
-          cellContent = `<div class="flex items-center justify-center w-full h-full text-white text-[12px] font-bold animate-fade-in">${leaveReason}</div>`;
+          cellContent = `<div class="flex items-center justify-center w-full h-full text-white text-[12px] font-bold animate-fade-in">${window.escapeHtml(leaveReason)}</div>`;
         } else {
           cellContent = '';
         }
@@ -343,7 +367,7 @@ window.renderLeaveTable = function() {
               clickAttr = `onclick="Swal.fire({icon:'warning', title:'ครบโควตา', text:'คุณใช้สิทธิ์ครบ ${s.limit} วันแล้ว', timer:1500, showConfirmButton:false})"`;
             }
           } else if (isMe) {
-            clickAttr = targetQuota ? `onclick="Swal.fire({icon:'warning', title:'วันนี้เต็มแล้ว', text:'กะของคุณมีคนหยุดครบ ${targetQuota} คนแล้ว', timer:1800, showConfirmButton:false})"` : `onclick="Swal.fire({icon:'info', title:'ยังไม่เปิดโควตา', text:'กะของคุณยังไม่ได้ตั้งจำนวนคนหยุดต่อวัน', timer:1800, showConfirmButton:false})"`;
+            clickAttr = dayQuota ? `onclick="Swal.fire({icon:'warning', title:'วันนี้เต็มแล้ว', text:'กะของคุณวันนี้มีคนหยุดครบ ${dayQuota} คนแล้ว', timer:1800, showConfirmButton:false})"` : `onclick="Swal.fire({icon:'info', title:'ยังไม่เปิดโควตา', text:'กะของคุณยังไม่ได้ตั้งจำนวนคนหยุดต่อวัน', timer:1800, showConfirmButton:false})"`;
           }
         }
       }

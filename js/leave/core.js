@@ -384,7 +384,11 @@ async function loadLeaveSettings(skipRender = false) {
       deptSettings[dept].endDay = parseInt(getDbValue('lock_end', '')) || '';
     }));
     const specialGrpRow = data.find((d => d.key === 'leave_special_users'));
-    window.specialGroupUserIds = specialGrpRow && specialGrpRow.value ? JSON.parse(specialGrpRow.value) : [];
+    try {
+      window.specialGroupUserIds = specialGrpRow && specialGrpRow.value ? (JSON.parse(specialGrpRow.value) || []).map(String) : [];
+    } catch (e) {
+      window.specialGroupUserIds = [];
+    }
   }
   if (!skipRender) {
     updateAdminInputs();
@@ -467,6 +471,7 @@ window.checkBookingWindow = function(targetShift) {
 };
 
 async function fetchLeaveData(skipRender = false) {
+  const reqId = window._leaveFetchSeq = (window._leaveFetchSeq || 0) + 1;
   const year = currentCalendarDate.getFullYear();
   const month = currentCalendarDate.getMonth() + 1;
   const daysInMonth = new Date(year, month, 0).getDate();
@@ -479,6 +484,7 @@ async function fetchLeaveData(skipRender = false) {
   }))), window.selectAllRows((() => appDB.from('scheduled_tasks').select('*').eq('task_type', 'individual_shift_update').gte('scheduled_for', fetchStart).lte('scheduled_for', fetchEnd).order('id', {
     ascending: true
   }))) ]);
+  if (reqId !== window._leaveFetchSeq) return;
   if (leaveRes && leaveRes.data) allLeaveData = leaveRes.data;
   allSwapData = swapRes && swapRes.data ? swapRes.data : [];
   if (!skipRender) renderLeaveTable();

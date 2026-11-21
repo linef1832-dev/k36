@@ -77,9 +77,14 @@ window._leaveVerifyBooking = function(myId, uid, dateStr, reason) {
   const users = window.leaveDeptUsers();
   const me = users.find((u => String(u.id) === sid));
   if (!me) return null;
-  const quota = me.allowed_shift === 'กะเช้า' ? s.quotaM : me.allowed_shift === 'กะกลาง' ? s.quotaA : me.allowed_shift === 'กะดึก' ? s.quotaN : 0;
+  const shOn = typeof window._leaveShiftOnDate === 'function' && window._leaveShiftOnDateDept === currentViewDept ? window._leaveShiftOnDate : ((id, ds) => {
+    const u = users.find((x => String(x.id) === String(id)));
+    return u ? u.allowed_shift : '';
+  });
+  const myShift = shOn(sid, dateStr) || me.allowed_shift;
+  const quota = myShift === 'กะเช้า' ? s.quotaM : myShift === 'กะกลาง' ? s.quotaA : myShift === 'กะดึก' ? s.quotaN : 0;
   if (quota > 0) {
-    const sameShift = new Set(users.filter((u => u.allowed_shift === me.allowed_shift)).map((u => String(u.id))));
+    const sameShift = new Set(users.filter((u => shOn(u.id, dateStr) === myShift)).map((u => String(u.id))));
     const seen = new Set;
     const dayRows = allLeaveData.filter((l => day(l.leave_date) === dateStr && sameShift.has(String(l.user_id)))).sort(((a, b) => Number(a.id) - Number(b.id))).filter((l => {
       const k = String(l.user_id);
@@ -232,8 +237,14 @@ window.executeSaveSettings = async function() {
         text: `กะ${badPair[2]}: เวลาปิดจองต้องอยู่หลังเวลาเปิดจอง กรุณาตรวจวันที่อีกครั้ง`
       });
     }
-    if (typeof deptSettings !== 'undefined') {
-      deptSettings[dept] = {
+    if (sDay && eDay && parseInt(sDay) > parseInt(eDay)) {
+      return Swal.fire({
+        icon: 'warning',
+        title: 'ช่วงวันที่เปิดให้จองไม่ถูกต้อง',
+        text: `วันเริ่ม (${sDay}) อยู่หลังวันสิ้นสุด (${eDay}) ถ้าบันทึกไป ทุกวันจะถูกล็อก`
+      });
+    }
+    const newLocal = {
         quota: parseInt(q),
         limit: parseInt(p),
         startM: sM,
@@ -250,7 +261,6 @@ window.executeSaveSettings = async function() {
         startDay: parseInt(sDay),
         endDay: parseInt(eDay)
       };
-    }
     const updates = [ {
       key: `${dept}_quota`,
       value: String(q)
@@ -315,6 +325,7 @@ window.executeSaveSettings = async function() {
       }));
       if (mism.length) throw new Error('ฐานข้อมูลไม่ยอมบันทึกบางค่า (อาจไม่มีสิทธิ์แก้ตั้งค่า): ' + mism.map((m => m.key)).join(', '));
     }
+    if (typeof deptSettings !== 'undefined') deptSettings[dept] = newLocal;
     if (typeof window.leaveMarkDirty === 'function') window.leaveMarkDirty(false); else window._leaveSettingsDirty = false;
     (typeof settingsSubscription !== 'undefined' && settingsSubscription ? settingsSubscription : appDB.channel('settings-updates')).send({
       type: 'broadcast',
@@ -359,7 +370,8 @@ window.exportLeaveToExcel = async function() {
       const daysInMonth = new Date(year, month + 1, 0).getDate();
       const monthNamesThai = [ "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม" ];
       const monthName = `${monthNamesThai[month]} ${year}`;
-      const staffList = window.leaveDeptUsers().slice().sort(((a, b) => a.username.localeCompare(b.username)));
+      const _ym = `${year}-${String(month + 1).padStart(2, '0')}-`;
+      const staffList = window.leaveDeptUsers().slice().sort(typeof window._leaveSortCmp === 'function' && window._leaveSortKey === `${currentViewDept}|${_ym}` ? window._leaveSortCmp : ((a, b) => a.username.localeCompare(b.username)));
       if (staffList.length === 0) {
         Swal.close();
         return Swal.fire('ไม่มีข้อมูล', `ไม่มีรายชื่อพนักงานในแผนก ${currentViewDept}`, 'warning');
@@ -649,7 +661,7 @@ window.fetchHistoryLogs = async function() {
     if (log.action_type.includes('จอง')) {
       let leaveType = log.action_type.replace('จอง [', '').replace(']', '').trim();
       if (!leaveType || leaveType === 'จอง') leaveType = 'X';
-      actionBadge = `<div class="flex items-center gap-1.5"><span class="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50 px-2 py-1 rounded-md text-[11px] font-black flex items-center gap-1 shadow-sm"><span class="material-icons text-[14px]">event_available</span> จอง</span><span class="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-gray-200 border border-slate-300 dark:border-slate-600 px-2 py-1 rounded-md text-[10px] font-bold shadow-sm">${leaveType}</span></div>`;
+      actionBadge = `<div class="flex items-center gap-1.5"><span class="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50 px-2 py-1 rounded-md text-[11px] font-black flex items-center gap-1 shadow-sm"><span class="material-icons text-[14px]">event_available</span> จอง</span><span class="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-gray-200 border border-slate-300 dark:border-slate-600 px-2 py-1 rounded-md text-[10px] font-bold shadow-sm">${window.escapeHtml(leaveType)}</span></div>`;
     } else {
       rowClass = 'bg-red-50/40 dark:bg-red-900/10 hover:bg-red-50 dark:hover:bg-red-900/20 transition duration-200';
       actionBadge = `<div class="flex items-center gap-1.5"><span class="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/50 px-2 py-1 rounded-md text-[11px] font-black flex items-center gap-1 shadow-sm"><span class="material-icons text-[14px]">event_busy</span> ยกเลิก</span></div>`;
@@ -674,6 +686,14 @@ window.toggleLeaveStatus = async function(isChecked) {
       key: `${_saveDept}_is_open`,
       value: statusValue
     } ];
+    if (_saveDept === 'AM') upsertRows.push({
+      key: 'AMQL_is_open',
+      value: statusValue
+    });
+    if (_saveDept === 'OD') upsertRows.push({
+      key: 'ODQL_is_open',
+      value: statusValue
+    });
     const {error: error} = await appDB.from('settings').upsert(upsertRows);
     if (error) throw error;
     if (deptSettings[_saveDept]) deptSettings[_saveDept].isOpen = isChecked;
