@@ -344,12 +344,29 @@ window.initLeaveTable = async function() {
   if (window.leaveCheckInterval) {
     clearInterval(window.leaveCheckInterval);
   }
+  window._leaveOpenSig = window._leaveOpenSigNow();
   window.leaveCheckInterval = setInterval((() => {
     const leaveAppEl = document.getElementById('leaveApp');
     if (!leaveAppEl || leaveAppEl.classList.contains('hidden')) return;
     checkBookingWindow();
+    const sig = window._leaveOpenSigNow();
+    if (sig !== window._leaveOpenSig) {
+      window._leaveOpenSig = sig;
+      if (!window.isEditingLeave) renderLeaveTable();
+    }
   }), 5e3);
   if (typeof window.registerPageInterval === 'function') window.registerPageInterval(window.leaveCheckInterval);
+  window._leaveEnsureBc();
+  if (window.leaveSyncInterval) clearInterval(window.leaveSyncInterval);
+  window._leaveSyncTick = 0;
+  window.leaveSyncInterval = setInterval((() => {
+    const leaveAppEl = document.getElementById('leaveApp');
+    if (!leaveAppEl || leaveAppEl.classList.contains('hidden') || document.hidden) return;
+    window._leaveSyncTick++;
+    window._leaveSoftRefresh();
+    if (window._leaveSyncTick % 2 === 0) window._leaveSoftSettings();
+  }), 15e3);
+  if (typeof window.registerPageInterval === 'function') window.registerPageInterval(window.leaveSyncInterval);
 };
 
 async function loadLeaveSettings(skipRender = false) {
@@ -502,15 +519,156 @@ if (!window._leaveVisBound) {
   }));
 }
 
+window._leaveOpenSigNow = function() {
+  try {
+    return [ 'เช้า', 'กลาง', 'ดึก' ].map((x => checkBookingWindow(x) ? 1 : 0)).join('') + '|' + currentViewDept;
+  } catch (e) {
+    return '';
+  }
+};
+
+window._leavePageOn = function() {
+  const el = document.getElementById('leaveApp');
+  return !!(el && !el.classList.contains('hidden'));
+};
+
+window._leaveSoftRefresh = async function() {
+  if (!window._leavePageOn() || window.isEditingLeave) return;
+  if (window._leaveSoftBusy) {
+    window._leaveSoftAgain = true;
+    return;
+  }
+  window._leaveSoftBusy = true;
+  try {
+    const year = currentCalendarDate.getFullYear();
+    const month = currentCalendarDate.getMonth() + 1;
+    const ym = `${year}-${String(month).padStart(2, '0')}`;
+    const last = `${ym}-${String(new Date(year, month, 0).getDate()).padStart(2, '0')}`;
+    const seq = window._leaveFetchSeq || 0;
+    const rev = window._leaveLocalRev || 0;
+    const res = await window.selectAllRows((() => appDB.from('leave_requests').select('*').gte('leave_date', `${ym}-01`).lte('leave_date', last).order('id', {
+      ascending: true
+    })));
+    if (!res || !res.data || res.error) return;
+    if (seq !== (window._leaveFetchSeq || 0) || rev !== (window._leaveLocalRev || 0) || window.isEditingLeave) return;
+    if (!window._leavePageOn()) return;
+    const cur = currentCalendarDate.getFullYear() + '-' + String(currentCalendarDate.getMonth() + 1).padStart(2, '0');
+    if (cur !== ym) return;
+    const sig = rows => rows.map((r => `${r.id}:${r.user_id}:${String(r.leave_date).slice(0, 10)}:${r.reason}`)).sort().join('|');
+    if (sig(res.data) === sig(allLeaveData || [])) return;
+    allLeaveData = res.data;
+    renderLeaveTable();
+    flashRealtimeDot();
+  } catch (e) {} finally {
+    window._leaveSoftBusy = false;
+    if (window._leaveSoftAgain) {
+      window._leaveSoftAgain = false;
+      setTimeout((() => window._leaveSoftRefresh()), 300);
+    }
+  }
+};
+
+window._leaveSoftSettings = async function() {
+  if (!window._leavePageOn()) return;
+  try {
+    const before = JSON.stringify(deptSettings) + JSON.stringify(window.specialGroupUserIds || []);
+    await loadLeaveSettings(true);
+    if (!window._leavePageOn()) return;
+    const after = JSON.stringify(deptSettings) + JSON.stringify(window.specialGroupUserIds || []);
+    if (before === after) return;
+    if (!window._leaveSettingsDirty && typeof updateAdminInputs === 'function') updateAdminInputs();
+    renderLeaveTable();
+    checkBookingWindow();
+    window._leaveOpenSig = window._leaveOpenSigNow();
+    flashRealtimeDot();
+  } catch (e) {}
+};
+
+window._leaveEnsureBc = function() {
+  try {
+    const ch = window._leaveBc;
+    if (ch && (ch.state === 'joined' || ch.state === 'joining')) return ch;
+    if (ch) {
+      try {
+        appDB.removeChannel(ch);
+      } catch (e) {}
+    }
+    const nch = appDB.channel('leave-bc-v2', {
+      config: {
+        broadcast: {
+          self: false
+        }
+      }
+    });
+    nch.on('broadcast', {
+      event: 'leave_changed'
+    }, (() => {
+      clearTimeout(window._leaveBcT);
+      window._leaveBcT = setTimeout((() => {
+        if (Date.now() - (window._leaveRtLastTs || 0) < 1500) return;
+        window._leaveSoftRefresh();
+      }), 700);
+    })).on('broadcast', {
+      event: 'settings_changed'
+    }, (() => {
+      clearTimeout(window._leaveBcST);
+      window._leaveBcST = setTimeout((() => window._leaveSoftSettings()), 250);
+    })).subscribe((status => {
+      if (status === 'SUBSCRIBED') {
+        if (window._leaveBcDropped) {
+          window._leaveBcDropped = false;
+          window._leaveSoftRefresh();
+          window._leaveSoftSettings();
+        }
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        window._leaveBcDropped = true;
+      }
+    }));
+    window._leaveBc = nch;
+    return nch;
+  } catch (e) {
+    return null;
+  }
+};
+
+window.leaveNotify = function(event) {
+  try {
+    const ch = window._leaveEnsureBc();
+    if (ch) ch.send({
+      type: 'broadcast',
+      event: event || 'leave_changed',
+      payload: {}
+    });
+  } catch (e) {}
+};
+
+if (!window._leaveVisSyncBound) {
+  window._leaveVisSyncBound = true;
+  document.addEventListener('visibilitychange', (() => {
+    if (document.hidden || !window._leavePageOn()) return;
+    window._leaveEnsureBc();
+    window._leaveSoftRefresh();
+    window._leaveSoftSettings();
+  }));
+  window.addEventListener('online', (() => {
+    if (!window._leavePageOn()) return;
+    window._leaveEnsureBc();
+    window._leaveSoftRefresh();
+    window._leaveSoftSettings();
+  }));
+}
+
 function subscribeLeaveChanges() {
   if (leaveSubscription) appDB.removeChannel(leaveSubscription);
-  leaveSubscription = appDB.channel('leave-updates').on('postgres_changes', {
+  leaveSubscription = appDB.channel('leave-updates-' + Date.now().toString(36)).on('postgres_changes', {
     event: '*',
     schema: 'public',
     table: 'leave_requests'
   }, (payload => {
     const leaveAppEl = document.getElementById('leaveApp');
     if (leaveAppEl && !leaveAppEl.classList.contains('hidden')) {
+      window._leaveLocalRev = (window._leaveLocalRev || 0) + 1;
+      window._leaveRtLastTs = Date.now();
       let changedUserId = null;
       if (payload.eventType === 'INSERT') {
         if (allLeaveData.some((l => String(l.id) === String(payload.new.id)))) return;
@@ -546,13 +704,22 @@ function subscribeLeaveChanges() {
         }), 150);
       }
     }
-  })).subscribe();
+  })).subscribe((status => {
+    if (status === 'SUBSCRIBED') {
+      if (window._leaveRtDropped) {
+        window._leaveRtDropped = false;
+        window._leaveSoftRefresh();
+      }
+    } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+      window._leaveRtDropped = true;
+    }
+  }));
   if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(leaveSubscription);
 }
 
 function subscribeSettingsChanges() {
   if (settingsSubscription) appDB.removeChannel(settingsSubscription);
-  settingsSubscription = appDB.channel('settings-updates').on('broadcast', {
+  settingsSubscription = appDB.channel('settings-updates-' + Date.now().toString(36)).on('broadcast', {
     event: 'force_leave_reload'
   }, (async () => {
     const leaveAppEl = document.getElementById('leaveApp');

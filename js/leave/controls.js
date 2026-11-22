@@ -173,6 +173,7 @@ window.toggleLeaveTable = async function(dateStr, action, targetUserId, targetUs
     if (!result.isConfirmed) return;
   }
   window.isEditingLeave = true;
+  window._leaveLocalRev = (window._leaveLocalRev || 0) + 1;
   Swal.fire({
     title: 'กำลังบันทึก...',
     allowOutsideClick: false,
@@ -200,6 +201,8 @@ window.toggleLeaveTable = async function(dateStr, action, targetUserId, targetUs
           }
           allLeaveData = allLeaveData.filter((l => String(l.id) !== String(myId)));
         }
+        window._leaveLocalRev = (window._leaveLocalRev || 0) + 1;
+        if (typeof window.leaveNotify === 'function') window.leaveNotify('leave_changed');
         renderLeaveTable();
         return Swal.fire({
           icon: 'warning',
@@ -215,6 +218,8 @@ window.toggleLeaveTable = async function(dateStr, action, targetUserId, targetUs
       allLeaveData = allLeaveData.filter((l => !(String(l.user_id) === String(targetUserId) && _day(l.leave_date) === dateStr)));
       logLeaveAction('ยกเลิก', targetUserId, targetUserName, dateStr);
     }
+    window._leaveLocalRev = (window._leaveLocalRev || 0) + 1;
+    if (typeof window.leaveNotify === 'function') window.leaveNotify('leave_changed');
     renderLeaveTable();
     Swal.fire({
       toast: true,
@@ -355,10 +360,7 @@ window.executeSaveSettings = async function() {
     }
     if (typeof deptSettings !== 'undefined') deptSettings[dept] = newLocal;
     if (typeof window.leaveMarkDirty === 'function') window.leaveMarkDirty(false); else window._leaveSettingsDirty = false;
-    (typeof settingsSubscription !== 'undefined' && settingsSubscription ? settingsSubscription : appDB.channel('settings-updates')).send({
-      type: 'broadcast',
-      event: 'force_leave_reload'
-    });
+    if (typeof window.leaveNotify === 'function') window.leaveNotify('settings_changed');
     if (viewMonth && typeof currentCalendarDate !== 'undefined') {
       const [y, m] = viewMonth.split('-');
       currentCalendarDate = new Date(parseInt(y), parseInt(m) - 1, 1);
@@ -726,6 +728,12 @@ window.toggleLeaveStatus = async function(isChecked) {
     if (error) throw error;
     if (deptSettings[_saveDept]) deptSettings[_saveDept].isOpen = isChecked;
     if (deptSettings[currentViewDept]) deptSettings[currentViewDept].isOpen = isChecked;
+    if (_saveDept === 'AM' && deptSettings.AMQL) deptSettings.AMQL.isOpen = isChecked;
+    if (_saveDept === 'OD' && deptSettings.ODQL) deptSettings.ODQL.isOpen = isChecked;
+    if (typeof checkBookingWindow === 'function') checkBookingWindow();
+    if (typeof renderLeaveTable === 'function') renderLeaveTable();
+    if (typeof window._leaveOpenSigNow === 'function') window._leaveOpenSig = window._leaveOpenSigNow();
+    if (typeof window.leaveNotify === 'function') window.leaveNotify('settings_changed');
     Swal.fire({
       icon: 'success',
       title: 'บันทึกสำเร็จ!',
