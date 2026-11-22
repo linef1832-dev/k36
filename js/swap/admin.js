@@ -463,8 +463,11 @@ window.changeSavedSwapToStay = async function(taskId) {
     p = typeof task.payload === 'string' ? JSON.parse(task.payload) : task.payload || {};
   } catch (e) {}
   const targetShift = p.target_shift;
-  const originalShift = targetShift === 'กะดึก' ? 'กะเช้า' : 'กะดึก';
-  const newDesc = originalShift === 'กะเช้า' ? 'อยู่กะเช้าตามเดิม' : 'อยู่กะดึกตามเดิม';
+  const _stayUser = typeof GLOBAL_USER_LIST !== 'undefined' ? GLOBAL_USER_LIST.find((u => String(u.id) === String(p.user_id))) : null;
+  const _realShift = _stayUser && [ 'กะเช้า', 'กะกลาง', 'กะดึก' ].includes(_stayUser.allowed_shift) ? _stayUser.allowed_shift : '';
+  const _fromShift = [ 'กะเช้า', 'กะกลาง', 'กะดึก' ].includes(p.from_shift) ? p.from_shift : '';
+  const originalShift = _realShift || _fromShift || (targetShift === 'กะดึก' ? 'กะเช้า' : 'กะดึก');
+  const newDesc = `อยู่${originalShift}ตามเดิม`;
   const confirm = await Swal.fire({
     title: 'ยกเลิกการสลับกะ?',
     text: `${p.user_name} จะอยู่${originalShift}ตามเดิม ไม่สลับในรอบนี้`,
