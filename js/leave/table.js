@@ -108,7 +108,7 @@ window.renderLeaveTable = function() {
     }));
     const shiftTimeline = {};
     const monthIdx = currentCalendarDate.getMonth();
-    for (let d = 1; d <= daysInMonth; d++) {
+    for (let d = 0; d <= daysInMonth; d++) {
       const loopDate = new Date(year, monthIdx, d);
       loopDate.setHours(0, 0, 0, 0);
       const loopTs = loopDate.getTime();
@@ -142,9 +142,9 @@ window.renderLeaveTable = function() {
   const _sortInfo = {};
   allDeptUsers.forEach((u => {
     const tl = _timelineOf(u);
-    const first = tl[1];
+    const first = tl[0];
     let stay = daysInMonth;
-    for (let d = 2; d <= daysInMonth; d++) if (tl[d] !== first) {
+    for (let d = 1; d <= daysInMonth; d++) if (tl[d] !== first) {
       stay = d - 1;
       break;
     }
