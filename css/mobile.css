@@ -1,6 +1,6 @@
 #mbTopbar, #mbBackdrop { display: none; }
 
-@media (max-width: 767px) {
+@media (max-width: 767px), (max-height: 520px) and (max-width: 1024px) {
   html, body { max-width: 100%; overflow-x: hidden; -webkit-text-size-adjust: 100%; }
 
   body.mb-on #mbTopbar {
@@ -79,4 +79,30 @@
   #odConfigApp input, #odConfigApp textarea, #odConfigApp select { min-width: 0 !important; max-width: 100% !important; }
   #oaApp .oa-fp-dates { flex-wrap: wrap !important; height: auto !important; min-height: 42px; min-width: 0 !important; max-width: 100% !important; padding: 4px 10px !important; }
   #oaApp .oa-fp-dates .oa-input { flex: 1 1 110px; min-width: 0 !important; }
+
+  .dept-segment-container { max-width: 100% !important; overflow-x: auto !important; overflow-y: hidden; flex-wrap: nowrap !important; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .dept-segment-container::-webkit-scrollbar { display: none; }
+  .dept-segment-btn { flex: none !important; white-space: nowrap !important; padding-left: .7rem !important; padding-right: .7rem !important; display: inline-flex !important; align-items: center; gap: 4px; }
+
+  #dsApp.dsn { grid-template-columns: minmax(0, 1fr) !important; }
+  #dsApp .dsn-side, #dsApp .ds-body { min-width: 0 !important; max-width: 100% !important; }
+  #dsApp .dsn-nav { max-width: 100%; -webkit-overflow-scrolling: touch; }
+  #dsApp .ds-body { padding: 12px 10px !important; }
+
+  #sopApp #sopRulesAdminControls, #sopApp #sopAdminControls { margin-left: 0 !important; flex-wrap: wrap !important; width: 100%; }
+  #sopApp #sopRulesAdminControls button, #sopApp #sopAdminControls button { flex: 1 1 auto; }
+
+  #oaApp .oa-fp-top { flex-direction: column !important; align-items: stretch !important; }
+  #oaApp .oa-fp-dates { flex-wrap: nowrap !important; width: 100% !important; }
+  #oaApp .oa-fp-dates > *:not(.material-icons):not(.oa-fp-to) { flex: 1 1 0 !important; min-width: 0 !important; }
+  #oaApp .oa-seg { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+
+  #fineApp .flex:has(> #fineShiftFilter), .flex:has(> #fineShiftFilter) { flex-wrap: wrap !important; }
+
+  #dsApp .mv-grid { grid-template-columns: minmax(0, 1fr) !important; }
+  #dsApp .mv-card, #dsApp .mv-card > * { min-width: 0 !important; max-width: 100% !important; }
+  #dsApp .mv-card .flex { flex-wrap: wrap; }
+
+  #teleStatusSeg, .tg-seg { max-width: 100% !important; overflow-x: auto !important; scrollbar-width: none; flex-wrap: nowrap !important; }
+  .tg-seg > * { flex: none !important; white-space: nowrap !important; }
 }

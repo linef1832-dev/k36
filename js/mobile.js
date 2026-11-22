@@ -1,5 +1,5 @@
 (function() {
-  const MQ = window.matchMedia('(max-width: 767px)');
+  const MQ = window.matchMedia('(max-width: 767px), (max-height: 520px) and (max-width: 1024px)');
   const isMobile = () => MQ.matches;
   window.isMobileView = isMobile;
 
