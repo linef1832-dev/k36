@@ -109,37 +109,53 @@ window.renderLeaveTable = function() {
     const shiftTimeline = {};
     const monthIdx = currentCalendarDate.getMonth();
     let baseShift = u.allowed_shift;
+    const _inMonth = sw => {
+      const sd = new Date(sw.scheduled_for);
+      return sd.getFullYear() === year && sd.getMonth() === monthIdx;
+    };
+    const _movedThisMonth = myMonthSwaps.some((sw => (sw.status === 'pending' || sw.status === 'completed') && [ 'กะเช้า', 'กะกลาง', 'กะดึก' ].includes((sw._p || {}).target_shift) && _inMonth(sw)));
     myMonthSwaps.forEach((sw => {
       const sp = sw._p || {};
+      if (_movedThisMonth) return;
       if (sw.status !== 'info_only' && sp.target_shift !== 'คงเดิม') return;
       if (![ 'กะเช้า', 'กะกลาง', 'กะดึก' ].includes(sp.original_shift)) return;
       const sd = new Date(sw.scheduled_for);
       if (sd.getFullYear() === year && sd.getMonth() === monthIdx) baseShift = sp.original_shift;
     }));
+    const _SH = [ 'กะเช้า', 'กะกลาง', 'กะดึก' ];
+    const eff = [];
+    for (let i = 0; i < myMonthSwaps.length; i++) {
+      const sw = myMonthSwaps[i];
+      if ((sw.status === 'pending' || sw.status === 'completed') && _SH.includes((sw._p || {}).target_shift)) eff.push({
+        ts: swapTimestamps[i],
+        status: sw.status,
+        p: sw._p
+      });
+    }
+    let lastDone = null;
+    eff.forEach((e => {
+      if (e.status === 'completed') lastDone = e;
+    }));
     for (let d = 0; d <= daysInMonth; d++) {
       const loopDate = new Date(year, monthIdx, d);
       loopDate.setHours(0, 0, 0, 0);
       const loopTs = loopDate.getTime();
-      let dayShift = baseShift;
-      for (let i = 0; i < myMonthSwaps.length; i++) {
-        const swap = myMonthSwaps[i];
-        const p = swap._p;
-        const swapTs = swapTimestamps[i];
-        if (swap.status === 'pending') {
-          if (loopTs >= swapTs && p.target_shift !== 'คงเดิม') {
-            dayShift = p.target_shift;
-          }
-        } else if (swap.status === 'completed') {
-          if (loopTs < swapTs) {
-            let orig = p.original_shift;
-            if (!orig) {
-              if (p.target_shift === 'กะดึก') orig = 'กะเช้า'; else if (p.target_shift === 'กะเช้า') orig = 'กะดึก'; else orig = 'กะกลาง';
-            }
-            dayShift = orig;
-          } else if (p.target_shift !== 'คงเดิม') {
-            dayShift = p.target_shift;
-          }
+      let prev = null, next = null;
+      for (let i = 0; i < eff.length; i++) {
+        if (loopTs >= eff[i].ts) prev = eff[i]; else {
+          next = eff[i];
+          break;
         }
+      }
+      let dayShift = baseShift;
+      if (prev) {
+        dayShift = prev === lastDone ? baseShift : prev.p.target_shift;
+      } else if (next && next.status === 'completed') {
+        let orig = next.p.original_shift;
+        if (!_SH.includes(orig)) {
+          if (next.p.target_shift === 'กะดึก') orig = 'กะเช้า'; else if (next.p.target_shift === 'กะเช้า') orig = 'กะดึก'; else orig = 'กะกลาง';
+        }
+        dayShift = orig;
       }
       shiftTimeline[d] = dayShift;
     }
