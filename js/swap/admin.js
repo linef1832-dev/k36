@@ -186,6 +186,7 @@ window.openAddMissingSwap = async function() {
   });
   if (!result.isConfirmed || !result.value) return;
   const {userId: userId, action: action, date: date} = result.value;
+  if (!(await window._swDateGuard(date, action === 'swap'))) return;
   const user = GLOBAL_USER_LIST.find((u => String(u.id) === String(userId)));
   if (!user) return;
   Swal.fire({
@@ -380,6 +381,7 @@ window.changeSavedSwapDate = async function(taskId) {
   if (!result.isConfirmed) return;
   const newDate = result.value;
   if (!newDate || newDate === currentDate) return;
+  if (!(await window._swDateGuard(newDate, true))) return;
   const chkDate = getSafeDateStr(newDate, p.target_shift === 'กะเช้า' ? -1 : 0);
   const realLv = await window._swRealLeaveOn(p.user_id, chkDate);
   if (realLv.length) {
@@ -554,6 +556,7 @@ window.reactivateSavedSwap = async function(taskId) {
   });
   if (!result.isConfirmed || !result.value) return;
   const swapDate = result.value;
+  if (!(await window._swDateGuard(swapDate, true))) return;
   const chkDate2 = getSafeDateStr(swapDate, newTargetShift === 'กะเช้า' ? -1 : 0);
   const realLv2 = await window._swRealLeaveOn(p.user_id, chkDate2);
   if (realLv2.length) {

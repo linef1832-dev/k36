@@ -210,6 +210,50 @@ function getSafeDateStr(baseDateStr, offsetDays) {
   return d.toISOString().split('T')[0];
 }
 
+window._swDateGuard = async function(dateStr, willSwap) {
+  const today = getTodayStrLocal();
+  if (!dateStr || dateStr > today) return true;
+  const disp = new Date(`${dateStr}T12:00:00`).toLocaleDateString('th-TH', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
+  if (dateStr < today) {
+    if (willSwap) {
+      await Swal.fire({
+        icon: 'error',
+        title: 'วันที่นี้ผ่านมาแล้ว',
+        html: `<div style="text-align:left;font-size:14px;line-height:1.7">คุณเลือกวันที่ <b>${disp}</b> ซึ่งผ่านมาแล้ว<br>ถ้าบันทึก ระบบจะสลับกะพนักงาน<b>ทันที</b><br><br>กรุณาตรวจ<b>เดือน</b>ที่เลือกอีกครั้ง แล้วเลือกวันที่ตั้งแต่วันนี้เป็นต้นไป</div>`,
+        confirmButtonText: 'กลับไปแก้วันที่'
+      });
+      return false;
+    }
+    const r = await Swal.fire({
+      icon: 'warning',
+      title: 'วันที่นี้ผ่านมาแล้ว',
+      text: `คุณเลือกวันที่ ${disp} ซึ่งผ่านมาแล้ว ตรวจเดือนที่เลือกอีกครั้ง ต้องการใช้วันที่นี้จริงหรือไม่`,
+      showCancelButton: true,
+      confirmButtonText: 'ใช้วันที่นี้',
+      cancelButtonText: 'กลับไปแก้',
+      confirmButtonColor: '#f59e0b'
+    });
+    return !!r.isConfirmed;
+  }
+  if (willSwap) {
+    const r = await Swal.fire({
+      icon: 'warning',
+      title: 'วันที่สลับคือวันนี้',
+      text: `คุณเลือกวันที่ ${disp} (วันนี้) ระบบอาจสลับกะพนักงานทันทีหลังบันทึก ยืนยันหรือไม่`,
+      showCancelButton: true,
+      confirmButtonText: 'ยืนยัน',
+      cancelButtonText: 'กลับไปแก้',
+      confirmButtonColor: '#f59e0b'
+    });
+    return !!r.isConfirmed;
+  }
+  return true;
+};
+
 function getTodayStrLocal() {
   const d = new Date;
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -239,6 +283,7 @@ window.generateSwapPlan = async function() {
   try {
     const startDateVal = document.getElementById('swapStartDate').value;
     const endDateVal = document.getElementById('swapEndDate').value;
+    if (startDateVal && !(await window._swDateGuard(startDateVal, true))) return;
     const targetDept = document.getElementById('swapDeptSelect').value;
     const shiftPair = document.getElementById('swapShiftPair')?.value || 'M_N';
     const SHIFT_MAP = {
