@@ -108,11 +108,19 @@ window.renderLeaveTable = function() {
     }));
     const shiftTimeline = {};
     const monthIdx = currentCalendarDate.getMonth();
+    let baseShift = u.allowed_shift;
+    myMonthSwaps.forEach((sw => {
+      const sp = sw._p || {};
+      if (sw.status !== 'info_only' && sp.target_shift !== 'คงเดิม') return;
+      if (![ 'กะเช้า', 'กะกลาง', 'กะดึก' ].includes(sp.original_shift)) return;
+      const sd = new Date(sw.scheduled_for);
+      if (sd.getFullYear() === year && sd.getMonth() === monthIdx) baseShift = sp.original_shift;
+    }));
     for (let d = 0; d <= daysInMonth; d++) {
       const loopDate = new Date(year, monthIdx, d);
       loopDate.setHours(0, 0, 0, 0);
       const loopTs = loopDate.getTime();
-      let dayShift = u.allowed_shift;
+      let dayShift = baseShift;
       for (let i = 0; i < myMonthSwaps.length; i++) {
         const swap = myMonthSwaps[i];
         const p = swap._p;
