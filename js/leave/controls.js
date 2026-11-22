@@ -133,6 +133,53 @@ window._leaveRefreshDay = async function(dateStr, uid) {
   allLeaveData = keep;
 };
 
+window._leaveRecheck = function(myId, uid, uname, dateStr, reason) {
+  if (myId == null) return;
+  const dept = currentViewDept;
+  const ym = String(dateStr).slice(0, 7);
+  const sameView = () => {
+    const el = document.getElementById('leaveApp');
+    if (!el || el.classList.contains('hidden')) return false;
+    const cur = currentCalendarDate.getFullYear() + '-' + String(currentCalendarDate.getMonth() + 1).padStart(2, '0');
+    return currentViewDept === dept && cur === ym;
+  };
+  let done = false;
+  [ 1200, 3500, 8e3 ].forEach((ms => {
+    setTimeout((async () => {
+      if (done || !sameView()) return;
+      try {
+        await window._leaveRefreshDay(dateStr, uid);
+        if (done || !sameView()) return;
+        if (!allLeaveData.some((l => String(l.id) === String(myId)))) {
+          done = true;
+          return;
+        }
+        const verdict = window._leaveVerifyBooking(myId, uid, dateStr, reason);
+        if (!verdict) {
+          renderLeaveTable();
+          return;
+        }
+        done = true;
+        const {error: undoErr} = await appDB.from('leave_requests').delete().eq('id', myId);
+        if (undoErr) {
+          await fetchLeaveData();
+          return Swal.fire('ยกเลิกรายการไม่สำเร็จ', `${verdict.text}\n\nแต่ระบบลบรายการให้ไม่ได้ (${undoErr.message}) กรุณากดยกเลิกเอง หรือแจ้งหัวหน้า`, 'error');
+        }
+        allLeaveData = allLeaveData.filter((l => String(l.id) !== String(myId)));
+        window._leaveLocalRev = (window._leaveLocalRev || 0) + 1;
+        if (typeof window.leaveNotify === 'function') window.leaveNotify('leave_changed');
+        logLeaveAction('ระบบยกเลิก (เกินโควตา)', uid, uname, dateStr);
+        renderLeaveTable();
+        Swal.fire({
+          icon: 'warning',
+          title: verdict.title,
+          text: verdict.text
+        });
+      } catch (e) {}
+    }), ms);
+  }));
+};
+
 window.toggleLeaveTable = async function(dateStr, action, targetUserId, targetUserName, targetUserShift) {
   const typeToSave = window.activeLeaveType || 'X';
   const _isSelf = typeof currentUser !== 'undefined' && currentUser && String(currentUser.id) === String(targetUserId);
@@ -211,6 +258,7 @@ window.toggleLeaveTable = async function(dateStr, action, targetUserId, targetUs
         });
       }
       logLeaveAction(`จอง [${typeToSave}]`, targetUserId, targetUserName, dateStr);
+      window._leaveRecheck(myId, targetUserId, targetUserName, dateStr, typeToSave);
     } else if (action === 'remove') {
       const {error: error} = await appDB.from('leave_requests').delete().eq('user_id', targetUserId).eq('leave_date', dateStr);
       if (error) throw error;
