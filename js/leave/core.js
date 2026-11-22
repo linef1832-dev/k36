@@ -519,6 +519,45 @@ if (!window._leaveVisBound) {
   }));
 }
 
+window._leaveStayOf = function(uid) {
+  try {
+    const y = currentCalendarDate.getFullYear(), m = currentCalendarDate.getMonth();
+    const sid = String(uid);
+    let stay = '', moved = false, stayTs = -1;
+    (allSwapData || []).forEach((t => {
+      let p = t.payload;
+      if (typeof p === 'string') {
+        try {
+          p = JSON.parse(p);
+        } catch (e) {
+          p = null;
+        }
+      }
+      if (!p || String(p.user_id) !== sid || !t.scheduled_for) return;
+      const d = new Date(t.scheduled_for);
+      if (d.getFullYear() !== y || d.getMonth() !== m) return;
+      if (t.status === 'info_only' || p.target_shift === 'คงเดิม') {
+        if ([ 'กะเช้า', 'กะกลาง', 'กะดึก' ].includes(p.original_shift) && d.getTime() >= stayTs) {
+          stay = p.original_shift;
+          stayTs = d.getTime();
+        }
+      } else if ((t.status === 'pending' || t.status === 'completed') && (p.target_shift === 'กะเช้า' || p.target_shift === 'กะดึก' || p.target_shift === 'กะกลาง')) {
+        moved = true;
+      }
+    }));
+    return moved ? '' : stay;
+  } catch (e) {
+    return '';
+  }
+};
+
+window._leaveWindowShift = function(uid, fallbackShift) {
+  const stay = window._leaveStayOf(uid);
+  if (stay === 'กะเช้า') return 'กะดึก';
+  if (stay === 'กะดึก') return 'กะเช้า';
+  return fallbackShift || '';
+};
+
 window._leaveOpenSigNow = function() {
   try {
     return [ 'เช้า', 'กลาง', 'ดึก' ].map((x => checkBookingWindow(x) ? 1 : 0)).join('') + '|' + currentViewDept;

@@ -310,7 +310,7 @@ window.renderLeaveTable = function() {
     const shiftTimeline = _timelineOf(u);
     let isThisUserShiftOpen = true;
     if (typeof checkBookingWindow === 'function') {
-      isThisUserShiftOpen = checkBookingWindow(u.allowed_shift);
+      isThisUserShiftOpen = checkBookingWindow(typeof window._leaveWindowShift === 'function' ? window._leaveWindowShift(u.id, u.allowed_shift) : u.allowed_shift);
     }
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
@@ -361,7 +361,7 @@ window.renderLeaveTable = function() {
       if (isDateLocked && !isAdmin) {
         if (isMe) clickAttr = `onclick="Swal.fire({icon:'error', title:'ล็อกวัน', text:'วันที่นี้ถูกล็อก ไม่สามารถทำรายการได้', timer:1500, showConfirmButton:false})"`;
       } else if (!isThisUserShiftOpen && !isAdmin && isMe) {
-        clickAttr = `onclick="Swal.fire({icon:'error', title:'ปิดจองแล้ว', text:'อยู่นอกเวลาทำรายการของกะคุณ', timer:2000, showConfirmButton:false})"`;
+        clickAttr = `onclick="Swal.fire({icon:'error', title:'ปิดจองแล้ว', text:'${typeof window._leaveStayOf === 'function' && window._leaveStayOf(u.id) ? 'กลุ่มอยู่กะเดิม (ไม่สลับ) เปิดจองพร้อมรอบ' + window._leaveWindowShift(u.id, u.allowed_shift) : 'อยู่นอกเวลาทำรายการของกะคุณ'}', timer:2500, showConfirmButton:false})"`;
       } else if (isMe || isAdmin) {
         if (!canRequest && isMe && !isAdmin) {
           clickAttr = `onclick="Swal.fire({icon:'error', title:'ไม่มีสิทธิ์', text:'คุณไม่มีสิทธิ์กดจอง/ยกเลิกวันหยุด', timer:1500, showConfirmButton:false})"`;

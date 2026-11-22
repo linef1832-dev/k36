@@ -186,12 +186,14 @@ window.toggleLeaveTable = async function(dateStr, action, targetUserId, targetUs
   const _canMg = typeof window.leaveCanManage === 'function' && window.leaveCanManage(currentViewDept);
   if (!_canMg) {
     if (!_isSelf) return Swal.fire('ไม่มีสิทธิ์', 'จัดการวันหยุดของคนอื่นไม่ได้', 'error');
-    if (typeof checkBookingWindow === 'function' && !checkBookingWindow(targetUserShift || '')) {
+    const _isStay = typeof window._leaveStayOf === 'function' && !!window._leaveStayOf(targetUserId);
+    const _winShift = typeof window._leaveWindowShift === 'function' ? window._leaveWindowShift(targetUserId, targetUserShift || '') : targetUserShift || '';
+    if (typeof checkBookingWindow === 'function' && !checkBookingWindow(_winShift)) {
       if (typeof renderLeaveTable === 'function') renderLeaveTable();
       return Swal.fire({
         icon: 'error',
         title: 'ปิดจองแล้ว',
-        text: 'ตอนนี้อยู่นอกเวลาทำรายการของกะคุณ',
+        text: _isStay ? `กลุ่มอยู่กะเดิม (ไม่สลับ) เปิดจองพร้อมรอบ${_winShift}` : 'ตอนนี้อยู่นอกเวลาทำรายการของกะคุณ',
         timer: 2200,
         showConfirmButton: false
       });
