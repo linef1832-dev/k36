@@ -203,6 +203,21 @@ window.renderLeaveTable = function() {
   const bookedMap = new Map;
   const personalCounts = {};
   const shiftDailyCounts = {};
+  const absentCounts = {};
+  const xxSet = new Set;
+  allLeaveData.forEach((l => {
+    if (l.reason === 'XX' && allDeptUserIds.has(String(l.user_id))) xxSet.add(String(l.user_id) + '_' + String(l.leave_date || '').split('T')[0].split(' ')[0]);
+  }));
+  const _cntShift = (uid, dateStr) => {
+    const sid = String(uid);
+    if (!xxSet.has(`${sid}_${dateStr}`) || !String(dateStr).startsWith(_monthKey)) return _shiftOnDate(sid, dateStr);
+    const u = allDeptUsers.find((x => String(x.id) === sid));
+    if (!u) return 'all';
+    const tl = _timelineOf(u);
+    let dd = parseInt(String(dateStr).slice(8, 10), 10) - 1;
+    while (dd >= 1 && xxSet.has(`${sid}_${_monthKey}${String(dd).padStart(2, '0')}`)) dd--;
+    return tl[dd] || u.allowed_shift || 'all';
+  };
   const seenLeave = new Set;
   allLeaveData.forEach((l => {
     const strUid = String(l.user_id);
@@ -213,10 +228,12 @@ window.renderLeaveTable = function() {
     const cleanDate = String(l.leave_date || '').split('T')[0].split(' ')[0];
     const rsn = l.reason === 'Table-Booking' || !l.reason ? 'X' : l.reason;
     bookedMap.set(`${strUid}_${cleanDate}`, rsn);
-    const uShift = _shiftOnDate(strUid, cleanDate);
-    const shiftKey = `${cleanDate}_${uShift}`;
-    if (!shiftDailyCounts[shiftKey]) shiftDailyCounts[shiftKey] = 0;
-    shiftDailyCounts[shiftKey]++;
+    const absKey = `${cleanDate}_${_cntShift(strUid, cleanDate)}`;
+    absentCounts[absKey] = (absentCounts[absKey] || 0) + 1;
+    if (rsn !== 'XX') {
+      const shiftKey = `${cleanDate}_${_shiftOnDate(strUid, cleanDate)}`;
+      shiftDailyCounts[shiftKey] = (shiftDailyCounts[shiftKey] || 0) + 1;
+    }
     const parts = cleanDate.split('-');
     if (parts.length >= 3 && parseInt(parts[1], 10) === month + 1 && parseInt(parts[0], 10) === year) {
       if (!personalCounts[strUid]) {
@@ -242,8 +259,9 @@ window.renderLeaveTable = function() {
       'กะกลาง': 0,
       'กะดึก': 0
     };
+    const _dStr = `${_monthKey}${String(d).padStart(2, '0')}`;
     allDeptUsers.forEach((u => {
-      const sh = _timelineOf(u)[d];
+      const sh = xxSet.has(`${u.id}_${_dStr}`) ? _cntShift(u.id, _dStr) : _timelineOf(u)[d];
       if (t[sh] !== undefined) t[sh]++;
     }));
   }
@@ -255,9 +273,9 @@ window.renderLeaveTable = function() {
     const countA = shiftDailyCounts[`${dateStr}_กะกลาง`] || 0;
     const countN = shiftDailyCounts[`${dateStr}_กะดึก`] || 0;
     const totalByShift = totalByShiftDay[d];
-    const workM = Math.max(0, totalByShift['กะเช้า'] - countM);
-    const workA = Math.max(0, totalByShift['กะกลาง'] - countA);
-    const workN = Math.max(0, totalByShift['กะดึก'] - countN);
+    const workM = Math.max(0, totalByShift['กะเช้า'] - (absentCounts[`${dateStr}_กะเช้า`] || 0));
+    const workA = Math.max(0, totalByShift['กะกลาง'] - (absentCounts[`${dateStr}_กะกลาง`] || 0));
+    const workN = Math.max(0, totalByShift['กะดึก'] - (absentCounts[`${dateStr}_กะดึก`] || 0));
     workingRowHtml += `<th data-col="${d - 1}" class="p-1 border-b border-r dark:border-slate-700 align-middle bg-emerald-50 dark:bg-[#0a1f1a] min-w-[75px]">\n            <div class="flex flex-col gap-0.5">\n                <div class="flex justify-between items-center">\n                    <span class="text-[9px] font-bold text-orange-500">เช้า</span>\n                    <span class="text-[10px] font-mono font-extrabold text-emerald-700 dark:text-emerald-300">${workM}/${totalByShift['กะเช้า']}</span>\n                </div>\n                <div class="flex justify-between items-center">\n                    <span class="text-[9px] font-bold text-blue-500">กลาง</span>\n                    <span class="text-[10px] font-mono font-extrabold text-emerald-700 dark:text-emerald-300">${workA}/${totalByShift['กะกลาง']}</span>\n                </div>\n                <div class="flex justify-between items-center">\n                    <span class="text-[9px] font-bold text-purple-400">ดึก</span>\n                    <span class="text-[10px] font-mono font-extrabold text-emerald-700 dark:text-emerald-300">${workN}/${totalByShift['กะดึก']}</span>\n                </div>\n            </div>\n        </th>`;
     const isFullM = countM >= (s.quotaM || 0);
     const isFullA = countA >= (s.quotaA || 0);

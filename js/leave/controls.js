@@ -86,7 +86,7 @@ window._leaveVerifyBooking = function(myId, uid, dateStr, reason) {
   if (quota > 0) {
     const sameShift = new Set(users.filter((u => shOn(u.id, dateStr) === myShift)).map((u => String(u.id))));
     const seen = new Set;
-    const dayRows = allLeaveData.filter((l => day(l.leave_date) === dateStr && sameShift.has(String(l.user_id)))).sort(((a, b) => Number(a.id) - Number(b.id))).filter((l => {
+    const dayRows = allLeaveData.filter((l => day(l.leave_date) === dateStr && l.reason !== 'XX' && sameShift.has(String(l.user_id)))).sort(((a, b) => Number(a.id) - Number(b.id))).filter((l => {
       const k = String(l.user_id);
       if (seen.has(k)) return false;
       seen.add(k);
