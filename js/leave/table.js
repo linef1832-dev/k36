@@ -218,6 +218,7 @@ window.renderLeaveTable = function() {
     while (dd >= 1 && xxSet.has(`${sid}_${_monthKey}${String(dd).padStart(2, '0')}`)) dd--;
     return tl[dd] || u.allowed_shift || 'all';
   };
+  window._leaveCountShiftOnDate = _cntShift;
   const seenLeave = new Set;
   allLeaveData.forEach((l => {
     const strUid = String(l.user_id);
@@ -230,10 +231,7 @@ window.renderLeaveTable = function() {
     bookedMap.set(`${strUid}_${cleanDate}`, rsn);
     const absKey = `${cleanDate}_${_cntShift(strUid, cleanDate)}`;
     absentCounts[absKey] = (absentCounts[absKey] || 0) + 1;
-    if (rsn !== 'XX') {
-      const shiftKey = `${cleanDate}_${_shiftOnDate(strUid, cleanDate)}`;
-      shiftDailyCounts[shiftKey] = (shiftDailyCounts[shiftKey] || 0) + 1;
-    }
+    shiftDailyCounts[absKey] = (shiftDailyCounts[absKey] || 0) + 1;
     const parts = cleanDate.split('-');
     if (parts.length >= 3 && parseInt(parts[1], 10) === month + 1 && parseInt(parts[0], 10) === year) {
       if (!personalCounts[strUid]) {
