@@ -39,6 +39,10 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
                 <span>ดำเนินการ</span>
             </button>
+            <button data-t="read" onclick="oa_setTab('read')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                <span>อ่านไม่ตอบ</span><em id="oaReadBadge" class="oa-tab-badge" style="display:none">0</em>
+            </button>
         </div>
         
         <div class="oa-panel oa-fp">
@@ -115,6 +119,35 @@
             <div class="oa-panel p-0 overflow-hidden">
                 <div class="px-4 py-3 border-b border-gray-100 dark:border-slate-700 font-bold text-slate-700 dark:text-slate-200">ประวัติการกดดำเนินการ</div>
                 <div id="oaActList" class="divide-y divide-gray-50 dark:divide-slate-700/50"></div>
+            </div>
+        </div>
+
+        <!-- แท็บ "อ่านไม่ตอบ": แชทที่พนักงานเปิดอ่านแล้ว แต่ผ่านไป 5 นาทียังไม่มีใครตอบ (ข้อมูลจากส่วนเสริม Chrome → ตาราง oa_views) -->
+        <div id="oaViewRead" style="display:none" class="space-y-4">
+            <div class="oa-panel oa-actf">
+                <div class="oa-actf-top">
+                    <div class="oa-search-wrap oa-actf-search">
+                        <span class="material-icons oa-search-ic">search</span>
+                        <input id="oaReadSearch" oninput="oa_renderRead()" placeholder="ค้นหาชื่อพนักงาน / ลูกค้า / ไลน์ OA" class="oa-search-in">
+                    </div>
+                    <label class="oa-read-toggle"><input type="checkbox" id="oaReadShowDone" onchange="oa_loadRead(true)"> แสดงที่ตอบไปแล้ววันนี้ด้วย</label>
+                </div>
+                <div class="oa-fbox oa-actf-box">
+                    <div class="oa-flabel"><span class="material-icons">language</span>เว็บ</div>
+                    <div id="oaReadSites" class="oa-chipwrap"></div>
+                </div>
+                <div class="grid grid-cols-3 gap-3">
+                    <div class="oa-kpi"><div class="oa-kpi-n" id="oaReadPend" style="color:#dc2626">–</div><div class="oa-kpi-l">🔴 อ่านแล้วไม่ตอบ (เกิน 5 นาที)</div></div>
+                    <div class="oa-kpi"><div class="oa-kpi-n" id="oaReadSoon" style="color:#d97706">–</div><div class="oa-kpi-l">🟡 เพิ่งเปิด (ยังไม่ถึง 5 นาที)</div></div>
+                    <div class="oa-kpi"><div class="oa-kpi-n" id="oaReadPeople" style="color:#64748b">–</div><div class="oa-kpi-l">พนักงานที่เกี่ยวข้อง</div></div>
+                </div>
+            </div>
+            <div class="oa-panel p-0 overflow-hidden">
+                <div class="px-4 py-3 border-b border-gray-100 dark:border-slate-700 font-bold text-slate-700 dark:text-slate-200 flex items-center justify-between">
+                    <span>แชทที่เปิดอ่านแล้วยังไม่มีใครตอบ</span>
+                    <span id="oaReadUpd" class="text-xs font-normal text-slate-400"></span>
+                </div>
+                <div id="oaReadList" class="divide-y divide-gray-50 dark:divide-slate-700/50"><div class="text-center text-slate-400 py-10 text-sm">กำลังโหลด...</div></div>
             </div>
         </div>
     </div>
@@ -273,6 +306,15 @@
     #oaApp .pc-t { margin-left:auto; font:700 11.5px ui-monospace,Consolas; color:#94a3b8; }
     #oaApp .pc-copy { flex:none; width:24px; height:24px; display:inline-flex; align-items:center; justify-content:center; border:1px solid #e2e8f0; border-radius:7px; background:#fff; color:#94a3b8; cursor:pointer; margin-right:4px; } .dark #oaApp .pc-copy { background:#0f172a; border-color:#334155; }
     #oaApp .pc-copy:hover { color:#10b981; border-color:#10b981; }
+    /* แท็บ อ่านไม่ตอบ */
+    #oaApp .oa-tab-badge { font-style:normal; font-size:11px; font-weight:900; min-width:20px; padding:1px 6px; border-radius:999px; background:#dc2626; color:#fff; line-height:1.5; }
+    #oaApp .oa-read-toggle { display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:700; color:var(--k-mute); cursor:pointer; white-space:nowrap; }
+    #oaApp .oa-read-toggle input { accent-color:#10b981; }
+    #oaApp .pc-read { border-left:4px solid #dc2626; } #oaApp .pc-read-soon { border-left:4px solid #f59e0b; } #oaApp .pc-read-done { border-left:4px solid #cbd5e1; opacity:.75; }
+    #oaApp .pc-badge.read { background:#fee2e2; color:#dc2626; } .dark #oaApp .pc-badge.read { background:rgba(220,38,38,.18); color:#fca5a5; }
+    #oaApp .pc-badge.soon { background:#fef3c7; color:#d97706; } .dark #oaApp .pc-badge.soon { background:rgba(245,158,11,.18); color:#fcd34d; }
+    #oaApp .pc-badge.done { background:#d1fae5; color:#059669; } .dark #oaApp .pc-badge.done { background:rgba(6,199,85,.18); color:#6ee7b7; }
+    #oaApp .pc-age { font-size:12px; font-weight:900; white-space:nowrap; color:#dc2626; } #oaApp .pc-age.soon { color:#d97706; } #oaApp .pc-age.done { color:#94a3b8; }
 
 #oaApp .oa-fp{padding:14px 16px!important;display:flex;flex-direction:column;gap:12px;background:var(--k-panel)!important;border:1px solid var(--k-line)!important;box-shadow:var(--k-shadow)!important}
 #oaApp .oa-fp-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
