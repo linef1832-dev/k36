@@ -1696,7 +1696,8 @@ window.oa_renderRead = function () {
         L.innerHTML = `<div class="text-center text-red-400 py-10 text-sm">โหลดไม่ได้ — ตรวจว่าสร้างตาราง oa_views ใน Supabase แล้ว<br><span class="text-xs text-slate-400">${esc(R._err)}</span></div>`;
         return;
     }
-    const rows = R.rows.slice();
+    // ลูกค้าบล็อก/ออกจากห้อง/ลบบัญชี (ส่วนขยายปิดให้ด้วย resolved_by='blocked') → ตอบไม่ได้อยู่แล้ว ไม่แสดงเลย
+    const rows = R.rows.filter(r => r.resolved_by !== 'blocked');
     // รวมเป็นราย "แชท": 1 การ์ด = ลูกค้า 1 คน ใน OA 1 ตัว · ข้างในลิสต์ทุกคนที่เปิดอ่าน
     const byChat = {};
     rows.forEach(r => {
@@ -1757,7 +1758,10 @@ window.oa_renderRead = function () {
         const tail = st === 'done' ? `<div class="pc-ev"><span class="pc-badge done">✅ ตอบแล้ว</span><b>${esc(g.resolved_by || '-')}</b><span class="pc-t">${tm(g.resolved_at)}</span></div>`
             : `<div class="pc-ev pc-wait"><span class="pc-badge wait">⏳</span>ยังไม่มีใครตอบ</div>`;
         const cls = st === 'read' ? 'pc-read' : st === 'soon' ? 'pc-read-soon' : 'pc-read-done';
-        return `<div class="pc ${cls}"><div class="pc-head"><div class="pc-name"><button class="pc-copy" onclick="oa_copyName(event,'${esc(nm).replace(/'/g, "\\'")}')" title="คัดลอกชื่อ"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>${esc(nm)}${g.oa ? `<span class="pc-oa">${esc(g.oa)}</span>` : ''}</div><div class="pc-age ${st}">${ageTxt}</div></div><div class="pc-body">${readers}${tail}</div></div>`;
+        // ลิงก์เปิดแชทใน LINE ด้วยรหัสแชท — ลูกค้าเปลี่ยนชื่อ/บล็อก ก็ยังเปิดถูกแชท
+        const url = 'https://chat.line.biz/' + encodeURIComponent(g.oa_id) + '/chat/' + encodeURIComponent(g.chat_id);
+        const openBtn = `<a class="pc-open" href="${esc(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="เปิดแชทนี้ใน LINE OA"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>เปิดแชท</a>`;
+        return `<div class="pc ${cls}"><div class="pc-head"><div class="pc-name"><button class="pc-copy" onclick="oa_copyName(event,'${esc(nm).replace(/'/g, "\\'")}')" title="คัดลอกชื่อ"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>${esc(nm)}${g.oa ? `<span class="pc-oa">${esc(g.oa)}</span>` : ''}${openBtn}</div><div class="pc-age ${st}">${ageTxt}</div></div><div class="pc-body">${readers}${tail}</div></div>`;
     };
     const PER = window.OA_READ_PER || 30;
     const rkey = [o.readSite, q, R._showDone].join('|');
