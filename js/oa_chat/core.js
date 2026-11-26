@@ -1459,6 +1459,7 @@ window.initOaChat = async function() {
     window.registerPageInterval(setInterval(oa_readTick, 3e4));
   }
   oa_loadRead();
+  oa_subscribeRead();
   const today = oa_workDate(0);
   const hasToday = () => !!o._loadedFrom && o._loadedFrom <= today && o._loadedTo >= today;
   if (!hasToday() && oa_applyCache(await oa_cacheGet())) oa_setUpdated('กำลังอัปเดต…');
@@ -1638,6 +1639,37 @@ window.oa_loadRead = async function (force) {
     oa_renderRead();
 };
 
+// เว็บของไลน์ OA: ตัดอักขระพิเศษออกแล้วเทียบกับชื่อเว็บใน TEAM_LIST (เช่น "JUN8-8" → JUN88 → Jun88, "MK8 ช่อง2" → MK8)
+// override ได้ด้วย window.OA_SITE_MAP = { 'ชื่อ OA': 'เว็บ' }
+window.OA_SITE_UNKNOWN = 'ไม่ทราบเว็บ';
+function oa_siteOfOa(oaName) {
+    const nm = String(oaName || '').trim();
+    if (!nm) return window.OA_SITE_UNKNOWN;
+    const map = window.OA_SITE_MAP || {};
+    if (map[nm]) return map[nm];
+    const norm = v => String(v || '').toUpperCase().replace(/[^A-Z0-9ก-๙]/g, '');
+    const n = norm(nm);
+    const teams = (typeof TEAM_LIST !== 'undefined' && Array.isArray(TEAM_LIST) ? TEAM_LIST : []).slice().sort((a, b) => norm(b).length - norm(a).length);
+    for (const t of teams) { const tn = norm(t); if (tn && (n.startsWith(tn) || n.includes(tn))) return t; }
+    return window.OA_SITE_UNKNOWN;
+}
+
+// เรียลไทม์: ตาราง oa_views เปลี่ยน (เปิดอ่านใหม่ / มีคนตอบ / ชื่อเปลี่ยน) → โหลดใหม่ทันที ไม่ต้อง F5
+// ต้องเปิด realtime ให้ตาราง: alter publication supabase_realtime add table public.oa_views;  (อยู่ใน sql/oa_views.sql)
+function oa_subscribeRead() {
+    if (!window.appDB || typeof window.appDB.channel !== 'function') return;
+    try {
+        let t = null;
+        const ch = window.appDB.channel('oa-views-live-' + Date.now())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'oa_views' }, () => {
+                clearTimeout(t);
+                t = setTimeout(() => { if (oa_isCurrent()) oa_loadRead(true); }, 400);   // รวมหลาย event ที่มาติดกันเป็นโหลดครั้งเดียว
+            })
+            .subscribe();
+        if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(ch);
+    } catch (e) {}
+}
+
 window.oa_setReadSite = function (s) {
     const o = window._oa;
     o.readSite = s === 'ALL' || o.readSite === s ? 'ALL' : s;
@@ -1683,8 +1715,8 @@ window.oa_renderRead = function () {
         g.age = (g.resolved_at ? new Date(g.resolved_at).getTime() : now) - t0;
         g.state = g.resolved_at ? 'done' : (g.age >= MIN ? 'read' : 'soon');
     });
-    // ชิปเว็บ (จาก siteMap ของพนักงานที่เปิดอ่าน · วันทำงานของแถว)
-    const sitesOf = g => { const s = new Set; g.readers.forEach(r => { const x = o.siteMap[(r.username || '').toUpperCase().trim() + '|' + r.work_date]; if (x) [...x].forEach(v => s.add(v)); }); return [...s]; };
+    // ชิปเว็บ = เว็บที่ "ไลน์ OA" นั้นสังกัด (เดาจากชื่อ OA เทียบกับรายชื่อเว็บ) ไม่ใช่เว็บที่พนักงานประจำ
+    const sitesOf = g => [oa_siteOfOa(g.oa)];
     const siteCnt = {};
     groups.forEach(g => sitesOf(g).forEach(s => { siteCnt[s] = (siteCnt[s] || 0) + 1; }));
     const siteList = Object.keys(siteCnt).sort();
