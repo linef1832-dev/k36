@@ -31,3 +31,13 @@ create policy "oa_views_anon_all" on public.oa_views
 
 -- (ไม่บังคับ) ลบแถวที่ตอบแล้วเก่ากว่า 90 วัน — รันเองเป็นครั้งคราว หรือตั้ง pg_cron
 -- delete from public.oa_views where resolved_at is not null and resolved_at < now() - interval '90 days';
+
+-- เปิด realtime ให้ตาราง (เว็บ K36 แท็บ อ่านไม่ตอบ จะอัปเดตทันทีโดยไม่ต้อง F5)
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'oa_views'
+  ) then
+    alter publication supabase_realtime add table public.oa_views;
+  end if;
+end $$;
