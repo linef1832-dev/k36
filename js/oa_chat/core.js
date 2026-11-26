@@ -1696,7 +1696,8 @@ window.oa_renderRead = function () {
         L.innerHTML = `<div class="text-center text-red-400 py-10 text-sm">โหลดไม่ได้ — ตรวจว่าสร้างตาราง oa_views ใน Supabase แล้ว<br><span class="text-xs text-slate-400">${esc(R._err)}</span></div>`;
         return;
     }
-    const rows = R.rows.slice();
+    // ลูกค้าบล็อก/ออกจากห้อง/ลบบัญชี (ส่วนขยายปิดให้ด้วย resolved_by='blocked') → ตอบไม่ได้อยู่แล้ว ไม่แสดงเลย
+    const rows = R.rows.filter(r => r.resolved_by !== 'blocked');
     // รวมเป็นราย "แชท": 1 การ์ด = ลูกค้า 1 คน ใน OA 1 ตัว · ข้างในลิสต์ทุกคนที่เปิดอ่าน
     const byChat = {};
     rows.forEach(r => {
