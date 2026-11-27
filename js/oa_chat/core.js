@@ -1956,7 +1956,7 @@ window.oa_renderIdle = function () {
     }
     const list = mine.filter(g =>
         (o.idleUser === 'ALL' || g.who.includes(o.idleUser)) &&
-        (!q || g.who.some(u => String(u).toLowerCase().includes(q)) || String(g.name || '').toLowerCase().includes(q) || String(g.oa || '').toLowerCase().includes(q)));
+        (!q || g.who.some(u => String(u).toLowerCase().includes(q))));
     // สถิติบนแท็บย่อย (ไม่สนตัวกรอง)
     const stat = kind => { const g = groups.filter(x => x.kind === kind); return { live: g.filter(x => x.live).length, n: g.length, min: Math.round(g.reduce((a, x) => a + x.dur, 0) / 60000) }; };
     const su = stat('unopened'), so = stat('open');
@@ -1978,23 +1978,20 @@ window.oa_renderIdle = function () {
         return;
     }
     const tm = ts => { try { const d = new Date(ts); return d.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } };
+    // การ์ด: นำด้วย "ชื่อพนักงานที่นิ่ง" — ไม่แสดงชื่อลูกค้า/แชท (ต้องการรู้แค่ใครนิ่ง)
     const card = g => {
-        const nm = g.name || (String(g.chat_id || '').startsWith('name:') ? String(g.chat_id).slice(5) : 'ลูกค้า ' + String(g.chat_id).slice(-6));
         const st = g.live ? 'idle' : 'idledone';
-        // รายการจุดเขียวไม่มีรหัสแชท (LINE ไม่ใส่ไว้ในรายการซ้าย) → ใช้ชื่อเป็นกุญแจ ไม่มีลิงก์เปิดแชท
-        const noId = String(g.chat_id || '').startsWith('name:');
-        const url = 'https://chat.line.biz/' + encodeURIComponent(g.oa_id) + '/chat/' + encodeURIComponent(g.chat_id);
-        const openBtn = noId ? '' : `<a class="pc-open" href="${esc(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="เปิดแชทนี้ใน LINE OA"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>เปิดแชท</a>`;
+        const who = g.who.length ? g.who.map(esc).join(', ') : '<span class="text-slate-400">ไม่มี — ทุกคนที่เห็นกำลังพักอยู่</span>';
         let ageTxt, body;
         if (g.kind === 'unopened') {
-            ageTxt = g.live ? '🟢 เข้ามาแล้ว ' + oa_readAge(g.dur) + ' ยังไม่มีใครเปิด' : '⏱ ถูกปล่อยไว้ ' + oa_readAge(g.dur) + ' · มีคนเปิด ' + tm(g.ended_at);
-            body = `<div class="pc-ev"><span class="pc-badge ${st}">🟢 แชทเข้า</span><span class="pc-t">${tm(g.since)}${g.live ? '' : ' → มีคนเปิด ' + tm(g.ended_at)}</span></div>` +
-                   `<div class="pc-ev"><span class="pc-badge wait">👀 เห็นแต่ไม่กด</span><b>${g.who.map(esc).join(', ') || '<span class="text-slate-400">ไม่มี — ทุกคนที่เห็นกำลังพักอยู่</span>'}</b><span class="pc-t">${g.who.length} คน${g.onBreak && g.onBreak.length ? ' · พักอยู่ ' + g.onBreak.map(esc).join(', ') : ''}</span></div>`;
+            ageTxt = g.live ? '🟢 แชทเข้ามาแล้ว ' + oa_readAge(g.dur) + ' ยังไม่มีใครกด' : '⏱ ปล่อยไว้ ' + oa_readAge(g.dur) + ' · มีคนกด ' + tm(g.ended_at);
+            body = `<div class="pc-ev"><span class="pc-badge ${st}">🟢 แชทเข้า</span><span class="pc-t">${tm(g.since)}${g.live ? '' : ' → มีคนกด ' + tm(g.ended_at)}</span></div>` +
+                   (g.onBreak && g.onBreak.length ? `<div class="pc-ev"><span class="pc-badge wait">☕ พักอยู่ ไม่นับ</span><b>${g.onBreak.map(esc).join(', ')}</b></div>` : '');
         } else {
             ageTxt = g.live ? '💤 นิ่งอยู่ ' + oa_readAge(g.dur) : '⏱ นิ่งไป ' + oa_readAge(g.dur) + ' · กลับมา ' + tm(g.ended_at);
-            body = `<div class="pc-ev"><span class="pc-badge ${st}">${g.live ? '💤 นิ่งอยู่' : '💤 เคยนิ่ง'}</span><b>${esc(g.who[0] || '-')}</b><span class="pc-t">ลูกค้ารอตั้งแต่ ${tm(g.since)}${g.live ? '' : ' → กลับมาทำ ' + tm(g.ended_at)}</span></div>`;
+            body = `<div class="pc-ev"><span class="pc-badge ${st}">${g.live ? '💤 นิ่งอยู่' : '💤 เคยนิ่ง'}</span><span class="pc-t">ลูกค้ารอตั้งแต่ ${tm(g.since)}${g.live ? '' : ' → กลับมาทำ ' + tm(g.ended_at)}</span></div>`;
         }
-        return `<div class="pc ${g.live ? 'pc-idle' : 'pc-idle-done'}"><div class="pc-head"><div class="pc-name"><button class="pc-copy" onclick="oa_copyName(event,'${esc(nm).replace(/'/g, "\\'")}')" title="คัดลอกชื่อ"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>${esc(nm)}${g.oa ? `<span class="pc-oa">${esc(g.oa)}</span>` : ''}${openBtn}</div><div class="pc-age ${st}">${ageTxt}</div></div><div class="pc-body">${body}</div></div>`;
+        return `<div class="pc ${g.live ? 'pc-idle' : 'pc-idle-done'}"><div class="pc-head"><div class="pc-name">${g.kind === 'unopened' ? '👀 ' : ''}${who}</div><div class="pc-age ${st}">${ageTxt}</div></div><div class="pc-body">${body}</div></div>`;
     };
     const PER = window.OA_READ_PER || 30;
     const rkey = [o.idleUser, q, R._range, view].join('|');
