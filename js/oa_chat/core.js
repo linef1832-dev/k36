@@ -1979,10 +1979,12 @@ window.oa_renderIdle = function () {
     }
     const tm = ts => { try { const d = new Date(ts); return d.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } };
     const card = g => {
-        const nm = g.name || ('ลูกค้า ' + String(g.chat_id).slice(-6));
+        const nm = g.name || (String(g.chat_id || '').startsWith('name:') ? String(g.chat_id).slice(5) : 'ลูกค้า ' + String(g.chat_id).slice(-6));
         const st = g.live ? 'idle' : 'idledone';
+        // รายการจุดเขียวไม่มีรหัสแชท (LINE ไม่ใส่ไว้ในรายการซ้าย) → ใช้ชื่อเป็นกุญแจ ไม่มีลิงก์เปิดแชท
+        const noId = String(g.chat_id || '').startsWith('name:');
         const url = 'https://chat.line.biz/' + encodeURIComponent(g.oa_id) + '/chat/' + encodeURIComponent(g.chat_id);
-        const openBtn = `<a class="pc-open" href="${esc(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="เปิดแชทนี้ใน LINE OA"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>เปิดแชท</a>`;
+        const openBtn = noId ? '' : `<a class="pc-open" href="${esc(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="เปิดแชทนี้ใน LINE OA"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>เปิดแชท</a>`;
         let ageTxt, body;
         if (g.kind === 'unopened') {
             ageTxt = g.live ? '🟢 เข้ามาแล้ว ' + oa_readAge(g.dur) + ' ยังไม่มีใครเปิด' : '⏱ ถูกปล่อยไว้ ' + oa_readAge(g.dur) + ' · มีคนเปิด ' + tm(g.ended_at);
