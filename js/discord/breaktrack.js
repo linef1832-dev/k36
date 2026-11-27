@@ -16,7 +16,8 @@ window.getGroupActivities = function(g) {
   if (!Array.isArray(a)) return [];
   return a.map((x => ({
     name: String(x && x.name || '').trim(),
-    limit: Number(x && x.limit) || 0
+    limit: Number(x && x.limit) || 0,
+    move_channel: String(x && x.move_channel || '').trim()
   }))).filter((x => x.name));
 };
 
@@ -338,7 +339,7 @@ window.loadCheckinGroups = async function() {
       let actLine = '';
       if (g.group_type === 'checkin') {
         const acts = window.getGroupActivities(g);
-        actLine = acts.length ? `<div class="flex flex-wrap gap-1 mt-1">${acts.map((a => `<span class="text-[10px] px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 whitespace-nowrap">${window.escapeHtml(a.name)} <b>${a.limit > 0 ? a.limit + ' น.' : 'ไม่จำกัด'}</b></span>`)).join('')}</div>` : `<div class="text-[10px] text-amber-400 mt-1">ยังไม่ตั้งกิจกรรม — จะไม่นับเกินเวลา และบอทจะไม่เตือนใน Discord</div>`;
+        actLine = acts.length ? `<div class="flex flex-wrap gap-1 mt-1">${acts.map((a => `<span class="text-[10px] px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 whitespace-nowrap" title="${a.move_channel ? 'ย้ายไปห้อง ' + window.escapeHtml(a.move_channel) : 'ไม่ย้ายห้อง'}">${window.escapeHtml(a.name)} <b>${a.limit > 0 ? a.limit + ' น.' : 'ไม่จำกัด'}</b>${a.move_channel ? ' <span class="text-sky-300">🔊</span>' : ''}</span>`)).join('')}</div>` : `<div class="text-[10px] text-amber-400 mt-1">ยังไม่ตั้งกิจกรรม — จะไม่นับเกินเวลา และบอทจะไม่เตือนใน Discord</div>`;
       }
       return `\n            <div class="flex items-center justify-between bg-slate-800 rounded-xl px-3 py-2 gap-2">\n                <div class="flex items-center gap-2 flex-1 min-w-0">\n                    <span class="w-2 h-2 rounded-full shrink-0 ${g.active ? 'bg-emerald-400' : 'bg-gray-500'}"></span>\n                    <div class="min-w-0 flex-1">\n                        <div class="flex items-center min-w-0">\n                            <span class="text-white text-xs font-bold truncate">${g.group_name || '(ไม่มีชื่อ)'}</span>${tagLine}\n                        </div>\n                        <div class="text-[10px] truncate font-mono">${idLine}${soundLine}</div>${actLine}\n                    </div>\n                </div>\n                <div class="flex gap-1 shrink-0">\n                    <button onclick="window.editTelegramGroup('${g.id}')"\n                        class="text-xs px-2 py-1 rounded-lg font-bold bg-slate-600 text-gray-200 hover:bg-slate-500 transition">แก้ไข</button>\n                    <button onclick="window.toggleCheckinGroup('${g.id}', ${g.active})"\n                        class="text-xs px-2 py-1 rounded-lg font-bold transition ${g.active ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'}">\n                        ${g.active ? 'ปิด' : 'เปิด'}\n                    </button>\n                    <button onclick="window.deleteCheckinGroup('${g.id}')"\n                        class="text-xs px-2 py-1 rounded-lg font-bold bg-red-500/20 text-red-400 hover:bg-red-500/30 transition">ลบ</button>\n                </div>\n            </div>`;
     };
@@ -410,8 +411,12 @@ window._tgActRender = function() {
                 oninput="window._tgActRows[${i}].name=this.value"
                 onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#334155'">
             <input data-act-limit="${i}" type="number" min="0" step="1" value="${a.limit > 0 ? a.limit : ''}" placeholder="นาที"
-                style="${FD}width:78px;text-align:center"
+                style="${FD}width:70px;text-align:center"
                 oninput="window._tgActRows[${i}].limit=Number(this.value)||0"
+                onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#334155'">
+            <input data-act-move="${i}" value="${esc(a.move_channel || '')}" placeholder="ไม่ย้ายห้อง" inputmode="numeric"
+                style="${FD}width:150px;font-family:monospace;font-size:12px"
+                oninput="window._tgActRows[${i}].move_channel=this.value"
                 onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#334155'">
             <button type="button" onclick="window._tgActRemove(${i})" title="ลบกิจกรรมนี้"
                 style="width:34px;height:38px;border-radius:9px;border:1px solid rgba(239,68,68,.35);background:rgba(239,68,68,.12);color:#f87171;font-weight:800;cursor:pointer;flex-shrink:0">✕</button>
@@ -421,7 +426,8 @@ window._tgActRender = function() {
 window._tgActAdd = function() {
   window._tgActRows.push({
     name: '',
-    limit: 0
+    limit: 0,
+    move_channel: ''
   });
   window._tgActRender();
   const inputs = document.querySelectorAll('#tgEditActs [data-act-name]');
@@ -449,7 +455,16 @@ window._tgActCollect = function() {
       Swal.showValidationMessage(`เวลาของ "${name}" ต้องเป็นตัวเลข 0 ขึ้นไป`);
       return null;
     }
-    const key = name.toLowerCase();
+    const move = String(a.move_channel || '').trim();
+    if (move && !/^\d{5,30}$/.test(move)) {
+      Swal.showValidationMessage(`ห้อง Discord ของ "${name}" ต้องเป็นตัวเลข channel ID เท่านั้น (หรือเว้นว่าง)`);
+      return null;
+    }
+    const key = window.activityCore(name);
+    if (!key) {
+      Swal.showValidationMessage(`ชื่อ "${name}" ต้องมีตัวอักษรด้วย ไม่ใช่อีโมจิอย่างเดียว`);
+      return null;
+    }
     if (seen.has(key)) {
       Swal.showValidationMessage(`กิจกรรม "${name}" ซ้ำกันครับ`);
       return null;
@@ -457,7 +472,8 @@ window._tgActCollect = function() {
     seen.add(key);
     out.push({
       name: name,
-      limit: Math.round(limit)
+      limit: Math.round(limit),
+      move_channel: move
     });
   }
   return out;
@@ -478,7 +494,14 @@ window.editTelegramGroup = async function(id) {
   const initialActs = window.getGroupActivities(g);
   const activitiesHtml = isShift ? '' : `
         <div style="${ROW}">
-            <label style="${LB}">กิจกรรม &amp; เวลาจำกัด (นาที) <span style="font-weight:500;color:var(--k-mute)">— ชื่อต้องตรงกับปุ่มใน Telegram · ใส่ 0 = ไม่จำกัดเวลา</span></label>
+            <label style="${LB}">กิจกรรม · เวลาจำกัด (นาที) · ห้อง Discord ที่ย้ายไป</label>
+            <div style="font-size:10.5px;color:var(--k-mute);margin:-2px 0 8px;line-height:1.5">
+              ชื่อต้องมีคำเดียวกับปุ่มใน Telegram (ใส่อีโมจินำหน้าได้ เช่น 🚽 ปวดหนัก — อีโมจินี้จะใช้ใน Discord ด้วย)<br>
+              เวลา 0 = ไม่จำกัด · ห้อง = Discord voice channel ID (ตัวเลข) เว้นว่าง = ไม่ย้ายห้อง
+            </div>
+            <div style="display:flex;gap:6px;padding:0 40px 4px 0;font-size:10px;font-weight:800;color:#64748b;letter-spacing:.3px">
+              <span style="flex:1">ชื่อกิจกรรม</span><span style="width:70px;text-align:center">นาที</span><span style="width:150px;text-align:center">ห้อง Discord ID</span>
+            </div>
             <div id="tgEditActs" style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;padding-right:2px"></div>
             <button type="button" onclick="window._tgActAdd()"
                 style="margin-top:8px;width:100%;padding:8px;border-radius:10px;border:1.5px dashed var(--k-line2);background:transparent;color:#94a3b8;font-size:12px;font-weight:700;cursor:pointer">
@@ -487,7 +510,7 @@ window.editTelegramGroup = async function(id) {
         </div>`;
   const result = await Swal.fire({
     title: 'แก้ไขกลุ่ม',
-    width: 460,
+    width: isShift ? 460 : 600,
     html: `\n            <div style="padding:2px">\n                ${field('ชื่อกลุ่ม <span style="font-weight:500;color:var(--k-mute)">(แค่ป้ายชื่อ ระบบใช้ Chat ID จับ)</span>', input('tgEditName', g.group_name, ''))}\n                ${field('Chat ID', input('tgEditChatId', g.chat_id, '-1001234567890'))}\n                ${!isShift ? '' : field('TAG ที่ต้องถ่ายรูปในกลุ่มนี้', selectHtml)}\n                ${!isShift ? '' : `<div style="display:flex;gap:10px">\n                    <div style="flex:1">${field('Sound ID', input('tgEditSound', g.sound_id, '1518570639886389378'))}</div>\n                    <div style="width:118px">${field('ความยาว (วิ)', input('tgEditDuration', g.sound_duration, '3.5'))}</div>\n                </div>`}${activitiesHtml}\n            </div>`,
     background: '#1e293b',
     color: '#fff',
