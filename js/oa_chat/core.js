@@ -1883,6 +1883,13 @@ window.oa_loadIdle = async function (force) {
                 .or('break_end.is.null,and(break_date.gte.' + fromPrev + ',break_date.lte.' + to + ')').limit(5000);
             R.breaks = br || [];
         } catch (e) { R.breaks = R.breaks || []; }
+        // ตำแหน่ง TT / QL (department ลงท้าย TT หรือ QL) ไม่นับแชทนิ่ง
+        try {
+            let users = null;
+            if (typeof window.getUsersCached === 'function') users = await window.getUsersCached();
+            if (!Array.isArray(users) || !users.length) { const { data: u } = await window.appDB.from('users').select('username, department'); users = u || []; }
+            R.skipUsers = new Set(users.filter(u => /(TT|QL)$/i.test(String(u.department || '').trim())).map(u => String(u.username || '').toLowerCase()));
+        } catch (e) { R.skipUsers = R.skipUsers || new Set(); }
         R.loaded = true; R._at = Date.now(); R._range = rangeKey; R._err = null;
     } catch (e) {
         R._err = e && (e.message || String(e));
@@ -1930,9 +1937,12 @@ window.oa_renderIdle = function () {
     const nOnBreak = all.filter(r => r.brk).length;
     // รวมเป็น "รายคน": คนเดียวกัน แบบเดียวกัน ช่วงเวลาที่ซ้อน/ต่อกัน (ห่างไม่เกิน 1 นาที) = 1 ช่วงนิ่ง
     // แบบ 1 หลายแชทที่เข้ามาพร้อมกันตอนนิ่ง → นับเป็นช่วงเดียว บอกจำนวนแชทไว้ · คนที่กดพักอยู่ → ตัดออก
+    const skip = R.skipUsers || new Set();
+    const nSkipPos = all.filter(r => skip.has(String(r.username || '').toLowerCase())).length;
     const byUser = {};
     all.forEach(r => {
         if (r.brk) return;
+        if (skip.has(String(r.username || '').toLowerCase())) return;          // ตำแหน่ง TT / QL ไม่นับ
         const k = r.kind + '|' + r.username;
         (byUser[k] = byUser[k] || []).push(r);
     });
@@ -1972,7 +1982,7 @@ window.oa_renderIdle = function () {
     const stat = kind => { const g = groups.filter(x => x.kind === kind); return { live: g.filter(x => x.live).length, n: g.length, min: Math.round(g.reduce((a, x) => a + x.dur, 0) / 60000) }; };
     const su = stat('unopened'), so = stat('open');
     S('oaIdleUnopened', su.n); S('oaIdleUnopenedSub', 'กำลังนิ่งอยู่ ' + su.live + ' คน · รวม ' + su.min + ' นาที');
-    S('oaIdleOpen', so.n); S('oaIdleOpenSub', 'กำลังนิ่งอยู่ ' + so.live + ' คน · รวม ' + so.min + ' นาที' + (nOnBreak ? ' · ตัดที่กดพักใน Telegram ออก ' + nOnBreak : ''));
+    S('oaIdleOpen', so.n); S('oaIdleOpenSub', 'กำลังนิ่งอยู่ ' + so.live + ' คน · รวม ' + so.min + ' นาที' + (nOnBreak ? ' · ตัดที่กดพักใน Telegram ออก ' + nOnBreak : '') + (nSkipPos ? ' · ไม่นับ TT/QL ' + nSkipPos : ''));
     const nLive = su.live + so.live;
     const badge = document.getElementById('oaIdleBadge');
     if (badge) { badge.textContent = nLive; badge.style.display = nLive ? '' : 'none'; }
