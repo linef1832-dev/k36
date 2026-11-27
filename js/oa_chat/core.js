@@ -1788,11 +1788,15 @@ window.oa_renderRead = function () {
         const st = g.state;
         const ageTxt = st === 'late' ? '⏱ ค้าง ' + oa_readAge(g.age) + ' แล้วค่อยมีคนตอบ · ' + tm(g.resolved_at)
             : (st === 'read' ? '⏱ ค้างมา ' : 'เพิ่งเปิด ') + oa_readAge(g.age);
+        // แต่ละคนที่เปิดอ่าน: ถ้าเป็นคนเดียวกับที่มาตอบ → "เปิดแล้วตอบ" (เขียว) · ไม่ใช่ → "เปิดแล้วไม่ตอบ" (แดง/เหลือง)
         const readers = g.readers.map(r => {
             const a = (g.resolved_at ? new Date(g.resolved_at).getTime() : now) - new Date(r.opened_at).getTime();
-            return `<div class="pc-ev"><span class="pc-badge ${st}">👁 เปิดอ่าน</span><b>${esc(r.username)}</b><span class="pc-t">${tm(r.opened_at)} · ${oa_readAge(a)}</span></div>`;
+            const isResolver = st === 'late' && g.resolved_by && String(r.username).toLowerCase() === String(g.resolved_by).toLowerCase();
+            const badge = isResolver ? `<span class="pc-badge done">👁 เปิดอ่าน → ตอบเอง</span>` : `<span class="pc-badge ${st === 'late' ? 'read' : st}">👁 เปิดอ่าน ไม่ตอบ</span>`;
+            return `<div class="pc-ev">${badge}<b>${esc(r.username)}</b><span class="pc-t">${tm(r.opened_at)}${isResolver ? ' · ตอบหลังเปิด ' + oa_readAge(a) : ' · ปล่อยไว้ ' + oa_readAge(a)}</span></div>`;
         }).join('');
-        const tail = st === 'late' ? `<div class="pc-ev"><span class="pc-badge done">✅ มาตอบให้</span><b>${esc(g.resolved_by || 'ไม่ทราบชื่อ')}</b><span class="pc-t">${tm(g.resolved_at)}</span></div>`
+        const resolverOpened = st === 'late' && g.resolved_by && g.readers.some(r => String(r.username).toLowerCase() === String(g.resolved_by).toLowerCase());
+        const tail = st === 'late' ? `<div class="pc-ev"><span class="pc-badge done">✅ ${resolverOpened ? 'ตอบแล้ว' : 'มาตอบให้'}</span><b>${esc(g.resolved_by || 'ไม่ทราบชื่อ')}</b><span class="pc-t">${tm(g.resolved_at)}</span></div>`
             : `<div class="pc-ev pc-wait"><span class="pc-badge wait">⏳</span>ยังไม่มีใครตอบ</div>`;
         const cls = st === 'read' ? 'pc-read' : st === 'soon' ? 'pc-read-soon' : 'pc-read-late';
         // ลิงก์เปิดแชทใน LINE ด้วยรหัสแชท — ลูกค้าเปลี่ยนชื่อ/บล็อก ก็ยังเปิดถูกแชท
