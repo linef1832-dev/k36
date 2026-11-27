@@ -1632,13 +1632,11 @@ function oa_readRange() {
     if (from > to) { const x = from; from = to; to = x; }
     return { from, to };
 }
-window.oa_readQuickRange = function (daysBack) {
+// ปุ่มลัด: ย้อนกี่วันทำงาน (จาก, ถึง) — วันนี้ = (0,0) · เมื่อวาน = (1,1) · 7 วัน = (6,0)
+window.oa_readQuickRange = function (fromBack, toBack) {
     const f = document.getElementById('oaReadFrom'), t = document.getElementById('oaReadTo');
-    const to = oa_workDate(0);
-    const d = new Date(to + 'T12:00:00'); d.setDate(d.getDate() - daysBack);
-    const p = n => String(n).padStart(2, '0');
-    if (f) f.value = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
-    if (t) t.value = to;
+    if (f) f.value = oa_workDate(-Number(fromBack || 0));
+    if (t) t.value = oa_workDate(-Number(toBack || 0));
     oa_loadRead(true);
 };
 
@@ -1775,15 +1773,9 @@ window.oa_renderRead = function () {
     const { from, to } = oa_readRange();
     const rangeTxt = from === to ? from : from + ' ถึง ' + to;
     // ไฮไลต์ปุ่มลัดที่ตรงกับช่วงที่เลือกอยู่ (ถ้าเลือกเองไม่ตรงปุ่มไหน = ไม่ไฮไลต์)
-    (function () {
-        const today = oa_workDate(0);
-        const p = n => String(n).padStart(2, '0');
-        document.querySelectorAll('#oaReadQuick .oa-chip').forEach(b => {
-            const d = new Date(today + 'T12:00:00'); d.setDate(d.getDate() - Number(b.dataset.days || 0));
-            const f = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
-            b.classList.toggle('on', to === today && from === f);
-        });
-    })();
+    document.querySelectorAll('#oaReadQuick .oa-chip').forEach(b => {
+        b.classList.toggle('on', from === oa_workDate(-Number(b.dataset.from || 0)) && to === oa_workDate(-Number(b.dataset.to || 0)));
+    });
     S('oaReadTitle', view === 'read' ? 'แชทที่เปิดอ่านแล้วไม่ตอบเกิน ' + (window.OA_READ_MIN || 10) + ' นาที · ' + rangeTxt + ' (ที่ยังไม่ตอบแสดงทุกวัน)' : 'แชทที่เพิ่งเปิดอ่าน (ยังไม่ถึง ' + (window.OA_READ_MIN || 10) + ' นาที)');
     const badge = document.getElementById('oaReadBadge');
     if (badge) { badge.textContent = nRead; badge.style.display = nRead ? '' : 'none'; }
