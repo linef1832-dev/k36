@@ -1770,6 +1770,16 @@ window.oa_renderRead = function () {
     document.querySelectorAll('#oaReadTabs .oa-kpi-tab').forEach(b => b.classList.toggle('on', b.dataset.view === view));
     const { from, to } = oa_readRange();
     const rangeTxt = from === to ? from : from + ' ถึง ' + to;
+    // ไฮไลต์ปุ่มลัดที่ตรงกับช่วงที่เลือกอยู่ (ถ้าเลือกเองไม่ตรงปุ่มไหน = ไม่ไฮไลต์)
+    (function () {
+        const today = oa_workDate(0);
+        const p = n => String(n).padStart(2, '0');
+        document.querySelectorAll('#oaReadQuick .oa-chip').forEach(b => {
+            const d = new Date(today + 'T12:00:00'); d.setDate(d.getDate() - Number(b.dataset.days || 0));
+            const f = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+            b.classList.toggle('on', to === today && from === f);
+        });
+    })();
     S('oaReadTitle', view === 'read' ? 'แชทที่เปิดอ่านแล้วไม่ตอบเกิน ' + (window.OA_READ_MIN || 10) + ' นาที · ' + rangeTxt + ' (ที่ยังไม่ตอบแสดงทุกวัน)' : 'แชทที่เพิ่งเปิดอ่าน (ยังไม่ถึง ' + (window.OA_READ_MIN || 10) + ' นาที)');
     const badge = document.getElementById('oaReadBadge');
     if (badge) { badge.textContent = nRead; badge.style.display = nRead ? '' : 'none'; }
