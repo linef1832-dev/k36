@@ -1801,7 +1801,7 @@ window.oa_renderRead = function () {
         // แต่ละคนที่เปิดอ่าน: ถ้าเป็นคนเดียวกับที่มาตอบ → "เปิดแล้วตอบ" (เขียว) · ไม่ใช่ → "เปิดแล้วไม่ตอบ" (แดง/เหลือง)
         const readers = g.readers.map(r => {
             const a = (g.resolved_at ? new Date(g.resolved_at).getTime() : now) - new Date(r.opened_at).getTime();
-            const isResolver = st === 'late' && g.resolved_by && String(r.username).toLowerCase() === String(g.resolved_by).toLowerCase();
+            const isResolver = st === 'late' && g.resolved_by && g.resolved_by !== 'unknown' && String(r.username).toLowerCase() === String(g.resolved_by).toLowerCase();
             // ป้ายแดง "ไม่ตอบ" เฉพาะคนที่ "ตัวเอง" ปล่อยไว้เกินกำหนด · เปิดแล้วมีคนอื่นตอบภายในเวลา = ไม่ใช่ความผิด (เทา)
             let badge, note;
             if (isResolver) { badge = `<span class="pc-badge done">👁 เปิดอ่าน → ตอบเอง</span>`; note = 'ตอบหลังเปิด ' + oa_readAge(a); }
@@ -1810,8 +1810,9 @@ window.oa_renderRead = function () {
             else { badge = `<span class="pc-badge ${st}">👁 เปิดอ่าน</span>`; note = oa_readAge(a); }
             return `<div class="pc-ev">${badge}<b>${esc(r.username)}</b><span class="pc-t">${tm(r.opened_at)} · ${note}</span></div>`;
         }).join('');
-        const resolverOpened = st === 'late' && g.resolved_by && g.readers.some(r => String(r.username).toLowerCase() === String(g.resolved_by).toLowerCase());
-        const tail = st === 'late' ? `<div class="pc-ev"><span class="pc-badge done">✅ ${resolverOpened ? 'ตอบแล้ว' : 'มาตอบให้'}</span><b>${esc(g.resolved_by || 'ไม่ทราบชื่อ')}</b><span class="pc-t">${tm(g.resolved_at)}</span></div>`
+        const resolverOpened = st === 'late' && g.resolved_by && g.resolved_by !== 'unknown' && g.readers.some(r => String(r.username).toLowerCase() === String(g.resolved_by).toLowerCase());
+        const unknownBy = !g.resolved_by || g.resolved_by === 'unknown';
+        const tail = st === 'late' ? `<div class="pc-ev"><span class="pc-badge done">✅ ${resolverOpened ? 'ตอบแล้ว' : 'มาตอบให้'}</span><b>${unknownBy ? '<span class="text-slate-400" title="ตอบจากเครื่อง/มือถือที่ไม่มีส่วนเสริม ส่วนเสริมอ่านชื่อจากฟองไม่ได้">ไม่ทราบชื่อ</span>' : esc(g.resolved_by)}</b><span class="pc-t">${tm(g.resolved_at)}</span></div>`
             : `<div class="pc-ev pc-wait"><span class="pc-badge wait">⏳</span>ยังไม่มีใครตอบ</div>`;
         const cls = st === 'read' ? 'pc-read' : st === 'soon' ? 'pc-read-soon' : 'pc-read-late';
         // ลิงก์เปิดแชทใน LINE ด้วยรหัสแชท — ลูกค้าเปลี่ยนชื่อ/บล็อก ก็ยังเปิดถูกแชท
