@@ -1990,10 +1990,10 @@ window.oa_renderIdle = function () {
         let ageTxt, body;
         if (g.kind === 'unopened') {
             ageTxt = g.live ? '🟢 นิ่งอยู่ ' + oa_readAge(g.dur) + ' ทั้งที่มีแชทเข้า' : '⏱ นิ่งไป ' + oa_readAge(g.dur) + ' · กดเข้า ' + tm(g.ended_at);
-            body = `<div class="pc-ev"><span class="pc-badge ${st}">🟢 มีแชทเข้า ${g.n} แชท</span><span class="pc-t">ตั้งแต่ ${tm(g.since)}${g.live ? ' · ยังไม่กดเข้า' : ' → กดเข้า ' + tm(g.ended_at)}</span></div>`;
+            body = `<div class="pc-ev"><span class="pc-badge ${st}">🟢 มีแชทเข้า</span><span class="pc-t">ตั้งแต่ ${tm(g.since)}${g.live ? ' · ยังไม่กดเข้า' : ' → กดเข้าจนหมด ' + tm(g.ended_at)}</span></div>`;
         } else {
             ageTxt = g.live ? '💤 นิ่งอยู่ ' + oa_readAge(g.dur) : '⏱ นิ่งไป ' + oa_readAge(g.dur) + ' · กลับมา ' + tm(g.ended_at);
-            body = `<div class="pc-ev"><span class="pc-badge ${st}">💤 อยู่ในแชทลูกค้ารอ${g.n > 1 ? ' ' + g.n + ' แชท' : ''}</span><span class="pc-t">ตั้งแต่ ${tm(g.since)}${g.live ? ' · ยังไม่ทำอะไร' : ' → กลับมาทำ ' + tm(g.ended_at)}</span></div>`;
+            body = `<div class="pc-ev"><span class="pc-badge ${st}">💤 อยู่ในแชทลูกค้ารอ</span><span class="pc-t">ตั้งแต่ ${tm(g.since)}${g.live ? ' · ยังไม่ทำอะไร' : ' → กลับมาทำ ' + tm(g.ended_at)}</span></div>`;
         }
         return `<div class="pc ${g.live ? 'pc-idle' : 'pc-idle-done'}"><div class="pc-head"><div class="pc-name">${esc(g.username)}</div><div class="pc-age ${st}">${ageTxt}</div></div><div class="pc-body">${body}</div></div>`;
     };
