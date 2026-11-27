@@ -9,12 +9,72 @@ const BREAK_LIMITS = {
   'ห้องน้ำเล็ก': 6
 };
 
-function getBreakLimit(reason) {
+const DEFAULT_ACTIVITIES = [ {
+  name: 'กินข้าว',
+  limit: 30
+}, {
+  name: 'ปวดหนัก',
+  limit: 20
+}, {
+  name: 'ปวดน้อย',
+  limit: 6
+} ];
+
+// อ่านรายการกิจกรรมของกลุ่ม (เก็บเป็น JSON ในคอลัมน์ telegram_groups.activities)
+window.getGroupActivities = function(g) {
+  let a = g ? g.activities : null;
+  if (typeof a === 'string') {
+    try {
+      a = JSON.parse(a);
+    } catch (e) {
+      a = null;
+    }
+  }
+  if (!Array.isArray(a)) return [];
+  return a.map((x => ({
+    name: String(x && x.name || '').trim(),
+    limit: Number(x && x.limit) || 0
+  }))).filter((x => x.name));
+};
+
+// หา chat id ของกลุ่มจากแถว break_logs (รองรับหลายชื่อคอลัมน์)
+function rowChatId(row) {
+  if (!row) return '';
+  const v = row.chat_id ?? row.group_chat_id ?? row.telegram_chat_id ?? row.group_id;
+  return window.normChatId ? window.normChatId(v) : '';
+}
+
+// เวลาจำกัด (นาที) ของกิจกรรม — ดูจากกลุ่มที่ตั้งไว้ก่อน ถ้าไม่เจอค่อยใช้ค่าเริ่มต้น
+function getBreakLimit(reason, row) {
   if (!reason) return null;
+  const groups = (window._tgGroupsCache || []).filter((g => g.group_type === 'checkin'));
+  let candidates = groups;
+  const cid = rowChatId(row);
+  if (cid) {
+    const matched = groups.filter((g => window.normChatId(g.chat_id) === cid));
+    if (matched.length) candidates = matched;
+  }
+  for (const g of candidates) {
+    for (const a of window.getGroupActivities(g)) {
+      if (reason.includes(a.name)) return a.limit > 0 ? a.limit : null;
+    }
+  }
   for (const [key, limit] of Object.entries(BREAK_LIMITS)) {
     if (reason.includes(key)) return limit;
   }
   return null;
+}
+
+// โหลดรายการกลุ่มไว้ใน cache (ใช้คำนวณเวลาจำกัด)
+async function ensureTgGroups() {
+  try {
+    const {data: data, error: error} = await appDB.from('telegram_groups').select('*').order('created_at', {
+      ascending: true
+    });
+    if (!error && Array.isArray(data)) window._tgGroupsCache = data;
+  } catch (e) {
+    console.warn('[Breaktrack] โหลดกลุ่มไม่สำเร็จ — ใช้เวลาจำกัดค่าเริ่มต้น', e);
+  }
 }
 
 function breakDurationMin(start, end) {
@@ -66,6 +126,7 @@ window.loadBreaktrack = async function() {
         console.warn('[Breaktrack] ดึงรายชื่อสำรองไม่สำเร็จ', e);
       }
     }
+    await ensureTgGroups();
     const {data: data, error: error} = await appDB.from('break_logs').select('*').eq('break_date', date).order('break_start', {
       ascending: true
     });
@@ -155,7 +216,7 @@ window.renderBreaktrackTable = function() {
       const reason = s.break_reason || 'อื่นๆ';
       activityCount[reason] = (activityCount[reason] || 0) + 1;
       if (s.break_end) {
-        const limit = getBreakLimit(s.break_reason);
+        const limit = getBreakLimit(s.break_reason, s);
         if (limit && dur > limit) overCount++;
       }
     }));
@@ -209,7 +270,7 @@ window.openBreaktrackDetail = function(staffName) {
   document.getElementById('breaktrackModalTitle').textContent = `${staffName} (${shift}) — รายละเอียดการพัก`;
   const rows = sessions.map((s => {
     const dur = breakDurationMin(s.break_start, s.break_end);
-    const limit = getBreakLimit(s.break_reason);
+    const limit = getBreakLimit(s.break_reason, s);
     const isOver = s.break_end && limit && dur > limit;
     const noReturn = !s.break_end;
     const startTime = s.break_start ? new Date(s.break_start).toLocaleTimeString('th-TH', {
@@ -266,7 +327,12 @@ window.loadCheckinGroups = async function() {
       const idLine = cid ? `<span class="text-gray-500">ID: ${g.chat_id}</span>` : `<span class="text-amber-400">ยังไม่ได้ใส่ Chat ID — บอทจะข้ามกลุ่มนี้</span>`;
       const soundLine = g.group_type === 'shift' && g.sound_id ? `<span class="text-gray-600"> · เสียง ${g.sound_id}</span>` : '';
       const tagLine = g.group_type === 'shift' ? window.groupTagBadge(g.tag) : '';
-      return `\n            <div class="flex items-center justify-between bg-slate-800 rounded-xl px-3 py-2 gap-2">\n                <div class="flex items-center gap-2 flex-1 min-w-0">\n                    <span class="w-2 h-2 rounded-full shrink-0 ${g.active ? 'bg-emerald-400' : 'bg-gray-500'}"></span>\n                    <div class="min-w-0 flex-1">\n                        <div class="flex items-center min-w-0">\n                            <span class="text-white text-xs font-bold truncate">${g.group_name || '(ไม่มีชื่อ)'}</span>${tagLine}\n                        </div>\n                        <div class="text-[10px] truncate font-mono">${idLine}${soundLine}</div>\n                    </div>\n                </div>\n                <div class="flex gap-1 shrink-0">\n                    <button onclick="window.editTelegramGroup('${g.id}')"\n                        class="text-xs px-2 py-1 rounded-lg font-bold bg-slate-600 text-gray-200 hover:bg-slate-500 transition">แก้ไข</button>\n                    <button onclick="window.toggleCheckinGroup('${g.id}', ${g.active})"\n                        class="text-xs px-2 py-1 rounded-lg font-bold transition ${g.active ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'}">\n                        ${g.active ? 'ปิด' : 'เปิด'}\n                    </button>\n                    <button onclick="window.deleteCheckinGroup('${g.id}')"\n                        class="text-xs px-2 py-1 rounded-lg font-bold bg-red-500/20 text-red-400 hover:bg-red-500/30 transition">ลบ</button>\n                </div>\n            </div>`;
+      let actLine = '';
+      if (g.group_type === 'checkin') {
+        const acts = window.getGroupActivities(g);
+        actLine = acts.length ? `<div class="flex flex-wrap gap-1 mt-1">${acts.map((a => `<span class="text-[10px] px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 whitespace-nowrap">${window.escapeHtml(a.name)} <b>${a.limit > 0 ? a.limit + ' น.' : 'ไม่จำกัด'}</b></span>`)).join('')}</div>` : `<div class="text-[10px] text-gray-500 mt-1">ยังไม่ตั้งกิจกรรม — ใช้ค่าเริ่มต้น (กินข้าว 30 · ปวดหนัก 20 · ปวดน้อย 6 นาที)</div>`;
+      }
+      return `\n            <div class="flex items-center justify-between bg-slate-800 rounded-xl px-3 py-2 gap-2">\n                <div class="flex items-center gap-2 flex-1 min-w-0">\n                    <span class="w-2 h-2 rounded-full shrink-0 ${g.active ? 'bg-emerald-400' : 'bg-gray-500'}"></span>\n                    <div class="min-w-0 flex-1">\n                        <div class="flex items-center min-w-0">\n                            <span class="text-white text-xs font-bold truncate">${g.group_name || '(ไม่มีชื่อ)'}</span>${tagLine}\n                        </div>\n                        <div class="text-[10px] truncate font-mono">${idLine}${soundLine}</div>${actLine}\n                    </div>\n                </div>\n                <div class="flex gap-1 shrink-0">\n                    <button onclick="window.editTelegramGroup('${g.id}')"\n                        class="text-xs px-2 py-1 rounded-lg font-bold bg-slate-600 text-gray-200 hover:bg-slate-500 transition">แก้ไข</button>\n                    <button onclick="window.toggleCheckinGroup('${g.id}', ${g.active})"\n                        class="text-xs px-2 py-1 rounded-lg font-bold transition ${g.active ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'}">\n                        ${g.active ? 'ปิด' : 'เปิด'}\n                    </button>\n                    <button onclick="window.deleteCheckinGroup('${g.id}')"\n                        class="text-xs px-2 py-1 rounded-lg font-bold bg-red-500/20 text-red-400 hover:bg-red-500/30 transition">ลบ</button>\n                </div>\n            </div>`;
     };
     const empty = '<div class="text-gray-500 text-xs text-center py-2">ยังไม่มีกลุ่ม</div>';
     const checkinData = window._tgGroupsCache.filter((g => g.group_type === 'checkin'));
@@ -317,6 +383,78 @@ window.addCheckinGroup = async function(type) {
   }
 };
 
+// ---------- ตัวช่วยแก้ไขรายการกิจกรรมใน modal ----------
+window._tgActRows = [];
+
+window._tgActRender = function() {
+  const box = document.getElementById('tgEditActs');
+  if (!box) return;
+  const esc = v => String(v == null ? '' : v).replace(/"/g, '&quot;');
+  const FD = 'box-sizing:border-box;padding:9px 12px;border-radius:9px;border:1.5px solid var(--k-line2);' + 'background:var(--k-field);color:var(--k-tx);font-size:13px;font-weight:600;outline:none;';
+  if (!window._tgActRows.length) {
+    box.innerHTML = '<div style="font-size:11px;color:#64748b;text-align:center;padding:8px 0">ยังไม่มีกิจกรรม — กด "เพิ่มกิจกรรม"</div>';
+    return;
+  }
+  box.innerHTML = window._tgActRows.map(((a, i) => `
+        <div style="display:flex;gap:6px;align-items:center">
+            <input data-act-name="${i}" value="${esc(a.name)}" placeholder="ชื่อกิจกรรม เช่น กินข้าว"
+                style="${FD}flex:1;min-width:0"
+                oninput="window._tgActRows[${i}].name=this.value"
+                onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#334155'">
+            <input data-act-limit="${i}" type="number" min="0" step="1" value="${a.limit > 0 ? a.limit : ''}" placeholder="นาที"
+                style="${FD}width:78px;text-align:center"
+                oninput="window._tgActRows[${i}].limit=Number(this.value)||0"
+                onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#334155'">
+            <button type="button" onclick="window._tgActRemove(${i})" title="ลบกิจกรรมนี้"
+                style="width:34px;height:38px;border-radius:9px;border:1px solid rgba(239,68,68,.35);background:rgba(239,68,68,.12);color:#f87171;font-weight:800;cursor:pointer;flex-shrink:0">✕</button>
+        </div>`)).join('');
+};
+
+window._tgActAdd = function() {
+  window._tgActRows.push({
+    name: '',
+    limit: 0
+  });
+  window._tgActRender();
+  const inputs = document.querySelectorAll('#tgEditActs [data-act-name]');
+  const last = inputs[inputs.length - 1];
+  if (last) last.focus();
+};
+
+window._tgActRemove = function(i) {
+  window._tgActRows.splice(i, 1);
+  window._tgActRender();
+};
+
+// คืน array ที่สะอาดแล้ว หรือ null ถ้ากรอกผิด (แสดง validation message ให้แล้ว)
+window._tgActCollect = function() {
+  const out = [];
+  const seen = new Set;
+  for (const a of window._tgActRows) {
+    const name = String(a.name || '').trim();
+    const limit = Number(a.limit) || 0;
+    if (!name) {
+      Swal.showValidationMessage('มีกิจกรรมที่ยังไม่ได้ใส่ชื่อ — ใส่ชื่อหรือลบแถวนั้นออกก่อนครับ');
+      return null;
+    }
+    if (limit < 0 || !Number.isFinite(limit)) {
+      Swal.showValidationMessage(`เวลาของ "${name}" ต้องเป็นตัวเลข 0 ขึ้นไป`);
+      return null;
+    }
+    const key = name.toLowerCase();
+    if (seen.has(key)) {
+      Swal.showValidationMessage(`กิจกรรม "${name}" ซ้ำกันครับ`);
+      return null;
+    }
+    seen.add(key);
+    out.push({
+      name: name,
+      limit: Math.round(limit)
+    });
+  }
+  return out;
+};
+
 window.editTelegramGroup = async function(id) {
   const g = (window._tgGroupsCache || []).find((x => String(x.id) === String(id)));
   if (!g) return;
@@ -328,10 +466,22 @@ window.editTelegramGroup = async function(id) {
   const field = (label, inner) => `<div style="${ROW}"><label style="${LB}">${label}</label>${inner}</div>`;
   const input = (id, val, ph) => `<input id="${id}" style="${FD}" value="${esc(val)}" placeholder="${esc(ph)}"\n            onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#334155'">`;
   const selectHtml = `\n        <div style="position:relative">\n            <select id="tgEditTag" style="${FD}appearance:none;-webkit-appearance:none;cursor:pointer;padding-right:36px;"\n                onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#334155'">\n                ${groupTagOptionsHtml(g.tag)}\n            </select>\n            <span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--k-mute);font-size:10px;line-height:1;">&#9660;</span>\n        </div>`;
+  // ---- ส่วนกิจกรรม + เวลาจำกัด (เฉพาะกลุ่มเช็คอิน) ----
+  const existingActs = window.getGroupActivities(g);
+  const initialActs = existingActs.length ? existingActs : DEFAULT_ACTIVITIES.map((a => ({ ...a })));
+  const activitiesHtml = isShift ? '' : `
+        <div style="${ROW}">
+            <label style="${LB}">กิจกรรม &amp; เวลาจำกัด (นาที) <span style="font-weight:500;color:var(--k-mute)">— ใส่ 0 = ไม่จำกัดเวลา</span></label>
+            <div id="tgEditActs" style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;padding-right:2px"></div>
+            <button type="button" onclick="window._tgActAdd()"
+                style="margin-top:8px;width:100%;padding:8px;border-radius:10px;border:1.5px dashed var(--k-line2);background:transparent;color:#94a3b8;font-size:12px;font-weight:700;cursor:pointer">
+                + เพิ่มกิจกรรม
+            </button>
+        </div>`;
   const result = await Swal.fire({
     title: 'แก้ไขกลุ่ม',
     width: 460,
-    html: `\n            <div style="padding:2px">\n                ${field('ชื่อกลุ่ม <span style="font-weight:500;color:var(--k-mute)">(แค่ป้ายชื่อ ระบบใช้ Chat ID จับ)</span>', input('tgEditName', g.group_name, ''))}\n                ${field('Chat ID', input('tgEditChatId', g.chat_id, '-1001234567890'))}\n                ${!isShift ? '' : field('TAG ที่ต้องถ่ายรูปในกลุ่มนี้', selectHtml)}\n                ${!isShift ? '' : `<div style="display:flex;gap:10px">\n                    <div style="flex:1">${field('Sound ID', input('tgEditSound', g.sound_id, '1518570639886389378'))}</div>\n                    <div style="width:118px">${field('ความยาว (วิ)', input('tgEditDuration', g.sound_duration, '3.5'))}</div>\n                </div>`}\n            </div>`,
+    html: `\n            <div style="padding:2px">\n                ${field('ชื่อกลุ่ม <span style="font-weight:500;color:var(--k-mute)">(แค่ป้ายชื่อ ระบบใช้ Chat ID จับ)</span>', input('tgEditName', g.group_name, ''))}\n                ${field('Chat ID', input('tgEditChatId', g.chat_id, '-1001234567890'))}\n                ${!isShift ? '' : field('TAG ที่ต้องถ่ายรูปในกลุ่มนี้', selectHtml)}\n                ${!isShift ? '' : `<div style="display:flex;gap:10px">\n                    <div style="flex:1">${field('Sound ID', input('tgEditSound', g.sound_id, '1518570639886389378'))}</div>\n                    <div style="width:118px">${field('ความยาว (วิ)', input('tgEditDuration', g.sound_duration, '3.5'))}</div>\n                </div>`}${activitiesHtml}\n            </div>`,
     background: '#1e293b',
     color: '#fff',
     showCancelButton: true,
@@ -340,6 +490,12 @@ window.editTelegramGroup = async function(id) {
     confirmButtonColor: '#10b981',
     cancelButtonColor: '#475569',
     focusConfirm: false,
+    didOpen: () => {
+      if (!isShift) {
+        window._tgActRows = initialActs.map((a => ({ ...a })));
+        window._tgActRender();
+      }
+    },
     preConfirm: () => {
       const name = document.getElementById('tgEditName').value.trim();
       const chatId = document.getElementById('tgEditChatId').value.trim();
@@ -365,6 +521,10 @@ window.editTelegramGroup = async function(id) {
         }
         out.sound_id = sid || null;
         out.sound_duration = dur ? Number(dur) : null;
+      } else {
+        const acts = window._tgActCollect();
+        if (acts === null) return false;
+        out.activities = acts;
       }
       return out;
     }
