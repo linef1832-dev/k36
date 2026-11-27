@@ -1880,7 +1880,17 @@ window.oa_loadIdle = async function (force) {
             .or('ended_at.is.null,and(work_date.gte.' + from + ',work_date.lte.' + to + ')')
             .order('idle_since', { ascending: false }).limit(3000);
         if (error) throw error;
-        R.rows = data || []; R.loaded = true; R._at = Date.now(); R._range = rangeKey; R._err = null;
+        R.rows = data || [];
+        // การพักจาก Telegram (break_logs) ช่วงเดียวกัน (+1 วันก่อนหน้า เผื่อกะดึก) + ที่ยังพักอยู่ → คนที่พักอยู่ไม่นับว่านิ่ง
+        try {
+            const d0 = new Date(from + 'T12:00:00'); d0.setDate(d0.getDate() - 1);
+            const p = n => String(n).padStart(2, '0');
+            const fromPrev = d0.getFullYear() + '-' + p(d0.getMonth() + 1) + '-' + p(d0.getDate());
+            const { data: br } = await window.appDB.from('break_logs').select('staff_name, break_start, break_end, break_reason')
+                .or('break_end.is.null,and(break_date.gte.' + fromPrev + ',break_date.lte.' + to + ')').limit(5000);
+            R.breaks = br || [];
+        } catch (e) { R.breaks = R.breaks || []; }
+        R.loaded = true; R._at = Date.now(); R._range = rangeKey; R._err = null;
     } catch (e) {
         R._err = e && (e.message || String(e));
     } finally { R._busy = false; }
@@ -1913,10 +1923,19 @@ window.oa_renderIdle = function () {
     }
     const view = o.idleView === 'open' ? 'open' : 'unopened';
     document.querySelectorAll('#oaIdleTabs .oa-kpi-tab').forEach(b => b.classList.toggle('on', b.dataset.view === view));
-    const all = R.rows.map(r => Object.assign({}, r, { kind: r.kind === 'unopened' ? 'unopened' : 'open' }));
+    // คนที่กดพักใน Telegram อยู่ระหว่างช่วงที่นิ่ง → ไม่นับ (ไม่ได้อยู่หน้าจอจริง)
+    const brByUser = {};
+    (R.breaks || []).forEach(b => { const k = String(b.staff_name || '').toLowerCase(); (brByUser[k] = brByUser[k] || []).push({ s: new Date(b.break_start).getTime(), e: b.break_end ? new Date(b.break_end).getTime() : Infinity, reason: b.break_reason || 'พัก' }); });
+    const breakOf = (username, t0, t1) => (brByUser[String(username || '').toLowerCase()] || []).find(b => b.s <= t1 && b.e >= t0) || null;
+    const all = R.rows.map(r => {
+        const t0 = new Date(r.idle_since).getTime(), t1 = r.ended_at ? new Date(r.ended_at).getTime() : now;
+        return Object.assign({}, r, { kind: r.kind === 'unopened' ? 'unopened' : 'open', brk: breakOf(r.username, t0, t1) });
+    });
+    const nOnBreak = all.filter(r => r.brk).length;
     // แบบ 1 รวมหลายเครื่องที่เห็นจุดเขียวเดียวกันเป็น "แชทละใบ" · แบบ 2 คนละใบ
     const byKey = {};
     all.forEach(r => {
+        if (r.brk && r.kind === 'open') return;                       // นิ่งเพราะกดพักอยู่ → ไม่นับ
         const k = r.kind === 'unopened' ? ['u', r.oa_id, r.chat_id, r.ended_at ? 'done:' + String(r.ended_at).slice(0, 16) : 'open'].join('|') : 'o|' + r.id;
         let g = byKey[k];
         if (!g) g = byKey[k] = { key: k, kind: r.kind, oa_id: r.oa_id, chat_id: r.chat_id, name: r.chat_name, oa: r.oa_name, since: r.idle_since, ended_at: r.ended_at, who: [] };
@@ -1924,7 +1943,8 @@ window.oa_renderIdle = function () {
         if (!g.oa && r.oa_name) g.oa = r.oa_name;
         if (r.idle_since < g.since) g.since = r.idle_since;
         if (!r.ended_at) g.ended_at = null; else if (g.ended_at && r.ended_at > g.ended_at) g.ended_at = r.ended_at;
-        if (!g.who.includes(r.username)) g.who.push(r.username);
+        if (r.brk) { g.onBreak = g.onBreak || []; if (!g.onBreak.includes(r.username)) g.onBreak.push(r.username); }   // เห็นจุดเขียวแต่กำลังพัก → ไม่โทษ
+        else if (!g.who.includes(r.username)) g.who.push(r.username);
     });
     const groups = Object.values(byKey).map(g => {
         const t0 = new Date(g.since).getTime(), t1 = g.ended_at ? new Date(g.ended_at).getTime() : now;
@@ -1949,7 +1969,7 @@ window.oa_renderIdle = function () {
     const stat = kind => { const g = groups.filter(x => x.kind === kind); return { live: g.filter(x => x.live).length, n: g.length, min: Math.round(g.reduce((a, x) => a + x.dur, 0) / 60000) }; };
     const su = stat('unopened'), so = stat('open');
     S('oaIdleUnopened', su.n); S('oaIdleUnopenedSub', 'ยังไม่มีใครเปิด ' + su.live + ' · รวม ' + su.min + ' นาที');
-    S('oaIdleOpen', so.n); S('oaIdleOpenSub', 'กำลังนิ่งอยู่ ' + so.live + ' · รวม ' + so.min + ' นาที');
+    S('oaIdleOpen', so.n); S('oaIdleOpenSub', 'กำลังนิ่งอยู่ ' + so.live + ' · รวม ' + so.min + ' นาที' + (nOnBreak ? ' · ตัดที่กดพักใน Telegram ออก ' + nOnBreak : ''));
     const nLive = su.live + so.live;
     const badge = document.getElementById('oaIdleBadge');
     if (badge) { badge.textContent = nLive; badge.style.display = nLive ? '' : 'none'; }
@@ -1975,7 +1995,7 @@ window.oa_renderIdle = function () {
         if (g.kind === 'unopened') {
             ageTxt = g.live ? '🟢 เข้ามาแล้ว ' + oa_readAge(g.dur) + ' ยังไม่มีใครเปิด' : '⏱ ถูกปล่อยไว้ ' + oa_readAge(g.dur) + ' · มีคนเปิด ' + tm(g.ended_at);
             body = `<div class="pc-ev"><span class="pc-badge ${st}">🟢 แชทเข้า</span><span class="pc-t">${tm(g.since)}${g.live ? '' : ' → มีคนเปิด ' + tm(g.ended_at)}</span></div>` +
-                   `<div class="pc-ev"><span class="pc-badge wait">👀 เห็นแต่ไม่กด</span><b>${g.who.map(esc).join(', ') || '-'}</b><span class="pc-t">${g.who.length} คน</span></div>`;
+                   `<div class="pc-ev"><span class="pc-badge wait">👀 เห็นแต่ไม่กด</span><b>${g.who.map(esc).join(', ') || '<span class="text-slate-400">ไม่มี — ทุกคนที่เห็นกำลังพักอยู่</span>'}</b><span class="pc-t">${g.who.length} คน${g.onBreak && g.onBreak.length ? ' · พักอยู่ ' + g.onBreak.map(esc).join(', ') : ''}</span></div>`;
         } else {
             ageTxt = g.live ? '💤 นิ่งอยู่ ' + oa_readAge(g.dur) : '⏱ นิ่งไป ' + oa_readAge(g.dur) + ' · กลับมา ' + tm(g.ended_at);
             body = `<div class="pc-ev"><span class="pc-badge ${st}">${g.live ? '💤 นิ่งอยู่' : '💤 เคยนิ่ง'}</span><b>${esc(g.who[0] || '-')}</b><span class="pc-t">ลูกค้ารอตั้งแต่ ${tm(g.since)}${g.live ? '' : ' → กลับมาทำ ' + tm(g.ended_at)}</span></div>`;
