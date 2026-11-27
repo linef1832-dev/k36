@@ -43,6 +43,10 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                 <span>อ่านไม่ตอบ</span><em id="oaReadBadge" class="oa-tab-badge" style="display:none">0</em>
             </button>
+            <button data-t="idle" onclick="oa_setTab('idle')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <span>แชทนิ่ง</span><em id="oaIdleBadge" class="oa-tab-badge" style="display:none">0</em>
+            </button>
         </div>
         
         <div class="oa-panel oa-fp">
@@ -165,6 +169,51 @@
                     <span id="oaReadUpd" class="text-xs font-normal text-slate-400"></span>
                 </div>
                 <div id="oaReadList" class="divide-y divide-gray-50 dark:divide-slate-700/50"><div class="text-center text-slate-400 py-10 text-sm">กำลังโหลด...</div></div>
+            </div>
+        </div>
+
+        <!-- แท็บ "แชทนิ่ง" (ส่วนเสริม ≥3.4.19 → ตาราง oa_idle): 1) แชทเข้า (จุดเขียว) ไม่มีใครเปิดเกิน 3 นาที 2) อยู่ในแชทที่ลูกค้ารอ ไม่ทำอะไรเกิน 3 นาที -->
+        <div id="oaViewIdle" style="display:none" class="space-y-4">
+            <div class="oa-panel oa-actf">
+                <div class="oa-actf-top">
+                    <div class="oa-search-wrap oa-actf-search">
+                        <span class="material-icons oa-search-ic">search</span>
+                        <input id="oaIdleSearch" oninput="oa_renderIdle()" placeholder="ค้นหาชื่อพนักงาน / ลูกค้า / ไลน์ OA" class="oa-search-in">
+                    </div>
+                </div>
+                <div class="oa-fbox oa-actf-box oa-read-datebox">
+                    <div class="oa-flabel"><span class="material-icons">event</span>ช่วงวันที่</div>
+                    <div class="oa-read-dates">
+                        <div class="oa-read-daterange">
+                            <label class="oa-read-datefield"><span>จาก</span><input type="date" id="oaIdleFrom" onchange="oa_loadIdle(true)"></label>
+                            <span class="oa-read-datesep">→</span>
+                            <label class="oa-read-datefield"><span>ถึง</span><input type="date" id="oaIdleTo" onchange="oa_loadIdle(true)"></label>
+                        </div>
+                        <div class="oa-read-quick" id="oaIdleQuick">
+                            <button type="button" class="oa-chip" data-from="0" data-to="0" onclick="oa_idleQuickRange(0, 0)">วันนี้</button>
+                            <button type="button" class="oa-chip" data-from="1" data-to="1" onclick="oa_idleQuickRange(1, 1)">เมื่อวาน</button>
+                            <button type="button" class="oa-chip" data-from="6" data-to="0" onclick="oa_idleQuickRange(6, 0)">7 วัน</button>
+                            <button type="button" class="oa-chip" data-from="29" data-to="0" onclick="oa_idleQuickRange(29, 0)">30 วัน</button>
+                        </div>
+                        <span class="oa-read-datenote">ที่ยังนิ่งอยู่ แสดงเสมอทุกวัน · วันทำงานตัดที่ 08:00</span>
+                    </div>
+                </div>
+                <div class="oa-fbox oa-actf-box">
+                    <div class="oa-flabel"><span class="material-icons">person</span>พนักงาน</div>
+                    <div id="oaIdleUsers" class="oa-chipwrap"></div>
+                </div>
+                <!-- กล่องตัวเลข = แท็บย่อย กดเลือกดูแต่ละแบบ -->
+                <div class="grid grid-cols-2 gap-3" id="oaIdleTabs">
+                    <button type="button" class="oa-kpi oa-kpi-tab" data-view="unopened" onclick="oa_setIdleView('unopened')"><div class="oa-kpi-n" id="oaIdleUnopened" style="color:#16a34a">–</div><div class="oa-kpi-l">🟢 แชทเข้า ไม่มีใครเปิด (เกิน 3 นาที)<small id="oaIdleUnopenedSub"></small></div></button>
+                    <button type="button" class="oa-kpi oa-kpi-tab" data-view="open" onclick="oa_setIdleView('open')"><div class="oa-kpi-n" id="oaIdleOpen" style="color:#dc2626">–</div><div class="oa-kpi-l">💤 อยู่ในแชทแต่ไม่ทำอะไร (เกิน 3 นาที)<small id="oaIdleOpenSub"></small></div></button>
+                </div>
+            </div>
+            <div class="oa-panel p-0 overflow-hidden">
+                <div class="px-4 py-3 border-b border-gray-100 dark:border-slate-700 font-bold text-slate-700 dark:text-slate-200 flex items-center justify-between">
+                    <span id="oaIdleTitle">แชทนิ่ง</span>
+                    <span id="oaIdleUpd" class="text-xs font-normal text-slate-400"></span>
+                </div>
+                <div id="oaIdleList" class="divide-y divide-gray-50 dark:divide-slate-700/50"><div class="text-center text-slate-400 py-10 text-sm">กำลังโหลด...</div></div>
             </div>
         </div>
     </div>
@@ -412,6 +461,12 @@ html:not(.dark) #oaApp .oa-read-datefield input[type=date]{color-scheme:light}
 #oaApp .oa-read-datenote{font-size:11px;color:var(--k-mute);font-weight:600;margin-left:auto}
 @media (max-width:720px){#oaApp .oa-read-datenote{margin-left:0;width:100%}}
 #oaApp .pc-read-late{border-left:3px solid #f97316}
+#oaApp .pc-idle{border-left:4px solid #dc2626}
+#oaApp .pc-idle-done{border-left:4px solid #8b5cf6}
+#oaApp .pc-badge.idle{background:rgba(220,38,38,.14);color:#f87171}
+#oaApp .pc-badge.idledone{background:rgba(139,92,246,.16);color:#c4b5fd}
+#oaApp .pc-age.idle{color:#dc2626}
+#oaApp .pc-age.idledone{color:#a78bfa}
 #oaApp .pc-age.late{color:#f97316}
 
 #oaApp .oa-pager{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:14px 4px 4px;grid-column:1/-1}

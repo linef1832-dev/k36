@@ -969,15 +969,17 @@ window.oa_setTab = function(tb) {
   const o = window._oa;
   o.tab = tb;
   document.querySelectorAll('.oa-tabs button').forEach((b => b.classList.toggle('on', b.dataset.t === tb)));
-  const vl = document.getElementById('oaViewList'), vr = document.getElementById('oaViewRank'), va = document.getElementById('oaViewAct'), vd = document.getElementById('oaViewRead');
+  const vl = document.getElementById('oaViewList'), vr = document.getElementById('oaViewRank'), va = document.getElementById('oaViewAct'), vd = document.getElementById('oaViewRead'), vi = document.getElementById('oaViewIdle');
   if (vl) vl.style.display = tb === 'list' ? '' : 'none';
   if (vr) vr.style.display = tb === 'rank' ? '' : 'none';
   if (va) va.style.display = tb === 'act' ? '' : 'none';
   if (vd) vd.style.display = tb === 'read' ? '' : 'none';
+  if (vi) vi.style.display = tb === 'idle' ? '' : 'none';
   const fp = document.querySelector('#oaApp .oa-fp');
-  if (fp) fp.style.display = tb === 'act' || tb === 'read' ? 'none' : '';
+  if (fp) fp.style.display = tb === 'act' || tb === 'read' || tb === 'idle' ? 'none' : '';
   if (tb === 'act') oa_loadAct();
   if (tb === 'read') oa_loadRead(true);
+  if (tb === 'idle') oa_loadIdle(true);
   if (tb === 'rank' && o._list) oa_renderRank(o._list, o._max || 1);
 };
 
@@ -1459,9 +1461,11 @@ window.initOaChat = async function() {
     window.registerPageInterval(setInterval(oa_readTick, 3e4));
     // วาดใหม่ทุก 20 วิ (ไม่โหลดข้อมูล) ให้รายการที่ครบ 10 นาทีย้ายจากแท็บ "เพิ่งเปิด" ไป "อ่านแล้วไม่ตอบ" เอง
     window.registerPageInterval(setInterval(() => { if (oa_isCurrent() && !document.hidden && window._oa && window._oa.tab === 'read') oa_renderRead(); }, 2e4));
+    window.registerPageInterval(setInterval(() => { if (oa_isCurrent() && !document.hidden && window._oa && window._oa.tab === 'idle') oa_loadIdle(); }, 3e4));
   }
   oa_loadRead();
   oa_subscribeRead();
+  oa_subscribeIdle();
   const today = oa_workDate(0);
   const hasToday = () => !!o._loadedFrom && o._loadedFrom <= today && o._loadedTo >= today;
   if (!hasToday() && oa_applyCache(await oa_cacheGet())) oa_setUpdated('กำลังอัปเดต…');
@@ -1821,4 +1825,183 @@ window.oa_renderRead = function () {
 window.oa_gotoReadPage = function (p) {
     window._oa.readPage = p; oa_renderRead();
     const el = document.getElementById('oaViewRead'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+
+
+// ===================== แท็บ "แชทนิ่ง" =====================
+// ข้อมูลจากส่วนเสริม Chrome (นับแชท ≥3.4.19) → ตาราง oa_idle
+//   kind='unopened' : แชทเข้า (จุดเขียว) ไม่มีใครกดเข้าเกิน 3 นาที — 1 แถว/คนที่เห็นจุดเขียว · เว็บรวมเป็นแชทละใบ
+//   kind='open'     : อยู่ในแชทที่ลูกค้ารอ แล้วไม่เลื่อน/คลิก/พิมพ์ เกิน 3 นาที — 1 แถว/คน
+//   idle_since = เริ่มนิ่ง · ended_at = จบ (null = ยังนิ่งอยู่)
+window.OA_IDLE_MIN = window.OA_IDLE_MIN || 3;
+window._oaIdle = window._oaIdle || { rows: [], loaded: false };
+window.oa_setIdleView = function (v) { window._oa.idleView = v === 'open' ? 'open' : 'unopened'; oa_renderIdle(); };
+
+function oa_idleRange() {
+    const f = document.getElementById('oaIdleFrom'), t = document.getElementById('oaIdleTo');
+    const today = oa_workDate(0);
+    if (f && !f.value) f.value = today;
+    if (t && !t.value) t.value = today;
+    let from = (f && f.value) || today, to = (t && t.value) || today;
+    if (from > to) { const x = from; from = to; to = x; }
+    return { from, to };
+}
+window.oa_idleQuickRange = function (fromBack, toBack) {
+    const f = document.getElementById('oaIdleFrom'), t = document.getElementById('oaIdleTo');
+    if (f) f.value = oa_workDate(-Number(fromBack || 0));
+    if (t) t.value = oa_workDate(-Number(toBack || 0));
+    oa_loadIdle(true);
+};
+window.oa_setIdleUser = function (u) {
+    const o = window._oa;
+    o.idleUser = u === 'ALL' || o.idleUser === u ? 'ALL' : u;
+    oa_renderIdle();
+};
+
+window.oa_loadIdle = async function (force) {
+    const R = window._oaIdle;
+    const { from, to } = oa_idleRange();
+    const rangeKey = from + '|' + to;
+    if (!force && R.loaded && R._range === rangeKey && Date.now() - (R._at || 0) < 15000) { oa_renderIdle(); return; }
+    if (R._busy) return;
+    R._busy = true;
+    try {
+        const cols = 'id, kind, work_date, user_id, username, oa_id, oa_name, chat_id, chat_name, idle_since, reported_at, ended_at';
+        // ยังนิ่งอยู่ = แสดงเสมอ · จบแล้ว = เฉพาะช่วงวันที่
+        const { data, error } = await window.appDB.from('oa_idle').select(cols)
+            .or('ended_at.is.null,and(work_date.gte.' + from + ',work_date.lte.' + to + ')')
+            .order('idle_since', { ascending: false }).limit(3000);
+        if (error) throw error;
+        R.rows = data || [];
+        // การพักจาก Telegram (break_logs) ช่วงเดียวกัน (+1 วันก่อนหน้า เผื่อกะดึก) + ที่ยังพักอยู่ → คนที่พักอยู่ไม่นับว่านิ่ง
+        try {
+            const d0 = new Date(from + 'T12:00:00'); d0.setDate(d0.getDate() - 1);
+            const p = n => String(n).padStart(2, '0');
+            const fromPrev = d0.getFullYear() + '-' + p(d0.getMonth() + 1) + '-' + p(d0.getDate());
+            const { data: br } = await window.appDB.from('break_logs').select('staff_name, break_start, break_end, break_reason')
+                .or('break_end.is.null,and(break_date.gte.' + fromPrev + ',break_date.lte.' + to + ')').limit(5000);
+            R.breaks = br || [];
+        } catch (e) { R.breaks = R.breaks || []; }
+        R.loaded = true; R._at = Date.now(); R._range = rangeKey; R._err = null;
+    } catch (e) {
+        R._err = e && (e.message || String(e));
+    } finally { R._busy = false; }
+    oa_renderIdle();
+};
+
+function oa_subscribeIdle() {
+    if (!window.appDB || typeof window.appDB.channel !== 'function') return;
+    try {
+        let t = null;
+        const ch = window.appDB.channel('oa-idle-live-' + Date.now())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'oa_idle' }, () => {
+                clearTimeout(t);
+                t = setTimeout(() => { if (oa_isCurrent()) oa_loadIdle(true); }, 400);
+            })
+            .subscribe();
+        if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(ch);
+    } catch (e) {}
+}
+
+window.oa_renderIdle = function () {
+    const o = window._oa, R = window._oaIdle;
+    const L = document.getElementById('oaIdleList'); if (!L) return;
+    const q = ((document.getElementById('oaIdleSearch') || {}).value || '').toLowerCase().trim();
+    const S = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+    const esc = oa_esc, now = Date.now();
+    if (R._err && !R.rows.length) {
+        L.innerHTML = `<div class="text-center text-red-400 py-10 text-sm">โหลดไม่ได้ — ตรวจว่าสร้างตาราง oa_idle ใน Supabase แล้ว (sql/oa_idle.sql)<br><span class="text-xs text-slate-400">${esc(R._err)}</span></div>`;
+        return;
+    }
+    const view = o.idleView === 'open' ? 'open' : 'unopened';
+    document.querySelectorAll('#oaIdleTabs .oa-kpi-tab').forEach(b => b.classList.toggle('on', b.dataset.view === view));
+    // คนที่กดพักใน Telegram อยู่ระหว่างช่วงที่นิ่ง → ไม่นับ (ไม่ได้อยู่หน้าจอจริง)
+    const brByUser = {};
+    (R.breaks || []).forEach(b => { const k = String(b.staff_name || '').toLowerCase(); (brByUser[k] = brByUser[k] || []).push({ s: new Date(b.break_start).getTime(), e: b.break_end ? new Date(b.break_end).getTime() : Infinity, reason: b.break_reason || 'พัก' }); });
+    const breakOf = (username, t0, t1) => (brByUser[String(username || '').toLowerCase()] || []).find(b => b.s <= t1 && b.e >= t0) || null;
+    const all = R.rows.map(r => {
+        const t0 = new Date(r.idle_since).getTime(), t1 = r.ended_at ? new Date(r.ended_at).getTime() : now;
+        return Object.assign({}, r, { kind: r.kind === 'unopened' ? 'unopened' : 'open', brk: breakOf(r.username, t0, t1) });
+    });
+    const nOnBreak = all.filter(r => r.brk).length;
+    // แบบ 1 รวมหลายเครื่องที่เห็นจุดเขียวเดียวกันเป็น "แชทละใบ" · แบบ 2 คนละใบ
+    const byKey = {};
+    all.forEach(r => {
+        if (r.brk && r.kind === 'open') return;                       // นิ่งเพราะกดพักอยู่ → ไม่นับ
+        const k = r.kind === 'unopened' ? ['u', r.oa_id, r.chat_id, r.ended_at ? 'done:' + String(r.ended_at).slice(0, 16) : 'open'].join('|') : 'o|' + r.id;
+        let g = byKey[k];
+        if (!g) g = byKey[k] = { key: k, kind: r.kind, oa_id: r.oa_id, chat_id: r.chat_id, name: r.chat_name, oa: r.oa_name, since: r.idle_since, ended_at: r.ended_at, who: [] };
+        if (!g.name && r.chat_name) g.name = r.chat_name;
+        if (!g.oa && r.oa_name) g.oa = r.oa_name;
+        if (r.idle_since < g.since) g.since = r.idle_since;
+        if (!r.ended_at) g.ended_at = null; else if (g.ended_at && r.ended_at > g.ended_at) g.ended_at = r.ended_at;
+        if (r.brk) { g.onBreak = g.onBreak || []; if (!g.onBreak.includes(r.username)) g.onBreak.push(r.username); }   // เห็นจุดเขียวแต่กำลังพัก → ไม่โทษ
+        else if (!g.who.includes(r.username)) g.who.push(r.username);
+    });
+    const groups = Object.values(byKey).map(g => {
+        const t0 = new Date(g.since).getTime(), t1 = g.ended_at ? new Date(g.ended_at).getTime() : now;
+        return Object.assign(g, { dur: Math.max(0, t1 - t0), live: !g.ended_at });
+    });
+    const mine = groups.filter(g => g.kind === view);
+    // ชิปพนักงาน (เฉพาะแบบที่เลือก)
+    const userCnt = {};
+    mine.forEach(g => g.who.forEach(u => { userCnt[u] = (userCnt[u] || 0) + 1; }));
+    const userList = Object.keys(userCnt).sort((a, b) => userCnt[b] - userCnt[a] || a.localeCompare(b, 'th'));
+    if (!o.idleUser || (o.idleUser !== 'ALL' && !userCnt[o.idleUser])) o.idleUser = 'ALL';
+    const ub = document.getElementById('oaIdleUsers');
+    if (ub) {
+        ub.innerHTML = `<button class="oa-chip oa-all ${o.idleUser === 'ALL' ? 'on' : ''}" onclick="oa_setIdleUser('ALL')">ทั้งหมด<i>${mine.length}</i></button>` + userList.map(u => `<button class="oa-chip ${o.idleUser === u ? 'on' : ''}" onclick="oa_setIdleUser('${oa_jsq(u)}')">${esc(u)}<i>${userCnt[u]}</i></button>`).join('');
+        const box = ub.closest('.oa-actf-box'); if (box) box.style.display = userList.length ? '' : 'none';
+        const lbl = box && box.querySelector('.oa-flabel'); if (lbl) lbl.innerHTML = `<span class="material-icons">person</span>${view === 'unopened' ? 'คนที่เห็นจุดเขียวแต่ไม่กด' : 'พนักงาน'}`;
+    }
+    const list = mine.filter(g =>
+        (o.idleUser === 'ALL' || g.who.includes(o.idleUser)) &&
+        (!q || g.who.some(u => String(u).toLowerCase().includes(q)) || String(g.name || '').toLowerCase().includes(q) || String(g.oa || '').toLowerCase().includes(q)));
+    // สถิติบนแท็บย่อย (ไม่สนตัวกรอง)
+    const stat = kind => { const g = groups.filter(x => x.kind === kind); return { live: g.filter(x => x.live).length, n: g.length, min: Math.round(g.reduce((a, x) => a + x.dur, 0) / 60000) }; };
+    const su = stat('unopened'), so = stat('open');
+    S('oaIdleUnopened', su.n); S('oaIdleUnopenedSub', 'ยังไม่มีใครเปิด ' + su.live + ' · รวม ' + su.min + ' นาที');
+    S('oaIdleOpen', so.n); S('oaIdleOpenSub', 'กำลังนิ่งอยู่ ' + so.live + ' · รวม ' + so.min + ' นาที' + (nOnBreak ? ' · ตัดที่กดพักใน Telegram ออก ' + nOnBreak : ''));
+    const nLive = su.live + so.live;
+    const badge = document.getElementById('oaIdleBadge');
+    if (badge) { badge.textContent = nLive; badge.style.display = nLive ? '' : 'none'; }
+    const { from, to } = oa_idleRange();
+    const MINL = window.OA_IDLE_MIN || 3;
+    S('oaIdleTitle', (view === 'unopened' ? 'แชทเข้าแล้วไม่มีใครกดเข้าเกิน ' + MINL + ' นาที' : 'อยู่ในแชทที่ลูกค้ารอตอบ แต่ไม่ทำอะไรเกิน ' + MINL + ' นาที') + ' · ' + (from === to ? from : from + ' ถึง ' + to) + ' (ที่ยังนิ่งอยู่แสดงทุกวัน)');
+    S('oaIdleUpd', R._at ? 'อัปเดต ' + new Date(R._at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '');
+    document.querySelectorAll('#oaIdleQuick .oa-chip').forEach(b => {
+        b.classList.toggle('on', from === oa_workDate(-Number(b.dataset.from || 0)) && to === oa_workDate(-Number(b.dataset.to || 0)));
+    });
+    list.sort((a, b) => (a.live === b.live ? 0 : a.live ? -1 : 1) || (a.live ? b.dur - a.dur : String(b.ended_at).localeCompare(String(a.ended_at))));
+    if (!list.length) {
+        L.innerHTML = `<div class="text-center text-slate-400 py-10 text-sm">${mine.length ? 'ไม่มีรายการที่ตรงกับตัวกรอง' : (view === 'unopened' ? '🎉 ไม่มีแชทเข้าที่ถูกปล่อยไว้' : '🎉 ไม่มีใครนิ่งในแชท')}</div>`;
+        return;
+    }
+    const tm = ts => { try { const d = new Date(ts); return d.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } };
+    const card = g => {
+        const nm = g.name || ('ลูกค้า ' + String(g.chat_id).slice(-6));
+        const st = g.live ? 'idle' : 'idledone';
+        const url = 'https://chat.line.biz/' + encodeURIComponent(g.oa_id) + '/chat/' + encodeURIComponent(g.chat_id);
+        const openBtn = `<a class="pc-open" href="${esc(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="เปิดแชทนี้ใน LINE OA"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>เปิดแชท</a>`;
+        let ageTxt, body;
+        if (g.kind === 'unopened') {
+            ageTxt = g.live ? '🟢 เข้ามาแล้ว ' + oa_readAge(g.dur) + ' ยังไม่มีใครเปิด' : '⏱ ถูกปล่อยไว้ ' + oa_readAge(g.dur) + ' · มีคนเปิด ' + tm(g.ended_at);
+            body = `<div class="pc-ev"><span class="pc-badge ${st}">🟢 แชทเข้า</span><span class="pc-t">${tm(g.since)}${g.live ? '' : ' → มีคนเปิด ' + tm(g.ended_at)}</span></div>` +
+                   `<div class="pc-ev"><span class="pc-badge wait">👀 เห็นแต่ไม่กด</span><b>${g.who.map(esc).join(', ') || '<span class="text-slate-400">ไม่มี — ทุกคนที่เห็นกำลังพักอยู่</span>'}</b><span class="pc-t">${g.who.length} คน${g.onBreak && g.onBreak.length ? ' · พักอยู่ ' + g.onBreak.map(esc).join(', ') : ''}</span></div>`;
+        } else {
+            ageTxt = g.live ? '💤 นิ่งอยู่ ' + oa_readAge(g.dur) : '⏱ นิ่งไป ' + oa_readAge(g.dur) + ' · กลับมา ' + tm(g.ended_at);
+            body = `<div class="pc-ev"><span class="pc-badge ${st}">${g.live ? '💤 นิ่งอยู่' : '💤 เคยนิ่ง'}</span><b>${esc(g.who[0] || '-')}</b><span class="pc-t">ลูกค้ารอตั้งแต่ ${tm(g.since)}${g.live ? '' : ' → กลับมาทำ ' + tm(g.ended_at)}</span></div>`;
+        }
+        return `<div class="pc ${g.live ? 'pc-idle' : 'pc-idle-done'}"><div class="pc-head"><div class="pc-name"><button class="pc-copy" onclick="oa_copyName(event,'${esc(nm).replace(/'/g, "\\'")}')" title="คัดลอกชื่อ"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>${esc(nm)}${g.oa ? `<span class="pc-oa">${esc(g.oa)}</span>` : ''}${openBtn}</div><div class="pc-age ${st}">${ageTxt}</div></div><div class="pc-body">${body}</div></div>`;
+    };
+    const PER = window.OA_READ_PER || 30;
+    const rkey = [o.idleUser, q, R._range, view].join('|');
+    if (o._idleKey !== rkey) { o._idleKey = rkey; o.idlePage = 1; }
+    const pages = Math.max(1, Math.ceil(list.length / PER));
+    o.idlePage = Math.min(Math.max(1, o.idlePage || 1), pages);
+    L.innerHTML = list.slice((o.idlePage - 1) * PER, o.idlePage * PER).map(card).join('') + oa_pagerHtml(o.idlePage, pages, list.length, 'oa_gotoIdlePage', 'รายการ');
+};
+window.oa_gotoIdlePage = function (p) {
+    window._oa.idlePage = p; oa_renderIdle();
+    const el = document.getElementById('oaViewIdle'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
