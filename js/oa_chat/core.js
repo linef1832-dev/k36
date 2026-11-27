@@ -1457,6 +1457,8 @@ window.initOaChat = async function() {
   if (typeof window.registerPageInterval === 'function') {
     window.registerPageInterval(setInterval(oa_tick, 6e4));
     window.registerPageInterval(setInterval(oa_readTick, 3e4));
+    // วาดใหม่ทุก 20 วิ (ไม่โหลดข้อมูล) ให้รายการที่ครบ 5 นาทีย้ายจากแท็บ "เพิ่งเปิด" ไป "อ่านแล้วไม่ตอบ" เอง
+    window.registerPageInterval(setInterval(() => { if (oa_isCurrent() && !document.hidden && window._oa && window._oa.tab === 'read') oa_renderRead(); }, 2e4));
   }
   oa_loadRead();
   oa_subscribeRead();
@@ -1670,6 +1672,12 @@ function oa_subscribeRead() {
     } catch (e) {}
 }
 
+// แท็บย่อย: read = เกิน 5 นาที (ค่าเริ่มต้น) · soon = เพิ่งเปิด · done = ตอบแล้ววันนี้ (เมื่อติ๊ก "แสดงที่ตอบไปแล้ว")
+window.oa_setReadView = function (v) {
+    window._oa.readView = v;
+    oa_renderRead();
+};
+
 window.oa_setReadSite = function (s) {
     const o = window._oa;
     o.readSite = s === 'ALL' || o.readSite === s ? 'ALL' : s;
@@ -1727,14 +1735,22 @@ window.oa_renderRead = function () {
         sb.innerHTML = `<button class="oa-chip oa-all ${o.readSite === 'ALL' ? 'on' : ''}" onclick="oa_setReadSite('ALL')">ทั้งหมด<i>${groups.length}</i></button>` + siteList.map(s => `<button class="oa-chip ${o.readSite === s ? 'on' : ''}" onclick="oa_setReadSite('${oa_jsq(s)}')">${esc(s)}<i>${siteCnt[s]}</i></button>`).join('');
         const box = sb.closest('.oa-actf-box'); if (box) box.style.display = siteList.length ? '' : 'none';
     }
+    // แท็บที่เลือก — ไม่มีแท็บ "ตอบแล้ว" ถ้าไม่ได้ติ๊กแสดง
+    if (!o.readView || (o.readView === 'done' && !R._showDone)) o.readView = 'read';
+    const view = o.readView;
     groups = groups.filter(g =>
+        g.state === view &&
         (o.readSite === 'ALL' || sitesOf(g).includes(o.readSite)) &&
         (!q || String(g.name || '').toLowerCase().includes(q) || String(g.oa || '').toLowerCase().includes(q) || g.readers.some(r => String(r.username || '').toLowerCase().includes(q))));
     // สถิติ + badge บนแท็บ (นับจากทั้งหมด ไม่สนตัวกรอง)
     const all = Object.values(byChat);
-    const nRead = all.filter(g => g.state === 'read').length, nSoon = all.filter(g => g.state === 'soon').length;
+    const nRead = all.filter(g => g.state === 'read').length, nSoon = all.filter(g => g.state === 'soon').length, nDone = all.filter(g => g.state === 'done').length;
     const people = new Set; all.filter(g => g.state !== 'done').forEach(g => g.readers.forEach(r => people.add(r.username)));
-    S('oaReadPend', nRead); S('oaReadSoon', nSoon); S('oaReadPeople', people.size);
+    S('oaReadPend', nRead); S('oaReadSoon', nSoon); S('oaReadDone', nDone); S('oaReadPeople', people.size);
+    document.querySelectorAll('#oaReadTabs .oa-kpi-tab').forEach(b => b.classList.toggle('on', b.dataset.view === view));
+    const doneTab = document.getElementById('oaReadDoneTab'); if (doneTab) doneTab.style.display = R._showDone ? '' : 'none';
+    const peopleBox = document.getElementById('oaReadPeopleBox'); if (peopleBox) peopleBox.style.display = R._showDone ? 'none' : '';
+    S('oaReadTitle', view === 'read' ? 'แชทที่เปิดอ่านแล้วยังไม่มีใครตอบ (เกิน 5 นาที)' : view === 'soon' ? 'แชทที่เพิ่งเปิดอ่าน (ยังไม่ถึง 5 นาที) — ครบ 5 นาทีจะย้ายไปแท็บ "อ่านแล้วไม่ตอบ" เอง' : 'แชทที่ตอบไปแล้ววันนี้');
     const badge = document.getElementById('oaReadBadge');
     if (badge) { badge.textContent = nRead; badge.style.display = nRead ? '' : 'none'; }
     S('oaReadUpd', R._at ? 'อัปเดต ' + new Date(R._at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '');
@@ -1742,7 +1758,8 @@ window.oa_renderRead = function () {
     const ord = { read: 0, soon: 1, done: 2 };
     groups.sort((a, b) => ord[a.state] - ord[b.state] || (a.state === 'done' ? String(b.resolved_at).localeCompare(String(a.resolved_at)) : b.age - a.age));
     if (!groups.length) {
-        L.innerHTML = `<div class="text-center text-slate-400 py-10 text-sm">${R.rows.length ? 'ไม่มีรายการที่ตรงกับตัวกรอง' : '🎉 ไม่มีแชทค้าง — ทุกแชทที่เปิดอ่านถูกตอบแล้ว'}</div>`;
+        const empty = view === 'read' ? '🎉 ไม่มีแชทค้างเกิน 5 นาที' : view === 'soon' ? 'ไม่มีแชทที่เพิ่งเปิด' : 'วันนี้ยังไม่มีแชทที่ตอบแล้ว';
+        L.innerHTML = `<div class="text-center text-slate-400 py-10 text-sm">${(q || o.readSite !== 'ALL') && all.some(g => g.state === view) ? 'ไม่มีรายการที่ตรงกับตัวกรอง' : empty}</div>`;
         return;
     }
     const tm = ts => { try { const d = new Date(ts); return d.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } };
@@ -1764,7 +1781,7 @@ window.oa_renderRead = function () {
         return `<div class="pc ${cls}"><div class="pc-head"><div class="pc-name"><button class="pc-copy" onclick="oa_copyName(event,'${esc(nm).replace(/'/g, "\\'")}')" title="คัดลอกชื่อ"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>${esc(nm)}${g.oa ? `<span class="pc-oa">${esc(g.oa)}</span>` : ''}${openBtn}</div><div class="pc-age ${st}">${ageTxt}</div></div><div class="pc-body">${readers}${tail}</div></div>`;
     };
     const PER = window.OA_READ_PER || 30;
-    const rkey = [o.readSite, q, R._showDone].join('|');
+    const rkey = [o.readSite, q, R._showDone, view].join('|');
     if (o._readKey !== rkey) { o._readKey = rkey; o.readPage = 1; }
     const pages = Math.max(1, Math.ceil(groups.length / PER));
     o.readPage = Math.min(Math.max(1, o.readPage || 1), pages);
