@@ -27,11 +27,18 @@ function rowChatId(row) {
   return window.normChatId ? window.normChatId(v) : '';
 }
 
-// เวลาจำกัด (นาที) ของกิจกรรม — เทียบชื่อกิจกรรมกับที่ตั้งไว้ในกลุ่มที่กดมา (ตาม chat_id ในแถว)
-// แถวที่ไม่มี chat_id (ข้อมูลเก่า) → ไล่หาในทุกกลุ่มเช็คอิน / ไม่เจอหรือตั้ง 0 → null = ไม่นับเกินเวลา
-function getBreakLimit(reason, row) {
-  if (!reason) return null;
-  reason = String(reason).toLowerCase();
+// แก่นของชื่อกิจกรรม = เหลือแค่ตัวอักษร/ตัวเลข (ตัดอีโมจิ ช่องว่าง จุด) แล้วทำตัวเล็ก
+// "🚽 ปวดหนัก" → "ปวดหนัก" · "ปวดน้อย.สูบบุหรี่" → "ปวดน้อยสูบบุหรี่"
+window.activityCore = function(text) {
+  return String(text || '').replace(/[^\p{L}\p{N}\p{M}]+/gu, '').toLowerCase();
+};
+
+// หากิจกรรมที่ตั้งไว้ใน "ตั้งค่ากลุ่ม" ที่ตรงกับ break_reason ของแถวนี้
+// เทียบด้วยแก่นของคำ: ชื่อในเว็บ (ตัดอีโมจิ) ต้องอยู่ในชื่อจากบอท (ตัดอีโมจิ/จุด) · ชื่อยาวกว่าชนะ
+// ดูกลุ่มที่กดมาก่อน (chat_id ในแถว) · แถวเก่าไม่มี chat_id → ไล่หาทุกกลุ่มเช็คอิน
+function findGroupActivity(reason, row) {
+  const act = window.activityCore(reason);
+  if (!act) return null;
   const groups = (window._tgGroupsCache || []).filter((g => g.group_type === 'checkin'));
   let candidates = groups;
   const cid = rowChatId(row);
@@ -39,12 +46,31 @@ function getBreakLimit(reason, row) {
     const matched = groups.filter((g => window.normChatId(g.chat_id) === cid));
     if (matched.length) candidates = matched;
   }
+  let best = null;
+  let bestLen = 0;
   for (const g of candidates) {
     for (const a of window.getGroupActivities(g)) {
-      if (reason.includes(a.name.toLowerCase())) return a.limit > 0 ? a.limit : null;
+      const core = window.activityCore(a.name);
+      if (core && act.includes(core) && core.length > bestLen) {
+        best = a;
+        bestLen = core.length;
+      }
     }
+    if (best) break;
   }
-  return null;
+  return best;
+}
+
+// เวลาจำกัด (นาที) — ไม่เจอชื่อ / ตั้ง 0 → null = ไม่นับเกินเวลา
+function getBreakLimit(reason, row) {
+  const a = findGroupActivity(reason, row);
+  return a && a.limit > 0 ? a.limit : null;
+}
+
+// ชื่อที่ใช้แสดง: ถ้าจับคู่กับที่ตั้งในเว็บได้ ใช้ชื่อตามที่ตั้ง (มีอีโมจิที่คุณใส่เอง) ไม่งั้นใช้ชื่อดิบจากบอท
+function displayReason(reason, row) {
+  const a = findGroupActivity(reason, row);
+  return a ? a.name : (reason || 'อื่นๆ');
 }
 
 // โหลดรายการกลุ่มไว้ใน cache (ใช้คำนวณเวลาจำกัด)
@@ -195,14 +221,14 @@ window.renderBreaktrackTable = function() {
       const dur = breakDurationMin(s.break_start, s.break_end);
       if (dur !== null) totalMin += dur;
       if (!s.break_end) noReturnCount++;
-      const reason = s.break_reason || 'อื่นๆ';
+      const reason = displayReason(s.break_reason, s);
       activityCount[reason] = (activityCount[reason] || 0) + 1;
       if (s.break_end) {
         const limit = getBreakLimit(s.break_reason, s);
         if (limit && dur > limit) overCount++;
       }
     }));
-    const activitySummary = Object.entries(activityCount).map((([r, c]) => `${r} (${c})`)).join(', ');
+    const activitySummary = Object.entries(activityCount).map((([r, c]) => `${window.escapeHtml(r)} (${c})`)).join(', ');
     return {
       name: name,
       shift: shift,
@@ -263,7 +289,7 @@ window.openBreaktrackDetail = function(staffName) {
       hour: '2-digit',
       minute: '2-digit'
     }) : null;
-    return `\n            <div class="bg-slate-900 border ${isOver ? 'border-red-500/50' : noReturn ? 'border-amber-500/50' : 'border-slate-700'} rounded-2xl p-4">\n                <div class="flex justify-between items-start mb-2">\n                    <span class="font-black text-white">${s.break_reason || 'ไม่ระบุ'}</span>\n                    <div class="flex gap-2">\n                        ${isOver ? `<span class="bg-red-500/20 text-red-400 text-xs font-bold px-2 py-1 rounded-full">เกินเวลา</span>` : ''}\n                        ${noReturn ? `<span class="bg-amber-500/20 text-amber-400 text-xs font-bold px-2 py-1 rounded-full">ไม่กดกลับ</span>` : ''}\n                        ${!isOver && !noReturn ? `<span class="bg-emerald-500/20 text-emerald-400 text-xs font-bold px-2 py-1 rounded-full">ปกติ</span>` : ''}\n                    </div>\n                </div>\n                <div class="flex gap-4 text-sm text-gray-400">\n                    <span>🕐 ออก: <b class="text-white">${startTime}</b></span>\n                    <span>🕐 กลับ: <b class="${noReturn ? 'text-amber-400' : 'text-white'}">${endTime || '⚠️ ยังไม่กลับ'}</b></span>\n                    <span>⏱️ ใช้เวลา: <b class="${isOver ? 'text-red-400' : 'text-white'}">${dur !== null ? formatMin(dur) : '-'}${limit ? ` / ${limit} นาที` : ''}</b></span>\n                </div>\n            </div>`;
+    return `\n            <div class="bg-slate-900 border ${isOver ? 'border-red-500/50' : noReturn ? 'border-amber-500/50' : 'border-slate-700'} rounded-2xl p-4">\n                <div class="flex justify-between items-start mb-2">\n                    <span class="font-black text-white">${window.escapeHtml(displayReason(s.break_reason, s))}</span>\n                    <div class="flex gap-2">\n                        ${isOver ? `<span class="bg-red-500/20 text-red-400 text-xs font-bold px-2 py-1 rounded-full">เกินเวลา</span>` : ''}\n                        ${noReturn ? `<span class="bg-amber-500/20 text-amber-400 text-xs font-bold px-2 py-1 rounded-full">ไม่กดกลับ</span>` : ''}\n                        ${!isOver && !noReturn ? `<span class="bg-emerald-500/20 text-emerald-400 text-xs font-bold px-2 py-1 rounded-full">ปกติ</span>` : ''}\n                    </div>\n                </div>\n                <div class="flex gap-4 text-sm text-gray-400">\n                    <span>🕐 ออก: <b class="text-white">${startTime}</b></span>\n                    <span>🕐 กลับ: <b class="${noReturn ? 'text-amber-400' : 'text-white'}">${endTime || '⚠️ ยังไม่กลับ'}</b></span>\n                    <span>⏱️ ใช้เวลา: <b class="${isOver ? 'text-red-400' : 'text-white'}">${dur !== null ? formatMin(dur) : '-'}${limit ? ` / ${limit} นาที` : ''}</b></span>\n                </div>\n            </div>`;
   })).join('');
   document.getElementById('breaktrackModalBody').innerHTML = rows || '<p class="text-gray-500 text-center">ไม่มีข้อมูล</p>';
   document.getElementById('breaktrackModal').classList.remove('hidden');
