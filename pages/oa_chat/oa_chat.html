@@ -122,7 +122,7 @@
             </div>
         </div>
 
-        <!-- แท็บ "อ่านไม่ตอบ": แชทที่พนักงานเปิดอ่านแล้ว แต่ผ่านไป 5 นาทียังไม่มีใครตอบ (ข้อมูลจากส่วนเสริม Chrome → ตาราง oa_views) -->
+        <!-- แท็บ "อ่านไม่ตอบ": แชทที่พนักงานเปิดอ่านแล้ว แต่ผ่านไป 10 นาทียังไม่มีใครตอบ (ข้อมูลจากส่วนเสริม Chrome → ตาราง oa_views) -->
         <div id="oaViewRead" style="display:none" class="space-y-4">
             <div class="oa-panel oa-actf">
                 <div class="oa-actf-top">
@@ -130,23 +130,30 @@
                         <span class="material-icons oa-search-ic">search</span>
                         <input id="oaReadSearch" oninput="oa_renderRead()" placeholder="ค้นหาชื่อพนักงาน / ลูกค้า / ไลน์ OA" class="oa-search-in">
                     </div>
-                    <label class="oa-read-toggle"><input type="checkbox" id="oaReadShowDone" onchange="oa_loadRead(true)"> แสดงที่ตอบไปแล้ววันนี้ด้วย</label>
+                    <!-- ช่วงวันที่ (วันทำงาน ตัด 08:00) — ใช้กับประวัติในแท็บ "อ่านแล้วไม่ตอบ" · แชทที่ยังไม่มีใครตอบแสดงเสมอ -->
+                    <div class="oa-read-dates" id="oaReadDates">
+                        <span class="material-icons" style="font-size:16px;color:var(--k-mute)">date_range</span>
+                        <input type="date" id="oaReadFrom" onchange="oa_loadRead(true)">
+                        <span style="color:var(--k-mute)">–</span>
+                        <input type="date" id="oaReadTo" onchange="oa_loadRead(true)">
+                        <button type="button" class="oa-chip" onclick="oa_readQuickRange(0)">วันนี้</button>
+                        <button type="button" class="oa-chip" onclick="oa_readQuickRange(6)">7 วัน</button>
+                        <button type="button" class="oa-chip" onclick="oa_readQuickRange(29)">30 วัน</button>
+                    </div>
                 </div>
                 <div class="oa-fbox oa-actf-box">
                     <div class="oa-flabel"><span class="material-icons">language</span>เว็บ</div>
                     <div id="oaReadSites" class="oa-chipwrap"></div>
                 </div>
-                <!-- กล่องตัวเลข = แท็บ กดเลือกดูรายการแต่ละกลุ่ม · รายการย้ายกลุ่มเองเมื่อครบ 5 นาที -->
-                <div class="grid grid-cols-3 gap-3" id="oaReadTabs">
-                    <button type="button" class="oa-kpi oa-kpi-tab" data-view="read" onclick="oa_setReadView('read')"><div class="oa-kpi-n" id="oaReadPend" style="color:#dc2626">–</div><div class="oa-kpi-l">🔴 อ่านแล้วไม่ตอบ (เกิน 5 นาที)</div></button>
-                    <button type="button" class="oa-kpi oa-kpi-tab" data-view="soon" onclick="oa_setReadView('soon')"><div class="oa-kpi-n" id="oaReadSoon" style="color:#d97706">–</div><div class="oa-kpi-l">🟡 เพิ่งเปิด (ยังไม่ถึง 5 นาที)</div></button>
-                    <button type="button" class="oa-kpi oa-kpi-tab" data-view="done" id="oaReadDoneTab" onclick="oa_setReadView('done')" style="display:none"><div class="oa-kpi-n" id="oaReadDone" style="color:#059669">–</div><div class="oa-kpi-l">✅ ตอบแล้ววันนี้</div></button>
-                    <div class="oa-kpi" id="oaReadPeopleBox"><div class="oa-kpi-n" id="oaReadPeople" style="color:#64748b">–</div><div class="oa-kpi-l">พนักงานที่เกี่ยวข้อง</div></div>
+                <!-- กล่องตัวเลข = แท็บ กดเลือกดูรายการแต่ละกลุ่ม · รายการย้ายกลุ่มเองเมื่อครบ 10 นาที -->
+                <div class="grid grid-cols-2 gap-3" id="oaReadTabs">
+                    <button type="button" class="oa-kpi oa-kpi-tab" data-view="read" onclick="oa_setReadView('read')"><div class="oa-kpi-n" id="oaReadPend" style="color:#dc2626">–</div><div class="oa-kpi-l">🔴 อ่านแล้วไม่ตอบ (เกิน 10 นาที)<small id="oaReadPendSub"></small></div></button>
+                    <button type="button" class="oa-kpi oa-kpi-tab" data-view="soon" onclick="oa_setReadView('soon')"><div class="oa-kpi-n" id="oaReadSoon" style="color:#d97706">–</div><div class="oa-kpi-l">🟡 เพิ่งเปิด (ยังไม่ถึง 10 นาที)<small>ครบ 10 นาทีจะย้ายไปแท็บซ้ายเอง</small></div></button>
                 </div>
             </div>
             <div class="oa-panel p-0 overflow-hidden">
                 <div class="px-4 py-3 border-b border-gray-100 dark:border-slate-700 font-bold text-slate-700 dark:text-slate-200 flex items-center justify-between">
-                    <span id="oaReadTitle">แชทที่เปิดอ่านแล้วยังไม่มีใครตอบ (เกิน 5 นาที)</span>
+                    <span id="oaReadTitle">แชทที่เปิดอ่านแล้วไม่ตอบเกิน 10 นาที</span>
                     <span id="oaReadUpd" class="text-xs font-normal text-slate-400"></span>
                 </div>
                 <div id="oaReadList" class="divide-y divide-gray-50 dark:divide-slate-700/50"><div class="text-center text-slate-400 py-10 text-sm">กำลังโหลด...</div></div>
@@ -383,6 +390,12 @@
 #oaApp .oa-actf .oa-kpi-tab:hover{border-color:var(--k-line2);transform:translateY(-1px)}
 #oaApp .oa-actf .oa-kpi-tab.on{border-color:#e8c15a;background:linear-gradient(90deg,rgba(232,193,90,.14),var(--k-sunk) 70%);box-shadow:0 0 0 1px rgba(232,193,90,.35)}
 #oaApp .oa-actf .oa-kpi-tab.on .oa-kpi-l{color:var(--k-tx)}
+#oaApp .oa-actf .oa-kpi-l small{display:block;font-size:11px;font-weight:600;color:var(--k-mute);margin-top:2px}
+#oaApp .oa-read-dates{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+#oaApp .oa-read-dates input[type=date]{background:var(--k-field);border:1px solid var(--k-line);color:var(--k-tx);border-radius:10px;padding:6px 10px;font-size:12px;font-weight:700;outline:none}
+#oaApp .oa-read-dates input[type=date]:focus{border-color:#e8c15a}
+#oaApp .pc-read-late{border-left:3px solid #f97316}
+#oaApp .pc-age.late{color:#f97316}
 
 #oaApp .oa-pager{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:14px 4px 4px;grid-column:1/-1}
 #oaApp .oa-pg-info{font-size:12px;font-weight:700;color:var(--k-mute)}

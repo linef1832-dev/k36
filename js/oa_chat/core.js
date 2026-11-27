@@ -1457,7 +1457,7 @@ window.initOaChat = async function() {
   if (typeof window.registerPageInterval === 'function') {
     window.registerPageInterval(setInterval(oa_tick, 6e4));
     window.registerPageInterval(setInterval(oa_readTick, 3e4));
-    // วาดใหม่ทุก 20 วิ (ไม่โหลดข้อมูล) ให้รายการที่ครบ 5 นาทีย้ายจากแท็บ "เพิ่งเปิด" ไป "อ่านแล้วไม่ตอบ" เอง
+    // วาดใหม่ทุก 20 วิ (ไม่โหลดข้อมูล) ให้รายการที่ครบ 10 นาทีย้ายจากแท็บ "เพิ่งเปิด" ไป "อ่านแล้วไม่ตอบ" เอง
     window.registerPageInterval(setInterval(() => { if (oa_isCurrent() && !document.hidden && window._oa && window._oa.tab === 'read') oa_renderRead(); }, 2e4));
   }
   oa_loadRead();
@@ -1608,8 +1608,9 @@ window.oa_renderAct = function () {
 // ===================== แท็บ "อ่านไม่ตอบ" =====================
 // ข้อมูลจากส่วนเสริม Chrome (นับแชท ≥3.4.0) → ตาราง oa_views
 //   1 แถว = พนักงาน 1 คน เปิดอ่านแชทที่ลูกค้ารอตอบ (opened_at) · resolved_at = เวลาที่มีใครก็ได้ตอบแชทนั้น
-// กติกา: โชว์เมื่อเปิดอ่านมาแล้วเกิน OA_READ_MIN นาที และยังไม่มีใครตอบ · ตอบแล้วหายไปเอง
-window.OA_READ_MIN = window.OA_READ_MIN || 5;
+// กติกา: เปิดอ่านแล้วเกิน OA_READ_MIN นาทียังไม่มีใครตอบ = "อ่านแล้วไม่ตอบ" (เก็บเป็นประวัติ ตอบทีหลังก็ยังอยู่ พร้อมชื่อคนตอบ)
+//        ยังไม่ถึง = "เพิ่งเปิด" · ตอบทันภายในเวลา = ไม่แสดง
+window.OA_READ_MIN = window.OA_READ_MIN || 10;
 window._oaRead = window._oaRead || { rows: [], loaded: false };
 
 window.oa_readTick = function () {
@@ -1617,24 +1618,41 @@ window.oa_readTick = function () {
     oa_loadRead();
 };
 
+// ช่วงวันที่ของประวัติ (วันทำงาน ตัด 08:00) — ค่าเริ่มต้น = วันนี้
+function oa_readRange() {
+    const f = document.getElementById('oaReadFrom'), t = document.getElementById('oaReadTo');
+    const today = oa_workDate(0);
+    if (f && !f.value) f.value = today;
+    if (t && !t.value) t.value = today;
+    let from = (f && f.value) || today, to = (t && t.value) || today;
+    if (from > to) { const x = from; from = to; to = x; }
+    return { from, to };
+}
+window.oa_readQuickRange = function (daysBack) {
+    const f = document.getElementById('oaReadFrom'), t = document.getElementById('oaReadTo');
+    const to = oa_workDate(0);
+    const d = new Date(to + 'T12:00:00'); d.setDate(d.getDate() - daysBack);
+    const p = n => String(n).padStart(2, '0');
+    if (f) f.value = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+    if (t) t.value = to;
+    oa_loadRead(true);
+};
+
 window.oa_loadRead = async function (force) {
     const R = window._oaRead;
-    const showDone = !!(document.getElementById('oaReadShowDone') || {}).checked;
-    if (!force && R.loaded && Date.now() - (R._at || 0) < 15000) { oa_renderRead(); return; }
+    const { from, to } = oa_readRange();
+    const rangeKey = from + '|' + to;
+    if (!force && R.loaded && R._range === rangeKey && Date.now() - (R._at || 0) < 15000) { oa_renderRead(); return; }
     if (R._busy) return;
     R._busy = true;
     try {
         const cols = 'id, work_date, user_id, username, oa_id, oa_name, chat_id, chat_name, opened_at, resolved_at, resolved_by';
-        let q = window.appDB.from('oa_views').select(cols).order('opened_at', { ascending: false }).limit(1000);
-        if (showDone) {
-            // ค้างทั้งหมด + ที่ตอบไปแล้วของวันทำงานนี้
-            q = q.or('resolved_at.is.null,work_date.eq.' + oa_workDate(0));
-        } else {
-            q = q.is('resolved_at', null);
-        }
-        const { data, error } = await q;
+        // ยังไม่มีใครตอบ = แสดงเสมอ (ปัญหาสด) · ตอบแล้ว = เฉพาะในช่วงวันที่ที่เลือก (ประวัติ)
+        const { data, error } = await window.appDB.from('oa_views').select(cols)
+            .or('resolved_at.is.null,and(work_date.gte.' + from + ',work_date.lte.' + to + ')')
+            .order('opened_at', { ascending: false }).limit(3000);
         if (error) throw error;
-        R.rows = data || []; R.loaded = true; R._at = Date.now(); R._showDone = showDone; R._err = null;
+        R.rows = data || []; R.loaded = true; R._at = Date.now(); R._range = rangeKey; R._err = null;
     } catch (e) {
         R._err = e && (e.message || String(e));
     } finally { R._busy = false; }
@@ -1672,9 +1690,9 @@ function oa_subscribeRead() {
     } catch (e) {}
 }
 
-// แท็บย่อย: read = เกิน 5 นาที (ค่าเริ่มต้น) · soon = เพิ่งเปิด · done = ตอบแล้ววันนี้ (เมื่อติ๊ก "แสดงที่ตอบไปแล้ว")
+// แท็บย่อย: read = อ่านแล้วไม่ตอบเกิน 10 นาที (ค่าเริ่มต้น เก็บเป็นประวัติ) · soon = เพิ่งเปิด
 window.oa_setReadView = function (v) {
-    window._oa.readView = v;
+    window._oa.readView = v === 'soon' ? 'soon' : 'read';
     oa_renderRead();
 };
 
@@ -1722,8 +1740,10 @@ window.oa_renderRead = function () {
         g.readers.sort((a, b) => String(a.opened_at).localeCompare(String(b.opened_at)));
         const t0 = new Date(g.firstAt).getTime();
         g.age = (g.resolved_at ? new Date(g.resolved_at).getTime() : now) - t0;
-        g.state = g.resolved_at ? 'done' : (g.age >= MIN ? 'read' : 'soon');
+        // read = ค้างเกินกำหนด ยังไม่ตอบ · late = ค้างเกินกำหนดแล้วค่อยมีคนตอบ (ประวัติ) · soon = เพิ่งเปิด · ontime = ตอบทัน (ไม่แสดง)
+        g.state = g.resolved_at ? (g.age >= MIN ? 'late' : 'ontime') : (g.age >= MIN ? 'read' : 'soon');
     });
+    groups = groups.filter(g => g.state !== 'ontime');
     // ชิปเว็บ = เว็บที่ "ไลน์ OA" นั้นสังกัด (เดาจากชื่อ OA เทียบกับรายชื่อเว็บ) ไม่ใช่เว็บที่พนักงานประจำ
     const sitesOf = g => [oa_siteOfOa(g.oa)];
     const siteCnt = {};
@@ -1735,53 +1755,53 @@ window.oa_renderRead = function () {
         sb.innerHTML = `<button class="oa-chip oa-all ${o.readSite === 'ALL' ? 'on' : ''}" onclick="oa_setReadSite('ALL')">ทั้งหมด<i>${groups.length}</i></button>` + siteList.map(s => `<button class="oa-chip ${o.readSite === s ? 'on' : ''}" onclick="oa_setReadSite('${oa_jsq(s)}')">${esc(s)}<i>${siteCnt[s]}</i></button>`).join('');
         const box = sb.closest('.oa-actf-box'); if (box) box.style.display = siteList.length ? '' : 'none';
     }
-    // แท็บที่เลือก — ไม่มีแท็บ "ตอบแล้ว" ถ้าไม่ได้ติ๊กแสดง
-    if (!o.readView || (o.readView === 'done' && !R._showDone)) o.readView = 'read';
-    const view = o.readView;
+    const view = o.readView === 'soon' ? 'soon' : 'read';
+    const inView = g => view === 'soon' ? g.state === 'soon' : (g.state === 'read' || g.state === 'late');
     groups = groups.filter(g =>
-        g.state === view &&
+        inView(g) &&
         (o.readSite === 'ALL' || sitesOf(g).includes(o.readSite)) &&
         (!q || String(g.name || '').toLowerCase().includes(q) || String(g.oa || '').toLowerCase().includes(q) || g.readers.some(r => String(r.username || '').toLowerCase().includes(q))));
     // สถิติ + badge บนแท็บ (นับจากทั้งหมด ไม่สนตัวกรอง)
     const all = Object.values(byChat);
-    const nRead = all.filter(g => g.state === 'read').length, nSoon = all.filter(g => g.state === 'soon').length, nDone = all.filter(g => g.state === 'done').length;
-    const people = new Set; all.filter(g => g.state !== 'done').forEach(g => g.readers.forEach(r => people.add(r.username)));
-    S('oaReadPend', nRead); S('oaReadSoon', nSoon); S('oaReadDone', nDone); S('oaReadPeople', people.size);
+    const all0 = all.filter(g => g.state !== 'ontime');
+    const nRead = all0.filter(g => g.state === 'read').length, nLate = all0.filter(g => g.state === 'late').length, nSoon = all0.filter(g => g.state === 'soon').length;
+    S('oaReadPend', nRead + nLate); S('oaReadSoon', nSoon);
+    S('oaReadPendSub', nRead ? 'ยังไม่ตอบ ' + nRead + ' · มีคนมาตอบแล้ว ' + nLate : 'ทั้งหมดมีคนมาตอบแล้ว · ประวัติช่วงวันที่ที่เลือก');
     document.querySelectorAll('#oaReadTabs .oa-kpi-tab').forEach(b => b.classList.toggle('on', b.dataset.view === view));
-    const doneTab = document.getElementById('oaReadDoneTab'); if (doneTab) doneTab.style.display = R._showDone ? '' : 'none';
-    const peopleBox = document.getElementById('oaReadPeopleBox'); if (peopleBox) peopleBox.style.display = R._showDone ? 'none' : '';
-    S('oaReadTitle', view === 'read' ? 'แชทที่เปิดอ่านแล้วยังไม่มีใครตอบ (เกิน 5 นาที)' : view === 'soon' ? 'แชทที่เพิ่งเปิดอ่าน (ยังไม่ถึง 5 นาที) — ครบ 5 นาทีจะย้ายไปแท็บ "อ่านแล้วไม่ตอบ" เอง' : 'แชทที่ตอบไปแล้ววันนี้');
+    const { from, to } = oa_readRange();
+    const rangeTxt = from === to ? from : from + ' ถึง ' + to;
+    S('oaReadTitle', view === 'read' ? 'แชทที่เปิดอ่านแล้วไม่ตอบเกิน ' + (window.OA_READ_MIN || 10) + ' นาที · ' + rangeTxt + ' (ที่ยังไม่ตอบแสดงทุกวัน)' : 'แชทที่เพิ่งเปิดอ่าน (ยังไม่ถึง ' + (window.OA_READ_MIN || 10) + ' นาที)');
     const badge = document.getElementById('oaReadBadge');
     if (badge) { badge.textContent = nRead; badge.style.display = nRead ? '' : 'none'; }
     S('oaReadUpd', R._at ? 'อัปเดต ' + new Date(R._at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '');
-    // เรียง: ค้างนานสุดก่อน → เพิ่งเปิด → ตอบแล้ว
-    const ord = { read: 0, soon: 1, done: 2 };
-    groups.sort((a, b) => ord[a.state] - ord[b.state] || (a.state === 'done' ? String(b.resolved_at).localeCompare(String(a.resolved_at)) : b.age - a.age));
+    // เรียง: ยังไม่ตอบ (ค้างนานสุดก่อน) → ตอบแล้ว (ล่าสุดก่อน)
+    const ord = { read: 0, soon: 0, late: 1 };
+    groups.sort((a, b) => ord[a.state] - ord[b.state] || (a.state === 'late' ? String(b.resolved_at).localeCompare(String(a.resolved_at)) : b.age - a.age));
     if (!groups.length) {
-        const empty = view === 'read' ? '🎉 ไม่มีแชทค้างเกิน 5 นาที' : view === 'soon' ? 'ไม่มีแชทที่เพิ่งเปิด' : 'วันนี้ยังไม่มีแชทที่ตอบแล้ว';
-        L.innerHTML = `<div class="text-center text-slate-400 py-10 text-sm">${(q || o.readSite !== 'ALL') && all.some(g => g.state === view) ? 'ไม่มีรายการที่ตรงกับตัวกรอง' : empty}</div>`;
+        const empty = view === 'read' ? '🎉 ไม่มีแชทที่อ่านแล้วไม่ตอบเกิน ' + (window.OA_READ_MIN || 10) + ' นาที ในช่วงวันที่นี้' : 'ไม่มีแชทที่เพิ่งเปิด';
+        L.innerHTML = `<div class="text-center text-slate-400 py-10 text-sm">${(q || o.readSite !== 'ALL') && all0.some(inView) ? 'ไม่มีรายการที่ตรงกับตัวกรอง' : empty}</div>`;
         return;
     }
     const tm = ts => { try { const d = new Date(ts); return d.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } };
     const card = g => {
         const nm = g.name || ('ลูกค้า ' + String(g.chat_id).slice(-6));
         const st = g.state;
-        const ageTxt = st === 'done' ? 'ตอบแล้ว' + (g.resolved_by ? ' โดย ' + esc(g.resolved_by) : '') + ' · ' + tm(g.resolved_at) + ' (ค้าง ' + oa_readAge(g.age) + ')'
+        const ageTxt = st === 'late' ? '⏱ ค้าง ' + oa_readAge(g.age) + ' แล้วค่อยมีคนตอบ · ' + tm(g.resolved_at)
             : (st === 'read' ? '⏱ ค้างมา ' : 'เพิ่งเปิด ') + oa_readAge(g.age);
         const readers = g.readers.map(r => {
             const a = (g.resolved_at ? new Date(g.resolved_at).getTime() : now) - new Date(r.opened_at).getTime();
             return `<div class="pc-ev"><span class="pc-badge ${st}">👁 เปิดอ่าน</span><b>${esc(r.username)}</b><span class="pc-t">${tm(r.opened_at)} · ${oa_readAge(a)}</span></div>`;
         }).join('');
-        const tail = st === 'done' ? `<div class="pc-ev"><span class="pc-badge done">✅ ตอบแล้ว</span><b>${esc(g.resolved_by || '-')}</b><span class="pc-t">${tm(g.resolved_at)}</span></div>`
+        const tail = st === 'late' ? `<div class="pc-ev"><span class="pc-badge done">✅ มาตอบให้</span><b>${esc(g.resolved_by || 'ไม่ทราบชื่อ')}</b><span class="pc-t">${tm(g.resolved_at)}</span></div>`
             : `<div class="pc-ev pc-wait"><span class="pc-badge wait">⏳</span>ยังไม่มีใครตอบ</div>`;
-        const cls = st === 'read' ? 'pc-read' : st === 'soon' ? 'pc-read-soon' : 'pc-read-done';
+        const cls = st === 'read' ? 'pc-read' : st === 'soon' ? 'pc-read-soon' : 'pc-read-late';
         // ลิงก์เปิดแชทใน LINE ด้วยรหัสแชท — ลูกค้าเปลี่ยนชื่อ/บล็อก ก็ยังเปิดถูกแชท
         const url = 'https://chat.line.biz/' + encodeURIComponent(g.oa_id) + '/chat/' + encodeURIComponent(g.chat_id);
         const openBtn = `<a class="pc-open" href="${esc(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="เปิดแชทนี้ใน LINE OA"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>เปิดแชท</a>`;
         return `<div class="pc ${cls}"><div class="pc-head"><div class="pc-name"><button class="pc-copy" onclick="oa_copyName(event,'${esc(nm).replace(/'/g, "\\'")}')" title="คัดลอกชื่อ"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>${esc(nm)}${g.oa ? `<span class="pc-oa">${esc(g.oa)}</span>` : ''}${openBtn}</div><div class="pc-age ${st}">${ageTxt}</div></div><div class="pc-body">${readers}${tail}</div></div>`;
     };
     const PER = window.OA_READ_PER || 30;
-    const rkey = [o.readSite, q, R._showDone, view].join('|');
+    const rkey = [o.readSite, q, R._range, view].join('|');
     if (o._readKey !== rkey) { o._readKey = rkey; o.readPage = 1; }
     const pages = Math.max(1, Math.ceil(groups.length / PER));
     o.readPage = Math.min(Math.max(1, o.readPage || 1), pages);
