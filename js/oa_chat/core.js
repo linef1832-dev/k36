@@ -1535,7 +1535,11 @@ window.oa_loadAct = async function (force) {
     A._reqId = (A._reqId || 0) + 1; const myReq = A._reqId;
     try {
         const PAGE = 1000;
-        const q = (withCount) => window.appDB.from('oa_actions').select('work_date, username, action, oa_name, chat_id, chat_name, acted_at', withCount ? { count: 'exact' } : undefined).gte('work_date', f).lte('work_date', t).order('acted_at', { ascending: false });
+        // โหลดย้อนไปอีก 30 วันก่อนช่วงที่เลือก เพื่อให้รู้ว่าแชทไหน "ยังติดป้ายค้างอยู่" (ใส่ไว้ก่อนช่วงนี้แต่ยังไม่เอาออก)
+        const d0 = new Date(f + 'T12:00:00'); d0.setDate(d0.getDate() - 30);
+        const p2 = n => String(n).padStart(2, '0');
+        const f0 = d0.getFullYear() + '-' + p2(d0.getMonth() + 1) + '-' + p2(d0.getDate());
+        const q = (withCount) => window.appDB.from('oa_actions').select('work_date, username, action, oa_name, chat_id, chat_name, acted_at', withCount ? { count: 'exact' } : undefined).gte('work_date', f0).lte('work_date', t).order('acted_at', { ascending: false });
         const first = await q(true).range(0, PAGE - 1);
         if (first.error) throw first.error;
         let all = first.data || [];
@@ -1567,28 +1571,38 @@ window.oa_setActSite = function (s) {
 };
 window.oa_renderAct = function () {
     const o = window._oa, q = (document.getElementById('oaActSearch') || {}).value.toLowerCase();
-    let rows = window._oaAct.rows.slice();
+    const rows = window._oaAct.rows.slice();
+    const F = window._oaAct._from || '', T = window._oaAct._to || '';
     const actSites = (r) => { const s = o.siteMap[(r.username||'').toUpperCase().trim()+'|'+r.work_date]; return s?[...s]:[]; };
+    // 1) ประกอบเป็น "เคส" ก่อน: ใส่ป้าย → (เอาออก) = 1 เคส · กดซ้ำหลายครั้งในแชทเดียวไม่นับเพิ่ม
+    const CASES = [], byChat = {};
+    rows.slice().sort((a,b)=>String(a.acted_at).localeCompare(String(b.acted_at))).forEach(x => {
+        const k = x.chat_id, open = byChat[k];
+        if (x.action==='add' || x.action==='todo') {
+            if (open && !open.remAt) return;                                    // ยังติดป้ายอยู่แล้ว กดใส่ซ้ำ → ไม่นับเคสใหม่
+            CASES.push({ chat_id:k, name:x.chat_name, oa:x.oa_name, addBy:x.username, addAt:x.acted_at, addDate:x.work_date, remBy:null, remAt:null, remDate:null, sites:actSites(x) }); byChat[k]=CASES[CASES.length-1];
+        }
+        else if (x.action==='remove') {
+            if (open && !open.remAt) { open.remBy=x.username; open.remAt=x.acted_at; open.remDate=x.work_date; open.name=open.name||x.chat_name; open.oa=open.oa||x.oa_name; actSites(x).forEach(s => { if (!open.sites.includes(s)) open.sites.push(s); }); byChat[k]=null; }
+            else if (x.work_date >= F) { CASES.push({ chat_id:k, name:x.chat_name, oa:x.oa_name, addBy:null, addAt:null, addDate:null, remBy:x.username, remAt:x.acted_at, remDate:x.work_date, sites:actSites(x) }); }
+        }
+    });
+    // 2) ยังค้าง = แสดงเสมอ (ใส่ไว้วันไหนก็ตาม) · เอาออกแล้ว = เฉพาะที่เอาออกในช่วงวันที่ที่เลือก
+    let groups = CASES.filter(c => !c.remAt || (c.remDate >= F && c.remDate <= T)).map(c=>({ ...c, sortAt:c.remAt||c.addAt })).sort((a,b)=>String(b.sortAt).localeCompare(String(a.sortAt)));
+    // 3) ชิปเว็บ นับเป็นเคส
     const siteCnt = {};
-    rows.forEach(r => actSites(r).forEach(s => { siteCnt[s] = (siteCnt[s] || 0) + 1; }));
+    groups.forEach(c => c.sites.forEach(s => { siteCnt[s] = (siteCnt[s] || 0) + 1; }));
     const siteList = Object.keys(siteCnt).sort();
     if (!o.actSite || (o.actSite !== 'ALL' && !siteCnt[o.actSite])) o.actSite = 'ALL';
     const sb = document.getElementById('oaActSites');
     if (sb) {
-        sb.innerHTML = `<button class="oa-chip oa-all ${o.actSite === 'ALL' ? 'on' : ''}" onclick="oa_setActSite('ALL')">ทั้งหมด<i>${rows.length}</i></button>` + siteList.map(s => `<button class="oa-chip ${o.actSite === s ? 'on' : ''}" onclick="oa_setActSite('${oa_jsq(s)}')">${oa_esc(s)}<i>${siteCnt[s]}</i></button>`).join('');
+        sb.innerHTML = `<button class="oa-chip oa-all ${o.actSite === 'ALL' ? 'on' : ''}" onclick="oa_setActSite('ALL')">ทั้งหมด<i>${groups.length}</i></button>` + siteList.map(s => `<button class="oa-chip ${o.actSite === s ? 'on' : ''}" onclick="oa_setActSite('${oa_jsq(s)}')">${oa_esc(s)}<i>${siteCnt[s]}</i></button>`).join('');
         const box = sb.closest('.oa-actf-box'); if (box) box.style.display = siteList.length ? '' : 'none';
     }
     document.querySelectorAll('#oaActRangeSeg button').forEach(b => b.classList.toggle('on', b.dataset.r === o.range));
-    rows = rows.filter(r =>
-        (o.actSite==='ALL' || actSites(r).includes(o.actSite)) &&
-        (!q || String(r.username||'').toLowerCase().includes(q) || String(r.chat_name||'').toLowerCase().includes(q)));
-    const CASES = [], byChat = {};
-    rows.slice().sort((a,b)=>String(a.acted_at).localeCompare(String(b.acted_at))).forEach(x => {
-        const k = x.chat_id, open = byChat[k];
-        if (x.action==='add' || x.action==='todo') { CASES.push({ chat_id:k, name:x.chat_name, oa:x.oa_name, addBy:x.username, addAt:x.acted_at, remBy:null, remAt:null }); byChat[k]=CASES[CASES.length-1]; }
-        else if (x.action==='remove') { if (open && !open.remAt) { open.remBy=x.username; open.remAt=x.acted_at; open.name=open.name||x.chat_name; open.oa=open.oa||x.oa_name; byChat[k]=null; } else { CASES.push({ chat_id:k, name:x.chat_name, oa:x.oa_name, addBy:null, addAt:null, remBy:x.username, remAt:x.acted_at }); } }
-    });
-    let groups = CASES.map(c=>({ ...c, sortAt:c.remAt||c.addAt })).sort((a,b)=>String(b.sortAt).localeCompare(String(a.sortAt)));
+    groups = groups.filter(c =>
+        (o.actSite==='ALL' || c.sites.includes(o.actSite)) &&
+        (!q || String(c.addBy||'').toLowerCase().includes(q) || String(c.remBy||'').toLowerCase().includes(q) || String(c.name||'').toLowerCase().includes(q)));
     const nPend = groups.filter(c=>!c.remAt).length, nDone = groups.filter(c=>c.remAt).length;
     const S=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
     S('oaActAdd', nPend); S('oaActRem', nDone);
