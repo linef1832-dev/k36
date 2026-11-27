@@ -1792,8 +1792,13 @@ window.oa_renderRead = function () {
         const readers = g.readers.map(r => {
             const a = (g.resolved_at ? new Date(g.resolved_at).getTime() : now) - new Date(r.opened_at).getTime();
             const isResolver = st === 'late' && g.resolved_by && String(r.username).toLowerCase() === String(g.resolved_by).toLowerCase();
-            const badge = isResolver ? `<span class="pc-badge done">👁 เปิดอ่าน → ตอบเอง</span>` : `<span class="pc-badge ${st === 'late' ? 'read' : st}">👁 เปิดอ่าน ไม่ตอบ</span>`;
-            return `<div class="pc-ev">${badge}<b>${esc(r.username)}</b><span class="pc-t">${tm(r.opened_at)}${isResolver ? ' · ตอบหลังเปิด ' + oa_readAge(a) : ' · ปล่อยไว้ ' + oa_readAge(a)}</span></div>`;
+            // ป้ายแดง "ไม่ตอบ" เฉพาะคนที่ "ตัวเอง" ปล่อยไว้เกินกำหนด · เปิดแล้วมีคนอื่นตอบภายในเวลา = ไม่ใช่ความผิด (เทา)
+            let badge, note;
+            if (isResolver) { badge = `<span class="pc-badge done">👁 เปิดอ่าน → ตอบเอง</span>`; note = 'ตอบหลังเปิด ' + oa_readAge(a); }
+            else if (a >= MIN) { badge = `<span class="pc-badge ${st === 'late' ? 'read' : st}">👁 เปิดอ่าน ไม่ตอบ</span>`; note = 'ปล่อยไว้ ' + oa_readAge(a); }
+            else if (st === 'late') { badge = `<span class="pc-badge wait">👁 เปิดอ่าน</span>`; note = 'มีคนตอบหลังเปิด ' + oa_readAge(a); }
+            else { badge = `<span class="pc-badge ${st}">👁 เปิดอ่าน</span>`; note = oa_readAge(a); }
+            return `<div class="pc-ev">${badge}<b>${esc(r.username)}</b><span class="pc-t">${tm(r.opened_at)} · ${note}</span></div>`;
         }).join('');
         const resolverOpened = st === 'late' && g.resolved_by && g.readers.some(r => String(r.username).toLowerCase() === String(g.resolved_by).toLowerCase());
         const tail = st === 'late' ? `<div class="pc-ev"><span class="pc-badge done">✅ ${resolverOpened ? 'ตอบแล้ว' : 'มาตอบให้'}</span><b>${esc(g.resolved_by || 'ไม่ทราบชื่อ')}</b><span class="pc-t">${tm(g.resolved_at)}</span></div>`
