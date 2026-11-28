@@ -1979,12 +1979,14 @@ window.oa_renderIdle = function () {
         (byUser[k] = byUser[k] || []).push(x);
     });
     // รวมเป็น "รายคน": ช่วงที่ซ้อน/ต่อกัน (ห่างไม่เกิน 1 นาที) = 1 ช่วง (แชทหลายห้องที่เข้าพร้อมกัน) — ยกเว้นข้ามการพัก ไม่รวม
+    // ข้ามการพัก = afterBreak ไม่ใช่การพักเดียวกัน (ช่วงก่อนพัก afterBreak=null · ช่วงหลังพัก afterBreak=การพักนั้น)
+    // ช่วงที่ซ้อนกันแล้วถูกการพักเดียวกัน "ตัด" (cutBy) ต้องรวมกันได้ ไม่งั้นจะแตกเป็นแชทละใบ
     const groups = [];
     Object.values(byUser).forEach(list => {
         list.sort((a, b) => a.t0 - b.t0);
         let cur = null;
         list.forEach(x => {
-            if (cur && x.t0 <= cur.t1 + 60000 && !x.afterBreak && !cur.cutBy) {
+            if (cur && x.t0 <= cur.t1 + 60000 && x.afterBreak === cur.afterBreak) {
                 cur.t1 = Math.max(cur.t1, x.t1); cur.live = cur.live || x.live; cur.cutBy = cur.cutBy || x.cutBy;
             } else {
                 cur = { kind: x.kind, username: x.username, t0: x.t0, t1: x.t1, since: new Date(x.t0).toISOString(), live: x.live, cutBy: x.cutBy, afterBreak: x.afterBreak };
