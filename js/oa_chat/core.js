@@ -2022,7 +2022,7 @@ window.oa_renderIdle = function () {
     }
     const tm = ts => { try { const d = new Date(ts); return d.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } };
     // การ์ด = คน 1 คน 1 ช่วงนิ่ง — ภาษาคน: "ใคร นิ่งกี่นาที ตอนไหน แล้วเกิดอะไรต่อ"
-    const tmT = ms => new Date(ms).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+    const tmT = ms => new Date(ms).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });   // โชว์วินาทีด้วย ให้ลบกันแล้วตรงกับ 'นิ่งไป X นาที'
     const card = g => {
         const st = g.live ? 'idle' : 'idledone';
         const mins = oa_readAge(g.dur);
