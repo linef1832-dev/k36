@@ -1373,6 +1373,8 @@ window.renderTrainerOdMatrix = async function(rosterData) {
     };
     return `<td><b>${tm.main.length}</b><small>/${tm.support.length}</small></td>`;
   })).join('')}</tr>`;
+  const prevWrap = matrixGrid.querySelector('.oq-wrap');
+  const keepX = prevWrap ? prevWrap.scrollLeft : 0, keepY = prevWrap ? prevWrap.scrollTop : 0;
   matrixGrid.innerHTML = `
     <div class="oq-top">
       <div class="oq-legend"><span class="job">✓ Job</span> ดูแลหลัก <span class="sup">S</span> ซัพพอร์ต/เว็บรอง <span class="not">Not</span> ไม่ดูแล${canEdit ? ' · กดช่อง: Not → S → Job → Not บันทึกทันที' : ''}</div>
@@ -1381,6 +1383,13 @@ window.renderTrainerOdMatrix = async function(rosterData) {
       </div>
     </div>
     <div class="oq-wrap"><table class="oq-t"><thead><tr>${head1}</tr><tr>${head2}</tr></thead><tbody>${rows || `<tr><td colspan="${3 + webs.length + tasks.length}" class="oq-empty">ไม่มีผู้สอน OD ในกะนี้</td></tr>`}</tbody><tfoot>${foot}</tfoot></table></div>`;
+  if (keepX || keepY) {
+    const w = matrixGrid.querySelector('.oq-wrap');
+    if (w) {
+      w.scrollLeft = keepX;
+      w.scrollTop = keepY;
+    }
+  }
 };
 
 window._odqlQ = window._odqlQ || {
