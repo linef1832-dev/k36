@@ -1280,11 +1280,39 @@ window.odqlTaskCellOf = function(u, task) {
   return 'not';
 };
 
+window.odqlLoadBreaks = async function(workDate) {
+  const d = workDate || (document.getElementById('dutyDate') ? document.getElementById('dutyDate').value : '');
+  if (!d) return {};
+  if (window._odqlBreakDate === d && window._odqlBreaks && Date.now() - (window._odqlBreakAt || 0) < 60 * 1e3) return window._odqlBreaks;
+  const map = {};
+  try {
+    const {data: data} = await appDB.from('schedules').select('staff_name, time_slot, shift_name').eq('work_date', d);
+    const toMin = s => {
+      const m = /^(\d{1,2}):(\d{2})/.exec(String(s || ''));
+      return m ? +m[1] * 60 + +m[2] : 9999;
+    };
+    (data || []).forEach((r => {
+      if (!r || !r.staff_name || !r.time_slot) return;
+      const k = String(r.staff_name).trim().toLowerCase();
+      if (!map[k]) map[k] = [];
+      if (!map[k].includes(r.time_slot)) map[k].push(r.time_slot);
+    }));
+    Object.values(map).forEach((arr => arr.sort(((a, b) => toMin(a) - toMin(b)))));
+  } catch (e) {
+    console.warn('[odqlLoadBreaks]', e);
+  }
+  window._odqlBreakDate = d;
+  window._odqlBreakAt = Date.now();
+  window._odqlBreaks = map;
+  return map;
+};
+
 window.renderTrainerOdMatrix = async function(rosterData) {
   const matrixGrid = document.getElementById('dutyMatrixGrid');
   if (!matrixGrid) return;
   rosterData = rosterData || {};
   await window.odqlLoadSups(rosterData);
+  const breaks = await window.odqlLoadBreaks();
   const canEdit = window.isDutyAdmin() && (!window.isTrainerDept() || canPerm('duty_manage_odql') || canPerm('duty_manage_amql') || canPerm('duty_manage'));
   const shiftFilter = document.getElementById('dutyShiftSelect') ? document.getElementById('dutyShiftSelect').value : 'all';
   const webs = window.odqlWebs();
@@ -1304,7 +1332,7 @@ window.renderTrainerOdMatrix = async function(rosterData) {
   trainers.sort(((a, b) => shOrder.indexOf(window.getDutyShiftForToday(a)) - shOrder.indexOf(window.getDutyShiftForToday(b)) || a.username.localeCompare(b.username)));
   const esc = window.escapeHtml;
   const cell = (val, uid, kind, key) => `<td class="oq-c ${val}${canEdit ? ' ed' : ''}" data-uid="${esc(String(uid))}" data-kind="${kind}" data-key="${esc(key)}" ${canEdit ? `onclick="odqlCycle(this)" title="กดเพื่อสลับ: Not → S → Job → Not"` : ''}><span>${val === 'job' ? '✓ Job' : val === 'sup' ? 'S' : 'Not'}</span></td>`;
-  let head1 = `<th rowspan="2" class="oq-h oq-fix1">รายชื่อผู้ดูแล</th><th rowspan="2" class="oq-h oq-fix2">กะ</th>`;
+  let head1 = `<th rowspan="2" class="oq-h oq-fix1">รายชื่อผู้ดูแล</th><th rowspan="2" class="oq-h oq-fix2">กะ</th><th rowspan="2" class="oq-h oq-fix3" title="เวลาพักจากตารางลงเวลาพัก วันที่เลือก">พัก</th>`;
   head1 += `<th colspan="${webs.length}" class="oq-h oq-grp">เว็บที่ดูแล (Job = หลัก · S = รอง)</th>`;
   if (tasks.length) head1 += `<th colspan="${tasks.length}" class="oq-h oq-grp oq-grp-t">งานประจำวัน</th>`;
   const webHex = {
@@ -1321,19 +1349,24 @@ window.renderTrainerOdMatrix = async function(rosterData) {
   };
   let head2 = webs.map((w => `<th class="oq-h oq-web" style="--wc:${webHex[w] || '#64748b'}">${esc(w)}</th>`)).join('');
   head2 += tasks.map((t => `<th class="oq-h oq-task" title="${esc(t)}">${esc(t)}</th>`)).join('');
+  const brk = u => {
+    const arr = breaks[String(u.username || '').trim().toLowerCase()] || [];
+    if (!arr.length) return `<td class="oq-b oq-fix3 none" title="ยังไม่ได้ลงเวลาพัก">-</td>`;
+    return `<td class="oq-b oq-fix3" title="เวลาพัก: ${esc(arr.join(', '))}">${arr.map((t => `<span>${esc(t)}</span>`)).join('')}</td>`;
+  };
   const rows = trainers.map((u => {
     const sh = window.getDutyShiftForToday(u);
     const onLeave = leaveIds.has(String(u.id));
     const isMe = typeof currentUser !== 'undefined' && currentUser && String(currentUser.id) === String(u.id);
     const nameAttrs = canEdit && !onLeave ? ` duty-user-card can" draggable="true" ondragstart="handleDragStart(event, '${window.escapeJsAttr(String(u.id))}', '${window.escapeJsAttr(u.username)}', '__odql__')" ondragend="if(typeof cleanupDragEffects==='function')cleanupDragEffects();this.classList.remove('opacity-50','scale-95')" onclick="odqlToLeave('${window.escapeJsAttr(String(u.id))}', '${window.escapeJsAttr(u.username)}')" title="${esc(u.username)} — กดหรือลากไปช่องลาหยุด เพื่อย้ายไปลา"` : `" title="${esc(u.username)}"`;
-    let r = `<tr class="oq-r${onLeave ? ' lv' : ''}${isMe ? ' me' : ''}"><td class="oq-n oq-fix1${nameAttrs}>${esc(u.username)}${isMe ? ' <em>คุณ</em>' : ''}${onLeave ? ' <small>(ลา)</small>' : ''}</td><td class="oq-s oq-fix2 ${sh === 'กะดึก' ? 'n' : sh === 'กะกลาง' ? 'm' : 'd'}">${shLabel(sh)}</td>`;
+    let r = `<tr class="oq-r${onLeave ? ' lv' : ''}${isMe ? ' me' : ''}"><td class="oq-n oq-fix1${nameAttrs}>${esc(u.username)}${isMe ? ' <em>คุณ</em>' : ''}${onLeave ? ' <small>(ลา)</small>' : ''}</td><td class="oq-s oq-fix2 ${sh === 'กะดึก' ? 'n' : sh === 'กะกลาง' ? 'm' : 'd'}">${shLabel(sh)}</td>${brk(u)}`;
     r += webs.map((w => cell(window.odqlCellOf(u, w, rosterData), u.id, 'web', w))).join('');
     r += tasks.map((t => cell(window.odqlTaskCellOf(u, t), u.id, 'task', t))).join('');
     return r + '</tr>';
   })).join('');
   const sumJob = webs.map((w => trainers.filter((u => window.odqlCellOf(u, w, rosterData) === 'job')).length));
   const sumSup = webs.map((w => trainers.filter((u => window.odqlCellOf(u, w, rosterData) === 'sup')).length));
-  const foot = `<tr class="oq-f"><td class="oq-fix1">รวม Job / S</td><td class="oq-fix2"></td>${webs.map(((w, i) => `<td><b>${sumJob[i]}</b><small>/${sumSup[i]}</small></td>`)).join('')}${tasks.map((t => {
+  const foot = `<tr class="oq-f"><td class="oq-fix1">รวม Job / S</td><td class="oq-fix2"></td><td class="oq-fix3"></td>${webs.map(((w, i) => `<td><b>${sumJob[i]}</b><small>/${sumSup[i]}</small></td>`)).join('')}${tasks.map((t => {
     const tm = window.impTeamOf ? window.impTeamOf(t) : {
       main: [],
       support: []
@@ -1347,7 +1380,7 @@ window.renderTrainerOdMatrix = async function(rosterData) {
         <button type="button" class="oq-btn" onclick="odqlCopySheet()" title="คัดลอกเป็นตารางไปวางในชีต/Excel"><span class="material-icons">content_copy</span>คัดลอกไปวางชีต</button>
       </div>
     </div>
-    <div class="oq-wrap"><table class="oq-t"><thead><tr>${head1}</tr><tr>${head2}</tr></thead><tbody>${rows || `<tr><td colspan="${2 + webs.length + tasks.length}" class="oq-empty">ไม่มีผู้สอน OD ในกะนี้</td></tr>`}</tbody><tfoot>${foot}</tfoot></table></div>`;
+    <div class="oq-wrap"><table class="oq-t"><thead><tr>${head1}</tr><tr>${head2}</tr></thead><tbody>${rows || `<tr><td colspan="${3 + webs.length + tasks.length}" class="oq-empty">ไม่มีผู้สอน OD ในกะนี้</td></tr>`}</tbody><tfoot>${foot}</tfoot></table></div>`;
 };
 
 window._odqlQ = window._odqlQ || {
@@ -1502,7 +1535,7 @@ window.odqlCopySheet = async function() {
   const lines = [];
   table.querySelectorAll('thead tr:last-child, tbody tr').forEach(((tr, i) => {
     const cells = [ ...tr.children ].map((c => c.innerText.replace(/\s+/g, ' ').trim()));
-    if (i === 0) cells.unshift('กะ', 'รายชื่อผู้ดูแล');
+    if (i === 0) cells.unshift('พัก', 'กะ', 'รายชื่อผู้ดูแล');
     lines.push(cells.join('\t'));
   }));
   try {
