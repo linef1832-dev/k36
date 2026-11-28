@@ -1940,42 +1940,50 @@ window.oa_renderIdle = function () {
     // คนที่กดพักใน Telegram อยู่ระหว่างช่วงที่นิ่ง → ไม่นับ (ไม่ได้อยู่หน้าจอจริง)
     const brByUser = {};
     (R.breaks || []).forEach(b => { const k = String(b.staff_name || '').toLowerCase(); (brByUser[k] = brByUser[k] || []).push({ s: new Date(b.break_start).getTime(), e: b.break_end ? new Date(b.break_end).getTime() : Infinity, reason: b.break_reason || 'พัก' }); });
-    const breaksOf = (username, t0, t1) => (brByUser[String(username || '').toLowerCase()] || []).filter(b => b.s <= t1 && b.e >= t0);
-    const all = R.rows.map(r => {
+    const MINMS = (window.OA_IDLE_MIN || 3) * 60000;
+    const breaksOf = (username, t0, t1) => (brByUser[String(username || '').toLowerCase()] || []).filter(b => b.s < t1 && b.e > t0).sort((a, b) => a.s - b.s);
+    // การพักใน Telegram = "ตัด" ช่วงนิ่ง: ช่วงนิ่งจบตอนกดพัก · กลับที่นั่งแล้วเริ่มนับใหม่จาก 0
+    // แต่ละช่วงย่อยต้องยาวถึงเกณฑ์ (3 นาที) ถึงจะถือว่านิ่ง ช่วงที่สั้นกว่านั้นไม่แสดง (เช่น นิ่ง 1 นาทีแล้วไปพัก)
+    const segs = [];
+    R.rows.forEach(r => {
+        const kind = r.kind === 'unopened' ? 'unopened' : 'open';
         const t0 = new Date(r.idle_since).getTime(), t1 = r.ended_at ? new Date(r.ended_at).getTime() : now;
+        let cur = t0, afterBreak = null;
         const brs = breaksOf(r.username, t0, t1);
-        // กดพัก "ก่อน" เริ่มนิ่ง → ไม่ได้อยู่หน้าจอ ตัดออก · นิ่งครบก่อนแล้วค่อยกดพัก → ยังถือว่านิ่ง เก็บไว้ + บอกว่ากดอะไรตอนไหน
-        const onBreakBefore = brs.some(b => b.s <= t0);
-        return Object.assign({}, r, { kind: r.kind === 'unopened' ? 'unopened' : 'open', brk: onBreakBefore, breaks: onBreakBefore ? [] : brs.filter(b => b.s > t0) });
+        for (const b of brs) {
+            if (b.s > cur) segs.push({ kind, username: r.username, t0: cur, t1: b.s, live: false, cutBy: b, afterBreak });
+            cur = Math.max(cur, b.e); afterBreak = b;
+            if (cur >= t1) break;
+        }
+        if (cur < t1) segs.push({ kind, username: r.username, t0: cur, t1, live: !r.ended_at, cutBy: null, afterBreak });
     });
-    const nOnBreak = all.filter(r => r.brk).length;
-    // รวมเป็น "รายคน": คนเดียวกัน แบบเดียวกัน ช่วงเวลาที่ซ้อน/ต่อกัน (ห่างไม่เกิน 1 นาที) = 1 ช่วงนิ่ง
-    // แบบ 1 หลายแชทที่เข้ามาพร้อมกันตอนนิ่ง → นับเป็นช่วงเดียว บอกจำนวนแชทไว้ · คนที่กดพักอยู่ → ตัดออก
+    const nOnBreak = 0;
     const skip = R.skipUsers || new Set();
-    const nSkipPos = all.filter(r => skip.has(String(r.username || '').toLowerCase())).length;
+    const nSkipPos = segs.filter(x => skip.has(String(x.username || '').toLowerCase())).length;
     const byUser = {};
-    all.forEach(r => {
-        if (r.brk) return;
-        if (skip.has(String(r.username || '').toLowerCase())) return;          // ตำแหน่ง TT / QL ไม่นับ
-        const k = r.kind + '|' + r.username;
-        (byUser[k] = byUser[k] || []).push(r);
+    segs.forEach(x => {
+        if (skip.has(String(x.username || '').toLowerCase())) return;          // ตำแหน่ง TT / QL ไม่นับ
+        const k = x.kind + '|' + x.username;
+        (byUser[k] = byUser[k] || []).push(x);
     });
+    // รวมเป็น "รายคน": ช่วงที่ซ้อน/ต่อกัน (ห่างไม่เกิน 1 นาที) = 1 ช่วง (แชทหลายห้องที่เข้าพร้อมกัน) — ยกเว้นข้ามการพัก ไม่รวม
     const groups = [];
     Object.values(byUser).forEach(list => {
-        list.sort((a, b) => new Date(a.idle_since) - new Date(b.idle_since));
+        list.sort((a, b) => a.t0 - b.t0);
         let cur = null;
-        list.forEach(r => {
-            const t0 = new Date(r.idle_since).getTime(), t1 = r.ended_at ? new Date(r.ended_at).getTime() : now;
-            if (cur && t0 <= cur.t1 + 60000) {
-                cur.t1 = Math.max(cur.t1, t1); cur.live = cur.live || !r.ended_at; cur.n++;
-                if (!r.ended_at) cur.ended_at = null; else if (cur.ended_at && r.ended_at > cur.ended_at) cur.ended_at = r.ended_at;
-                (r.breaks || []).forEach(b => { if (!cur.breaks.some(x => x.s === b.s)) cur.breaks.push(b); });
+        list.forEach(x => {
+            if (cur && x.t0 <= cur.t1 + 60000 && !x.afterBreak && !cur.cutBy) {
+                cur.t1 = Math.max(cur.t1, x.t1); cur.live = cur.live || x.live; cur.cutBy = cur.cutBy || x.cutBy;
             } else {
-                cur = { kind: r.kind, username: r.username, t0, t1, since: r.idle_since, ended_at: r.ended_at, live: !r.ended_at, n: 1, breaks: (r.breaks || []).slice() };
+                cur = { kind: x.kind, username: x.username, t0: x.t0, t1: x.t1, since: new Date(x.t0).toISOString(), live: x.live, cutBy: x.cutBy, afterBreak: x.afterBreak };
                 groups.push(cur);
             }
         });
     });
+    groups.forEach(g => { g.ended_at = g.live ? null : new Date(g.t1).toISOString(); });
+    // เฉพาะช่วงที่ยาวถึงเกณฑ์
+    const groupsAll = groups.splice(0).filter(g => (g.live ? now : g.t1) - g.t0 >= MINMS);
+    groups.push(...groupsAll);
     groups.forEach(g => { g.dur = Math.max(0, (g.live ? now : g.t1) - g.t0); g.who = [g.username]; });
     const mine = groups.filter(g => g.kind === view);
     // ชิปพนักงาน (เฉพาะแบบที่เลือก)
@@ -2013,22 +2021,23 @@ window.oa_renderIdle = function () {
         return;
     }
     const tm = ts => { try { const d = new Date(ts); return d.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } };
-    // การ์ด = คน 1 คน 1 ช่วงนิ่ง
+    // การ์ด = คน 1 คน 1 ช่วงนิ่ง — ภาษาคน: "ใคร นิ่งกี่นาที ตอนไหน แล้วเกิดอะไรต่อ"
+    const tmT = ms => new Date(ms).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
     const card = g => {
         const st = g.live ? 'idle' : 'idledone';
-        let ageTxt, body;
+        const mins = oa_readAge(g.dur);
+        let line;
         if (g.kind === 'unopened') {
-            ageTxt = g.live ? '🟢 นิ่งอยู่ ' + oa_readAge(g.dur) + ' ทั้งที่มีแชทเข้า' : '⏱ นิ่งไป ' + oa_readAge(g.dur) + ' · กดเข้า ' + tm(g.ended_at);
-            body = `<div class="pc-ev"><span class="pc-badge ${st}">🟢 มีแชทเข้า</span><span class="pc-t">ตั้งแต่ ${tm(g.since)}${g.live ? ' · ยังไม่กดเข้า' : ' → กดเข้าจนหมด ' + tm(g.ended_at)}</span></div>`;
+            line = g.live
+                ? `มีแชทเข้ามาตั้งแต่ <b>${tmT(g.t0)}</b> ตอนนี้ยังไม่กดเข้าไปดู <b>(นิ่งมาแล้ว ${mins})</b>`
+                : `มีแชทเข้ามาตอน <b>${tmT(g.t0)}</b> ปล่อยไว้ <b>${mins}</b>` + (g.cutBy ? ` แล้วไปกด <b>${esc(g.cutBy.reason)}</b> ตอน ${tmT(g.t1)}` : ` ถึงกดเข้าไปดูตอน ${tmT(g.t1)}`);
         } else {
-            ageTxt = g.live ? '💤 นิ่งอยู่ ' + oa_readAge(g.dur) : '⏱ นิ่งไป ' + oa_readAge(g.dur) + ' · กลับมา ' + tm(g.ended_at);
-            body = `<div class="pc-ev"><span class="pc-badge ${st}">💤 อยู่ในแชทลูกค้ารอ</span><span class="pc-t">ตั้งแต่ ${tm(g.since)}${g.live ? ' · ยังไม่ทำอะไร' : ' → กลับมาทำ ' + tm(g.ended_at)}</span></div>`;
+            line = g.live
+                ? `เปิดแชทที่ลูกค้ารออยู่ตั้งแต่ <b>${tmT(g.t0)}</b> ตอนนี้ยังไม่ทำอะไร <b>(นิ่งมาแล้ว ${mins})</b>`
+                : `เปิดแชทที่ลูกค้ารอ ตอน <b>${tmT(g.t0)}</b> แล้วไม่ทำอะไร <b>${mins}</b>` + (g.cutBy ? ` แล้วไปกด <b>${esc(g.cutBy.reason)}</b> ตอน ${tmT(g.t1)}` : ` ถึงกลับมาทำตอน ${tmT(g.t1)}`);
         }
-        // กดพัก "ระหว่าง" นิ่ง → แสดงไว้ (ยังนับว่านิ่ง ไม่ตัดเวลา)
-        const tmT = ms => new Date(ms).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-        const brLines = (g.breaks || []).sort((a, b) => a.s - b.s).map(b =>
-            `<div class="pc-ev"><span class="pc-badge wait">☕ กด ${esc(b.reason)}</span><span class="pc-t">นิ่งมาแล้ว ${oa_readAge(Math.max(0, b.s - g.t0))} ตอน ${tmT(b.s)}${b.e === Infinity ? ' · ยังไม่กดกลับที่นั่ง' : ' → กลับที่นั่ง ' + tmT(b.e) + (g.live ? ' · ยังนิ่งต่อ' : '')}</span></div>`).join('');
-        return `<div class="pc ${g.live ? 'pc-idle' : 'pc-idle-done'}"><div class="pc-head"><div class="pc-name">${esc(g.username)}</div><div class="pc-age ${st}">${ageTxt}</div></div><div class="pc-body">${body}${brLines}</div></div>`;
+        if (g.afterBreak) line += ` <span class="text-slate-400">· (หลังกลับจาก${esc(g.afterBreak.reason)} ตอน ${tmT(g.afterBreak.e)})</span>`;
+        return `<div class="pc ${g.live ? 'pc-idle' : 'pc-idle-done'}"><div class="pc-head"><div class="pc-name">${g.kind === 'unopened' ? '🟢' : '💤'} ${esc(g.username)}</div><div class="pc-age ${st}">${g.live ? '⏳ กำลังนิ่ง' : 'นิ่งไป'} ${mins}</div></div><div class="pc-body"><div class="pc-ev" style="font-size:13px;line-height:1.6">${line}</div></div></div>`;
     };
     const PER = window.OA_READ_PER || 30;
     const rkey = [o.idleUser, q, R._range, view].join('|');
