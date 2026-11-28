@@ -1463,6 +1463,7 @@ window.initOaChat = async function() {
     window.registerPageInterval(setInterval(() => { if (oa_isCurrent() && !document.hidden && window._oa && window._oa.tab === 'read') oa_renderRead(); }, 2e4));
     window.registerPageInterval(setInterval(() => { if (oa_isCurrent() && !document.hidden && window._oa && window._oa.tab === 'idle') oa_loadIdle(); }, 3e4));
     window.registerPageInterval(setInterval(() => { if (oa_isCurrent() && !document.hidden && window._oa && window._oa.tab === 'idle') oa_renderIdle(); }, 2e4));
+    window.registerPageInterval(setInterval(() => { if (oa_isCurrent() && !document.hidden && window._oa && window._oa.tab === 'idle') oa_idleTick(); }, 1000));
   }
   oa_loadRead();
   oa_subscribeRead();
@@ -1849,6 +1850,17 @@ window.oa_gotoReadPage = function (p) {
 //   kind='open'     : อยู่ในแชทที่ลูกค้ารอ แล้วไม่เลื่อน/คลิก/พิมพ์ เกิน 3 นาที — 1 แถว/คน
 //   idle_since = เริ่มนิ่ง · ended_at = จบ (null = ยังนิ่งอยู่)
 window.OA_IDLE_MIN = window.OA_IDLE_MIN || 3;
+// นาฬิกาจับเวลา: 3:20 · 1:02:05 (เกินชั่วโมง)
+function oa_stopwatch(ms) {
+    const t = Math.max(0, Math.floor(ms / 1000)), h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60;
+    const p = n => String(n).padStart(2, '0');
+    return (h ? h + ':' + p(m) : String(m)) + ':' + p(sec);
+}
+// ตัวเลขของคนที่ยังนิ่งอยู่ เดินทุกวินาที (ไม่ต้องวาดการ์ดใหม่)
+window.oa_idleTick = function () {
+    const now = Date.now();
+    document.querySelectorAll('#oaIdleList .oa-sw').forEach(el => { el.textContent = oa_stopwatch(now - Number(el.dataset.t0 || now)); });
+};
 window._oaIdle = window._oaIdle || { rows: [], loaded: false };
 window.oa_setIdleView = function (v) { window._oa.idleView = v === 'open' ? 'open' : 'unopened'; oa_renderIdle(); };
 
@@ -2022,22 +2034,25 @@ window.oa_renderIdle = function () {
     }
     const tm = ts => { try { const d = new Date(ts); return d.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } };
     // การ์ด = คน 1 คน 1 ช่วงนิ่ง — ภาษาคน: "ใคร นิ่งกี่นาที ตอนไหน แล้วเกิดอะไรต่อ"
-    const tmT = ms => new Date(ms).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+    // เวลานิ่งแสดงแบบนาฬิกาจับเวลา นาที:วินาที (3:20) · ที่ยังนิ่งอยู่ ตัวเลขเดินทุกวินาที (ดู oa_idleTick)
+    const tmT = ms => new Date(ms).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const sw = ms => oa_stopwatch(ms);
+    const live = (t0, cls) => `<span class="oa-sw ${cls || ''}" data-t0="${t0}">${sw(now - t0)}</span>`;
     const card = g => {
         const st = g.live ? 'idle' : 'idledone';
-        const mins = oa_readAge(g.dur);
         let line;
         if (g.kind === 'unopened') {
             line = g.live
-                ? `มีแชทเข้ามาตั้งแต่ <b>${tmT(g.t0)}</b> ตอนนี้ยังไม่กดเข้าไปดู <b>(นิ่งมาแล้ว ${mins})</b>`
-                : `มีแชทเข้ามาตอน <b>${tmT(g.t0)}</b> ปล่อยไว้ <b>${mins}</b>` + (g.cutBy ? ` แล้วไปกด <b>${esc(g.cutBy.reason)}</b> ตอน ${tmT(g.t1)}` : ` ถึงกดเข้าไปดูตอน ${tmT(g.t1)}`);
+                ? `มีแชทเข้ามาตั้งแต่ <b>${tmT(g.t0)}</b> ตอนนี้ยังไม่กดเข้าไปดู <b>(นิ่งมาแล้ว ${live(g.t0)})</b>`
+                : `มีแชทเข้ามาตอน <b>${tmT(g.t0)}</b> ปล่อยไว้ <b>${sw(g.dur)}</b>` + (g.cutBy ? ` แล้วไปกด <b>${esc(g.cutBy.reason)}</b> ตอน ${tmT(g.t1)}` : ` ถึงกดเข้าไปดูตอน ${tmT(g.t1)}`);
         } else {
             line = g.live
-                ? `เปิดแชทที่ลูกค้ารออยู่ตั้งแต่ <b>${tmT(g.t0)}</b> ตอนนี้ยังไม่ทำอะไร <b>(นิ่งมาแล้ว ${mins})</b>`
-                : `เปิดแชทที่ลูกค้ารอ ตอน <b>${tmT(g.t0)}</b> แล้วไม่ทำอะไร <b>${mins}</b>` + (g.cutBy ? ` แล้วไปกด <b>${esc(g.cutBy.reason)}</b> ตอน ${tmT(g.t1)}` : ` ถึงกลับมาทำตอน ${tmT(g.t1)}`);
+                ? `เปิดแชทที่ลูกค้ารออยู่ตั้งแต่ <b>${tmT(g.t0)}</b> ตอนนี้ยังไม่ทำอะไร <b>(นิ่งมาแล้ว ${live(g.t0)})</b>`
+                : `เปิดแชทที่ลูกค้ารอ ตอน <b>${tmT(g.t0)}</b> แล้วไม่ทำอะไร <b>${sw(g.dur)}</b>` + (g.cutBy ? ` แล้วไปกด <b>${esc(g.cutBy.reason)}</b> ตอน ${tmT(g.t1)}` : ` ถึงกลับมาทำตอน ${tmT(g.t1)}`);
         }
         if (g.afterBreak) line += ` <span class="text-slate-400">· (หลังกลับจาก${esc(g.afterBreak.reason)} ตอน ${tmT(g.afterBreak.e)})</span>`;
-        return `<div class="pc ${g.live ? 'pc-idle' : 'pc-idle-done'}"><div class="pc-head"><div class="pc-name">${g.kind === 'unopened' ? '🟢' : '💤'} ${esc(g.username)}</div><div class="pc-age ${st}">${g.live ? '⏳ กำลังนิ่ง' : 'นิ่งไป'} ${mins}</div></div><div class="pc-body"><div class="pc-ev" style="font-size:13px;line-height:1.6">${line}</div></div></div>`;
+        const big = g.live ? '⏳ กำลังนิ่ง ' + live(g.t0) : 'นิ่งไป ' + sw(g.dur);
+        return `<div class="pc ${g.live ? 'pc-idle' : 'pc-idle-done'}"><div class="pc-head"><div class="pc-name">${g.kind === 'unopened' ? '🟢' : '💤'} ${esc(g.username)}</div><div class="pc-age ${st}">${big}</div></div><div class="pc-body"><div class="pc-ev" style="font-size:13px;line-height:1.6">${line}</div></div></div>`;
     };
     const PER = window.OA_READ_PER || 30;
     const rkey = [o.idleUser, q, R._range, view].join('|');
