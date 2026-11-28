@@ -2021,22 +2021,18 @@ window.oa_renderIdle = function () {
         return;
     }
     const tm = ts => { try { const d = new Date(ts); return d.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } };
-    // การ์ด = คน 1 คน 1 ช่วงนิ่ง
+    // การ์ด = คน 1 คน 1 ช่วงนิ่ง — อ่านจบในบรรทัดเดียว: ใคร · นิ่งกี่นาที · ช่วงเวลา · จบเพราะอะไร
+    const tmT = ms => new Date(ms).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
     const card = g => {
         const st = g.live ? 'idle' : 'idledone';
-        let ageTxt, body;
-        if (g.kind === 'unopened') {
-            ageTxt = g.live ? '🟢 นิ่งอยู่ ' + oa_readAge(g.dur) + ' ทั้งที่มีแชทเข้า' : '⏱ นิ่งไป ' + oa_readAge(g.dur) + (g.cutBy ? ' · ไปพัก ' : ' · กดเข้า ') + tm(g.ended_at);
-            body = `<div class="pc-ev"><span class="pc-badge ${st}">🟢 มีแชทเข้า</span><span class="pc-t">ตั้งแต่ ${tm(g.since)}${g.live ? ' · ยังไม่กดเข้า' : (g.cutBy ? ' → ไปพัก ' : ' → กดเข้าจนหมด ') + tm(g.ended_at)}</span></div>`;
-        } else {
-            ageTxt = g.live ? '💤 นิ่งอยู่ ' + oa_readAge(g.dur) : '⏱ นิ่งไป ' + oa_readAge(g.dur) + (g.cutBy ? ' · ไปพัก ' : ' · กลับมา ') + tm(g.ended_at);
-            body = `<div class="pc-ev"><span class="pc-badge ${st}">💤 อยู่ในแชทลูกค้ารอ</span><span class="pc-t">ตั้งแต่ ${tm(g.since)}${g.live ? ' · ยังไม่ทำอะไร' : (g.cutBy ? ' → ไปพัก ' : ' → กลับมาทำ ') + tm(g.ended_at)}</span></div>`;
-        }
-        // การพักตัดช่วงนิ่ง: บอกว่าช่วงนี้จบเพราะไปพัก / เริ่มใหม่หลังกลับที่นั่ง
-        const tmT = ms => new Date(ms).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-        const brLines = (g.cutBy ? `<div class="pc-ev"><span class="pc-badge wait">☕ กด ${esc(g.cutBy.reason)}</span><span class="pc-t">ตอน ${tmT(g.cutBy.s)} · ช่วงนิ่งนี้จบตรงนั้น${g.cutBy.e === Infinity ? ' (ยังไม่กลับที่นั่ง)' : ' → กลับที่นั่ง ' + tmT(g.cutBy.e) + ' แล้วนับใหม่'}</span></div>` : '') +
-                        (g.afterBreak ? `<div class="pc-ev"><span class="pc-badge wait">↩ เริ่มนับใหม่</span><span class="pc-t">หลังกลับที่นั่งจาก ${esc(g.afterBreak.reason)} ตอน ${tmT(g.afterBreak.e)}</span></div>` : '');
-        return `<div class="pc ${g.live ? 'pc-idle' : 'pc-idle-done'}"><div class="pc-head"><div class="pc-name">${esc(g.username)}</div><div class="pc-age ${st}">${ageTxt}</div></div><div class="pc-body">${body}${brLines}</div></div>`;
+        const what = g.kind === 'unopened' ? 'มีแชทเข้า แต่ไม่กดเข้าไป' : 'อยู่ในแชทที่ลูกค้ารอ แต่ไม่ทำอะไร';
+        const big = g.live ? '⏳ กำลังนิ่ง ' + oa_readAge(g.dur) : 'นิ่งไป ' + oa_readAge(g.dur);
+        let endTxt;
+        if (g.live) endTxt = 'ตั้งแต่ ' + tmT(g.t0) + ' · ยังนิ่งอยู่';
+        else if (g.cutBy) endTxt = tmT(g.t0) + ' → ' + tmT(g.t1) + ' · หยุดนับเพราะกด ' + esc(g.cutBy.reason) + (g.cutBy.e !== Infinity ? ' (กลับที่นั่ง ' + tmT(g.cutBy.e) + ')' : '');
+        else endTxt = tmT(g.t0) + ' → ' + tmT(g.t1) + (g.kind === 'unopened' ? ' · จบเมื่อกดเข้าแชท' : ' · จบเมื่อกลับมาทำ');
+        const after = g.afterBreak ? ` <span class="text-slate-400">(นับใหม่หลังกลับจาก ${esc(g.afterBreak.reason)})</span>` : '';
+        return `<div class="pc ${g.live ? 'pc-idle' : 'pc-idle-done'}"><div class="pc-head"><div class="pc-name">${esc(g.username)}</div><div class="pc-age ${st}">${big}</div></div><div class="pc-body"><div class="pc-ev"><span class="pc-badge ${st}">${g.kind === 'unopened' ? '🟢' : '💤'} ${what}</span><span class="pc-t">${endTxt}${after}</span></div></div></div>`;
     };
     const PER = window.OA_READ_PER || 30;
     const rkey = [o.idleUser, q, R._range, view].join('|');
